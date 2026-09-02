@@ -547,4 +547,204 @@ insert into public.tilldelning (pass_id, worker_id, source, work_date)
 select 'cccccccc-0000-0000-0000-000000000003', w.id, 'snabb', app.stockholm_today() + 10
 from public.worker w join fx on fx.v = w.account_id where fx.k = 'w1';
 
+-- ============================================================================
+-- FÖRVAL AND THE PRIORITY TIERS -- Step 3 and Step 4
+--
+-- All on future dates, so nothing here collides with the confirmation rules
+-- exercised above.
+-- ============================================================================
+
+-- D1 carries two passes: one that already holds w3, and the batch's own.
+insert into public.pass (id, project_id, work_date, start_time, end_time,
+                         planned_hours, headcount, created_by)
+select 'eeeeeeee-0000-0000-0000-000000000001'::uuid,
+       'aaaaaaaa-0000-0000-0000-00000000000a'::uuid,
+       app.stockholm_today() + 20, '07:00'::time, '16:00'::time, 8.00, 1::smallint,
+       (select v from fx where k = 'leaderA');
+
+insert into public.tilldelning (pass_id, worker_id, source, work_date)
+select 'eeeeeeee-0000-0000-0000-000000000001', w.id, 'manuell', app.stockholm_today() + 20
+from public.worker w join fx on fx.v = w.account_id where fx.k = 'w3';
+
+insert into public.pass_batch (id, project_id, created_by)
+select 'ffffffff-0000-0000-0000-00000000000b', 'aaaaaaaa-0000-0000-0000-00000000000a',
+       (select v from fx where k = 'leaderA');
+
+-- w1 and w3 are hand-picked. w3 already works that date, so being hand-picked
+-- must not save them: "not rankable, not offered, not a fallback".
+insert into public.pass_batch_handpick (batch_id, worker_id)
+select 'ffffffff-0000-0000-0000-00000000000b', w.id
+from public.worker w join fx on fx.v = w.account_id where fx.k in ('w1', 'w3');
+
+-- w1, w2, w3 pre-pick the day. leaderA (also a worker) does not.
+insert into public.forval (worker_id, work_date, can_work)
+select w.id, app.stockholm_today() + 20, true
+from public.worker w join fx on fx.v = w.account_id where fx.k in ('w1', 'w2', 'w3');
+
+insert into public.pass (id, project_id, batch_id, work_date, start_time, end_time,
+                         planned_hours, headcount, created_by)
+select 'eeeeeeee-0000-0000-0000-000000000002'::uuid,
+       'aaaaaaaa-0000-0000-0000-00000000000a'::uuid,
+       'ffffffff-0000-0000-0000-00000000000b'::uuid,
+       app.stockholm_today() + 20, '07:00'::time, '16:00'::time, 8.00, 2::smallint,
+       (select v from fx where k = 'leaderA');
+
+set local role authenticated;
+select pg_temp.act_as((select v from fx where k = 'leaderA'));
+select public.fill_passes('ffffffff-0000-0000-0000-00000000000b');
+reset role;
+
+select pg_temp.ok(
+  (select t.source = 'handplockad' from public.tilldelning t
+   join public.worker w on w.id = t.worker_id join fx on fx.v = w.account_id
+   where t.pass_id = 'eeeeeeee-0000-0000-0000-000000000002' and fx.k = 'w1'),
+  'TIER.tier1_handpicked_with_forval',
+  'hand-picked AND pre-picked takes the first slot, marked handplockad');
+
+select pg_temp.ok(
+  (select t.source = 'forval' from public.tilldelning t
+   join public.worker w on w.id = t.worker_id join fx on fx.v = w.account_id
+   where t.pass_id = 'eeeeeeee-0000-0000-0000-000000000002' and fx.k = 'w2'),
+  'TIER.tier2_other_forvalda',
+  'everyone else who pre-picked fills the rest, marked forval');
+
+select pg_temp.ok(
+  (select count(*) from public.tilldelning t
+   join public.worker w on w.id = t.worker_id join fx on fx.v = w.account_id
+   where t.pass_id = 'eeeeeeee-0000-0000-0000-000000000002' and fx.k = 'w3') = 0,
+  'TIER.exclusion_beats_handpick',
+  'already working that date makes a worker invisible, hand-picked or not');
+
+select pg_temp.ok(
+  (select count(*) from public.tilldelning t
+   join public.worker w on w.id = t.worker_id join fx on fx.v = w.account_id
+   where t.pass_id = 'eeeeeeee-0000-0000-0000-000000000002' and fx.k = 'leaderA') = 0,
+  'TIER.no_forval_no_slot',
+  'the forval is the entry ticket; not marking the day means not on the list');
+
+-- ---- ordering: a lateness mark pushes a worker down ------------------------
+--
+-- Built so that the lateness offset is the ONLY thing deciding the outcome,
+-- and decides it deterministically:
+--
+--   w2 already holds a shift on the Monday of that week, so on shifts-that-week
+--   alone w1 (none) ranks FIRST and would take the slot.
+--   w1 carries three lateness marks, which push them to position four.
+--
+-- So with the rule, w2 wins; without it, w1 does. A control that removes the
+-- offset therefore flips this assertion rather than leaving it to a coin toss,
+-- which is what a two-candidate tie would have been.
+
+-- Monday of a week far from everything else in this suite.
+insert into public.pass (id, project_id, work_date, start_time, end_time,
+                         planned_hours, headcount, created_by)
+select 'eeeeeeee-0000-0000-0000-00000000000a'::uuid,
+       'aaaaaaaa-0000-0000-0000-00000000000a'::uuid,
+       app.week_start(app.stockholm_today() + 40), '07:00'::time, '16:00'::time,
+       8.00, 1::smallint, (select v from fx where k = 'leaderA');
+
+insert into public.tilldelning (pass_id, worker_id, source, work_date)
+select 'eeeeeeee-0000-0000-0000-00000000000a', w.id, 'manuell',
+       app.week_start(app.stockholm_today() + 40)
+from public.worker w join fx on fx.v = w.account_id where fx.k = 'w2';
+
+-- late_marks is not the worker's to move, and postgres carries no admin claim,
+-- so worker_self_edit_guard refuses it. Set it as the admin would.
+set local role authenticated;
+select pg_temp.act_as((select v from fx where k = 'admin'));
+update public.worker set late_marks = 3
+where id = (select w.id from public.worker w join fx on fx.v = w.account_id where fx.k = 'w1');
+reset role;
+
+-- Thursday of the same week.
+insert into public.forval (worker_id, work_date, can_work)
+select w.id, app.week_start(app.stockholm_today() + 40) + 3, true
+from public.worker w join fx on fx.v = w.account_id where fx.k in ('w1', 'w2');
+
+insert into public.pass_batch (id, project_id, created_by)
+select 'ffffffff-0000-0000-0000-00000000000c', 'aaaaaaaa-0000-0000-0000-00000000000a',
+       (select v from fx where k = 'leaderA');
+
+insert into public.pass (id, project_id, batch_id, work_date, start_time, end_time,
+                         planned_hours, headcount, created_by)
+select 'eeeeeeee-0000-0000-0000-000000000003'::uuid,
+       'aaaaaaaa-0000-0000-0000-00000000000a'::uuid,
+       'ffffffff-0000-0000-0000-00000000000c'::uuid,
+       app.week_start(app.stockholm_today() + 40) + 3, '07:00'::time, '16:00'::time,
+       8.00, 1::smallint, (select v from fx where k = 'leaderA');
+
+set local role authenticated;
+select pg_temp.act_as((select v from fx where k = 'leaderA'));
+select public.fill_passes('ffffffff-0000-0000-0000-00000000000c');
+reset role;
+
+select pg_temp.ok(
+  (select count(*) from public.tilldelning t
+   join public.worker w on w.id = t.worker_id join fx on fx.v = w.account_id
+   where t.pass_id = 'eeeeeeee-0000-0000-0000-000000000003' and fx.k = 'w2') = 1,
+  'TIER.lateness_demotes',
+  'three lateness marks cost w1 a slot they would otherwise have won on shift count');
+
+-- ---- Tier 3: Acceptera Pass ------------------------------------------------
+-- Nobody pre-picks D3 except w1, who marks it cant-work.
+insert into public.forval (worker_id, work_date, can_work)
+select w.id, app.stockholm_today() + 22, false
+from public.worker w join fx on fx.v = w.account_id where fx.k = 'w1';
+
+insert into public.pass_batch (id, project_id, created_by)
+select 'ffffffff-0000-0000-0000-00000000000d', 'aaaaaaaa-0000-0000-0000-00000000000a',
+       (select v from fx where k = 'leaderA');
+
+insert into public.pass (id, project_id, batch_id, work_date, start_time, end_time,
+                         planned_hours, headcount, created_by)
+select 'eeeeeeee-0000-0000-0000-000000000004'::uuid,
+       'aaaaaaaa-0000-0000-0000-00000000000a'::uuid,
+       'ffffffff-0000-0000-0000-00000000000d'::uuid,
+       app.stockholm_today() + 22, '07:00'::time, '16:00'::time, 8.00, 1::smallint,
+       (select v from fx where k = 'leaderA');
+
+set local role authenticated;
+select pg_temp.act_as((select v from fx where k = 'leaderA'));
+select public.fill_passes('ffffffff-0000-0000-0000-00000000000d');
+reset role;
+
+select pg_temp.ok(
+  (select count(*) from public.tilldelning t
+   where t.pass_id = 'eeeeeeee-0000-0000-0000-000000000004' and t.released_at is null) = 0,
+  'TIER3.nothing_assigned_without_forval',
+  'an empty forval list assigns nobody -- it goes to Acceptera Pass instead');
+
+select pg_temp.ok(
+  (select count(*) from public.pass_offer o
+   join public.worker w on w.id = o.worker_id join fx on fx.v = w.account_id
+   where o.pass_id = 'eeeeeeee-0000-0000-0000-000000000004' and fx.k = 'w2') = 1,
+  'TIER3.offered_when_forval_exhausted',
+  'everyone free that day gets the card');
+
+select pg_temp.ok(
+  (select count(*) from public.pass_offer o
+   join public.worker w on w.id = o.worker_id join fx on fx.v = w.account_id
+   where o.pass_id = 'eeeeeeee-0000-0000-0000-000000000004' and fx.k = 'w1') = 0,
+  'TIER3.no_offer_when_cant_work',
+  'marking a day cant-work is an answer; it is not asked again');
+
+-- Accepting takes the slot, and it enters as an ordinary assignment.
+set local role authenticated;
+select pg_temp.act_as((select v from fx where k = 'w2'));
+select public.accept_offer('eeeeeeee-0000-0000-0000-000000000004');
+reset role;
+
+select pg_temp.ok(
+  (select t.source = 'oppen' from public.tilldelning t
+   join public.worker w on w.id = t.worker_id join fx on fx.v = w.account_id
+   where t.pass_id = 'eeeeeeee-0000-0000-0000-000000000004' and fx.k = 'w2'),
+  'TIER3.accept_assigns', 'accepting the card assigns the worker, marked oppen');
+
+-- The pass is full, so it leaves everyone else's queue.
+select pg_temp.ok(
+  (select count(*) from public.pass_offer o
+   where o.pass_id = 'eeeeeeee-0000-0000-0000-000000000004' and o.state = 'offered') = 0,
+  'TIER3.queue_closes_when_full',
+  'once headcount is met the pass vanishes from every other queue');
+
 select pg_temp.ok(true, 'SUITE.complete', 'every assertion passed');

@@ -14,7 +14,9 @@
     "db:validate": "node scripts/validate-migration.mjs",
     "db:snapshot": "node scripts/schema-check.mjs --write",
     "db:check": "node scripts/schema-check.mjs",
-    "walkthrough": "node scripts/walkthrough.mjs"
+    "walkthrough": "node scripts/walkthrough.mjs",
+    "test:race": "node scripts/race-test.mjs",
+    "walkthrough:tiers": "node scripts/walkthrough-tiers.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.113.0",

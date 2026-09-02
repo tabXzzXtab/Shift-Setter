@@ -20,6 +20,23 @@ import { connectionString } from "./env.mjs";
 
 const SUITE = readFileSync("supabase/tests/suite.sql", "utf8");
 
+/**
+ * Some protections are rules INSIDE a function rather than a droppable object.
+ * Those controls are generated from the live definition and one documented
+ * substitution, so a control can never drift from the function it is testing --
+ * if the text is gone, the control fails loudly instead of quietly passing.
+ */
+const perturb = (find, replace) => async (client) => {
+  const { rows } = await client.query(
+    `select pg_get_functiondef('public.fill_passes(uuid)'::regprocedure) as def`,
+  );
+  const def = rows[0].def;
+  if (!def.includes(find)) {
+    throw new Error(`control text no longer present in fill_passes: ${find.slice(0, 60)}…`);
+  }
+  return def.replace(find, replace);
+};
+
 /** Each control: disable one protection, name the assertion that must then fail. */
 const CONTROLS = [
   ["invariant 2 -- one assignment per worker per day",
@@ -90,6 +107,26 @@ const CONTROLS = [
    "alter table public.worker disable row level security",
    "RLS.worker_sees_only_self"],
 
+  ["the exclusion filter, before any tier",
+   perturb("and f.worker_id not in (select worker_id from excluded)", "and true"),
+   // Without it, w3 is hand-picked AND already working that date, so they sort
+   // into the second slot ahead of w2 -- and their insert then dies on
+   // invariant 2's index, leaving the slot unfilled. w2 never gets it.
+   "TIER.tier2_other_forvalda"],
+
+  ["lateness pushes a worker down the list",
+   perturb("+ late_marks as rank_in_tier", "+ 0 as rank_in_tier"),
+   "TIER.lateness_demotes"],
+
+  ["cant-work is not asked again",
+   perturb(
+     `and not exists (
+          select 1 from public.forval f
+          where f.worker_id = w.id and f.work_date = r.wd and not f.can_work
+        )`,
+     "and true"),
+   "TIER3.no_offer_when_cant_work"],
+
   ["invariant 7 -- project creation is a gate",
    `alter table public.project drop constraint ` +
    `"${"project_bestallare_orgnr_check"}"`,
@@ -107,7 +144,10 @@ const client = new pg.Client({
 async function runSuite(disableSql) {
   await client.query("begin");
   try {
-    if (disableSql) await client.query(disableSql);
+    if (disableSql) {
+      const sql = typeof disableSql === "function" ? await disableSql(client) : disableSql;
+      await client.query(sql);
+    }
     await client.query(SUITE);
     return null;
   } catch (e) {

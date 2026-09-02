@@ -200,6 +200,7 @@ constr worker PRIMARY KEY (id)
 constr worker UNIQUE (account_id)
 index  CREATE INDEX arbetsdagbok_overlap_idx ON public.arbetsdagbok USING gist (project_id, covered)
 index  CREATE INDEX clock_edit_tilldelning_idx ON public.clock_edit USING btree (tilldelning_id, edited_at)
+index  CREATE INDEX forval_can_work_idx ON public.forval USING btree (work_date) WHERE can_work
 index  CREATE INDEX forval_date_idx ON public.forval USING btree (work_date, can_work)
 index  CREATE INDEX notification_unread_idx ON public.notification USING btree (account_id, created_at DESC) WHERE (read_at IS NULL)
 index  CREATE INDEX pass_date_idx ON public.pass USING btree (work_date) WHERE (deleted_at IS NULL)
@@ -207,6 +208,7 @@ index  CREATE INDEX pass_offer_open_idx ON public.pass_offer USING btree (worker
 index  CREATE INDEX pass_project_date_idx ON public.pass USING btree (project_id, work_date) WHERE (deleted_at IS NULL)
 index  CREATE INDEX project_day_survey_idx ON public.project_day USING btree (project_id, work_date) WHERE (confirmed_via = 'bristsurvey'::confirmation_source)
 index  CREATE INDEX project_leader_account_idx ON public.project_leader USING btree (account_id)
+index  CREATE INDEX tilldelning_date_active_idx ON public.tilldelning USING btree (work_date, worker_id) WHERE (released_at IS NULL)
 index  CREATE INDEX tilldelning_pass_idx ON public.tilldelning USING btree (pass_id) WHERE (released_at IS NULL)
 index  CREATE INDEX tilldelning_worker_idx ON public.tilldelning USING btree (worker_id)
 index  CREATE INDEX worker_active_idx ON public.worker USING btree (id) WHERE (deleted_at IS NULL)
@@ -321,6 +323,7 @@ func   app.tg_last_admin_guard() md5=6c4fd5dcb72f8a568c492f7139ed8c2c
 func   app.tg_pass_delete_guard() md5=f4d3d483aab732281e868750071d7eb2
 func   app.tg_sync_work_date() md5=73d0cc0d6a532f106c8449760ce90c5d
 func   app.tg_worker_self_edit_guard() md5=1d48b1ab95436213192e2a5329677630
+func   app.week_start(d date) md5=4a8f6c192e41cf4a14ebb5f87e671c29
 func   public.accept_offer(p_pass uuid) md5=4e6081afac5dad10ccfee3666d80296d
 func   public.assign_snabb(p_pass uuid, p_worker uuid) md5=9e6187886a2988ce5c312abd96339396
 func   public.cash_dist(money, money) md5=1acd79b2b4b9df652d58d90e72f05a29
@@ -329,8 +332,10 @@ func   public.clock_out(p_tilldelning uuid) md5=0cba39279e3ae3f7f67c95f6f627bfa2
 func   public.date_dist(date, date) md5=3983f43755ffa80d869985d91ee8e538
 func   public.decline_offer(p_pass uuid) md5=3b77c01816ffe8db5847a74c338cae38
 func   public.delete_pass(p_pass uuid) md5=18c81886a24de59bb3922d1592d90051
+func   public.fill_passes(p_batch uuid) md5=8eee9db8525bc94732d0ba7bea095736
 func   public.float4_dist(real, real) md5=1491a162a165d9bd567fbac3c9d1dd2d
 func   public.float8_dist(double precision, double precision) md5=1c6ca5056a910a22941735008e6a75c1
+func   public.forval_coverage(p_dates date[]) md5=413a413884b1fb318a370f1e9359337f
 func   public.gbt_bit_compress(internal) md5=31f34def849731302ee00e721401f01e
 func   public.gbt_bit_consistent(internal, bit, smallint, oid, internal) md5=878550d7e83f71fce0c49f44e350fedb
 func   public.gbt_bit_penalty(internal, internal, internal) md5=bb931bf3a8c73b48aeb0d1c8ff8089a0

@@ -116,6 +116,9 @@ before writing framework code.
 | `npm run db:sql -- --file path/to.sql` | Same, from a file — test suites, fixtures, negative controls |
 | `npm run test:db` | Assertion suite + 14 negative controls, all rolled back |
 | `npm run walkthrough` | Drive the whole slice in a browser; artifacts to `artifacts/` |
+| `npm run walkthrough:tiers` | Förval, the tiers and Acceptera Pass in a browser |
+| `npm run test:race` | Two concurrent accepts on a one-slot pass, N rounds |
+| `node scripts/long-doc-check.mjs` | Print a long Arbetsdagbok; assert no header/footer overlap |
 
 Account creation runs through the `create-account` Edge Function, because it
 needs the service-role key. Deploy it with:

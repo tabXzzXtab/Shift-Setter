@@ -45,8 +45,15 @@ export function Home() {
           </>
         )}
 
-        {/* An arbetsledare is also a worker and holds shifts (Section 2). */}
-        {account.worker_id && <BigLink href="/mina-pass">Mina pass</BigLink>}
+        {/* An arbetsledare is also a worker and holds shifts (Section 2), so
+            these appear for them too. */}
+        {account.worker_id && (
+          <>
+            <BigLink href="/mina-pass">Mina pass</BigLink>
+            <BigLink href="/min-kalender">Min kalender</BigLink>
+            <BigLink href="/acceptera">Acceptera pass</BigLink>
+          </>
+        )}
       </div>
 
       <p className="mt-6 text-sm text-neutral-600">

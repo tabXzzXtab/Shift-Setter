@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { AuthGate } from "@/components/auth-gate";
 import { Button, Field, Group, Input, Notice, Screen, Select } from "@/components/ui";
 import { getSupabase } from "@/lib/supabase/client";
@@ -9,23 +8,25 @@ import { stockholmToday } from "@/lib/dates";
 
 type Project = { id: string; name: string };
 type Worker = { id: string; name: string };
+type Result = { filled: number; slots: number; offered: number };
 
 /**
- * Skapa Pass, reduced to this slice: one pass, workers picked directly.
+ * Skapa Pass -- a demand for people, not a list of names.
  *
- * No förval, no tiers, no Acceptera Pass. Those come after; what stays true
- * here is everything the pass itself has to get right.
+ * The leader sets how many are needed. Who fills the slots is the priority
+ * list's business, walked in the database by fill_passes: exclusion filter
+ * first, then hand-picked pre-pickers, then everyone else who pre-picked
+ * ordered by fewest shifts that week, then Acceptera Pass.
  *
- * The project dropdown lists ONLY projects this leader is assigned to. That is
- * not a courtesy -- it is why an unassigned arbetsledare needs no special
- * handling anywhere: their dropdown is empty, so they cannot create work, and
- * the RLS policy behind it refuses the insert regardless.
+ * Hand-picking does NOT assign. It is a ranking modifier for this batch: the
+ * förval is the entry ticket, so a pick who never marked the day simply is not
+ * on the list, and that is not a mistake worth warning about.
  *
- * Hours are a typed field, never computed from the span. 07:00-16:00 with an
- * unpaid lunch is 8 hours, not 9, and that is the normal case (invariant 1).
+ * The shortfall warning is the one thing worth saying at creation time --
+ * anything short of coverage is worth knowing about while the schedule can
+ * still be changed. It warns; it never blocks.
  */
 function NyttPass() {
-  const router = useRouter();
   const [projects, setProjects] = useState<Project[]>([]);
   const [workers, setWorkers] = useState<Worker[]>([]);
   const [projectId, setProjectId] = useState("");
@@ -34,77 +35,109 @@ function NyttPass() {
   const [end, setEnd] = useState("16:00");
   const [hours, setHours] = useState("8");
   const [headcount, setHeadcount] = useState(1);
-  const [picked, setPicked] = useState<string[]>([]);
+  const [handpicked, setHandpicked] = useState<string[]>([]);
+  const [available, setAvailable] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [result, setResult] = useState<Result | null>(null);
 
   useEffect(() => {
     const sb = getSupabase();
-    sb.from("project").select("id, name").order("name").then(({ data }) => {
-      const rows = (data ?? []).map((p) => ({ id: p.id, name: p.name }));
+    void (async () => {
+      const { data: p } = await sb.from("project").select("id, name").order("name");
+      const rows = (p ?? []).map((x) => ({ id: x.id, name: x.name }));
       setProjects(rows);
       if (rows.length === 1) setProjectId(rows[0]!.id);
-    });
-    // worker_roster: names only. A leader has no business seeing a colleague's
-    // personnummer or bank details, and the view does not expose them.
-    sb.from("worker_roster").select("id, name").order("name").then(({ data }) => {
-      setWorkers((data ?? []).flatMap((w) => (w.id && w.name ? [{ id: w.id, name: w.name }] : [])));
-    });
+
+      // Names only. A leader has no business seeing a colleague's personnummer.
+      const { data: w } = await sb.from("worker_roster").select("id, name").order("name");
+      setWorkers((w ?? []).flatMap((x) => (x.id && x.name ? [{ id: x.id, name: x.name }] : [])));
+    })();
   }, []);
 
+  // How many people have pre-picked this day and are still free on it.
+  useEffect(() => {
+    let active = true;
+    void (async () => {
+      const { data } = await getSupabase().rpc("forval_coverage", { p_dates: [date] });
+      if (!active) return;
+      setAvailable(data?.[0]?.available ?? 0);
+    })();
+    return () => { active = false; };
+  }, [date]);
+
+  const shortfall = available !== null && available < headcount;
+
   function toggle(id: string) {
-    setPicked((p) =>
-      p.includes(id) ? p.filter((x) => x !== id) : p.length >= headcount ? p : [...p, id],
-    );
+    setHandpicked((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
   }
 
   async function save() {
     setSaving(true);
     setError(null);
     const sb = getSupabase();
+    const me = (await sb.auth.getUser()).data.user!.id;
 
-    const { data: pass, error: pErr } = await sb
-      .from("pass")
-      .insert({
-        project_id: projectId,
-        work_date: date,
-        start_time: start,
-        end_time: end,
-        planned_hours: Number(hours.replace(",", ".")),
-        headcount,
-        created_by: (await sb.auth.getUser()).data.user!.id,
-      })
+    // The batch is what hand-picking is scoped to: "top-ranked for this batch".
+    const { data: batch, error: bErr } = await sb
+      .from("pass_batch")
+      .insert({ project_id: projectId, created_by: me })
       .select("id")
       .single();
+    if (bErr || !batch) { setError(bErr?.message ?? "Kunde inte skapa passet."); setSaving(false); return; }
 
-    if (pErr || !pass) {
-      setError(pErr?.message ?? "Kunde inte skapa passet.");
-      setSaving(false);
-      return;
-    }
-
-    if (picked.length > 0) {
-      const { error: tErr } = await sb.from("tilldelning").insert(
-        picked.map((worker_id) => ({
-          pass_id: pass.id,
-          worker_id,
-          source: "manuell" as const,
-          work_date: date,
-        })),
+    if (handpicked.length) {
+      const { error: hErr } = await sb.from("pass_batch_handpick").insert(
+        handpicked.map((worker_id) => ({ batch_id: batch.id, worker_id })),
       );
-      if (tErr) {
-        // Invariant 2 surfaces here: someone already works that date.
-        setError(
-          /tilldelning_one_per_worker_per_day/.test(tErr.message)
-            ? "Någon av de valda arbetar redan den dagen. Ingen får två pass samma datum."
-            : tErr.message,
-        );
-        setSaving(false);
-        return;
-      }
+      if (hErr) { setError(hErr.message); setSaving(false); return; }
     }
 
-    router.push("/");
+    const { error: pErr } = await sb.from("pass").insert({
+      project_id: projectId,
+      batch_id: batch.id,
+      work_date: date,
+      start_time: start,
+      end_time: end,
+      planned_hours: Number(hours.replace(",", ".")),
+      headcount,
+      created_by: me,
+    });
+    if (pErr) { setError(pErr.message); setSaving(false); return; }
+
+    // The walk down the tiers. Not done here -- the browser is not a boundary.
+    const { data: filled, error: fErr } = await sb.rpc("fill_passes", { p_batch: batch.id });
+    if (fErr) { setError(fErr.message); setSaving(false); return; }
+
+    const row = filled?.[0];
+    setResult({
+      filled: row?.filled ?? 0,
+      slots: row?.slots ?? headcount,
+      offered: row?.offered ?? 0,
+    });
+    setSaving(false);
+  }
+
+  if (result) {
+    return (
+      <Screen title="Passet är skapat" back="/">
+        <p className="mb-4 text-2xl font-bold">
+          {result.filled} av {result.slots} platser tillsatta
+        </p>
+        {result.offered > 0 && (
+          <Notice kind="info">
+            {result.slots - result.filled} plats(er) kvar. {result.offered} arbetare har
+            fått passet i Acceptera Pass.
+          </Notice>
+        )}
+        {result.filled === result.slots && (
+          <Notice kind="ok">Passet är fullt.</Notice>
+        )}
+        <div className="mt-6 flex flex-col gap-3">
+          <Button onClick={() => { setResult(null); setHandpicked([]); }}>Skapa ett till</Button>
+        </div>
+      </Screen>
+    );
   }
 
   return (
@@ -140,14 +173,10 @@ function NyttPass() {
       </div>
 
       <Field label="Timmar" hint="Skrivs för hand. Rasten räknas inte.">
-        <Input
-          inputMode="decimal"
-          value={hours}
-          onChange={(e) => setHours(e.target.value)}
-        />
+        <Input inputMode="decimal" value={hours} onChange={(e) => setHours(e.target.value)} />
       </Field>
 
-      <Group label="Antal personer">
+      <Group label="Hur många behövs?">
         <div className="flex items-stretch gap-3">
           <button
             type="button"
@@ -171,10 +200,26 @@ function NyttPass() {
         </div>
       </Group>
 
-      <Group label={`Vilka jobbar? (${picked.length}/${headcount})`}>
+      {available !== null && (
+        shortfall ? (
+          <Notice kind="info">
+            Bara {available} arbetare har markerat den dagen. Du behöver {headcount}.
+            Resten går ut som Acceptera Pass.
+          </Notice>
+        ) : (
+          <p className="mb-4 text-base">
+            {available} arbetare har markerat den dagen.
+          </p>
+        )
+      )}
+
+      <Group
+        label={`Handplocka (${handpicked.length})`}
+        hint="Frivilligt. Ger förtur — men bara till dem som markerat dagen."
+      >
         <div className="flex flex-col gap-2">
           {workers.map((w) => {
-            const on = picked.includes(w.id);
+            const on = handpicked.includes(w.id);
             return (
               <button
                 key={w.id}
@@ -197,10 +242,7 @@ function NyttPass() {
       </Group>
 
       <div className="mt-6">
-        <Button
-          onClick={save}
-          disabled={saving || !projectId || hours.trim() === "" || picked.length === 0}
-        >
+        <Button onClick={save} disabled={saving || !projectId || hours.trim() === ""}>
           {saving ? "Skapar…" : "Skapa pass"}
         </Button>
       </div>

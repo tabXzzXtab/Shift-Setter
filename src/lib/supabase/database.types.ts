@@ -933,6 +933,23 @@ export type Database = {
       clock_out: { Args: { p_tilldelning: string }; Returns: string }
       decline_offer: { Args: { p_pass: string }; Returns: undefined }
       delete_pass: { Args: { p_pass: string }; Returns: undefined }
+      fill_passes: {
+        Args: { p_batch: string }
+        Returns: {
+          filled: number
+          filled_pass: string
+          for_date: string
+          offered: number
+          slots: number
+        }[]
+      }
+      forval_coverage: {
+        Args: { p_dates: string[] }
+        Returns: {
+          available: number
+          work_date: string
+        }[]
+      }
       release_assignment: {
         Args: {
           p_reason?: Database["public"]["Enums"]["release_reason"]
