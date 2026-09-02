@@ -178,17 +178,26 @@ try {
   log("signed in as arbetsledare");
 
   await page.goto(`${BASE}/pass/ny/`, { waitUntil: "networkidle" });
+
+  // Skapa Pass is two steps now: which days, then what each day needs.
+  await page.getByText("Vilka dagar?").waitFor({ timeout: 20000 });
+  const cell = page.locator(`[data-date="${yesterday}"]`);
+  await cell.waitFor({ timeout: 20000 });
+  await cell.scrollIntoViewIfNeeded();
+  const box = await cell.boundingBox();
+  await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2);
+  await page.getByRole("button", { name: /Klar, / }).click();
+  await page.getByText("Vad behövs?").waitFor({ timeout: 20000 });
+
   await field(page, "Projekt").selectOption({ label: projectName });
-  await field(page, "Datum").fill(yesterday);
-  await field(page, "Börjar").fill("07:00");
-  await field(page, "Slutar").fill("16:00");
-  await field(page, "Timmar").fill("8");   // typed by a human, not the span
+  await page.getByLabel("Timmar på rad 1").fill("8");   // typed, not the span
   // Hand-picking is a ranking modifier, so this puts them in Tier 1 -- but only
   // because they marked the day. exact: the accessible name would otherwise
   // also match the group label.
   await page.getByRole("button", { name: `Anna Arbetare ${RUN}`, exact: true }).click();
   await shot(page, "07-skapa-pass");
-  await page.getByRole("button", { name: "Skapa pass" }).click();
+  await page.getByRole("button", { name: /Skapa 1 pass/ }).click();
+  await mustSee(page, "Passen är skapade", "the pass did not generate");
   await mustSee(page, "1 av 1 platser tillsatta", "the priority list did not fill the slot");
   await shot(page, "07b-tillsatt");
   log(`created a pass on ${yesterday}, 07:00-16:00, 8 h; the tiers filled it`);

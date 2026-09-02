@@ -99,6 +99,21 @@ async function paintDays(page, dates, mode = "Kan jobba") {
   await page.waitForTimeout(1200);   // the drag commits on release
 }
 
+/** Step 1 of Skapa Pass: tap the days, then confirm with the corner control. */
+async function pickDays(page, dates) {
+  await page.getByText("Vilka dagar?").waitFor({ timeout: 20000 });
+  for (const d of dates) {
+    const cell = page.locator(`[data-date="${d}"]`);
+    await cell.waitFor({ timeout: 20000 });
+    await cell.scrollIntoViewIfNeeded();
+    const b = await cell.boundingBox();
+    await page.touchscreen.tap(b.x + b.width / 2, b.y + b.height / 2);
+    await page.waitForTimeout(400);
+  }
+  await page.getByRole("button", { name: /Klar, / }).click();
+  await page.getByText("Vad behövs?").waitFor({ timeout: 20000 });
+}
+
 const browser = await chromium.launch();
 const ctx = await browser.newContext({
   ...devices["Pixel 7"], locale: "sv-SE", timezoneId: "Europe/Stockholm",
@@ -172,18 +187,18 @@ try {
   // ---- leader creates demand ------------------------------------------------
   await signIn(page, L.email, L.password);
   await page.goto(`${BASE}/pass/ny/`, { waitUntil: "networkidle" });
+  await pickDays(page, [D]);
   await field(page, "Projekt").selectOption({ label: project });
-  await field(page, "Datum").fill(D);
-  await field(page, "Timmar").fill("8");
-  await page.getByRole("button", { name: "Fler" }).click();          // headcount 2
-  await mustSee(page, "2 arbetare har markerat den dagen", "the coverage count is wrong");
+  await page.getByLabel("Timmar på rad 1").fill("8");
+  await page.getByRole("button", { name: "Fler på rad 1" }).click();   // headcount 2
 
   // Hand-pick W2 (who pre-picked) and W3 (who did not).
   await page.getByRole("button", { name: `Bo T${RUN}`, exact: true }).click();
   await page.getByRole("button", { name: `Cim T${RUN}`, exact: true }).click();
   await shot(page, "21-skapa-pass-handplock");
-  await page.getByRole("button", { name: "Skapa pass" }).click();
+  await page.getByRole("button", { name: /Skapa 1 pass/ }).click();
 
+  await mustSee(page, "Passen är skapade", "the batch did not generate");
   await mustSee(page, "2 av 2 platser tillsatta", "the tiers did not fill both slots");
   await shot(page, "22-tillsatta");
   log("both slots filled from the förval list");
@@ -212,16 +227,18 @@ try {
   await signOut(page);
   await signIn(page, L.email, L.password);
   await page.goto(`${BASE}/pass/ny/`, { waitUntil: "networkidle" });
+  await pickDays(page, [D2]);
   await field(page, "Projekt").selectOption({ label: project });
-  await field(page, "Datum").fill(D2);
-  await field(page, "Timmar").fill("8");
-  // W1 said no to this day, so nobody is available on it.
-  await mustSee(page, "Bara 0 arbetare har markerat den dagen",
+  await page.getByLabel("Timmar på rad 1").fill("8");
+  // W1 said no to this day and nobody else marked it, so the one slot has
+  // nobody behind it at all.
+  await mustSee(page, "saknar folk som markerat dagen",
     "the shortfall was not flagged at creation");
   await shot(page, "23-brist-varning");
-  log("shortfall flagged before the pass was generated");
+  log("shortfall flagged before the passes were generated");
 
-  await page.getByRole("button", { name: "Skapa pass" }).click();
+  await page.getByRole("button", { name: /Skapa 1 pass/ }).click();
+  await mustSee(page, "Passen är skapade", "the near pass did not generate");
   await mustSee(page, "0 av 1 platser tillsatta", "an empty förval list should assign nobody");
   await mustSee(page, "Acceptera Pass", "the slot should have gone out as Acceptera Pass");
   log("nobody assigned; the slot went out as Acceptera Pass");
