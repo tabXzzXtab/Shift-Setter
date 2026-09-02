@@ -13,7 +13,8 @@
     "test:db": "node scripts/test-db.mjs",
     "db:validate": "node scripts/validate-migration.mjs",
     "db:snapshot": "node scripts/schema-check.mjs --write",
-    "db:check": "node scripts/schema-check.mjs"
+    "db:check": "node scripts/schema-check.mjs",
+    "walkthrough": "node scripts/walkthrough.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.113.0",
@@ -22,6 +23,7 @@
     "react-dom": "19.2.8"
   },
   "devDependencies": {
+    "@napi-rs/canvas": "^1.0.8",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/pg": "^8.23.1",
@@ -30,7 +32,9 @@
     "dotenv": "^17.4.2",
     "eslint": "^9",
     "eslint-config-next": "16.3.4",
+    "pdfjs-dist": "^6.3.289",
     "pg": "^8.23.0",
+    "playwright": "^1.62.1",
     "supabase": "^2.116.0",
     "tailwindcss": "^4",
     "typescript": "^5"

@@ -79,7 +79,16 @@ select v, case
            end,
        k <> 'admin2'
 from fx where k <> 'ghost';
--- admin2 starts paused, so 'admin' is genuinely the last active admin.
+-- admin2 starts paused, so the suite's 'admin' is the last active admin
+-- WITHIN the suite. Real admin accounts exist in this database now, so they
+-- are paused for the duration of this transaction -- which is always rolled
+-- back -- or invariant 11 could not be tested at all.
+--
+-- Order matters: the suite's admin is inserted first, so pausing the real ones
+-- is legal. The guard only ever refuses the last active admin.
+update public.account set active = false
+where role = 'admin'
+  and id not in (select v from fx where k like 'admin%');
 
 insert into public.worker (account_id, name, email)
 select v, initcap(k), k || '@suite.test' from fx where k in ('w1','w2','w3','leaderA');

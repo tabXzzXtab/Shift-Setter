@@ -91,6 +91,17 @@ token and talks to PostgREST directly.
 
 ---
 
+## Next.js 16
+
+This is not the Next.js most training data describes -- APIs, conventions and
+file structure differ. Read the relevant guide in `node_modules/next/dist/docs/`
+before writing framework code.
+
+(`next dev` wants to append this itself on every run; `agentRules: false` in
+`next.config.ts` stops it, because nothing automated edits this file.)
+
+---
+
 ## Commands
 
 | Command | Purpose |
@@ -103,6 +114,19 @@ token and talks to PostgREST directly.
 | `npm run types:gen` | **Regenerate `src/lib/supabase/database.types.ts`. Run after every migration.** |
 | `npm run db:sql -- --query "select 1;"` | Arbitrary SQL against the real database |
 | `npm run db:sql -- --file path/to.sql` | Same, from a file — test suites, fixtures, negative controls |
+| `npm run test:db` | Assertion suite + 14 negative controls, all rolled back |
+| `npm run walkthrough` | Drive the whole slice in a browser; artifacts to `artifacts/` |
+
+Account creation runs through the `create-account` Edge Function, because it
+needs the service-role key. Deploy it with:
+
+```bash
+node -e "require('child_process').execFileSync(process.execPath,['node_modules/supabase/dist/supabase.js','functions','deploy','create-account','--project-ref',process.env.SUPABASE_PROJECT_REF,'--no-verify-jwt','--use-api'],{stdio:'inherit',env:process.env})"
+```
+
+The founding admin cannot come from that function (it requires an admin
+caller), so it is created once by `node scripts/bootstrap-admin.mjs <email>
+<password>` -- the same single-writer route as schema.
 
 ---
 

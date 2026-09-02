@@ -22,6 +22,11 @@ const nextConfig: NextConfig = {
   // next/image's optimizer needs a server. There isn't one.
   images: { unoptimized: true },
 
+  // `next dev` otherwise appends a block to CLAUDE.md on every run. That file
+  // is the invariants document, verified verbatim against the spec; nothing
+  // automated may edit it. Its guidance is kept by hand instead, below.
+  agentRules: false,
+
   // A build that ships type errors defeats the point of Phase 1.
   // (Next 16 removed the `eslint` key from NextConfig; lint runs as its own
   // script and as its own CI step instead.)
