@@ -11,7 +11,9 @@
     "db:sql": "node scripts/sql.mjs",
     "verify": "npm run lint && npm run typecheck && npm run build",
     "test:db": "node scripts/test-db.mjs",
-    "db:validate": "node scripts/validate-migration.mjs"
+    "db:validate": "node scripts/validate-migration.mjs",
+    "db:snapshot": "node scripts/schema-check.mjs --write",
+    "db:check": "node scripts/schema-check.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.113.0",

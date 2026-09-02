@@ -1,0 +1,651 @@
+enum   app_role = admin,arbetsledare,arbetare
+enum   assignment_source = handplockad,forval,oppen,manuell,snabb
+enum   confirmation_source = leader,bristsurvey
+enum   notification_kind = shift_deleted,shift_offered,day_unconfirmed
+enum   offer_state = offered,accepted,declined,withdrawn
+enum   release_reason = removed_by_leader,replaced_by_snabb,shift_deleted,absent_at_confirmation
+column account.active boolean NOT NULL DEFAULT true
+column account.created_at timestamp with time zone NOT NULL DEFAULT now()
+column account.created_by uuid
+column account.id uuid NOT NULL
+column account.role app_role NOT NULL DEFAULT 'arbetare'::app_role
+column account_directory.active boolean
+column account_directory.id uuid
+column account_directory.name text
+column account_directory.role app_role
+column account_directory.worker_id uuid
+column arbetsdagbok.covered daterange NOT NULL
+column arbetsdagbok.generated_at timestamp with time zone NOT NULL DEFAULT now()
+column arbetsdagbok.generated_by uuid NOT NULL
+column arbetsdagbok.id uuid NOT NULL DEFAULT gen_random_uuid()
+column arbetsdagbok.project_id uuid NOT NULL
+column clock_edit.edited_at timestamp with time zone NOT NULL DEFAULT now()
+column clock_edit.edited_by uuid NOT NULL
+column clock_edit.field text NOT NULL
+column clock_edit.id bigint NOT NULL
+column clock_edit.new_value timestamp with time zone
+column clock_edit.old_value timestamp with time zone
+column clock_edit.tilldelning_id uuid NOT NULL
+column forval.can_work boolean NOT NULL
+column forval.updated_at timestamp with time zone NOT NULL DEFAULT now()
+column forval.work_date date NOT NULL
+column forval.worker_id uuid NOT NULL
+column my_offer.end_time time without time zone
+column my_offer.pass_id uuid
+column my_offer.planned_hours numeric(4,2)
+column my_offer.project_name text
+column my_offer.site_address text
+column my_offer.start_time time without time zone
+column my_offer.work_date date
+column my_shift.clock_in timestamp with time zone
+column my_shift.clock_out timestamp with time zone
+column my_shift.confirmed_hours numeric
+column my_shift.day_confirmed boolean
+column my_shift.end_time time without time zone
+column my_shift.id uuid
+column my_shift.pass_id uuid
+column my_shift.planned_hours numeric(4,2)
+column my_shift.project_id uuid
+column my_shift.project_name text
+column my_shift.site_address text
+column my_shift.start_time time without time zone
+column my_shift.work_date date
+column notification.account_id uuid NOT NULL
+column notification.created_at timestamp with time zone NOT NULL DEFAULT now()
+column notification.id uuid NOT NULL DEFAULT gen_random_uuid()
+column notification.kind notification_kind NOT NULL
+column notification.payload jsonb NOT NULL DEFAULT '{}'::jsonb
+column notification.read_at timestamp with time zone
+column pass.batch_id uuid
+column pass.created_at timestamp with time zone NOT NULL DEFAULT now()
+column pass.created_by uuid NOT NULL
+column pass.deleted_at timestamp with time zone
+column pass.deleted_by uuid
+column pass.end_time time without time zone NOT NULL
+column pass.headcount smallint NOT NULL
+column pass.id uuid NOT NULL DEFAULT gen_random_uuid()
+column pass.planned_hours numeric(4,2) NOT NULL
+column pass.project_id uuid NOT NULL
+column pass.start_time time without time zone NOT NULL
+column pass.work_date date NOT NULL
+column pass_batch.created_at timestamp with time zone NOT NULL DEFAULT now()
+column pass_batch.created_by uuid NOT NULL
+column pass_batch.id uuid NOT NULL DEFAULT gen_random_uuid()
+column pass_batch.project_id uuid NOT NULL
+column pass_batch_handpick.batch_id uuid NOT NULL
+column pass_batch_handpick.worker_id uuid NOT NULL
+column pass_block.blocked_at timestamp with time zone NOT NULL DEFAULT now()
+column pass_block.pass_id uuid NOT NULL
+column pass_block.worker_id uuid NOT NULL
+column pass_offer.id uuid NOT NULL DEFAULT gen_random_uuid()
+column pass_offer.offered_at timestamp with time zone NOT NULL DEFAULT now()
+column pass_offer.pass_id uuid NOT NULL
+column pass_offer.responded_at timestamp with time zone
+column pass_offer.state offer_state NOT NULL DEFAULT 'offered'::offer_state
+column pass_offer.worker_id uuid NOT NULL
+column project.bestallare_address text NOT NULL
+column project.bestallare_bolag text NOT NULL
+column project.bestallare_orgnr text NOT NULL
+column project.created_at timestamp with time zone NOT NULL DEFAULT now()
+column project.created_by uuid
+column project.deactivated_at timestamp with time zone
+column project.deleted_at timestamp with time zone
+column project.id uuid NOT NULL DEFAULT gen_random_uuid()
+column project.name text NOT NULL
+column project.services text NOT NULL
+column project.site_address text NOT NULL
+column project.start_date date NOT NULL
+column project_day.confirmed_at timestamp with time zone
+column project_day.confirmed_by uuid
+column project_day.confirmed_via confirmation_source
+column project_day.created_at timestamp with time zone NOT NULL DEFAULT now()
+column project_day.project_id uuid NOT NULL
+column project_day.vad_vi_gjorde text
+column project_day.work_date date NOT NULL
+column project_leader.account_id uuid NOT NULL
+column project_leader.assigned_at timestamp with time zone NOT NULL DEFAULT now()
+column project_leader.project_id uuid NOT NULL
+column tilldelning.clock_in timestamp with time zone
+column tilldelning.clock_in_original timestamp with time zone
+column tilldelning.clock_out timestamp with time zone
+column tilldelning.clock_out_original timestamp with time zone
+column tilldelning.confirmed_hours numeric(4,2)
+column tilldelning.created_at timestamp with time zone NOT NULL DEFAULT now()
+column tilldelning.id uuid NOT NULL DEFAULT gen_random_uuid()
+column tilldelning.late boolean NOT NULL DEFAULT false
+column tilldelning.pass_id uuid NOT NULL
+column tilldelning.released_at timestamp with time zone
+column tilldelning.released_by uuid
+column tilldelning.released_reason release_reason
+column tilldelning.source assignment_source NOT NULL
+column tilldelning.work_date date NOT NULL
+column tilldelning.worker_id uuid NOT NULL
+column worker.account_id uuid NOT NULL
+column worker.avatar_url text
+column worker.bank_number text
+column worker.clearing_number text
+column worker.created_at timestamp with time zone NOT NULL DEFAULT now()
+column worker.deleted_at timestamp with time zone
+column worker.email text NOT NULL
+column worker.id uuid NOT NULL DEFAULT gen_random_uuid()
+column worker.late_marks integer NOT NULL DEFAULT 0
+column worker.name text NOT NULL
+column worker.personnummer text
+column worker.phone text
+column worker_roster.id uuid
+column worker_roster.late_marks integer
+column worker_roster.name text
+constr account FOREIGN KEY (created_by) REFERENCES account(id)
+constr account FOREIGN KEY (id) REFERENCES auth.users(id) ON DELETE CASCADE
+constr account PRIMARY KEY (id)
+constr arbetsdagbok CHECK ((lower_inc(covered) AND (NOT upper_inc(covered)) AND (NOT isempty(covered))))
+constr arbetsdagbok FOREIGN KEY (generated_by) REFERENCES account(id)
+constr arbetsdagbok FOREIGN KEY (project_id) REFERENCES project(id) ON DELETE CASCADE
+constr arbetsdagbok PRIMARY KEY (id)
+constr clock_edit CHECK ((field = ANY (ARRAY['clock_in'::text, 'clock_out'::text])))
+constr clock_edit FOREIGN KEY (edited_by) REFERENCES account(id)
+constr clock_edit FOREIGN KEY (tilldelning_id) REFERENCES tilldelning(id) ON DELETE CASCADE
+constr clock_edit PRIMARY KEY (id)
+constr forval FOREIGN KEY (worker_id) REFERENCES worker(id) ON DELETE CASCADE
+constr forval PRIMARY KEY (worker_id, work_date)
+constr notification FOREIGN KEY (account_id) REFERENCES account(id) ON DELETE CASCADE
+constr notification PRIMARY KEY (id)
+constr pass CHECK (((headcount >= 1) AND (headcount <= 99)))
+constr pass CHECK (((planned_hours > (0)::numeric) AND (planned_hours <= (24)::numeric)))
+constr pass FOREIGN KEY (batch_id) REFERENCES pass_batch(id) ON DELETE SET NULL
+constr pass FOREIGN KEY (created_by) REFERENCES account(id)
+constr pass FOREIGN KEY (deleted_by) REFERENCES account(id)
+constr pass FOREIGN KEY (project_id) REFERENCES project(id) ON DELETE CASCADE
+constr pass PRIMARY KEY (id)
+constr pass_batch FOREIGN KEY (created_by) REFERENCES account(id)
+constr pass_batch FOREIGN KEY (project_id) REFERENCES project(id) ON DELETE CASCADE
+constr pass_batch PRIMARY KEY (id)
+constr pass_batch_handpick FOREIGN KEY (batch_id) REFERENCES pass_batch(id) ON DELETE CASCADE
+constr pass_batch_handpick FOREIGN KEY (worker_id) REFERENCES worker(id) ON DELETE CASCADE
+constr pass_batch_handpick PRIMARY KEY (batch_id, worker_id)
+constr pass_block FOREIGN KEY (pass_id) REFERENCES pass(id) ON DELETE CASCADE
+constr pass_block FOREIGN KEY (worker_id) REFERENCES worker(id) ON DELETE CASCADE
+constr pass_block PRIMARY KEY (pass_id, worker_id)
+constr pass_offer FOREIGN KEY (pass_id) REFERENCES pass(id) ON DELETE CASCADE
+constr pass_offer FOREIGN KEY (worker_id) REFERENCES worker(id) ON DELETE CASCADE
+constr pass_offer PRIMARY KEY (id)
+constr pass_offer UNIQUE (pass_id, worker_id)
+constr project CHECK ((btrim(bestallare_address) <> ''::text))
+constr project CHECK ((btrim(bestallare_bolag) <> ''::text))
+constr project CHECK ((btrim(bestallare_orgnr) <> ''::text))
+constr project CHECK ((btrim(name) <> ''::text))
+constr project CHECK ((btrim(services) <> ''::text))
+constr project CHECK ((btrim(site_address) <> ''::text))
+constr project FOREIGN KEY (created_by) REFERENCES account(id)
+constr project PRIMARY KEY (id)
+constr project_day CHECK ((((confirmed_at IS NULL) AND (confirmed_by IS NULL) AND (confirmed_via IS NULL)) OR ((confirmed_at IS NOT NULL) AND (confirmed_by IS NOT NULL) AND (confirmed_via IS NOT NULL))))
+constr project_day CHECK (((confirmed_at IS NULL) OR ((vad_vi_gjorde IS NOT NULL) AND (btrim(vad_vi_gjorde) <> ''::text))))
+constr project_day FOREIGN KEY (confirmed_by) REFERENCES account(id)
+constr project_day FOREIGN KEY (project_id) REFERENCES project(id) ON DELETE CASCADE
+constr project_day PRIMARY KEY (project_id, work_date)
+constr project_leader FOREIGN KEY (account_id) REFERENCES account(id) ON DELETE CASCADE
+constr project_leader FOREIGN KEY (project_id) REFERENCES project(id) ON DELETE CASCADE
+constr project_leader PRIMARY KEY (project_id, account_id)
+constr tilldelning CHECK ((((released_at IS NULL) AND (released_reason IS NULL)) OR ((released_at IS NOT NULL) AND (released_reason IS NOT NULL))))
+constr tilldelning CHECK (((confirmed_hours >= (0)::numeric) AND (confirmed_hours <= (24)::numeric)))
+constr tilldelning FOREIGN KEY (pass_id) REFERENCES pass(id) ON DELETE CASCADE
+constr tilldelning FOREIGN KEY (released_by) REFERENCES account(id)
+constr tilldelning FOREIGN KEY (worker_id) REFERENCES worker(id) ON DELETE RESTRICT
+constr tilldelning PRIMARY KEY (id)
+constr worker CHECK ((btrim(email) <> ''::text))
+constr worker CHECK ((btrim(name) <> ''::text))
+constr worker CHECK ((late_marks >= 0))
+constr worker FOREIGN KEY (account_id) REFERENCES account(id) ON DELETE RESTRICT
+constr worker PRIMARY KEY (id)
+constr worker UNIQUE (account_id)
+index  CREATE INDEX arbetsdagbok_overlap_idx ON public.arbetsdagbok USING gist (project_id, covered)
+index  CREATE INDEX clock_edit_tilldelning_idx ON public.clock_edit USING btree (tilldelning_id, edited_at)
+index  CREATE INDEX forval_date_idx ON public.forval USING btree (work_date, can_work)
+index  CREATE INDEX notification_unread_idx ON public.notification USING btree (account_id, created_at DESC) WHERE (read_at IS NULL)
+index  CREATE INDEX pass_date_idx ON public.pass USING btree (work_date) WHERE (deleted_at IS NULL)
+index  CREATE INDEX pass_offer_open_idx ON public.pass_offer USING btree (worker_id) WHERE (state = 'offered'::offer_state)
+index  CREATE INDEX pass_project_date_idx ON public.pass USING btree (project_id, work_date) WHERE (deleted_at IS NULL)
+index  CREATE INDEX project_day_survey_idx ON public.project_day USING btree (project_id, work_date) WHERE (confirmed_via = 'bristsurvey'::confirmation_source)
+index  CREATE INDEX project_leader_account_idx ON public.project_leader USING btree (account_id)
+index  CREATE INDEX tilldelning_pass_idx ON public.tilldelning USING btree (pass_id) WHERE (released_at IS NULL)
+index  CREATE INDEX tilldelning_worker_idx ON public.tilldelning USING btree (worker_id)
+index  CREATE INDEX worker_active_idx ON public.worker USING btree (id) WHERE (deleted_at IS NULL)
+index  CREATE UNIQUE INDEX account_pkey ON public.account USING btree (id)
+index  CREATE UNIQUE INDEX arbetsdagbok_pkey ON public.arbetsdagbok USING btree (id)
+index  CREATE UNIQUE INDEX clock_edit_pkey ON public.clock_edit USING btree (id)
+index  CREATE UNIQUE INDEX forval_pkey ON public.forval USING btree (worker_id, work_date)
+index  CREATE UNIQUE INDEX notification_pkey ON public.notification USING btree (id)
+index  CREATE UNIQUE INDEX pass_batch_handpick_pkey ON public.pass_batch_handpick USING btree (batch_id, worker_id)
+index  CREATE UNIQUE INDEX pass_batch_pkey ON public.pass_batch USING btree (id)
+index  CREATE UNIQUE INDEX pass_block_pkey ON public.pass_block USING btree (pass_id, worker_id)
+index  CREATE UNIQUE INDEX pass_offer_pass_id_worker_id_key ON public.pass_offer USING btree (pass_id, worker_id)
+index  CREATE UNIQUE INDEX pass_offer_pkey ON public.pass_offer USING btree (id)
+index  CREATE UNIQUE INDEX pass_pkey ON public.pass USING btree (id)
+index  CREATE UNIQUE INDEX project_day_pkey ON public.project_day USING btree (project_id, work_date)
+index  CREATE UNIQUE INDEX project_leader_pkey ON public.project_leader USING btree (project_id, account_id)
+index  CREATE UNIQUE INDEX project_pkey ON public.project USING btree (id)
+index  CREATE UNIQUE INDEX tilldelning_one_per_worker_per_day ON public.tilldelning USING btree (worker_id, work_date) WHERE (released_at IS NULL)
+index  CREATE UNIQUE INDEX tilldelning_pkey ON public.tilldelning USING btree (id)
+index  CREATE UNIQUE INDEX worker_account_id_key ON public.worker USING btree (account_id)
+index  CREATE UNIQUE INDEX worker_email_key ON public.worker USING btree (lower(email))
+index  CREATE UNIQUE INDEX worker_pkey ON public.worker USING btree (id)
+policy account.account_admin_write [ALL] USING(app.is_admin()) CHECK(app.is_admin())
+policy account.account_self_or_admin_select [SELECT] USING(((id = ( SELECT auth.uid() AS uid)) OR app.is_admin())) CHECK(-)
+policy arbetsdagbok.arbetsdagbok_admin [ALL] USING(app.is_admin()) CHECK(app.is_admin())
+policy clock_edit.clock_edit_leader_select [SELECT] USING((EXISTS ( SELECT 1
+   FROM (tilldelning t
+     JOIN pass p ON ((p.id = t.pass_id)))
+  WHERE ((t.id = clock_edit.tilldelning_id) AND app.leads_project(p.project_id))))) CHECK(-)
+policy forval.forval_own_write [ALL] USING((worker_id = app.current_worker_id())) CHECK((worker_id = app.current_worker_id()))
+policy forval.forval_select [SELECT] USING((app.is_staff() OR (worker_id = app.current_worker_id()))) CHECK(-)
+policy notification.notification_own_select [SELECT] USING((account_id = ( SELECT auth.uid() AS uid))) CHECK(-)
+policy notification.notification_own_update [UPDATE] USING((account_id = ( SELECT auth.uid() AS uid))) CHECK((account_id = ( SELECT auth.uid() AS uid)))
+policy pass.pass_leader_insert [INSERT] USING(-) CHECK(app.leads_project(project_id))
+policy pass.pass_leader_select [SELECT] USING(((deleted_at IS NULL) AND app.leads_project(project_id))) CHECK(-)
+policy pass.pass_leader_update [UPDATE] USING(app.leads_project(project_id)) CHECK(app.leads_project(project_id))
+policy pass_batch.pass_batch_leader [ALL] USING(app.leads_project(project_id)) CHECK(app.leads_project(project_id))
+policy pass_batch_handpick.handpick_leader [ALL] USING((EXISTS ( SELECT 1
+   FROM pass_batch b
+  WHERE ((b.id = pass_batch_handpick.batch_id) AND app.leads_project(b.project_id))))) CHECK((EXISTS ( SELECT 1
+   FROM pass_batch b
+  WHERE ((b.id = pass_batch_handpick.batch_id) AND app.leads_project(b.project_id)))))
+policy pass_block.pass_block_staff_select [SELECT] USING(app.is_staff()) CHECK(-)
+policy pass_offer.pass_offer_leader_write [ALL] USING((EXISTS ( SELECT 1
+   FROM pass p
+  WHERE ((p.id = pass_offer.pass_id) AND app.leads_project(p.project_id))))) CHECK((EXISTS ( SELECT 1
+   FROM pass p
+  WHERE ((p.id = pass_offer.pass_id) AND app.leads_project(p.project_id)))))
+policy pass_offer.pass_offer_select [SELECT] USING((app.is_staff() OR (worker_id = app.current_worker_id()))) CHECK(-)
+policy project.project_admin_write [ALL] USING(app.is_admin()) CHECK(app.is_admin())
+policy project.project_staff_select [SELECT] USING(((deleted_at IS NULL) AND app.leads_project(id))) CHECK(-)
+policy project_day.project_day_leader [ALL] USING(app.leads_project(project_id)) CHECK(app.leads_project(project_id))
+policy project_leader.project_leader_admin_write [ALL] USING(app.is_admin()) CHECK(app.is_admin())
+policy project_leader.project_leader_staff_select [SELECT] USING(app.is_staff()) CHECK(-)
+policy tilldelning.tilldelning_leader_select [SELECT] USING((EXISTS ( SELECT 1
+   FROM pass p
+  WHERE ((p.id = tilldelning.pass_id) AND app.leads_project(p.project_id))))) CHECK(-)
+policy tilldelning.tilldelning_leader_write [ALL] USING((EXISTS ( SELECT 1
+   FROM pass p
+  WHERE ((p.id = tilldelning.pass_id) AND app.leads_project(p.project_id))))) CHECK((EXISTS ( SELECT 1
+   FROM pass p
+  WHERE ((p.id = tilldelning.pass_id) AND app.leads_project(p.project_id)))))
+policy worker.worker_admin_insert [INSERT] USING(-) CHECK(app.is_admin())
+policy worker.worker_self_or_admin_select [SELECT] USING(((account_id = ( SELECT auth.uid() AS uid)) OR app.is_admin())) CHECK(-)
+policy worker.worker_self_profile_update [UPDATE] USING(((account_id = ( SELECT auth.uid() AS uid)) OR app.is_admin())) CHECK(((account_id = ( SELECT auth.uid() AS uid)) OR app.is_admin()))
+rls    account enabled=t
+rls    arbetsdagbok enabled=t
+rls    clock_edit enabled=t
+rls    forval enabled=t
+rls    notification enabled=t
+rls    pass enabled=t
+rls    pass_batch enabled=t
+rls    pass_batch_handpick enabled=t
+rls    pass_block enabled=t
+rls    pass_offer enabled=t
+rls    project enabled=t
+rls    project_day enabled=t
+rls    project_leader enabled=t
+rls    tilldelning enabled=t
+rls    worker enabled=t
+trig   arbetsdagbok_guard on arbetsdagbok -> tg_arbetsdagbok_guard enabled=O
+trig   assignment_write_guard on tilldelning -> tg_assignment_write_guard enabled=O
+trig   block_guard on tilldelning -> tg_block_guard enabled=O
+trig   clock_evidence on tilldelning -> tg_clock_evidence enabled=O
+trig   confirmation_guard on project_day -> tg_confirmation_guard enabled=O
+trig   enforce_bucket_name_length_trigger on storage.buckets -> enforce_bucket_name_length enabled=O
+trig   headcount_guard on tilldelning -> tg_headcount_guard enabled=O
+trig   last_admin_guard on account -> tg_last_admin_guard enabled=O
+trig   pass_delete_guard on pass -> tg_pass_delete_guard enabled=O
+trig   protect_buckets_delete on storage.buckets -> protect_delete enabled=O
+trig   protect_objects_delete on storage.objects -> protect_delete enabled=O
+trig   sync_work_date on tilldelning -> tg_sync_work_date enabled=O
+trig   tr_check_filters on realtime.subscription -> subscription_check_filters enabled=O
+trig   update_objects_updated_at on storage.objects -> update_updated_at_column enabled=O
+trig   worker_self_edit_guard on worker -> tg_worker_self_edit_guard enabled=O
+func   app.confirms_project(p_project uuid) md5=c3d7d74eefb17d760930c36afc604682
+func   app.current_role() md5=9aac5306319ae740d224ff2203a64880
+func   app.current_worker_id() md5=74dddcd603933dd85350f7d4fd99efdf
+func   app.is_admin() md5=3d4f4a5b9492b42ec49925b7895a09c5
+func   app.is_staff() md5=2e999136779c7d843714a9924d1dc8fc
+func   app.leads_project(p_project uuid) md5=f1d9360a0c4753413b5ac7fa20a587db
+func   app.pass_end_at(p_date date, p_start time without time zone, p_end time without time zone) md5=5cbed15c09406f178bd3175eac1980f4
+func   app.pass_start_at(p_date date, p_start time without time zone) md5=9fa0f40882eca98efe820667c724d176
+func   app.stockholm_today() md5=8b086d188d946a11d35cafa583ec6465
+func   app.tg_arbetsdagbok_guard() md5=f86304934a0a46e27e5af4b82d47bd24
+func   app.tg_assignment_write_guard() md5=339f51fbf897b60a9f01bf6251d66e43
+func   app.tg_block_guard() md5=7e67025837c229da9a7f75c54150dae5
+func   app.tg_clock_evidence() md5=6c33ff53dff91ccee095fa5abb4ec25d
+func   app.tg_confirmation_guard() md5=e9ba808501928c91099fe1bb78f048ed
+func   app.tg_headcount_guard() md5=10312c296f9e171995055ca3409db4a5
+func   app.tg_last_admin_guard() md5=6c4fd5dcb72f8a568c492f7139ed8c2c
+func   app.tg_pass_delete_guard() md5=f4d3d483aab732281e868750071d7eb2
+func   app.tg_sync_work_date() md5=73d0cc0d6a532f106c8449760ce90c5d
+func   app.tg_worker_self_edit_guard() md5=1d48b1ab95436213192e2a5329677630
+func   public.accept_offer(p_pass uuid) md5=4e6081afac5dad10ccfee3666d80296d
+func   public.assign_snabb(p_pass uuid, p_worker uuid) md5=9e6187886a2988ce5c312abd96339396
+func   public.cash_dist(money, money) md5=1acd79b2b4b9df652d58d90e72f05a29
+func   public.clock_in(p_tilldelning uuid) md5=6c4856b310eb35c37580a0125356847f
+func   public.clock_out(p_tilldelning uuid) md5=0cba39279e3ae3f7f67c95f6f627bfa2
+func   public.date_dist(date, date) md5=3983f43755ffa80d869985d91ee8e538
+func   public.decline_offer(p_pass uuid) md5=3b77c01816ffe8db5847a74c338cae38
+func   public.delete_pass(p_pass uuid) md5=18c81886a24de59bb3922d1592d90051
+func   public.float4_dist(real, real) md5=1491a162a165d9bd567fbac3c9d1dd2d
+func   public.float8_dist(double precision, double precision) md5=1c6ca5056a910a22941735008e6a75c1
+func   public.gbt_bit_compress(internal) md5=31f34def849731302ee00e721401f01e
+func   public.gbt_bit_consistent(internal, bit, smallint, oid, internal) md5=878550d7e83f71fce0c49f44e350fedb
+func   public.gbt_bit_penalty(internal, internal, internal) md5=bb931bf3a8c73b48aeb0d1c8ff8089a0
+func   public.gbt_bit_picksplit(internal, internal) md5=e0877b1f6b123b43a7e32f762798e785
+func   public.gbt_bit_same(gbtreekey_var, gbtreekey_var, internal) md5=16e8047e6ef1cabcbda842ee8111c84c
+func   public.gbt_bit_union(internal, internal) md5=06cf6eaf5701d50b4786c48583f7bb38
+func   public.gbt_bool_compress(internal) md5=946688ab3d74a1a017a0687422a89c61
+func   public.gbt_bool_consistent(internal, boolean, smallint, oid, internal) md5=8056612ce590a44b42e53db0a2d19820
+func   public.gbt_bool_fetch(internal) md5=abf7c178ce639833f9013245a9f458f7
+func   public.gbt_bool_penalty(internal, internal, internal) md5=252891089913a329090c13a7eff1e03a
+func   public.gbt_bool_picksplit(internal, internal) md5=8f1fce1453ce914bc90b9e31af5870ba
+func   public.gbt_bool_same(gbtreekey2, gbtreekey2, internal) md5=6affcd9996e5fa750e3525684a583ce5
+func   public.gbt_bool_union(internal, internal) md5=08b772bd51a11936357c18cc5a6e8483
+func   public.gbt_bpchar_compress(internal) md5=76dbb1959cbba074b92416a8d6789490
+func   public.gbt_bpchar_consistent(internal, character, smallint, oid, internal) md5=5f211074e31a73243aa13039f69cdd1b
+func   public.gbt_bytea_compress(internal) md5=6ed79a6bd12c150a372ec90bba72fba6
+func   public.gbt_bytea_consistent(internal, bytea, smallint, oid, internal) md5=bd08bbb206b71cab1fed270d2280fec1
+func   public.gbt_bytea_penalty(internal, internal, internal) md5=e8d4a643cb184249688910c67f0b3eac
+func   public.gbt_bytea_picksplit(internal, internal) md5=324c3583547bda333c03282769a6c083
+func   public.gbt_bytea_same(gbtreekey_var, gbtreekey_var, internal) md5=f5f3b8ed32b1e4bc2b8144d6a1186980
+func   public.gbt_bytea_union(internal, internal) md5=ec4dce0a76148a60586db7c54da925ff
+func   public.gbt_cash_compress(internal) md5=c8f50386f25598786c804a6da906ddd2
+func   public.gbt_cash_consistent(internal, money, smallint, oid, internal) md5=5bfd21d4f3970fe3e896d4715f6b83d0
+func   public.gbt_cash_distance(internal, money, smallint, oid, internal) md5=a67ad1a9ff0f88d3556aa0c80b69afbb
+func   public.gbt_cash_fetch(internal) md5=0c6e88888619f543c7593d1d90ebf5fa
+func   public.gbt_cash_penalty(internal, internal, internal) md5=b923664a86f8d90a9e9fb6fa6dcdc2ca
+func   public.gbt_cash_picksplit(internal, internal) md5=06bb65e86058c708a7aec660ca65b2c0
+func   public.gbt_cash_same(gbtreekey16, gbtreekey16, internal) md5=28c42b17618f25bac2ffb41dfa1d328c
+func   public.gbt_cash_union(internal, internal) md5=464138ae4426fd557d9d09d7511ae0a1
+func   public.gbt_date_compress(internal) md5=b370299af7cf50813973c08ef3853ad9
+func   public.gbt_date_consistent(internal, date, smallint, oid, internal) md5=f83142827e633f4e9e3b6202dd4b2c36
+func   public.gbt_date_distance(internal, date, smallint, oid, internal) md5=44e562e61fb9f26a098a6e23a328f1af
+func   public.gbt_date_fetch(internal) md5=512d49bff26a1bb771066e01db279e8f
+func   public.gbt_date_penalty(internal, internal, internal) md5=4522d3a094140c09baa58db70142376a
+func   public.gbt_date_picksplit(internal, internal) md5=1e980c7ff90cfd30b84fcf965dae013d
+func   public.gbt_date_same(gbtreekey8, gbtreekey8, internal) md5=028ae465a36da2960cf56ccfcd178841
+func   public.gbt_date_union(internal, internal) md5=ba4d30001dfc222ad733ff8ef3aa2fda
+func   public.gbt_decompress(internal) md5=59e11b242d92fcb1248165436b21dcf5
+func   public.gbt_enum_compress(internal) md5=192cb5abfc4973ab89d788caea2389ec
+func   public.gbt_enum_consistent(internal, anyenum, smallint, oid, internal) md5=ca7532dc5565084a0c53db2d9a2cd01d
+func   public.gbt_enum_fetch(internal) md5=3ede550074202fa83467674c6e846f99
+func   public.gbt_enum_penalty(internal, internal, internal) md5=fff1a2478ce894ba1c9bc31020c16b67
+func   public.gbt_enum_picksplit(internal, internal) md5=116be03e32038899242d9ad349e6e2de
+func   public.gbt_enum_same(gbtreekey8, gbtreekey8, internal) md5=a7e9d571bd72ff0799d487964bacc5e0
+func   public.gbt_enum_union(internal, internal) md5=c3948c8cf486b4e9581436f204acfd3d
+func   public.gbt_float4_compress(internal) md5=888a893aaba63c847e324f3f920e8ef2
+func   public.gbt_float4_consistent(internal, real, smallint, oid, internal) md5=2e2cdd150b9ea2fd1d65b6d2ccbf35f1
+func   public.gbt_float4_distance(internal, real, smallint, oid, internal) md5=6a02c2ffa11e804008bf8ac1c948a38e
+func   public.gbt_float4_fetch(internal) md5=3e979e8dbb7a68e145cbc23273b65608
+func   public.gbt_float4_penalty(internal, internal, internal) md5=9f7f3cdddc71f1d2f88761fb1a603bf5
+func   public.gbt_float4_picksplit(internal, internal) md5=562c951714215976f6d8e0bc83cd761a
+func   public.gbt_float4_same(gbtreekey8, gbtreekey8, internal) md5=514b26034fac053e2c0b4c244b11c965
+func   public.gbt_float4_union(internal, internal) md5=f1f39c6dabdb6397aa5a07741921afc9
+func   public.gbt_float8_compress(internal) md5=b49686a0aaeb0b28ffff2b5ecee54741
+func   public.gbt_float8_consistent(internal, double precision, smallint, oid, internal) md5=a19d7db88f02b87477109e3f22de860a
+func   public.gbt_float8_distance(internal, double precision, smallint, oid, internal) md5=441f67ab03506f16034abb0c1cc5b6b3
+func   public.gbt_float8_fetch(internal) md5=5fe758b66a03d975a48d2c80804295ef
+func   public.gbt_float8_penalty(internal, internal, internal) md5=7d4f3fdf23be08b80f4fe26572c50d85
+func   public.gbt_float8_picksplit(internal, internal) md5=9643b2a534ff52ed6f4c1449739ce9ee
+func   public.gbt_float8_same(gbtreekey16, gbtreekey16, internal) md5=e06294bc90bb577f59f4dd7f7be66b22
+func   public.gbt_float8_union(internal, internal) md5=98b9d1f308bf188b306553aabd17d79c
+func   public.gbt_inet_compress(internal) md5=5f73deaa9eb5c0635bd64eb585ea5b67
+func   public.gbt_inet_consistent(internal, inet, smallint, oid, internal) md5=36d9daac03ed3c1b0cd23c1ebd6d7942
+func   public.gbt_inet_penalty(internal, internal, internal) md5=8e8c84c1a762980a3ccc90cc91d655b5
+func   public.gbt_inet_picksplit(internal, internal) md5=d1a64926c4a67ad5aa057e48ea4a57e5
+func   public.gbt_inet_same(gbtreekey16, gbtreekey16, internal) md5=7a6454e92603ff9a700389528452b153
+func   public.gbt_inet_union(internal, internal) md5=782ba37d0efa46fde9508140c8e71117
+func   public.gbt_int2_compress(internal) md5=8e689ab3938180f4c3a82812e3ceb7e9
+func   public.gbt_int2_consistent(internal, smallint, smallint, oid, internal) md5=5d3d20338cdd8b1dd1b716d0b7fe1b20
+func   public.gbt_int2_distance(internal, smallint, smallint, oid, internal) md5=1b18f69482d0ccfffc9d24e6833cc116
+func   public.gbt_int2_fetch(internal) md5=22809d09c3801a9269f095ffdfbee732
+func   public.gbt_int2_penalty(internal, internal, internal) md5=c3daa7326bb2cf9a91ec946a8e46f09e
+func   public.gbt_int2_picksplit(internal, internal) md5=f0fde684618d8511cbeb7ee12b25f454
+func   public.gbt_int2_same(gbtreekey4, gbtreekey4, internal) md5=3f52d2b718c78605317967df5455e6b9
+func   public.gbt_int2_union(internal, internal) md5=db5b663109e2c4088dc93913182f8caa
+func   public.gbt_int4_compress(internal) md5=e4aeb13d147e98757be382ea4d8ea973
+func   public.gbt_int4_consistent(internal, integer, smallint, oid, internal) md5=9be10e5d8f86fd5163361f0de10f2814
+func   public.gbt_int4_distance(internal, integer, smallint, oid, internal) md5=93d6a241916764584c5daa5e27c6fd4e
+func   public.gbt_int4_fetch(internal) md5=cb39e0dcda5770ba36430bbb44249afd
+func   public.gbt_int4_penalty(internal, internal, internal) md5=a34e57e9769fd251e1772b7994220353
+func   public.gbt_int4_picksplit(internal, internal) md5=6fa362382d3d9451e1491b74050a9c20
+func   public.gbt_int4_same(gbtreekey8, gbtreekey8, internal) md5=2a585782a2bc20b6bfd567258221758c
+func   public.gbt_int4_union(internal, internal) md5=8fccc6d938f74efa14807469982f19b2
+func   public.gbt_int8_compress(internal) md5=b9e5b5783de00a79dffbf27b07e03ed0
+func   public.gbt_int8_consistent(internal, bigint, smallint, oid, internal) md5=3dac7564f78804ec4d9b411ece64abd2
+func   public.gbt_int8_distance(internal, bigint, smallint, oid, internal) md5=7e8e63d20ce39846dd3bbc795ae9a511
+func   public.gbt_int8_fetch(internal) md5=31061f1b43766b7ecb150d1b065b922d
+func   public.gbt_int8_penalty(internal, internal, internal) md5=87ad9c7cc77c999350aa4049f9d844e7
+func   public.gbt_int8_picksplit(internal, internal) md5=e97615b3945abc4affdfe70cc30d3000
+func   public.gbt_int8_same(gbtreekey16, gbtreekey16, internal) md5=58a769820465cc9ae86df9024ffc22d1
+func   public.gbt_int8_union(internal, internal) md5=362fa638f5af4198e050aa1ce4f687b8
+func   public.gbt_intv_compress(internal) md5=9a8589b4e2cc55724cac0c1ee6a98412
+func   public.gbt_intv_consistent(internal, interval, smallint, oid, internal) md5=5379c948b105caab4801943f1edc7ab8
+func   public.gbt_intv_decompress(internal) md5=c1c0144d6f29a2f82b1e403e67694b32
+func   public.gbt_intv_distance(internal, interval, smallint, oid, internal) md5=404d22269730e4f26d0a41cd8592fe3a
+func   public.gbt_intv_fetch(internal) md5=89320ec81bfd80fddea68a211a1f08a2
+func   public.gbt_intv_penalty(internal, internal, internal) md5=f2294b33226b16ee6b19794ac509b308
+func   public.gbt_intv_picksplit(internal, internal) md5=3be6dd5b6b663313fed987fa6fb25488
+func   public.gbt_intv_same(gbtreekey32, gbtreekey32, internal) md5=f671a03d1f498710d2f694f23c0e0a9f
+func   public.gbt_intv_union(internal, internal) md5=45dd1efa1f158aab55d113763accc95e
+func   public.gbt_macad8_compress(internal) md5=fe1606b464ed4be2a9d8601f3839dc9c
+func   public.gbt_macad8_consistent(internal, macaddr8, smallint, oid, internal) md5=48c35c7954feadbb811ed754da6c32c1
+func   public.gbt_macad8_fetch(internal) md5=b8c0246bc124d763d5f26a3ee92a74bc
+func   public.gbt_macad8_penalty(internal, internal, internal) md5=6b41d25d0f422201aa7c56fc051b8e31
+func   public.gbt_macad8_picksplit(internal, internal) md5=66eafaf0d97829e0736c8921846c4af3
+func   public.gbt_macad8_same(gbtreekey16, gbtreekey16, internal) md5=ee8c2cb89bd2e65104c1a7a6370bac86
+func   public.gbt_macad8_union(internal, internal) md5=d07e39b9753a0c5921884548c6793b34
+func   public.gbt_macad_compress(internal) md5=b191fc3b60d3dc01264fa6a8d828864c
+func   public.gbt_macad_consistent(internal, macaddr, smallint, oid, internal) md5=9289e2dd70888364a9129e1937658fc8
+func   public.gbt_macad_fetch(internal) md5=3a4f4e43d9ce682eb4cae6b8a16ac2dc
+func   public.gbt_macad_penalty(internal, internal, internal) md5=2352699ee4110772db7e487c9c6b3438
+func   public.gbt_macad_picksplit(internal, internal) md5=04abbe5c1801e67fc1a151a7d1984999
+func   public.gbt_macad_same(gbtreekey16, gbtreekey16, internal) md5=b217d4c6a823df47625536138448273f
+func   public.gbt_macad_union(internal, internal) md5=ccba960f35f78c345ca4a953f427c813
+func   public.gbt_numeric_compress(internal) md5=aa51b3d81aceac64864832252955940c
+func   public.gbt_numeric_consistent(internal, numeric, smallint, oid, internal) md5=c03c52fb01c0c4692f3692ff1bacc686
+func   public.gbt_numeric_penalty(internal, internal, internal) md5=d6d70b66647ff91894c8b92bba813db8
+func   public.gbt_numeric_picksplit(internal, internal) md5=d76fd72bc92c9b1ef60d1de21ec9e796
+func   public.gbt_numeric_same(gbtreekey_var, gbtreekey_var, internal) md5=7f24092a2ba000517ad37cc6517baf1c
+func   public.gbt_numeric_union(internal, internal) md5=d314f0eced439e90045699aa17861e03
+func   public.gbt_oid_compress(internal) md5=732afaf305d4f417c4cf5db0c3bc0f23
+func   public.gbt_oid_consistent(internal, oid, smallint, oid, internal) md5=dd55203bb053d894f332ab32cd797e81
+func   public.gbt_oid_distance(internal, oid, smallint, oid, internal) md5=e1605f622b9c0c4353c304a66189e79b
+func   public.gbt_oid_fetch(internal) md5=b170eb7f24d67b67a728326d4b01cb10
+func   public.gbt_oid_penalty(internal, internal, internal) md5=bcd9cb9619f4e8e465119557e028dd3f
+func   public.gbt_oid_picksplit(internal, internal) md5=9d59d62bf218671c206c5a0fc99e8d03
+func   public.gbt_oid_same(gbtreekey8, gbtreekey8, internal) md5=b7439f5acbfc90da616f215b5fa98492
+func   public.gbt_oid_union(internal, internal) md5=5757cea442b4a6568875ead13deb3a90
+func   public.gbt_text_compress(internal) md5=4cafb50ad59a6445a0213258445908b8
+func   public.gbt_text_consistent(internal, text, smallint, oid, internal) md5=d701781f1989c1575390902d0620b167
+func   public.gbt_text_penalty(internal, internal, internal) md5=aebd195b135207e27deffdbc4b945f3d
+func   public.gbt_text_picksplit(internal, internal) md5=7aac3bbbb28ef023d28fd70171d46ecd
+func   public.gbt_text_same(gbtreekey_var, gbtreekey_var, internal) md5=f6b593c2141e882e2fd3768e228ad1bf
+func   public.gbt_text_union(internal, internal) md5=3b98d44d8eed7b1635f7649998a1c601
+func   public.gbt_time_compress(internal) md5=47f6f6d7321b4278b3c82a93a42e0720
+func   public.gbt_time_consistent(internal, time without time zone, smallint, oid, internal) md5=ed8a5c9ea5d5439d44e7e5b727f34730
+func   public.gbt_time_distance(internal, time without time zone, smallint, oid, internal) md5=91afb765291ff3114b8a770aed366894
+func   public.gbt_time_fetch(internal) md5=d09f1e07aeb92ae2e077e62801258b75
+func   public.gbt_time_penalty(internal, internal, internal) md5=5200b734bedfcf514557aa8c3d102309
+func   public.gbt_time_picksplit(internal, internal) md5=c459b1a98952cb87dbe9dc21e7dfdfa9
+func   public.gbt_time_same(gbtreekey16, gbtreekey16, internal) md5=3cb63778b4e4c2cbc7c2f3126198aeaa
+func   public.gbt_time_union(internal, internal) md5=7d3e359536aa378a5bc4a9d59c48caa7
+func   public.gbt_timetz_compress(internal) md5=5bb7fc668c1beac4d39297f3b0e52881
+func   public.gbt_timetz_consistent(internal, time with time zone, smallint, oid, internal) md5=4adebfd6169cf3aa4c847bc6f90e2a73
+func   public.gbt_ts_compress(internal) md5=57340326372754a66f0a76ec89ca65c7
+func   public.gbt_ts_consistent(internal, timestamp without time zone, smallint, oid, internal) md5=129c868da7e3c4a0491e70b514f3753b
+func   public.gbt_ts_distance(internal, timestamp without time zone, smallint, oid, internal) md5=db22dca96984ecb19d93162a70524054
+func   public.gbt_ts_fetch(internal) md5=55cb8087a37875a63f866a2123a8cbd5
+func   public.gbt_ts_penalty(internal, internal, internal) md5=20c2a7e75a2240d7889f8680b81520b0
+func   public.gbt_ts_picksplit(internal, internal) md5=8eabcb6214a15cbb4f4a1cee4fcc2765
+func   public.gbt_ts_same(gbtreekey16, gbtreekey16, internal) md5=f428ee7a3856b80d203b6a0c2cc6ab0c
+func   public.gbt_ts_union(internal, internal) md5=1e726d3c09e7272724fd08b39df8d1e4
+func   public.gbt_tstz_compress(internal) md5=ab22f6df5d528becaebbdece5ee66ec1
+func   public.gbt_tstz_consistent(internal, timestamp with time zone, smallint, oid, internal) md5=b8861ab86f918b9644795bb07ca5f469
+func   public.gbt_tstz_distance(internal, timestamp with time zone, smallint, oid, internal) md5=1d6585dd2397d6d2697a2e3e0c83208f
+func   public.gbt_uuid_compress(internal) md5=62f971abeadf3003a07c50230a501348
+func   public.gbt_uuid_consistent(internal, uuid, smallint, oid, internal) md5=d7531ebad1116a09e0a44640cb312938
+func   public.gbt_uuid_fetch(internal) md5=277131c172b9b34dd2e34bd633f2b7ef
+func   public.gbt_uuid_penalty(internal, internal, internal) md5=a517fd8d68c0acf48fe815e120674626
+func   public.gbt_uuid_picksplit(internal, internal) md5=6959e67d7b34dcdf17784dcbd26c3190
+func   public.gbt_uuid_same(gbtreekey32, gbtreekey32, internal) md5=a2fdf27ab5acd04fd9fc85408bdb53ec
+func   public.gbt_uuid_union(internal, internal) md5=02942dd56299bb968daec39032b51cd4
+func   public.gbt_var_decompress(internal) md5=ccb6a57b982d2f25ac531bc2d0a83bb1
+func   public.gbt_var_fetch(internal) md5=0574356c843636b49182bc6047dce549
+func   public.gbtreekey16_in(cstring) md5=3ae07a716761d2fb692f9b07efc1e53e
+func   public.gbtreekey16_out(gbtreekey16) md5=6712805062db109a94ce544bbe7067cc
+func   public.gbtreekey2_in(cstring) md5=3ae07a716761d2fb692f9b07efc1e53e
+func   public.gbtreekey2_out(gbtreekey2) md5=6712805062db109a94ce544bbe7067cc
+func   public.gbtreekey32_in(cstring) md5=3ae07a716761d2fb692f9b07efc1e53e
+func   public.gbtreekey32_out(gbtreekey32) md5=6712805062db109a94ce544bbe7067cc
+func   public.gbtreekey4_in(cstring) md5=3ae07a716761d2fb692f9b07efc1e53e
+func   public.gbtreekey4_out(gbtreekey4) md5=6712805062db109a94ce544bbe7067cc
+func   public.gbtreekey8_in(cstring) md5=3ae07a716761d2fb692f9b07efc1e53e
+func   public.gbtreekey8_out(gbtreekey8) md5=6712805062db109a94ce544bbe7067cc
+func   public.gbtreekey_var_in(cstring) md5=3ae07a716761d2fb692f9b07efc1e53e
+func   public.gbtreekey_var_out(gbtreekey_var) md5=6712805062db109a94ce544bbe7067cc
+func   public.int2_dist(smallint, smallint) md5=e28cfd9bdc2bae4a5d31338e45f7cc09
+func   public.int4_dist(integer, integer) md5=70022e3435f9747864cf180d2d97e3dc
+func   public.int8_dist(bigint, bigint) md5=a73c1806b07543ad4167457378c84df9
+func   public.interval_dist(interval, interval) md5=c2001397d4f589efc976e1f2db79c9ac
+func   public.oid_dist(oid, oid) md5=98f1ff8d3c8373653d6d3a2e298a7eba
+func   public.release_assignment(p_tilldelning uuid, p_reason release_reason) md5=206140a423ccaa1d31c42a8ab628b85f
+func   public.time_dist(time without time zone, time without time zone) md5=570a6afc92722fa17cb3fb725c661bb5
+func   public.ts_dist(timestamp without time zone, timestamp without time zone) md5=cd9d836b7dd414c3713096792f16bf8d
+func   public.tstz_dist(timestamp with time zone, timestamp with time zone) md5=d9abd396677b459458fae044fa46f4b1
+grant  DELETE on account to authenticated
+grant  DELETE on account_directory to authenticated
+grant  DELETE on arbetsdagbok to authenticated
+grant  DELETE on clock_edit to authenticated
+grant  DELETE on forval to authenticated
+grant  DELETE on my_offer to authenticated
+grant  DELETE on my_shift to authenticated
+grant  DELETE on notification to authenticated
+grant  DELETE on pass to authenticated
+grant  DELETE on pass_batch to authenticated
+grant  DELETE on pass_batch_handpick to authenticated
+grant  DELETE on pass_block to authenticated
+grant  DELETE on pass_offer to authenticated
+grant  DELETE on project to authenticated
+grant  DELETE on project_day to authenticated
+grant  DELETE on project_leader to authenticated
+grant  DELETE on tilldelning to authenticated
+grant  DELETE on worker to authenticated
+grant  DELETE on worker_roster to authenticated
+grant  INSERT on account to authenticated
+grant  INSERT on account_directory to authenticated
+grant  INSERT on arbetsdagbok to authenticated
+grant  INSERT on clock_edit to authenticated
+grant  INSERT on forval to authenticated
+grant  INSERT on my_offer to authenticated
+grant  INSERT on my_shift to authenticated
+grant  INSERT on notification to authenticated
+grant  INSERT on pass to authenticated
+grant  INSERT on pass_batch to authenticated
+grant  INSERT on pass_batch_handpick to authenticated
+grant  INSERT on pass_block to authenticated
+grant  INSERT on pass_offer to authenticated
+grant  INSERT on project to authenticated
+grant  INSERT on project_day to authenticated
+grant  INSERT on project_leader to authenticated
+grant  INSERT on tilldelning to authenticated
+grant  INSERT on worker to authenticated
+grant  INSERT on worker_roster to authenticated
+grant  REFERENCES on account to authenticated
+grant  REFERENCES on account_directory to authenticated
+grant  REFERENCES on arbetsdagbok to authenticated
+grant  REFERENCES on clock_edit to authenticated
+grant  REFERENCES on forval to authenticated
+grant  REFERENCES on my_offer to authenticated
+grant  REFERENCES on my_shift to authenticated
+grant  REFERENCES on notification to authenticated
+grant  REFERENCES on pass to authenticated
+grant  REFERENCES on pass_batch to authenticated
+grant  REFERENCES on pass_batch_handpick to authenticated
+grant  REFERENCES on pass_block to authenticated
+grant  REFERENCES on pass_offer to authenticated
+grant  REFERENCES on project to authenticated
+grant  REFERENCES on project_day to authenticated
+grant  REFERENCES on project_leader to authenticated
+grant  REFERENCES on tilldelning to authenticated
+grant  REFERENCES on worker to authenticated
+grant  REFERENCES on worker_roster to authenticated
+grant  SELECT on account to authenticated
+grant  SELECT on account_directory to authenticated
+grant  SELECT on arbetsdagbok to authenticated
+grant  SELECT on clock_edit to authenticated
+grant  SELECT on forval to authenticated
+grant  SELECT on my_offer to authenticated
+grant  SELECT on my_shift to authenticated
+grant  SELECT on notification to authenticated
+grant  SELECT on pass to authenticated
+grant  SELECT on pass_batch to authenticated
+grant  SELECT on pass_batch_handpick to authenticated
+grant  SELECT on pass_block to authenticated
+grant  SELECT on pass_offer to authenticated
+grant  SELECT on project to authenticated
+grant  SELECT on project_day to authenticated
+grant  SELECT on project_leader to authenticated
+grant  SELECT on tilldelning to authenticated
+grant  SELECT on worker to authenticated
+grant  SELECT on worker_roster to authenticated
+grant  TRIGGER on account to authenticated
+grant  TRIGGER on account_directory to authenticated
+grant  TRIGGER on arbetsdagbok to authenticated
+grant  TRIGGER on clock_edit to authenticated
+grant  TRIGGER on forval to authenticated
+grant  TRIGGER on my_offer to authenticated
+grant  TRIGGER on my_shift to authenticated
+grant  TRIGGER on notification to authenticated
+grant  TRIGGER on pass to authenticated
+grant  TRIGGER on pass_batch to authenticated
+grant  TRIGGER on pass_batch_handpick to authenticated
+grant  TRIGGER on pass_block to authenticated
+grant  TRIGGER on pass_offer to authenticated
+grant  TRIGGER on project to authenticated
+grant  TRIGGER on project_day to authenticated
+grant  TRIGGER on project_leader to authenticated
+grant  TRIGGER on tilldelning to authenticated
+grant  TRIGGER on worker to authenticated
+grant  TRIGGER on worker_roster to authenticated
+grant  TRUNCATE on account to authenticated
+grant  TRUNCATE on account_directory to authenticated
+grant  TRUNCATE on arbetsdagbok to authenticated
+grant  TRUNCATE on clock_edit to authenticated
+grant  TRUNCATE on forval to authenticated
+grant  TRUNCATE on my_offer to authenticated
+grant  TRUNCATE on my_shift to authenticated
+grant  TRUNCATE on notification to authenticated
+grant  TRUNCATE on pass to authenticated
+grant  TRUNCATE on pass_batch to authenticated
+grant  TRUNCATE on pass_batch_handpick to authenticated
+grant  TRUNCATE on pass_block to authenticated
+grant  TRUNCATE on pass_offer to authenticated
+grant  TRUNCATE on project to authenticated
+grant  TRUNCATE on project_day to authenticated
+grant  TRUNCATE on project_leader to authenticated
+grant  TRUNCATE on tilldelning to authenticated
+grant  TRUNCATE on worker to authenticated
+grant  TRUNCATE on worker_roster to authenticated
+grant  UPDATE on account to authenticated
+grant  UPDATE on account_directory to authenticated
+grant  UPDATE on arbetsdagbok to authenticated
+grant  UPDATE on clock_edit to authenticated
+grant  UPDATE on forval to authenticated
+grant  UPDATE on my_offer to authenticated
+grant  UPDATE on my_shift to authenticated
+grant  UPDATE on notification to authenticated
+grant  UPDATE on pass to authenticated
+grant  UPDATE on pass_batch to authenticated
+grant  UPDATE on pass_batch_handpick to authenticated
+grant  UPDATE on pass_block to authenticated
+grant  UPDATE on pass_offer to authenticated
+grant  UPDATE on project to authenticated
+grant  UPDATE on project_day to authenticated
+grant  UPDATE on project_leader to authenticated
+grant  UPDATE on tilldelning to authenticated
+grant  UPDATE on worker to authenticated
+grant  UPDATE on worker_roster to authenticated

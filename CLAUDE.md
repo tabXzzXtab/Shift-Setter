@@ -158,6 +158,24 @@ Assert on state, not on an exception, when testing that someone cannot write.
 
 ---
 
+## The database has one writer
+
+Claude applies every schema change. Nobody edits the live database by hand.
+
+```bash
+npm run db:check      # live schema vs supabase/schema.snapshot.txt
+npm run db:snapshot   # rewrite the snapshot -- same commit as the migration
+```
+
+**Run `db:check` before applying anything.** If it reports drift, **stop and
+ask**. Do not reset, re-push, or reconcile the schema to match: something
+outside this repo changed it, and the reason matters more than the difference.
+This exists because the schema once changed underneath a patch in progress, and
+deciding whether a reset was safe meant reasoning from row counts to be sure
+nothing real would be destroyed.
+
+---
+
 ## Testing
 
 ```bash
