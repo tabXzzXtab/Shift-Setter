@@ -35,12 +35,14 @@ export function Home() {
             <BigLink href="/arbetare/ny">Ny arbetare</BigLink>
             <BigLink href="/projekt">Alla projekt</BigLink>
             <BigLink href="/arbetsdagbok">Arbetsdagbok</BigLink>
+            <BigLink href="/dag">Öppna dag</BigLink>
           </>
         )}
 
         {account.role === "arbetsledare" && (
           <>
             <BigLink href="/pass/ny">Skapa pass</BigLink>
+            <BigLink href="/dag">Öppna dag</BigLink>
             <BigLink href="/bekrafta">Bekräfta pass</BigLink>
           </>
         )}

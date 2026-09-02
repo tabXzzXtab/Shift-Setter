@@ -290,7 +290,7 @@ A hand-picked worker who did not pre-pick a day is not a mistake to warn about. 
 
 **Shortfall warning at creation.** If a batch's total slots exceed the workers who have pre-picked those days, the leader is told before generating. Anything short of coverage is worth knowing about while the schedule can still be changed.
 
-*Tier 3 — Acceptera Pass.* Reached only when the förval list is exhausted or empty. Offered as an accept/decline card to every remaining worker with no assignment that day. Card shows date, project, address, times, hours. First accepted wins; the slot closes instantly and the pass vanishes from everyone else's queue once headcount is met. Two workers racing for the last slot resolve to exactly one winner, decided randomly, enforced in the database.
+*Tier 3 — Acceptera Pass.* Reached only when the förval list is exhausted or empty. Offered as an accept/decline card to every remaining worker with no assignment that day — **except anyone who marked that day can't-work.** Marking a day means you cannot work it, so offering it asks a question that has already been answered. Card shows date, project, address, times, hours. First accepted wins; the slot closes instantly and the pass vanishes from everyone else's queue once headcount is met. Two workers racing for the last slot resolve to exactly one winner, decided randomly, enforced in the database.
 
 **Step 5 — Dropouts**
 More than five days out: the slot reopens and refills down the list normally. Inside five days: no auto-fill. Manual assignment or a Snabb Pass. Nobody is ready for a last-minute change and the system should not pretend otherwise.
@@ -413,6 +413,8 @@ Nothing here is open. Anything discovered later that is not covered is a stop-an
 **Assignment**
 - Fastanställd: removed entirely.
 - Hand-picked is a ranking modifier on förval, never a grant. No warning when a pick has not marked a day — not marking it means they cannot work it.
+- Tier 1 is ordered the same way as Tier 2: fewest shifts that week first, each lateness mark pushing one position down, ties random.
+- Acceptera Pass skips anyone who marked the day can't-work. An explicit no is not asked again.
 - A shortfall between total slots and pre-pickers is flagged to the leader at creation.
 - Removing a worker reopens the slot; headcount never drops.
 - A deleted shift is never re-offered to the people removed from it. Snabb Pass is the way back.

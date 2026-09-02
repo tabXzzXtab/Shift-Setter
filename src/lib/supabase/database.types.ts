@@ -929,6 +929,15 @@ export type Database = {
         Args: { p_pass: string; p_worker: string }
         Returns: string
       }
+      batch_shortfall: {
+        Args: { p_dates: string[]; p_slots_per_day: number }
+        Returns: {
+          available: number
+          short: number
+          slots: number
+          work_date: string
+        }[]
+      }
       clock_in: { Args: { p_tilldelning: string }; Returns: string }
       clock_out: { Args: { p_tilldelning: string }; Returns: string }
       decline_offer: { Args: { p_pass: string }; Returns: undefined }
@@ -955,7 +964,11 @@ export type Database = {
           p_reason?: Database["public"]["Enums"]["release_reason"]
           p_tilldelning: string
         }
-        Returns: undefined
+        Returns: {
+          filled: number
+          offered: number
+          reopened: boolean
+        }[]
       }
     }
     Enums: {

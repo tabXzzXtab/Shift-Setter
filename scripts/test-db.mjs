@@ -26,16 +26,19 @@ const SUITE = readFileSync("supabase/tests/suite.sql", "utf8");
  * substitution, so a control can never drift from the function it is testing --
  * if the text is gone, the control fails loudly instead of quietly passing.
  */
-const perturb = (find, replace) => async (client) => {
+const perturbIn = (signature, find, replace) => async (client) => {
   const { rows } = await client.query(
-    `select pg_get_functiondef('public.fill_passes(uuid)'::regprocedure) as def`,
+    `select pg_get_functiondef($1::regprocedure) as def`, [signature],
   );
   const def = rows[0].def;
   if (!def.includes(find)) {
-    throw new Error(`control text no longer present in fill_passes: ${find.slice(0, 60)}…`);
+    throw new Error(`control text no longer present in ${signature}: ${find.slice(0, 60)}…`);
   }
   return def.replace(find, replace);
 };
+
+/** The tier walk lives in app.fill_pass; most generated controls target it. */
+const perturb = (find, replace) => perturbIn("app.fill_pass(uuid)", find, replace);
 
 /** Each control: disable one protection, name the assertion that must then fail. */
 const CONTROLS = [
@@ -119,13 +122,19 @@ const CONTROLS = [
    "TIER.lateness_demotes"],
 
   ["cant-work is not asked again",
-   perturb(
-     `and not exists (
-          select 1 from public.forval f
-          where f.worker_id = w.id and f.work_date = r.wd and not f.can_work
-        )`,
-     "and true"),
+   // A small, distinctive fragment rather than the whole clause: reindenting
+   // the function must not silently un-target its own control. Flipping the
+   // predicate to false makes the NOT EXISTS always true, so the exclusion
+   // stops applying and everyone is offered the day.
+   perturb("and not f.can_work", "and false"),
    "TIER3.no_offer_when_cant_work"],
+
+  ["the five-day cutoff on the cascade",
+   // Inside five days nothing fires automatically. Move the cutoff to zero and
+   // the near case starts cascading, which is exactly what it must not do.
+   perturbIn("public.release_assignment(uuid, public.release_reason)",
+             "interval '5 days'", "interval '0 days'"),
+   "CASCADE.no_autofill_inside_five_days"],
 
   ["invariant 7 -- project creation is a gate",
    `alter table public.project drop constraint ` +

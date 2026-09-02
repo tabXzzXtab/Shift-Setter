@@ -747,4 +747,162 @@ select pg_temp.ok(
   'TIER3.queue_closes_when_full',
   'once headcount is met the pass vanishes from every other queue');
 
+-- ============================================================================
+-- THE VACANCY CASCADE -- Step 5b
+--
+-- Removing a worker is not a correction to the demand. The slot reopens, the
+-- headcount does not drop, and the slot walks back down the same list --
+-- unless the shift is inside five days, when nothing fires automatically.
+-- ============================================================================
+
+-- A pass far enough out that the cascade is allowed to run, with one more
+-- willing worker than it has slots, so a refill is possible and visible.
+insert into public.forval (worker_id, work_date, can_work)
+select w.id, app.stockholm_today() + 60, true
+from public.worker w join fx on fx.v = w.account_id where fx.k in ('w1', 'w2', 'w3');
+
+insert into public.pass_batch (id, project_id, created_by)
+select 'ffffffff-0000-0000-0000-00000000000e', 'aaaaaaaa-0000-0000-0000-00000000000a',
+       (select v from fx where k = 'leaderA');
+
+insert into public.pass (id, project_id, batch_id, work_date, start_time, end_time,
+                         planned_hours, headcount, created_by)
+select 'eeeeeeee-0000-0000-0000-000000000010'::uuid,
+       'aaaaaaaa-0000-0000-0000-00000000000a'::uuid,
+       'ffffffff-0000-0000-0000-00000000000e'::uuid,
+       app.stockholm_today() + 60, '07:00'::time, '16:00'::time, 8.00, 2::smallint,
+       (select v from fx where k = 'leaderA');
+
+set local role authenticated;
+select pg_temp.act_as((select v from fx where k = 'leaderA'));
+select public.fill_passes('ffffffff-0000-0000-0000-00000000000e');
+reset role;
+
+select pg_temp.ok(
+  (select count(*) from public.tilldelning t
+   where t.pass_id = 'eeeeeeee-0000-0000-0000-000000000010' and t.released_at is null) = 2,
+  'CASCADE.filled_to_start', 'the pass starts full, so a removal has something to reopen');
+
+-- Take one of them off.
+set local role authenticated;
+select pg_temp.act_as((select v from fx where k = 'leaderA'));
+create temporary table cascade_far as
+select * from public.release_assignment(
+  (select t.id from public.tilldelning t
+   where t.pass_id = 'eeeeeeee-0000-0000-0000-000000000010' and t.released_at is null limit 1));
+grant select on cascade_far to public;
+reset role;
+
+select pg_temp.ok((select reopened from cascade_far),
+  'CASCADE.reopens_beyond_five_days',
+  'more than five days out, the vacated slot walks back down the list');
+
+select pg_temp.ok((select filled from cascade_far) = 1,
+  'CASCADE.refilled_from_forval',
+  'the third willing worker took the reopened slot');
+
+select pg_temp.ok(
+  (select headcount from public.pass where id = 'eeeeeeee-0000-0000-0000-000000000010') = 2,
+  'CASCADE.headcount_never_drops',
+  'the pass still needs the same number of people');
+
+select pg_temp.ok(
+  (select count(*) from public.tilldelning t
+   where t.pass_id = 'eeeeeeee-0000-0000-0000-000000000010' and t.released_at is null) = 2,
+  'CASCADE.back_to_full', 'the slot was filled, not lost');
+
+select pg_temp.ok(
+  (select count(*) from public.pass_block b
+   where b.pass_id = 'eeeeeeee-0000-0000-0000-000000000010') = 1,
+  'CASCADE.removed_not_reoffered',
+  'the person taken off is never offered that pass again');
+
+-- ---- inside five days, nothing fires --------------------------------------
+insert into public.forval (worker_id, work_date, can_work)
+select w.id, app.stockholm_today() + 2, true
+from public.worker w join fx on fx.v = w.account_id where fx.k in ('w2', 'w3');
+
+insert into public.pass (id, project_id, work_date, start_time, end_time,
+                         planned_hours, headcount, created_by)
+select 'eeeeeeee-0000-0000-0000-000000000011'::uuid,
+       'aaaaaaaa-0000-0000-0000-00000000000a'::uuid,
+       app.stockholm_today() + 2, '07:00'::time, '16:00'::time, 8.00, 1::smallint,
+       (select v from fx where k = 'leaderA');
+
+insert into public.tilldelning (id, pass_id, worker_id, source, work_date)
+select 'dddddddd-0000-0000-0000-000000000020', 'eeeeeeee-0000-0000-0000-000000000011',
+       w.id, 'manuell', app.stockholm_today() + 2
+from public.worker w join fx on fx.v = w.account_id where fx.k = 'w2';
+
+set local role authenticated;
+select pg_temp.act_as((select v from fx where k = 'leaderA'));
+create temporary table cascade_near as
+select * from public.release_assignment('dddddddd-0000-0000-0000-000000000020');
+grant select on cascade_near to public;
+reset role;
+
+select pg_temp.ok((select reopened from cascade_near) = false,
+  'CASCADE.no_autofill_inside_five_days',
+  'nobody is ready for a last-minute change and the system does not pretend otherwise');
+
+select pg_temp.ok(
+  (select count(*) from public.tilldelning t
+   where t.pass_id = 'eeeeeeee-0000-0000-0000-000000000011' and t.released_at is null) = 0,
+  'CASCADE.left_short_inside_five_days',
+  'w3 was willing and free, and was still not placed automatically');
+
+select pg_temp.ok(
+  (select count(*) from public.pass_offer o
+   where o.pass_id = 'eeeeeeee-0000-0000-0000-000000000011') = 0,
+  'CASCADE.no_offers_inside_five_days', 'and no Acceptera Pass went out either');
+
+-- ============================================================================
+-- BATCH INSTANCES ARE INDEPENDENT
+--
+-- Two template rows across two days is four passes, not a series. Editing one
+-- must not reach the others -- there is no shared object to edit through.
+-- ============================================================================
+insert into public.pass_batch (id, project_id, created_by)
+select 'ffffffff-0000-0000-0000-00000000000f', 'aaaaaaaa-0000-0000-0000-00000000000a',
+       (select v from fx where k = 'leaderA');
+
+insert into public.pass (id, project_id, batch_id, work_date, start_time, end_time,
+                         planned_hours, headcount, created_by)
+select g.id::uuid,
+       'aaaaaaaa-0000-0000-0000-00000000000a'::uuid,
+       'ffffffff-0000-0000-0000-00000000000f'::uuid,
+       g.d, g.st::time, g.en::time, 8.00, 1::smallint,
+       (select v from fx where k = 'leaderA')
+from (values
+  ('eeeeeeee-0000-0000-0000-000000000021', app.stockholm_today() + 70, '07:00', '16:00'),
+  ('eeeeeeee-0000-0000-0000-000000000022', app.stockholm_today() + 70, '14:00', '22:00'),
+  ('eeeeeeee-0000-0000-0000-000000000023', app.stockholm_today() + 71, '07:00', '16:00'),
+  ('eeeeeeee-0000-0000-0000-000000000024', app.stockholm_today() + 71, '14:00', '22:00')
+) as g(id, d, st, en);
+
+select pg_temp.ok(
+  (select count(*) from public.pass where batch_id = 'ffffffff-0000-0000-0000-00000000000f') = 4,
+  'BATCH.two_rows_two_days_is_four_passes',
+  'every template row applies to every selected day');
+
+set local role authenticated;
+select pg_temp.act_as((select v from fx where k = 'leaderA'));
+update public.pass
+set start_time = '05:30', planned_hours = 3.25, headcount = 4
+where id = 'eeeeeeee-0000-0000-0000-000000000021';
+reset role;
+
+select pg_temp.ok(
+  (select start_time = '05:30' and planned_hours = 3.25 and headcount = 4
+   from public.pass where id = 'eeeeeeee-0000-0000-0000-000000000021'),
+  'BATCH.edit_lands_on_the_instance', 'the edited pass changed');
+
+select pg_temp.ok(
+  (select count(*) from public.pass
+   where batch_id = 'ffffffff-0000-0000-0000-00000000000f'
+     and id <> 'eeeeeeee-0000-0000-0000-000000000021'
+     and start_time in ('07:00', '14:00') and planned_hours = 8.00 and headcount = 1) = 3,
+  'BATCH.siblings_untouched',
+  'the other three instances kept their own times, hours and headcount');
+
 select pg_temp.ok(true, 'SUITE.complete', 'every assertion passed');
