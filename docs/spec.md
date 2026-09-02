@@ -10,6 +10,12 @@ A Swedish construction and service company. Work happens at **projects** — phy
 
 Everything downstream of that: the scheduling, the clocking, the confirmations, the priority lists — all of it exists to make one document accurate and defensible.
 
+**Black and white until it works.** No colour, no styling, no visual polish anywhere in the application until every function is proven. Design comes last. The one exception is the calendar — drag-to-paint needs a real layout to be usable at all, so it gets built properly from the start, still in black and white.
+
+**Build it so a child could use it.** Large targets, obvious affordances, one action per screen where possible. Someone who can barely read should be able to open this and understand what to press. That is a functional requirement, not an aesthetic one.
+
+**Mobile first, always.** This system is used on phones — by workers on site, by leaders between jobs. Every screen is designed for a phone and then adapted upward to desktop, never the reverse. A layout that works on a wide screen and is squeezed down will fail the people who actually use it.
+
 **Design direction: build backwards from the Arbetsdagbok.** Section 1 defines what the document needs. Everything after it exists to fill those cells.
 
 ---
@@ -47,9 +53,9 @@ Day blocks are ordered by date. Within a day, one row per person per shift.
 | ARBETARE | Worker name |
 | PASS TIMMAR | That person's confirmed hours |
 | PASS TIDER | Start–end times of the shift |
-| GJORDE | What was done that day |
+| VAD VI GJORDE | What was done that day |
 
-Two columns are renamed from DocMaker: **Pass Typ → Pass Tider**, and the per-row **Project → Gjorde**. Everything else about the template stays.
+Two columns are renamed from DocMaker: **Pass Typ → Pass Tider**, and the per-row **Project → Vad Vi Gjorde**. Everything else about the template stays.
 
 ### Footer — identical on every page, hardcoded
 
@@ -68,12 +74,40 @@ A project runs open-ended and the admin logs it in slices, not once at the end.
 
 Ordinarie tid on the cover sums only the shifts inside the chosen range.
 
+**Generated ranges are remembered.** If the chosen range overlaps one already documented, the admin is warned before proceeding:
+
+> Du har redan gjort en arbetsdagbok som dokumenterar [datum]. Vill du gå vidare?
+
+A warning, not a block — re-issuing a document is legitimate. But it must never happen unknowingly.
+
+### Bristsurvey — the admin's gap-filling path
+
+The admin cannot confirm days. Only the assigned arbetsledare can. That is the pressure the whole system runs on, and removing it would let the owner rubber-stamp days he was not present for.
+
+But the leader can quit, go silent, or simply never get to it, and the document is a legal obligation that cannot wait.
+
+So: **when the admin picks a date range and something is missing, he gets a survey of exactly what is missing before generation.**
+
+The survey lists every gap:
+
+- Days with unconfirmed shifts — showing what the system **registered**: clock-in, clock-out, planned hours. Not confirmed figures, because there are none.
+- Days with no "Vad Vi Gjorde" text.
+- Any missing project or beställare field.
+
+The admin fills them in. For the day descriptions this means ringing round and asking the workers what they did — deliberately laborious, because it should be the leader's job.
+
+Completing the survey unblocks generation. It is not a bypass of the no-empty-cells rule; it is the manual way of satisfying it.
+
+**A surveyed day is a confirmed day.** It leaves the arbetsledare's queue and never comes back. The admin has taken the shot — if the reconstructed figures are wrong, that is on him, and asking the leader to re-confirm a day already printed into a legal document would be worse than pointless.
+
+**Provenance is recorded.** A day completed through the survey is marked as such, with who completed it. A leader confirming from site and an owner reconstructing from phone calls are different claims about the same hours, and the record must be able to tell them apart.
+
 ### The hard generation rule
 
 **A document cannot be produced with any cell empty.** This is stricter than "all shifts confirmed". Generation is blocked unless *all* of the following exist:
 
 - Every shift in range is confirmed
-- Every day in range has a Gjorde description
+- Every day in range has a "Vad Vi Gjorde" description
 - The project has a name
 - The beställare has an address, a bolag, and an org nummer
 
@@ -83,15 +117,68 @@ Ordinarie tid on the cover sums only the shifts inside the chosen range.
 
 ## 2. Roles
 
-Three roles. Each sees a different application.
+Three roles. The split is by *authority*, not by seniority.
 
-**Admin** — the owner / office. Creates projects. Extracts the Arbetsdagbok and cannot get it until leaders have confirmed. Can do everything an arbetsledare can, plus Snabb Pass. Not a scheduler by nature; a consumer of the record.
+### Admin — the owner
 
-**Arbetsledare** — the supervisor. Runs one or several sites. Creates shifts, decides who works, confirms what actually happened, sets the Arbetsdagbok's date range. The only role that can write hours. The bottleneck by design.
+The only role that can:
 
-**Arbetare** — the worker. Two surfaces only: a calendar where they mark days they can work, and a queue of offered shifts to accept or decline. Plus a summary of their own hours, shifts, and lateness. They clock themselves in and out. They never set their own pay.
+- Create projects
+- Assign arbetsledare to a project
+- Create Snabb Pass
+- Generate the Arbetsdagbok
+- Create accounts and workers
+- Change an account's role
+- Delete accounts
+- **Delete shifts**
+
+Can also do everything an arbetsledare can, **except confirm days**. Confirmation belongs to the leader who was on site. When days are missing, the admin fills the gaps through the bristsurvey (Section 1) rather than confirming directly.
+
+### Arbetsledare — the supervisor
+
+- Creates shifts (same as admin)
+- Views the shift calendar
+- **Confirms days** — the mechanism the whole system depends on
+
+An arbetsledare confirms only for **projects they are assigned to**. Assignment happens when the admin creates the project. A project may have several.
+
+Cannot: create projects, create Snabb Pass, delete shifts, touch accounts, or generate the document.
+
+**An arbetsledare is also a worker.** Confirming is not a full-time job. They hold shifts like anyone else, and the admin decides which — necessarily on the projects they are assigned to, since a leader is not put on a project they do not run.
+
+**An arbetsledare on no project** keeps access to every subpage but sees nothing in them. No days to confirm, no shifts to view. They cannot create shifts either — the project dropdown in Skapa Pass is mandatory and lists only the projects they are assigned to, so for them it is empty. Functionally they are a worker until the admin puts them on something. No special handling is needed; the scoping produces this on its own.
+
+### Arbetare — the worker
+
+Two things only:
+
+- Paint days on their calendar they can work
+- Accept or deny offered shifts, for days they are not already working
+
+Plus clocking in and out, and seeing their own confirmed hours.
 
 ---
+
+## 2b. The shift calendar
+
+A single calendar showing every project's shifts.
+
+- Each project has a colour.
+- A shift repeating across consecutive days renders as one continuous bar spanning those days, not as separate marks.
+- Tapping a day opens everything scheduled that day, across all projects.
+- **Only admin can delete a shift**, and this is where it happens.
+
+- **An ongoing shift cannot be deleted.** Once it has started, it is a fact that has to be confirmed, not erased.
+- **Assigned workers are notified** when a shift they hold is deleted. The change is live — the shift disappears from their view immediately.
+- **A deleted shift is never re-offered to the people removed from it.** It does not reappear in their Acceptera Pass queue; they were taken off for a reason. If the admin changes their mind, a Snabb Pass puts them back.
+
+Visible to admin and arbetsledare. Not to arbetare — they see their own shifts, not the company's schedule.
+
+### Kommande pass — the leader's day list
+
+A subpage listing upcoming shifts, grouped by day. A leader running several projects gets a project filter to narrow it to one at a time.
+
+This is the forward-looking counterpart to the confirmation queue: what is coming, rather than what has finished and needs an account of itself.
 
 ## 3. Entities
 
@@ -104,6 +191,7 @@ Captured at creation, all required:
 - Beställare org nummer
 - Services performed
 - Start date
+- **One or more assigned arbetsledare** — these and only these can confirm days for this project
 
 No end date — that is the leader's call, made by declaring the work finished, not by a field set in advance. Soft-deletable. Auto-deactivates after a period with no shifts.
 
@@ -129,6 +217,10 @@ Lösenord: <generated>
 ```
 
 3. Only now does **Tillverka Arbetare** become pressable. It glows once the credentials have been copied.
+
+**Password rules:** minimum 6 characters, maximum 20, and every character must be typeable on both a phone keyboard and a desktop one without hunting through symbol panels.
+
+**Recovery is the admin's job.** If the credentials are lost before they reach the worker, the admin regenerates them and copies again. There is no self-service reset — the email on an account is an identifier, not a guaranteed inbox.
 4. Pressing it creates the worker and the account together.
 
 The copy step gates the create step deliberately: an account whose credentials nobody holds is an account nobody can use, and the worker has no way to request them.
@@ -138,7 +230,14 @@ The admin then hands the block over however they like — message, paper, in per
 **From inside Snabb Pass.** If the person isn't on the roster yet, the worker dropdown offers **Ny Arbetare**. The same form appears, the same copy-then-create sequence runs, and the admin returns to the shift detail screen and finishes as though nothing happened.
 
 **Account**
-A login. Links to a worker (or to nobody, for office staff). Carries the role. An account and a worker are separate things — office staff have accounts with no worker; a worker can exist on the roster with no login at all.
+A login. Carries the role.
+
+The relationship is one-directional:
+
+- **Every worker has an account.** There is no path that creates one without the other — worker creation *is* account creation, including from inside Snabb Pass. `worker.account_id` is not nullable.
+- **Not every account has a worker.** Office staff — admin, and arbetsledare who never work shifts themselves — hold accounts with no worker record. `account.worker_id` is nullable.
+
+So an account-less worker cannot exist, and no policy needs to handle one.
 
 **Pass (the shift)**
 Project, date, start time, end time, planned hours, headcount. A pass is a *demand for people*, not a person's work. One pass with headcount 3 is one row, not three.
@@ -148,7 +247,7 @@ One worker's place on one pass. Carries: how they got there (handplockad / förv
 
 This split is the load-bearing decision. Without it, "this shift needs three people and one slot is open" cannot be expressed at all.
 
-**Dagsbeskrivning (the Gjorde text)**
+**Dagsbeskrivning (the "Vad Vi Gjorde" text)**
 One record per project per date. Written by the leader at confirmation. Mandatory before that day can be confirmed. Prints on every row of that day's table.
 
 **Förval (availability)**
@@ -183,9 +282,13 @@ A worker who already holds an assignment on that date is invisible for that date
 
 **Step 4 — The priority list, walked top to bottom**
 
-*Tier 1 — Handplockade med förval.* Hand-picked by the leader **and** they pre-picked that day. Being hand-picked is a ranking modifier, not a grant — the förval is the entry ticket. A hand-picked worker who never marked that day is simply not on the list. Losing rank here is not losing work; there are many projects.
+*Tier 1 — Handplockade med förval.* Hand-picked by the leader **and** they pre-picked that day. Being hand-picked is a ranking modifier, not a grant — the förval is the entry ticket.
+
+A hand-picked worker who did not pre-pick a day is not a mistake to warn about. Not marking a day means they cannot work it. They still reach Acceptera Pass later if they are free, but nothing is wrong and the leader needs no notice.
 
 *Tier 2 — Övriga förvalda.* Everyone else who pre-picked that day. Ordered by: fewest shifts held that week ranks highest. A shift counts whether or not it has been confirmed. Each lateness mark pushes a worker one position down, cumulatively and permanently. Ties break randomly.
+
+**Shortfall warning at creation.** If a batch's total slots exceed the workers who have pre-picked those days, the leader is told before generating. Anything short of coverage is worth knowing about while the schedule can still be changed.
 
 *Tier 3 — Acceptera Pass.* Reached only when the förval list is exhausted or empty. Offered as an accept/decline card to every remaining worker with no assignment that day. Card shows date, project, address, times, hours. First accepted wins; the slot closes instantly and the pass vanishes from everyone else's queue once headcount is met. Two workers racing for the last slot resolve to exactly one winner, decided randomly, enforced in the database.
 
@@ -215,17 +318,33 @@ A pass that is scheduled but not started, and one that is in progress, are told 
 Arbetsledare and admin only. Bypasses the entire priority list. Requires only a name. For last-second dropouts, verbal arrangements, covering a no-show. **On paper it is an ordinary shift** — it prints in the Arbetsdagbok exactly like any other row. Only the way it enters the system differs. It still enters the confirmation queue; Snabb Pass skips the picking, never the confirming. If that person held an assignment elsewhere that day, the Snabb Pass wins and the earlier one is released.
 
 **Step 8 — Confirmation**
-A day becomes confirmable only once **every** shift on it has passed its end time. The leader then confirms or denies every shift that happened that day, as one act.
 
-- Sorted oldest day first, so the leader never scrolls to find what's overdue.
-- Split by **day + project**, never merged across projects — one leader may run several sites and each needs its own account of what happened.
-- Each row is one worker's one shift: name, project, ± on start time, ± on end time, a lateness checkbox, an X for no-show, per-row confirm.
-- Untouched rows log exactly as designated. Only edited rows carry a deviation.
-- Clock stamps are evidence. The leader sets the figure that counts. Adjusting a stamp preserves the original underneath, visible, attributed to whoever changed it.
-- A **mandatory Gjorde description per day + project** must be filled before that day's confirm becomes pressable. This text is what prints in the document's GJORDE column.
-- Confirmation is **final**. No edits after.
-- A lateness mark demotes that worker one position on the priority list, permanently.
-- A day can be confirmed understaffed. The day passed; that's a fact worth recording.
+This is the mechanism everything else exists to feed. Without it there is no Arbetsdagbok — the admin cannot generate a document covering any window the arbetsledare has not confirmed.
+
+**Trigger.** A day becomes confirmable the minute its last shift has ended. Not at midnight, not the next morning — when the final shift on that day is over by the clock.
+
+**Who.** The arbetsledare assigned to that project. Assignment is set by the admin at project creation, and a project may have several. An arbetsledare sees only the days belonging to projects they are on.
+
+**The list.** Days, oldest first, each headed by its date and weekday:
+
+```
+AUG 16 MÅNDAG
+[Arbetare]   [start]   [slut]   [timmar]
+```
+
+Every field on the row is editable. Start time, end time, hours worked — the leader corrects whatever is wrong.
+
+**One row, one late mark.** If any of the three fields is edited, the row is logged late — once. Editing all three is still one mark. Three corrections to one person's shift is one deviation, not three, and the priority-list demotion moves them one position, not three.
+
+**Before a day can be confirmed**, the leader writes a few words about what that day's workers did. This is the "Vad Vi Gjorde" text, mandatory, one per project per day, and it prints on every row of that day's table in the document.
+
+**Confirmation is final.** No edits after.
+
+**Removing someone who wasn't there.** If a person on the list did not actually work that shift, the leader removes them from the day here. That is different from deleting a shift — it corrects the record of who was present.
+
+**Everything on this screen exists for the document.** The time edits, the hours edits, the removals, the "Vad Vi Gjorde" text — none of it is bookkeeping for its own sake. Each one lands in a cell of the Arbetsdagbok. That is why confirmation is final and why nothing generates until it is done.
+
+A day can be confirmed understaffed. The day passed; that is a fact worth recording.
 
 If unconfirmed days exist, a full-screen popup appears on app open, oldest first. Its dismiss control fades in after one second.
 
@@ -242,8 +361,9 @@ That block is the entire enforcement mechanism. The admin needs the document; on
 2. **No worker holds two assignments on the same date.** Ever.
 3. **Clock stamps are append-only evidence.** The leader may overwrite the working value; the original survives, visible and attributed.
 4. **Only a leader writes hours or confirmation state.** Enforced in the database, not the interface.
+4b. **An arbetsledare confirms only for projects they are assigned to.** This is a per-row scope, not a role check — the database must enforce it row by row.
 5. **Confirmation is final.**
-6. **The Arbetsdagbok cannot generate with any cell empty** — not shifts, not the Gjorde text, not the beställare fields.
+6. **The Arbetsdagbok cannot generate with any cell empty** — not shifts, not the "Vad Vi Gjorde" text, not the beställare fields.
 7. **Every field the document needs is captured and validated at project creation.**
 8. **Deleted projects and workers make their shifts count nowhere** — every read, no exceptions.
 9. **Dates are Stockholm-anchored.** Month windows half-open. A shift must never file under the wrong month because UTC midnight hasn't arrived yet.
@@ -259,7 +379,9 @@ That block is the entire enforcement mechanism. The admin needs the document; on
 - Column-level grants cannot separate roles: every logged-in user is the same database role, so a grant restricting workers restricts leaders identically. Triggers comparing old and new values are the mechanism that works.
 - Notifications, reminders, scheduled alerts and deadline emails are **impossible as-is**. They need something running — a scheduled function or a small server. That is an architecture decision, not a feature.
 
-**Account creation needs elevated credentials**, so it runs through a separate function with its own deployment path.
+**Notifications are in-app only.** A red dot and a message on next load. No push, no email, no scheduled digests — those need a server or a scheduled function, and neither exists. In-app is enough for the two things that actually need to travel: a deleted shift, and an offered one.
+
+**Account creation needs elevated credentials**, so it runs through a separate function with its own deployment path. Creating an auth user requires the service-role key, which cannot ship in a static bundle.
 
 **Role is read from the database, not the token.** A role change takes effect on next load rather than persisting stale for the token's lifetime.
 
@@ -269,34 +391,82 @@ That block is the entire enforcement mechanism. The admin needs the document; on
 
 ## 7. Screens
 
-**Leader**
-Hem · Skapa Pass · Snabb Pass · Bekräfta Pass · Logga Timmar · Kalender · Alla Projekt · Alla Arbetare · Arbetsdagbok · Papperskorgen · Inställningar (konto & roller)
+**Admin**
+Everything below, plus: Skapa Projekt · Snabb Pass · Arbetsdagbok · Konton & Roller · shift deletion from the shift calendar
+
+**Arbetsledare**
+Hem · Skapa Pass · Bekräfta Pass · Skiftkalender · Kommande Pass · Alla Projekt · Alla Arbetare · own shifts and clocking, same as any worker
 
 **Arbetare**
-Hem (own shifts, own confirmed hours this month, clock control) · Min kalender (förval) · Acceptera Pass
+Hem (own shifts, own confirmed hours this month, clock control) · Min kalender (förval) · Acceptera Pass · Min profil
 
-**Admin**
-Everything the leader has, plus project creation, account and role management, and Arbetsdagbok export.
+## 8. Decisions — all settled
+
+Nothing here is open. Anything discovered later that is not covered is a stop-and-ask, never a guess.
+
+**Roles and scope**
+- Three roles: admin, arbetsledare, arbetare. Admin holds real exclusive powers, not extra buttons.
+- Confirmation is scoped per project. Only assigned arbetsledare can confirm a project's days.
+- An arbetsledare is also a worker and holds shifts.
+- The project dropdown is mandatory in Skapa Pass and lists only assigned projects. This makes an unassigned leader harmless without special handling.
+
+**Assignment**
+- Fastanställd: removed entirely.
+- Hand-picked is a ranking modifier on förval, never a grant. No warning when a pick has not marked a day — not marking it means they cannot work it.
+- A shortfall between total slots and pre-pickers is flagged to the leader at creation.
+- Removing a worker reopens the slot; headcount never drops.
+- A deleted shift is never re-offered to the people removed from it. Snabb Pass is the way back.
+
+**Identity**
+- Every worker has an account; not every account has a worker.
+- Snabb Pass creates a real worker and a real account through the same form.
+- Passwords: 6 to 20 characters, keyboard-accessible on phone and desktop.
+- Recovery is the admin regenerating and re-copying. No self-service reset.
+
+**Confirmation and the document**
+- The admin cannot confirm days. Missing days are filled through the bristsurvey, prefilled from registered data, with provenance recorded.
+- A surveyed day is confirmed and leaves the leader's queue permanently.
+- The beställare fields have no toggles. Always printed, no exceptions.
+- The document header repeats on every page: logo and title only.
+- One row, one late mark, however many fields were edited.
+- Ongoing shifts cannot be deleted. Workers are notified when a future one is.
+- Beställare fields always print. No per-document toggles.
+- Footer is hardcoded Bella Service, identical on every page.
+- Generation is a date range per export, and generated ranges are remembered and warned about on overlap.
+
+**Platform and design**
+- Mobile first. Every screen designed for a phone, then adapted upward.
+- Black and white until everything works. No styling before function.
+- The calendar is the one exception — drag-to-paint needs a real layout from the start.
+- Built so a child could use it: large targets, obvious affordances, minimal per screen.
+- Notifications are in-app only.
+- Payload fields renamed on port: `hours`, `passTider`, `vadViGjorde`.
+
+## 8b. The DocMaker template port
+
+Source lives at `docs/docmaker-template/`. It is a single string-template module, ~8KB, no framework.
+
+**Take verbatim:**
+
+- **The print CSS.** `@page { size: A4; margin: 0 }` with the body doing the insetting via `padding: 20mm 18mm 30mm 18mm`. The 30mm bottom reserves the footer band. Page-margin CSS applies only to the first and last sheet, which is why the body carries it instead. This was solved the hard way once already.
+- **`parseHours` and `sumOrdinarieTid`.** Fifteen lines, pure. Swedish decimal comma in and out. Rewriting them is how you get silently wrong totals.
+- **The day table as CSS Grid**, `1.1fr 1fr 1.3fr 1.6fr`. Not a `<table>`.
+- **`page-break-inside: avoid`** on day blocks, `page-break-after: always` on the cover.
+- **Footer as `position: fixed; bottom: 14mm`**, which repeats per page in Chromium's print engine.
+- **The logo base64-inlined**, not linked. A path-linked image fails silently in a print render.
+
+**Change on port:**
+
+- **Drop the `adressChecked` / `bolagChecked` / `orgnrChecked` conditionals.** All three beställare fields always print.
+- **Rename the payload fields.** `passTyp1` → `hours`, `passTyp2` → `passTider`, `project` → `vadViGjorde`. The old names exist only to keep DocMaker's saved drafts importable, and there are none to keep.
+- **`formatTimestamp` must be Stockholm-anchored**, not machine-local. Invariant 9.
+- **`loadCompany()` reads from disk.** In a static export the footer values ship as a module or a constant.
+
+**The header repeats on every page**, like the footer. Logo and the word "Arbetsdagbok", nothing else. The current template renders it once after the cover, so pages 3 onward lose it — that is a bug to fix in the port, not behaviour to keep.
+
+**Brand palette**, from the app chrome: navy `#1f2b40`, gold `#e0a83a`. Document colours: text `#1a1a1a`, headings `#111`, header row `#FBEFD8`, zebra `#FDF9F1`, header text `#303c54`, footer `#767676`, footer rule `#cfcfcf`. Display font Georgia; document font Segoe UI / Arial, 10.5pt base.
 
 ---
-
-## 8. Open questions — must be answered, not guessed
-
-1. **Hand-picked without förval.** They get nothing under this design — the förval is the entry ticket. Should the leader be warned at creation time that some of their picks haven't marked those days available?
-2. **Tier 2 exhaustion across a long batch.** Twelve days at three slots with only four pre-pickers means Acceptera Pass fires on nearly every day. Intended, or flagged to the leader at creation?
-3. **Admin as a real third role.** Every policy currently asks one binary question. A third role means revisiting all of them plus the column guard. Build now, or run on two roles and add later?
-4. **Notifications.** Requires infrastructure that does not exist — a scheduled function at minimum. In scope at all, or does the app stay silent?
-5. **Tracking generated ranges.** A project produces many Arbetsdagböcker over its life, each covering a date range the admin picks by hand. Does the system remember which ranges are already documented, so it can warn on an overlap or a gap? Without it, a week can be logged twice or missed entirely and nothing in the app would show it.
-6. **Password recovery.** The six-digit login is generated once and copied to the clipboard. If it is lost before it reaches the worker, what is the recovery path — admin regenerates, or standard email reset (which assumes a real inbox the worker can reach)?
-
-### Settled
-
-- **Fastanställd: removed entirely.** Not a flag, not a tier, not a rule. The owner sets shifts and ensures people get work.
-- **Vakans on removal: the slot reopens.** See Section 4, Step 5b.
-- **Beställare fields always print.** No per-document toggles.
-- **Footer is hardcoded** Bella Service, identical on every page.
-- **Generation is a date range**, chosen by the admin per export.
-- **Snabb Pass creates a real worker and a real account**, via the same Ny Arbetare form as any other worker. Never free text.
 
 ## 9. What the rebuild must not lose
 

@@ -12,6 +12,11 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // DocMaker source, kept verbatim as the reference for the template port
+    // (spec Section 8b). It is not application code and is not built.
+    "docs/**",
+    // Generated from the live schema by `npm run types:gen`.
+    "src/lib/supabase/database.types.ts",
   ]),
 ]);
 

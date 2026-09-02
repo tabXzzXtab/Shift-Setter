@@ -1,0 +1,13 @@
+{
+  "postadressLabel": "Postadress Adress:",
+  "postadress": ["Söderto 3276, 242 93 Hörby"],
+  "telefonLabel": "Telefon",
+  "telefon": "073-398 78 68",
+  "bankgiroLabel": "Bankgiro",
+  "bankgiro": "443-4551",
+  "orgnote": "Godkänd för F-skatt",
+  "orgnrLabel": "Org.nr",
+  "orgnr": "556788-2369",
+  "momsregLabel": "Momsreg.nr",
+  "momsregnr": "CEFFSTA99339001"
+}

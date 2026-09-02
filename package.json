@@ -9,7 +9,9 @@
     "typecheck": "next typegen && tsc --noEmit",
     "types:gen": "node scripts/gen-types.mjs",
     "db:sql": "node scripts/sql.mjs",
-    "verify": "npm run lint && npm run typecheck && npm run build"
+    "verify": "npm run lint && npm run typecheck && npm run build",
+    "test:db": "node scripts/test-db.mjs",
+    "db:validate": "node scripts/validate-migration.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.113.0",

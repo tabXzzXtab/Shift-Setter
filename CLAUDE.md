@@ -17,9 +17,11 @@ Full specification: [docs/spec.md](docs/spec.md).
     value; the original survives, visible and attributed to whoever changed it.
 4.  Only a leader writes hours or confirmation state. Enforced in the database,
     not the interface.
+4b. An arbetsledare confirms only for projects they are assigned to. This is a
+    per-row scope, not a role check - the database must enforce it row by row.
 5.  Confirmation is final. No edits after.
 6.  The Arbetsdagbok cannot generate with any cell empty — not shifts, not the
-    Gjorde text, not the bestallare fields.
+    "Vad Vi Gjorde" text, not the bestallare fields.
 7.  Every field the document needs is captured and validated at project creation.
 8.  Deleted projects and workers make their shifts count nowhere, in every read.
 9.  Dates are Stockholm-anchored. Month windows half-open.
@@ -39,6 +41,33 @@ Working rules:
   Do not decide and report afterwards.
 - Regenerate Supabase types after every migration.
 ```
+
+---
+
+## The admin is not above the leader on one thing
+
+**The admin cannot confirm days.** Only the assigned arbetsledare can. That is
+the pressure the whole system runs on; letting the owner confirm would
+rubber-stamp days he was not present for.
+
+When days are missing, the admin goes through the **bristsurvey** and
+reconstructs them from registered data. A surveyed day is a confirmed day: it
+leaves the leader's queue permanently and never returns. `project_day.confirmed_via`
+records which route was taken, because a leader confirming from site and an
+owner reconstructing from phone calls are different claims about the same hours.
+
+In the database this is `app.confirms_project()` -- which deliberately does NOT
+fall back to `is_admin()` -- as distinct from `app.leads_project()`, which does.
+Do not merge them.
+
+---
+
+## Design, until it works
+
+- **Black and white.** No styling before function.
+- **The calendar is the exception** -- drag-to-paint needs real layout from the start.
+- **Mobile first, always.** Every screen designed for a phone, then adapted upward.
+- Built so a child could use it: large targets, obvious affordances, minimal per screen.
 
 ---
 
@@ -98,6 +127,51 @@ without re-testing reintroduces failures that already cost days.
   entrypoint through `process.execPath`. Use `supabaseCli()` from there.
 - `.env.local` holds the database password and the access token. Gitignored.
   Never commit it, never echo it into a log, never inline it in a workflow file.
+
+---
+
+## Database gotchas, each found by a failing test
+
+Four things that cost time here already. Changing any of them without re-running
+`npm run test:db` reintroduces a failure that was real, not theoretical.
+
+1. **RLS is re-applied to the row a BEFORE UPDATE trigger produces.** A SELECT
+   policy carrying `deleted_at is null` therefore makes soft-delete impossible:
+   the new row fails its own policy the instant the column is set. That is why
+   `public.delete_pass()` exists as a SECURITY DEFINER RPC. Do not "simplify" it
+   back into a plain UPDATE from the client.
+2. **RLS policy expressions run with the CALLING role's privileges**, not the
+   table owner's. `authenticated` needs `usage` on schema `app` and `execute` on
+   its functions, or every policy raises "permission denied for function" and a
+   logged-in user can read nothing. The functions still are not RPC-callable:
+   PostgREST only serves its exposed schemas, and `app` is not one.
+3. **A null role must be a denial.** `app.current_role()` returns NULL for a
+   missing or paused account. `NULL = 'admin'` is NULL, and `if not NULL then
+   raise` never fires -- so every helper coalesces to false. Never write a guard
+   that relies on a three-valued result.
+4. **`now()` is transaction-start time and is constant for the whole
+   transaction.** Two writes in one transaction get identical timestamps, so a
+   test that "changes" a value to `now()` changes nothing.
+
+Related: an UPDATE blocked by RLS **filters to zero rows, it does not raise**.
+Assert on state, not on an exception, when testing that someone cannot write.
+
+---
+
+## Testing
+
+```bash
+npm run test:db
+```
+
+Runs `supabase/tests/suite.sql` against the real database, then runs it again
+once per negative control with a single guard disabled. A control passes only
+when the suite fails at the SPECIFIC assertion that guard holds up -- failing
+somewhere else means the assertion rested on something other than the guard.
+Every run is wrapped in a transaction and rolled back.
+
+`npm run db:sql` **commits**. Use `-- --rollback` for anything exploratory; a
+probe run without it once left fixture rows in the database.
 
 ---
 

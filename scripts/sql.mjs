@@ -20,6 +20,9 @@ const flag = (n) => {
 
 const file = flag("--file");
 const query = flag("--query");
+// Exploratory reads must not be able to commit. A probe run without this once
+// left fixture rows in the database because db:sql auto-commits.
+const rollback = argv.includes("--rollback");
 
 if (!file && !query) {
   console.error("usage: npm run db:sql -- (--file <path> | --query <sql>)");
@@ -36,6 +39,7 @@ const client = new pg.Client({
 
 try {
   await client.connect();
+  if (rollback) await client.query("begin");
   const res = await client.query(sql);
   for (const r of Array.isArray(res) ? res : [res]) {
     if (r.rows?.length) console.table(r.rows);
@@ -46,5 +50,9 @@ try {
   if (err.position) console.error(`  at character ${err.position}`);
   process.exitCode = 1;
 } finally {
+  if (rollback) {
+    await client.query("rollback").catch(() => {});
+    console.log("(--rollback: nothing was committed)");
+  }
   await client.end().catch(() => {});
 }

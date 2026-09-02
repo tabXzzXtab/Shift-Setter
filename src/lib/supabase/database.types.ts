@@ -17,16 +17,946 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      account: {
+        Row: {
+          active: boolean
+          created_at: string
+          created_by: string | null
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          created_by?: string | null
+          id: string
+          role?: Database["public"]["Enums"]["app_role"]
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "account_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "account"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "account_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "account_directory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      arbetsdagbok: {
+        Row: {
+          covered: unknown
+          generated_at: string
+          generated_by: string
+          id: string
+          project_id: string
+        }
+        Insert: {
+          covered: unknown
+          generated_at?: string
+          generated_by: string
+          id?: string
+          project_id: string
+        }
+        Update: {
+          covered?: unknown
+          generated_at?: string
+          generated_by?: string
+          id?: string
+          project_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "arbetsdagbok_generated_by_fkey"
+            columns: ["generated_by"]
+            isOneToOne: false
+            referencedRelation: "account"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "arbetsdagbok_generated_by_fkey"
+            columns: ["generated_by"]
+            isOneToOne: false
+            referencedRelation: "account_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "arbetsdagbok_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "project"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      clock_edit: {
+        Row: {
+          edited_at: string
+          edited_by: string
+          field: string
+          id: number
+          new_value: string | null
+          old_value: string | null
+          tilldelning_id: string
+        }
+        Insert: {
+          edited_at?: string
+          edited_by: string
+          field: string
+          id?: never
+          new_value?: string | null
+          old_value?: string | null
+          tilldelning_id: string
+        }
+        Update: {
+          edited_at?: string
+          edited_by?: string
+          field?: string
+          id?: never
+          new_value?: string | null
+          old_value?: string | null
+          tilldelning_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "clock_edit_edited_by_fkey"
+            columns: ["edited_by"]
+            isOneToOne: false
+            referencedRelation: "account"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "clock_edit_edited_by_fkey"
+            columns: ["edited_by"]
+            isOneToOne: false
+            referencedRelation: "account_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "clock_edit_tilldelning_id_fkey"
+            columns: ["tilldelning_id"]
+            isOneToOne: false
+            referencedRelation: "my_shift"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "clock_edit_tilldelning_id_fkey"
+            columns: ["tilldelning_id"]
+            isOneToOne: false
+            referencedRelation: "tilldelning"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      forval: {
+        Row: {
+          can_work: boolean
+          updated_at: string
+          work_date: string
+          worker_id: string
+        }
+        Insert: {
+          can_work: boolean
+          updated_at?: string
+          work_date: string
+          worker_id: string
+        }
+        Update: {
+          can_work?: boolean
+          updated_at?: string
+          work_date?: string
+          worker_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "forval_worker_id_fkey"
+            columns: ["worker_id"]
+            isOneToOne: false
+            referencedRelation: "account_directory"
+            referencedColumns: ["worker_id"]
+          },
+          {
+            foreignKeyName: "forval_worker_id_fkey"
+            columns: ["worker_id"]
+            isOneToOne: false
+            referencedRelation: "worker"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "forval_worker_id_fkey"
+            columns: ["worker_id"]
+            isOneToOne: false
+            referencedRelation: "worker_roster"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notification: {
+        Row: {
+          account_id: string
+          created_at: string
+          id: string
+          kind: Database["public"]["Enums"]["notification_kind"]
+          payload: Json
+          read_at: string | null
+        }
+        Insert: {
+          account_id: string
+          created_at?: string
+          id?: string
+          kind: Database["public"]["Enums"]["notification_kind"]
+          payload?: Json
+          read_at?: string | null
+        }
+        Update: {
+          account_id?: string
+          created_at?: string
+          id?: string
+          kind?: Database["public"]["Enums"]["notification_kind"]
+          payload?: Json
+          read_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notification_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "account"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notification_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "account_directory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pass: {
+        Row: {
+          batch_id: string | null
+          created_at: string
+          created_by: string
+          deleted_at: string | null
+          deleted_by: string | null
+          end_time: string
+          headcount: number
+          id: string
+          planned_hours: number
+          project_id: string
+          start_time: string
+          work_date: string
+        }
+        Insert: {
+          batch_id?: string | null
+          created_at?: string
+          created_by: string
+          deleted_at?: string | null
+          deleted_by?: string | null
+          end_time: string
+          headcount: number
+          id?: string
+          planned_hours: number
+          project_id: string
+          start_time: string
+          work_date: string
+        }
+        Update: {
+          batch_id?: string | null
+          created_at?: string
+          created_by?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
+          end_time?: string
+          headcount?: number
+          id?: string
+          planned_hours?: number
+          project_id?: string
+          start_time?: string
+          work_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pass_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "pass_batch"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pass_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "account"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pass_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "account_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pass_deleted_by_fkey"
+            columns: ["deleted_by"]
+            isOneToOne: false
+            referencedRelation: "account"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pass_deleted_by_fkey"
+            columns: ["deleted_by"]
+            isOneToOne: false
+            referencedRelation: "account_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pass_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "project"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pass_batch: {
+        Row: {
+          created_at: string
+          created_by: string
+          id: string
+          project_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          id?: string
+          project_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          id?: string
+          project_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pass_batch_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "account"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pass_batch_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "account_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pass_batch_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "project"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pass_batch_handpick: {
+        Row: {
+          batch_id: string
+          worker_id: string
+        }
+        Insert: {
+          batch_id: string
+          worker_id: string
+        }
+        Update: {
+          batch_id?: string
+          worker_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pass_batch_handpick_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "pass_batch"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pass_batch_handpick_worker_id_fkey"
+            columns: ["worker_id"]
+            isOneToOne: false
+            referencedRelation: "account_directory"
+            referencedColumns: ["worker_id"]
+          },
+          {
+            foreignKeyName: "pass_batch_handpick_worker_id_fkey"
+            columns: ["worker_id"]
+            isOneToOne: false
+            referencedRelation: "worker"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pass_batch_handpick_worker_id_fkey"
+            columns: ["worker_id"]
+            isOneToOne: false
+            referencedRelation: "worker_roster"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pass_block: {
+        Row: {
+          blocked_at: string
+          pass_id: string
+          worker_id: string
+        }
+        Insert: {
+          blocked_at?: string
+          pass_id: string
+          worker_id: string
+        }
+        Update: {
+          blocked_at?: string
+          pass_id?: string
+          worker_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pass_block_pass_id_fkey"
+            columns: ["pass_id"]
+            isOneToOne: false
+            referencedRelation: "pass"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pass_block_worker_id_fkey"
+            columns: ["worker_id"]
+            isOneToOne: false
+            referencedRelation: "account_directory"
+            referencedColumns: ["worker_id"]
+          },
+          {
+            foreignKeyName: "pass_block_worker_id_fkey"
+            columns: ["worker_id"]
+            isOneToOne: false
+            referencedRelation: "worker"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pass_block_worker_id_fkey"
+            columns: ["worker_id"]
+            isOneToOne: false
+            referencedRelation: "worker_roster"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pass_offer: {
+        Row: {
+          id: string
+          offered_at: string
+          pass_id: string
+          responded_at: string | null
+          state: Database["public"]["Enums"]["offer_state"]
+          worker_id: string
+        }
+        Insert: {
+          id?: string
+          offered_at?: string
+          pass_id: string
+          responded_at?: string | null
+          state?: Database["public"]["Enums"]["offer_state"]
+          worker_id: string
+        }
+        Update: {
+          id?: string
+          offered_at?: string
+          pass_id?: string
+          responded_at?: string | null
+          state?: Database["public"]["Enums"]["offer_state"]
+          worker_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pass_offer_pass_id_fkey"
+            columns: ["pass_id"]
+            isOneToOne: false
+            referencedRelation: "pass"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pass_offer_worker_id_fkey"
+            columns: ["worker_id"]
+            isOneToOne: false
+            referencedRelation: "account_directory"
+            referencedColumns: ["worker_id"]
+          },
+          {
+            foreignKeyName: "pass_offer_worker_id_fkey"
+            columns: ["worker_id"]
+            isOneToOne: false
+            referencedRelation: "worker"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pass_offer_worker_id_fkey"
+            columns: ["worker_id"]
+            isOneToOne: false
+            referencedRelation: "worker_roster"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project: {
+        Row: {
+          bestallare_address: string
+          bestallare_bolag: string
+          bestallare_orgnr: string
+          created_at: string
+          created_by: string | null
+          deactivated_at: string | null
+          deleted_at: string | null
+          id: string
+          name: string
+          services: string
+          site_address: string
+          start_date: string
+        }
+        Insert: {
+          bestallare_address: string
+          bestallare_bolag: string
+          bestallare_orgnr: string
+          created_at?: string
+          created_by?: string | null
+          deactivated_at?: string | null
+          deleted_at?: string | null
+          id?: string
+          name: string
+          services: string
+          site_address: string
+          start_date: string
+        }
+        Update: {
+          bestallare_address?: string
+          bestallare_bolag?: string
+          bestallare_orgnr?: string
+          created_at?: string
+          created_by?: string | null
+          deactivated_at?: string | null
+          deleted_at?: string | null
+          id?: string
+          name?: string
+          services?: string
+          site_address?: string
+          start_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "account"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "account_directory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_day: {
+        Row: {
+          confirmed_at: string | null
+          confirmed_by: string | null
+          confirmed_via:
+            | Database["public"]["Enums"]["confirmation_source"]
+            | null
+          created_at: string
+          project_id: string
+          vad_vi_gjorde: string | null
+          work_date: string
+        }
+        Insert: {
+          confirmed_at?: string | null
+          confirmed_by?: string | null
+          confirmed_via?:
+            | Database["public"]["Enums"]["confirmation_source"]
+            | null
+          created_at?: string
+          project_id: string
+          vad_vi_gjorde?: string | null
+          work_date: string
+        }
+        Update: {
+          confirmed_at?: string | null
+          confirmed_by?: string | null
+          confirmed_via?:
+            | Database["public"]["Enums"]["confirmation_source"]
+            | null
+          created_at?: string
+          project_id?: string
+          vad_vi_gjorde?: string | null
+          work_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_day_confirmed_by_fkey"
+            columns: ["confirmed_by"]
+            isOneToOne: false
+            referencedRelation: "account"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_day_confirmed_by_fkey"
+            columns: ["confirmed_by"]
+            isOneToOne: false
+            referencedRelation: "account_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_day_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "project"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_leader: {
+        Row: {
+          account_id: string
+          assigned_at: string
+          project_id: string
+        }
+        Insert: {
+          account_id: string
+          assigned_at?: string
+          project_id: string
+        }
+        Update: {
+          account_id?: string
+          assigned_at?: string
+          project_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_leader_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "account"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_leader_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "account_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_leader_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "project"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tilldelning: {
+        Row: {
+          clock_in: string | null
+          clock_in_original: string | null
+          clock_out: string | null
+          clock_out_original: string | null
+          confirmed_hours: number | null
+          created_at: string
+          id: string
+          late: boolean
+          pass_id: string
+          released_at: string | null
+          released_by: string | null
+          released_reason: Database["public"]["Enums"]["release_reason"] | null
+          source: Database["public"]["Enums"]["assignment_source"]
+          work_date: string
+          worker_id: string
+        }
+        Insert: {
+          clock_in?: string | null
+          clock_in_original?: string | null
+          clock_out?: string | null
+          clock_out_original?: string | null
+          confirmed_hours?: number | null
+          created_at?: string
+          id?: string
+          late?: boolean
+          pass_id: string
+          released_at?: string | null
+          released_by?: string | null
+          released_reason?: Database["public"]["Enums"]["release_reason"] | null
+          source: Database["public"]["Enums"]["assignment_source"]
+          work_date: string
+          worker_id: string
+        }
+        Update: {
+          clock_in?: string | null
+          clock_in_original?: string | null
+          clock_out?: string | null
+          clock_out_original?: string | null
+          confirmed_hours?: number | null
+          created_at?: string
+          id?: string
+          late?: boolean
+          pass_id?: string
+          released_at?: string | null
+          released_by?: string | null
+          released_reason?: Database["public"]["Enums"]["release_reason"] | null
+          source?: Database["public"]["Enums"]["assignment_source"]
+          work_date?: string
+          worker_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tilldelning_pass_id_fkey"
+            columns: ["pass_id"]
+            isOneToOne: false
+            referencedRelation: "pass"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tilldelning_released_by_fkey"
+            columns: ["released_by"]
+            isOneToOne: false
+            referencedRelation: "account"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tilldelning_released_by_fkey"
+            columns: ["released_by"]
+            isOneToOne: false
+            referencedRelation: "account_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tilldelning_worker_id_fkey"
+            columns: ["worker_id"]
+            isOneToOne: false
+            referencedRelation: "account_directory"
+            referencedColumns: ["worker_id"]
+          },
+          {
+            foreignKeyName: "tilldelning_worker_id_fkey"
+            columns: ["worker_id"]
+            isOneToOne: false
+            referencedRelation: "worker"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tilldelning_worker_id_fkey"
+            columns: ["worker_id"]
+            isOneToOne: false
+            referencedRelation: "worker_roster"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      worker: {
+        Row: {
+          account_id: string
+          avatar_url: string | null
+          bank_number: string | null
+          clearing_number: string | null
+          created_at: string
+          deleted_at: string | null
+          email: string
+          id: string
+          late_marks: number
+          name: string
+          personnummer: string | null
+          phone: string | null
+        }
+        Insert: {
+          account_id: string
+          avatar_url?: string | null
+          bank_number?: string | null
+          clearing_number?: string | null
+          created_at?: string
+          deleted_at?: string | null
+          email: string
+          id?: string
+          late_marks?: number
+          name: string
+          personnummer?: string | null
+          phone?: string | null
+        }
+        Update: {
+          account_id?: string
+          avatar_url?: string | null
+          bank_number?: string | null
+          clearing_number?: string | null
+          created_at?: string
+          deleted_at?: string | null
+          email?: string
+          id?: string
+          late_marks?: number
+          name?: string
+          personnummer?: string | null
+          phone?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "worker_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: true
+            referencedRelation: "account"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "worker_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: true
+            referencedRelation: "account_directory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
-      [_ in never]: never
+      account_directory: {
+        Row: {
+          active: boolean | null
+          id: string | null
+          name: string | null
+          role: Database["public"]["Enums"]["app_role"] | null
+          worker_id: string | null
+        }
+        Relationships: []
+      }
+      my_offer: {
+        Row: {
+          end_time: string | null
+          pass_id: string | null
+          planned_hours: number | null
+          project_name: string | null
+          site_address: string | null
+          start_time: string | null
+          work_date: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pass_offer_pass_id_fkey"
+            columns: ["pass_id"]
+            isOneToOne: false
+            referencedRelation: "pass"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      my_shift: {
+        Row: {
+          clock_in: string | null
+          clock_out: string | null
+          confirmed_hours: number | null
+          day_confirmed: boolean | null
+          end_time: string | null
+          id: string | null
+          pass_id: string | null
+          planned_hours: number | null
+          project_id: string | null
+          project_name: string | null
+          site_address: string | null
+          start_time: string | null
+          work_date: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pass_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "project"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tilldelning_pass_id_fkey"
+            columns: ["pass_id"]
+            isOneToOne: false
+            referencedRelation: "pass"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      worker_roster: {
+        Row: {
+          id: string | null
+          late_marks: number | null
+          name: string | null
+        }
+        Insert: {
+          id?: string | null
+          late_marks?: number | null
+          name?: string | null
+        }
+        Update: {
+          id?: string | null
+          late_marks?: number | null
+          name?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
-      [_ in never]: never
+      accept_offer: { Args: { p_pass: string }; Returns: string }
+      assign_snabb: {
+        Args: { p_pass: string; p_worker: string }
+        Returns: string
+      }
+      clock_in: { Args: { p_tilldelning: string }; Returns: string }
+      clock_out: { Args: { p_tilldelning: string }; Returns: string }
+      decline_offer: { Args: { p_pass: string }; Returns: undefined }
+      delete_pass: { Args: { p_pass: string }; Returns: undefined }
+      release_assignment: {
+        Args: {
+          p_reason?: Database["public"]["Enums"]["release_reason"]
+          p_tilldelning: string
+        }
+        Returns: undefined
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "arbetsledare" | "arbetare"
+      assignment_source:
+        | "handplockad"
+        | "forval"
+        | "oppen"
+        | "manuell"
+        | "snabb"
+      confirmation_source: "leader" | "bristsurvey"
+      notification_kind: "shift_deleted" | "shift_offered" | "day_unconfirmed"
+      offer_state: "offered" | "accepted" | "declined" | "withdrawn"
+      release_reason:
+        | "removed_by_leader"
+        | "replaced_by_snabb"
+        | "shift_deleted"
+        | "absent_at_confirmation"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -153,6 +1083,18 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "arbetsledare", "arbetare"],
+      assignment_source: ["handplockad", "forval", "oppen", "manuell", "snabb"],
+      confirmation_source: ["leader", "bristsurvey"],
+      notification_kind: ["shift_deleted", "shift_offered", "day_unconfirmed"],
+      offer_state: ["offered", "accepted", "declined", "withdrawn"],
+      release_reason: [
+        "removed_by_leader",
+        "replaced_by_snabb",
+        "shift_deleted",
+        "absent_at_confirmation",
+      ],
+    },
   },
 } as const
