@@ -14,18 +14,20 @@ import { LOGO_DATA_URL } from "@/lib/doc/logo";
  *    sheet, which is why the body carries it. This was solved the hard way once.
  *  - The day table as CSS Grid, 1.1fr 1fr 1.3fr 1.6fr. Not a <table>.
  *  - page-break-inside: avoid on day blocks, page-break-after: always on cover.
- *  - Footer as position: fixed; bottom: 14mm, which repeats per page in
- *    Chromium's print engine.
+ *  - The footer's appearance: the three-column grid, 8pt grey, hairline rule.
  *  - The logo base64-inlined, not linked.
  *
  * CHANGED ON PORT:
  *  - No adressChecked / bolagChecked / orgnrChecked. All three beställare
  *    fields always print: the document exists so the customer can see how many
  *    hours were worked on their job, so it cannot identify them incompletely.
- *  - THE HEADER NOW REPEATS ON EVERY PAGE. The original rendered it once after
- *    the cover, so pages 3 onward lost it. It is fixed like the footer, and the
- *    body's top padding grows from 20mm to 34mm to reserve the band -- the same
- *    trick the 30mm bottom padding already used for the footer.
+ *  - THE HEADER REPEATS ON EVERY PAGE, and the FOOTER no longer overlaps.
+ *    The original rendered the header once after the cover, so pages 3 onward
+ *    lost it. Spec 8b suggests making it position:fixed "like the footer" --
+ *    but fixed repeats while reserving no space, and body padding insets only
+ *    the first page, so it printed over the day table from page 2. Both are
+ *    now thead/tfoot groups, which repeat AND reserve. Everything visual is
+ *    unchanged; only the positioning mechanism differs.
  *  - formatTimestamp is Stockholm-anchored (invariant 9).
  *  - loadCompany() reads a constant, since a static export has no disk.
  */
@@ -55,6 +57,25 @@ export function ArbetsdagbokDocument({ payload }: { payload: DocPayload }) {
             </td>
           </tr>
         </thead>
+        <tfoot>
+          <tr>
+            <td>
+              <div className="ad-footer">
+                <div>
+                  <div>{COMPANY.postadressLabel}</div>
+                  <div>{COMPANY.postadress.join(", ")}</div>
+                </div>
+                <div>{COMPANY.telefonLabel}: {COMPANY.telefon}</div>
+                <div className="footer-legal">
+                  <div>{COMPANY.bankgiroLabel}: {COMPANY.bankgiro}</div>
+                  <div>{COMPANY.orgnote}</div>
+                  <div>{COMPANY.orgnrLabel}: {COMPANY.orgnr}</div>
+                  <div>{COMPANY.momsregLabel}: {COMPANY.momsregnr}</div>
+                </div>
+              </div>
+            </td>
+          </tr>
+        </tfoot>
         <tbody>
           <tr>
             <td>
@@ -111,20 +132,6 @@ export function ArbetsdagbokDocument({ payload }: { payload: DocPayload }) {
           </tr>
         </tbody>
       </table>
-
-      <div className="ad-footer">
-        <div>
-          <div>{COMPANY.postadressLabel}</div>
-          <div>{COMPANY.postadress.join(", ")}</div>
-        </div>
-        <div>{COMPANY.telefonLabel}: {COMPANY.telefon}</div>
-        <div className="footer-legal">
-          <div>{COMPANY.bankgiroLabel}: {COMPANY.bankgiro}</div>
-          <div>{COMPANY.orgnote}</div>
-          <div>{COMPANY.orgnrLabel}: {COMPANY.orgnr}</div>
-          <div>{COMPANY.momsregLabel}: {COMPANY.momsregnr}</div>
-        </div>
-      </div>
     </>
   );
 }
@@ -136,7 +143,9 @@ const CSS = `
 
 .ad-doc {
   /* VERBATIM from DocMaker. The body does the insetting, because @page margins
-     apply only to the first and last sheet, and 30mm reserves the footer band.
+     apply only to the first and last sheet. The 30mm bottom is DocMaker's
+     reservation for the footer band; kept, so the last page still breathes
+     even though tfoot now reserves the footer's own height on every page.
      This was solved the hard way once already. */
   padding: 20mm 18mm 30mm 18mm;
   font-family: 'Segoe UI', Arial, sans-serif;
@@ -157,8 +166,15 @@ const CSS = `
   thead in a table is the mechanism that both repeats and reserves. The visual
   styling below is unchanged.
 */
+/* Known trade-off: table-footer-group pins the footer to the bottom of every
+   FULL page, but on the last page it sits directly under the content rather
+   than at the page foot. height:100vh here was tried and changes nothing --
+   the table box spans pages, so it cannot stretch a single fragment. The
+   alternative is position:fixed, which pins every page and overlaps the middle
+   ones; that is the bug this replaced. */
 .ad-sheet { width: 100%; border-collapse: collapse; }
 .ad-sheet > thead { display: table-header-group; }
+.ad-sheet > tfoot { display: table-footer-group; }
 .ad-sheet td { padding: 0; vertical-align: top; }
 
 .ad-running-header {
@@ -212,12 +228,16 @@ const CSS = `
 .rows-list .row:nth-child(odd) { background: #FDF9F1; }
 .cell { padding: 3mm 4mm; font-size: 9.5pt; }
 
+/*
+  The footer, now a table-footer-group for the same reason the header is a
+  header-group: position:fixed repeats but reserves NO space, so on a document
+  long enough to have middle pages it prints over the bottom of the day table.
+  DocMaker never hit it because its 30mm bottom padding protects the LAST page
+  only, and its documents were short.
+*/
 .ad-footer {
-  position: fixed;
-  bottom: 14mm;
-  left: 18mm;
-  right: 18mm;
   padding-top: 3mm;
+  margin-top: 6mm;
   border-top: 0.75px solid #cfcfcf;
   display: grid;
   grid-template-columns: 1.3fr 1fr 1.4fr;
