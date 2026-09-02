@@ -98,6 +98,24 @@ async function createPerson(page, name, email, role) {
   return { email, password };
 }
 
+/** Paint days on the worker's own calendar, as they would with a finger. */
+async function paintDays(page, dates, mode = "Kan jobba") {
+  await page.goto(`${BASE}/min-kalender/`, { waitUntil: "networkidle" });
+  await page.getByRole("button", { name: mode, exact: true }).click();
+  const boxes = [];
+  for (const d of dates) {
+    const cell = page.locator(`[data-date="${d}"]`);
+    await cell.waitFor({ timeout: 20000 });
+    boxes.push(await cell.boundingBox());
+  }
+  const mid = (b) => [b.x + b.width / 2, b.y + b.height / 2];
+  await page.mouse.move(...mid(boxes[0]));
+  await page.mouse.down();
+  for (const b of boxes.slice(1)) await page.mouse.move(...mid(b), { steps: 6 });
+  await page.mouse.up();
+  await page.waitForTimeout(1200);
+}
+
 const browser = await chromium.launch();
 const context = await browser.newContext({
   ...devices["Pixel 7"],           // mobile first: the design target is a phone
@@ -144,6 +162,16 @@ try {
 
   await signOut(page);
 
+  // ---- ARBETARE MARKS THE DAY ----------------------------------------------
+  // Skapa Pass no longer picks names. The förval is the entry ticket, so the
+  // worker has to say they can work the day before any tier can reach them.
+  await signIn(page, worker.email, worker.password);
+  await paintDays(page, [yesterday]);
+  await page.reload({ waitUntil: "networkidle" });
+  await page.locator(`[data-date="${yesterday}"][aria-label*="kan jobba"]`).waitFor({ timeout: 20000 });
+  log(`worker marked ${yesterday} as one they can work`);
+  await signOut(page);
+
   // ---- ARBETSLEDARE --------------------------------------------------------
   await signIn(page, leader.email, leader.password);
   await shot(page, "06-ledare-hem");
@@ -155,13 +183,15 @@ try {
   await field(page, "Börjar").fill("07:00");
   await field(page, "Slutar").fill("16:00");
   await field(page, "Timmar").fill("8");   // typed by a human, not the span
-  // exact: the button's accessible name also carries the group label, and a
-  // previous run's worker of the same shape would otherwise match too.
+  // Hand-picking is a ranking modifier, so this puts them in Tier 1 -- but only
+  // because they marked the day. exact: the accessible name would otherwise
+  // also match the group label.
   await page.getByRole("button", { name: `Anna Arbetare ${RUN}`, exact: true }).click();
   await shot(page, "07-skapa-pass");
   await page.getByRole("button", { name: "Skapa pass" }).click();
-  await page.waitForURL((u) => !u.pathname.includes("/pass/ny"), { timeout: 20000 });
-  log(`created a pass on ${yesterday}, 07:00-16:00, 8 h, 1 person`);
+  await mustSee(page, "1 av 1 platser tillsatta", "the priority list did not fill the slot");
+  await shot(page, "07b-tillsatt");
+  log(`created a pass on ${yesterday}, 07:00-16:00, 8 h; the tiers filled it`);
 
   await signOut(page);
 
