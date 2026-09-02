@@ -18,20 +18,29 @@ Everything downstream of that: the scheduling, the clocking, the confirmations, 
 
 DocMaker was a standalone Windows application that produced this document by hand-typing. Its template moves into the app; the app renders the same layout from database data and the admin exports the PDF. There is no file-format contract to satisfy — only the layout.
 
-### Document structure
+### Page 1 — the cover. Always this layout, nothing else on it.
 
-**Header:** logo, title "Arbetsdagbok", creation timestamp.
+| Element | Source |
+|---|---|
+| Logo, title "Arbetsdagbok" | Fixed |
+| Skapad: timestamp | Generated at export |
+| **Beställare** — Adress, Bolag, Org nummer | Project, captured at creation. All three always printed. No toggles. |
+| **Project:** | Project name |
+| **Ordinarie tid: Xh** | Sum of all confirmed hours in the document's date range |
+| GODKÄND AV | Fixed heading |
+| Ort & datum: ______ | **Always blank.** Signed by hand. |
+| Signatur: ______ | **Always blank.** Signed by hand. |
+| Footer | Fixed. See below. |
 
-**Beställare block** (the customer commissioning the work):
-- Address (street, postcode, city) — **not** the project address
-- Bolag (company name)
-- Org nummer
+Only four values are filled on the cover: Adress, Bolag, Org nummer, Project. Ordinarie tid is computed. Everything else is fixed or deliberately blank.
 
-**Project line:** the project's name. Required.
+The beställare block always prints in full — the document exists so the customer can see how many hours were worked on their job, so it cannot identify them incompletely.
 
-**Ordinarie tid:** total confirmed hours across the range. There is no övertid concept.
+### Page 2 onward — the day tables, nothing else
 
-**Day blocks**, one per date, each carrying a table:
+No cover elements repeat. Each page carries only the logo, the title, the day blocks, and the footer.
+
+Day blocks are ordered by date. Within a day, one row per person per shift.
 
 | Column | Contents |
 |---|---|
@@ -40,14 +49,24 @@ DocMaker was a standalone Windows application that produced this document by han
 | PASS TIDER | Start–end times of the shift |
 | GJORDE | What was done that day |
 
-**Footer:** postadress, telefon, bankgiro, F-skatt status, org.nr, momsreg.nr.
+Two columns are renamed from DocMaker: **Pass Typ → Pass Tider**, and the per-row **Project → Gjorde**. Everything else about the template stays.
 
-**Approval block:** "GODKÄND AV", ort & datum, signature line.
+### Footer — identical on every page, hardcoded
 
-### Column notes
+```
+Postadress Adress:            Telefon: 073-398 78 68      Bankgiro: 443-4551
+Söderto 3276, 242 93 Hörby                                Godkänd för F-skatt
+                                                          Org.nr: 556788-2369
+                                                          Momsreg.nr: CEFFSTA99339001
+```
 
-- **Pass Tider** replaces DocMaker's "Pass Typ". It is the shift's start and end times.
-- **Gjorde** replaces DocMaker's per-row "Project" column. It holds the leader's description of the day's work, written once per day at confirmation and repeated down every row of that day's table.
+### Generation is a date range, not a whole project
+
+A project runs open-ended and the admin logs it in slices, not once at the end.
+
+**Admin opens a project → Generera Arbetsdagbok → picks a start date and an end date.** The document covers only that range. Without this, every export would reprint every shift the project has ever had.
+
+Ordinarie tid on the cover sums only the shifts inside the chosen range.
 
 ### The hard generation rule
 
@@ -89,7 +108,34 @@ Captured at creation, all required:
 No end date — that is the leader's call, made by declaring the work finished, not by a field set in advance. Soft-deletable. Auto-deactivates after a period with no shifts.
 
 **Worker**
-Name, personnummer, bank details, contact. Soft-deletable. May carry a **fastanställd** flag. Sensitive: a worker must never see a colleague's personal data.
+Soft-deletable. Sensitive: a worker must never see a colleague's personal data.
+
+Required at creation: **name** and **email**. The email need not be verified or even real — it is the login identifier.
+
+Optional, fillable by the worker later in their own profile: phone, personnummer, bank number, clearing number, profile picture.
+
+There is no fastanställd flag. It was considered and removed — the owner sets the shifts and makes sure people get work, so an automatic always-include rule added complexity across the tiers, the exclusion filter and the availability logic without earning it.
+
+**Creating a worker creates their account.** There is no separate account-creation flow and no waiting for the worker to sign themselves up. The sequence is fixed:
+
+1. Admin fills the form. Name and email required.
+2. Admin presses **Kopiera Inloggning**. This generates a six-digit password and copies a credential block to the clipboard:
+
+```
+Länk: <the app's current homepage URL>
+Namn: <name field>
+Email: <email field>
+Lösenord: <generated>
+```
+
+3. Only now does **Tillverka Arbetare** become pressable. It glows once the credentials have been copied.
+4. Pressing it creates the worker and the account together.
+
+The copy step gates the create step deliberately: an account whose credentials nobody holds is an account nobody can use, and the worker has no way to request them.
+
+The admin then hands the block over however they like — message, paper, in person. The worker logs in and completes their own profile.
+
+**From inside Snabb Pass.** If the person isn't on the roster yet, the worker dropdown offers **Ny Arbetare**. The same form appears, the same copy-then-create sequence runs, and the admin returns to the shift detail screen and finishes as though nothing happened.
 
 **Account**
 A login. Links to a worker (or to nobody, for office staff). Carries the role. An account and a worker are separate things — office staff have accounts with no worker; a worker can exist on the roster with no login at all.
@@ -98,7 +144,7 @@ A login. Links to a worker (or to nobody, for office staff). Carries the role. A
 Project, date, start time, end time, planned hours, headcount. A pass is a *demand for people*, not a person's work. One pass with headcount 3 is one row, not three.
 
 **Tilldelning (the assignment)**
-One worker's place on one pass. Carries: how they got there (fastanställd / förval / open pool / manual / snabb), clock-in, clock-out, the untouched originals of both, who edited them and when, a lateness mark, and that person's own confirmed hours.
+One worker's place on one pass. Carries: how they got there (handplockad / förval / öppen / manuell / snabb), clock-in, clock-out, the untouched originals of both, who edited them and when, a lateness mark, and that person's own confirmed hours.
 
 This split is the load-bearing decision. Without it, "this shift needs three people and one slot is open" cannot be expressed at all.
 
@@ -143,10 +189,22 @@ A worker who already holds an assignment on that date is invisible for that date
 
 *Tier 3 — Acceptera Pass.* Reached only when the förval list is exhausted or empty. Offered as an accept/decline card to every remaining worker with no assignment that day. Card shows date, project, address, times, hours. First accepted wins; the slot closes instantly and the pass vanishes from everyone else's queue once headcount is met. Two workers racing for the last slot resolve to exactly one winner, decided randomly, enforced in the database.
 
-*Fastanställd* sits outside the tiers. Needs work daily; the project doesn't matter. Auto-included on eligible shifts unless they marked that day can't-work — which is the only thing that overrides it.
-
 **Step 5 — Dropouts**
 More than five days out: the slot reopens and refills down the list normally. Inside five days: no auto-fill. Manual assignment or a Snabb Pass. Nobody is ready for a last-minute change and the system should not pretend otherwise.
+
+**Step 5b — Removing a worker from a pass**
+
+The leader taps the day in the calendar, sees everyone working it, and taps a trash icon beside a name. That worker is off that day.
+
+There is no "move" feature and nothing splits automatically. If that person is needed on another day, the leader creates a separate shift for that day — one day, one slot, one person, who takes it directly — or uses a Snabb Pass.
+
+**The vacated slot reopens. Headcount does not drop.** The pass still needs the same number of people, so the empty slot cascades back down the list:
+
+1. Offered to anyone who pre-picked that day and holds no shift that day.
+2. If nobody there, Acceptera Pass goes out to everyone free that day who did not pre-pick it.
+3. If still nobody takes it, the day runs short-staffed. An unfilled slot is never an error — it is a day that ran with fewer people, and it confirms exactly like any other.
+
+Within five days of the shift, steps 1 and 2 do not fire automatically; the leader places someone manually or creates a Snabb Pass.
 
 **Step 6 — The day happens**
 Workers clock themselves in and out. The timestamp is the server's, never the phone's — a phone running ten minutes fast writes ten minutes of error into evidence of hours worked and nobody would notice.
@@ -224,17 +282,21 @@ Everything the leader has, plus project creation, account and role management, a
 
 ## 8. Open questions — must be answered, not guessed
 
-1. **Hand-picked without förval.** Under this design they get nothing. Should the leader be warned at creation time that some of their picks haven't marked that day available? Silent non-inclusion is what produces a phone call.
-2. **Fastanställd against a full Tier 1.** Three hand-picked pre-pickers fill a three-slot shift. A fastanställd who wasn't picked needs work that day. Tier 1 currently wins, which contradicts "fastanställd works daily." Which rule yields?
-3. **Tier 2 exhaustion across a long batch.** Twelve days at three slots with four pre-pickers means Acceptera Pass fires on nearly every day. Intended, or flagged to the leader at creation?
-4. **Moving one worker off a shared pass.** Date, project and times belong to the pass, so editing them moves everyone. If a single worker is to be split onto a new pass instead — does the original pass's headcount drop by one, or does the slot reopen and refill?
-5. **Admin as a real third role.** Every policy currently asks one binary question. A third role means revisiting all of them plus the column guard.
-6. **Notifications.** Requires infrastructure that does not exist. Decide whether it is in scope at all.
-7. **The Beställare toggles.** DocMaker let the user switch address / bolag / org nummer off per document. Given the no-empty-cells rule, do these stay optional at generation time, or are all three always printed?
-8. **The document footer.** Postadress, telefon, bankgiro, F-skatt, org.nr, momsreg.nr. Hardcode as Bella Service, or make it configurable for future companies?
-9. **Snabb Pass identity.** A Snabb Pass needs only a name. Does that create a lightweight worker record on the roster, or is it free text on the assignment? The first makes them re-selectable later; the second keeps the roster clean.
+1. **Hand-picked without förval.** They get nothing under this design — the förval is the entry ticket. Should the leader be warned at creation time that some of their picks haven't marked those days available?
+2. **Tier 2 exhaustion across a long batch.** Twelve days at three slots with only four pre-pickers means Acceptera Pass fires on nearly every day. Intended, or flagged to the leader at creation?
+3. **Admin as a real third role.** Every policy currently asks one binary question. A third role means revisiting all of them plus the column guard. Build now, or run on two roles and add later?
+4. **Notifications.** Requires infrastructure that does not exist — a scheduled function at minimum. In scope at all, or does the app stay silent?
+5. **Tracking generated ranges.** A project produces many Arbetsdagböcker over its life, each covering a date range the admin picks by hand. Does the system remember which ranges are already documented, so it can warn on an overlap or a gap? Without it, a week can be logged twice or missed entirely and nothing in the app would show it.
+6. **Password recovery.** The six-digit login is generated once and copied to the clipboard. If it is lost before it reaches the worker, what is the recovery path — admin regenerates, or standard email reset (which assumes a real inbox the worker can reach)?
 
----
+### Settled
+
+- **Fastanställd: removed entirely.** Not a flag, not a tier, not a rule. The owner sets shifts and ensures people get work.
+- **Vakans on removal: the slot reopens.** See Section 4, Step 5b.
+- **Beställare fields always print.** No per-document toggles.
+- **Footer is hardcoded** Bella Service, identical on every page.
+- **Generation is a date range**, chosen by the admin per export.
+- **Snabb Pass creates a real worker and a real account**, via the same Ny Arbetare form as any other worker. Never free text.
 
 ## 9. What the rebuild must not lose
 
