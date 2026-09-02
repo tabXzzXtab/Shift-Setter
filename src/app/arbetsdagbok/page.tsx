@@ -152,7 +152,15 @@ function Arbetsdagbok() {
     return (
       <>
         <div className="no-print mx-auto w-full max-w-md p-4">
-          <Button onClick={() => window.print()}>Skriv ut / Spara som PDF</Button>
+          {/* A static export has no server to render a PDF, so the browser's
+              own print engine produces the file. Chrome cannot be told to
+              preselect a destination, so the one step it cannot skip is
+              choosing "Spara som PDF" -- say so rather than leave them in a
+              dialog they did not expect. */}
+          <p className="mb-3 text-base">
+            Välj <strong>Spara som PDF</strong> som skrivare i rutan som öppnas.
+          </p>
+          <Button onClick={() => window.print()}>Spara som PDF</Button>
           <div className="mt-3">
             <Button variant="outline" onClick={() => setPayload(null)}>Tillbaka</Button>
           </div>

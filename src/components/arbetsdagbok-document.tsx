@@ -31,6 +31,11 @@ import { LOGO_DATA_URL } from "@/lib/doc/logo";
  *  - formatTimestamp is Stockholm-anchored (invariant 9).
  *  - loadCompany() reads a constant, since a static export has no disk.
  */
+const BAND_HEAD =
+  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4/f7GfwAJbQPCutnCbAAAAABJRU5ErkJggg==";
+const BAND_ZEBRA =
+  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4+/PjfwAJxQPnUyxgkwAAAABJRU5ErkJggg==";
+
 export function ArbetsdagbokDocument({ payload }: { payload: DocPayload }) {
   const total = sumOrdinarieTid(payload.days);
   const timestamp = formatTimestamp(new Date());
@@ -109,6 +114,8 @@ export function ArbetsdagbokDocument({ payload }: { payload: DocPayload }) {
           <div className="date-heading">{day.date}</div>
           <div className="table">
             <div className="row row-head">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img className="row-fill" src={BAND_HEAD} alt="" />
               <div className="cell">Arbetare</div>
               <div className="cell">Pass Timmar</div>
               <div className="cell">Pass Tider</div>
@@ -117,6 +124,10 @@ export function ArbetsdagbokDocument({ payload }: { payload: DocPayload }) {
             <div className="rows-list">
               {day.rows.map((r, i) => (
                 <div className="row" key={i}>
+                  {i % 2 === 0 && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img className="row-fill" src={BAND_ZEBRA} alt="" />
+                  )}
                   <div className="cell">{r.arbetare}</div>
                   <div className="cell">{r.hours}</div>
                   <div className="cell">{r.passTider}</div>
@@ -222,10 +233,43 @@ const CSS = `
 .date-heading { font-size: 12.5pt; font-weight: 700; margin-bottom: 3mm; color: #111; }
 
 .table { width: 100%; }
-.row { display: grid; grid-template-columns: 1.1fr 1fr 1.3fr 1.6fr; }
-.row-head { background: #FBEFD8; }
+/*
+  The band colours are drawn as <img> CONTENT, not CSS background.
+  Backgrounds are stripped whenever "Background graphics" is unticked in the
+  print dialog -- its default -- and print-color-adjust: exact does NOT override
+  that; the checkbox wins. Measured, not assumed: scripts/print-colour-check.mjs
+  regenerates with backgrounds off and samples the band.
+
+  The fill MUST be absolutely positioned. As an ordinary child it becomes a
+  fifth grid item, takes the first column and shoves every heading one cell
+  right -- which is exactly what happened the first time.
+*/
+.row {
+  display: grid;
+  grid-template-columns: 1.1fr 1fr 1.3fr 1.6fr;
+  position: relative;
+}
+.row-fill {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+}
+.row > .cell { position: relative; z-index: 1; }
+/*
+  Browsers strip background colours when printing unless the user ticks
+  "Background graphics", which is OFF by default -- so the header band and the
+  zebra rows came out white on a real print. print-color-adjust: exact tells the
+  engine these carry meaning and must not be economised away.
+*/
+.ad-doc, .ad-doc * {
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
 .row-head .cell { font-weight: 700; font-size: 9pt; color: #303c54; padding: 3mm 4mm; }
-.rows-list .row:nth-child(odd) { background: #FDF9F1; }
+
 .cell { padding: 3mm 4mm; font-size: 9.5pt; }
 
 /*

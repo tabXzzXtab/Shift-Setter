@@ -248,7 +248,7 @@ try {
   await shot(page, "12-arbetsdagbok-val");
 
   await page.getByRole("button", { name: "Generera Arbetsdagbok" }).click();
-  await page.getByRole("button", { name: /Skriv ut/ }).waitFor({ timeout: 30000 });
+  await page.getByRole("button", { name: /Spara som PDF/ }).waitFor({ timeout: 30000 });
   await page.waitForLoadState("networkidle");
   await shot(page, "13-arbetsdagbok-forhandsvisning");
   log("generated the Arbetsdagbok");
