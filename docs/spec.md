@@ -361,7 +361,9 @@ The detail screen holds one or more template rows:
 (+) 1 (-)   07:00 – 15:00   8h
 ```
 
-Every row applies to every selected day. Two rows across twelve days generates twenty-four passes. Hours are typed by hand — never derived from the span, because unpaid lunch means the span is longer than the hours worked and that is the normal case.
+Every row applies to every selected day. Two rows across twelve days generates twenty-four passes.
+
+**Hours are prefilled as (end − start) − 30 minutes**, thirty being the ordinary unpaid break. Start time, end time and hours are three independent fields: changing a time re-suggests the hours only while nobody has typed their own, and once the leader enters a figure it is theirs and the times stop touching it. The number that is stored is the one in the field, never a recomputation — the real break is often longer than half an hour, and that is exactly why the field is editable. The same prefill applies to a Snabb Pass.
 
 The leader may **hand-pick** workers during creation. This does not assign them. It marks them as top-ranked *for this batch*.
 
@@ -513,7 +515,7 @@ That block is the entire enforcement mechanism. The admin needs the document; on
 
 ## 5. Invariants — non-negotiable
 
-1. **Hours are typed by a human.** Nothing derives them. Not from clock stamps, not from the span. Unpaid lunch makes span ≠ hours the normal case. An auto-assigned leader's hours are *prefilled* from the workers' envelope and stay editable — a number a human must accept or correct is not a derived number. **One exception, the bristsurvey:** on a day no leader ever confirmed, hours come from the clock span where one exists and the planned figure where it does not, with nobody typing them. That exception is the reason the survey opens behind a warning, and it exists nowhere else.
+1. **Hours are typed by a human.** Nothing derives them. Not from clock stamps, not from the span. Unpaid lunch makes span ≠ hours the normal case. Two *prefills* exist and neither is a derivation, because a number a human must accept or correct is not a derived number: an auto-assigned leader's hours are prefilled from the workers' envelope, and **a new shift's hours are prefilled as (end − start) − 30 minutes**. A prefill stops following its source the moment someone types over it, and nothing ever recomputes it afterwards. **One exception, the bristsurvey:** on a day no leader ever confirmed, hours come from the clock span where one exists and the planned figure where it does not, with nobody typing them. That exception is the reason the survey opens behind a warning, and it exists nowhere else.
 2. **No worker holds two assignments on the same date.** Ever. **One exception, arbetsledare only:** a leader auto-assigned to two projects (Step 4b) holds a day on each. Nothing but auto-assignment creates it, and it does not extend to arbetare.
 3. **Clock stamps are append-only evidence.** The leader may overwrite the working value; the original survives, visible and attributed.
 4. **An arbetare never writes hours or confirmation state.** A leader writes them at stage 1; the admin writes them at stage 2 and on the two routes that reach `admin_confirmed` with no leader behind them. Enforced in the database, not the interface. The worker side of this has not moved, and it is the side that matters.
@@ -648,6 +650,7 @@ Nothing here is open. Anything discovered later that is not covered is a stop-an
 - Generation is a date range per export, and generated ranges are remembered and warned about on overlap.
 
 **Platform and design**
+- A new shift's hours are prefilled as (end − start) − 30 minutes, and stay editable. Prefilling is not deriving: the figure stops following the span once typed over, and nothing recomputes it later.
 - Mobile first. Every screen designed for a phone, then adapted upward.
 - Black and white until everything works. No styling before function.
 - The calendar is the one exception — drag-to-paint needs a real layout from the start.

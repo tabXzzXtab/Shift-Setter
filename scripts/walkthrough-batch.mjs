@@ -16,11 +16,10 @@
  *   - removing a worker reopens the slot and cascades, beyond five days
  *   - inside five days it does not
  *
- * PRECONDITION: a clean roster. Coverage is a property of every worker in the
- * database, not just the ones this script creates, so leftover workers from an
- * earlier run silently satisfy the shortfall and the flag never fires. Run
- *   npm run db:sql -- --file supabase/maintenance/reset-demo-data.sql
- * first. The script checks and refuses rather than reporting a false pass.
+ * Coverage is a property of every worker in the database, not just the ones
+ * this script creates, so the shortfall step asks for one more slot per day
+ * than there are workers on the roster. That makes the flag fire whatever else
+ * is in the database, rather than depending on a clean one.
  */
 import { chromium, devices } from "playwright";
 import { mkdirSync } from "node:fs";
@@ -219,40 +218,72 @@ try {
   await page.getByRole("button", { name: /Klar, / }).click();
   await page.getByText("Vad behövs?").waitFor({ timeout: 20000 });
 
+  // ---- the hours prefill ----------------------------------------------------
+  // (end - start) - 30 min, and it stops following the times once typed over.
+  const h1 = page.getByLabel("Timmar på rad 1");
+  if ((await h1.inputValue()) !== "8,5") {
+    fail(`07:00-16:00 should prefill 8,5 h; got "${await h1.inputValue()}"`);
+  }
+
+  const row1 = page.locator("fieldset:has(legend:text-is('Pass per dag')) > div > div").first();
+  await row1.locator('input[type="time"]').nth(1).fill("17:00");
+  if ((await h1.inputValue()) !== "9,5") {
+    fail(`moving the end to 17:00 should re-suggest 9,5 h; got "${await h1.inputValue()}"`);
+  }
+
+  // A night shift crosses midnight rather than going negative.
+  await row1.locator('input[type="time"]').first().fill("22:00");
+  await row1.locator('input[type="time"]').nth(1).fill("06:00");
+  if ((await h1.inputValue()) !== "7,5") {
+    fail(`22:00-06:00 should prefill 7,5 h; got "${await h1.inputValue()}"`);
+  }
+
+  // Typed by hand: from here the times must not touch it.
+  await h1.fill("7");
+  await row1.locator('input[type="time"]').first().fill("07:00");
+  await row1.locator('input[type="time"]').nth(1).fill("16:00");
+  if ((await h1.inputValue()) !== "7") {
+    fail(`a typed figure must survive a time change; got "${await h1.inputValue()}"`);
+  }
+  await shot(page, "70-timmar-forifyllt");
+  log("hours prefill as span minus 30 min, and stop following once typed over");
+
   // ---- two template rows ----------------------------------------------------
   await field(page, "Projekt").selectOption({ label: project });
 
   // The shortfall is only meaningful against a known roster.
-  // An arbetsledare is also a worker (spec Section 2), so the roster is the
-  // four arbetare plus the leader -- who did NOT pre-pick, which is what leaves
-  // coverage at four against five slots.
-  const expectedRoster = W.length + 1;
+  // Coverage can never exceed the roster, so asking for one more slot per day
+  // than there are workers guarantees a shortfall whatever else is in the
+  // database. Pinning it to an exact roster size was brittle: the stable demo
+  // accounts are legitimately recreated by demo:reset and the count moved.
   const roster = await page.locator("fieldset:has(legend:text-is('Handplocka (0)')) button").count();
-  if (roster !== expectedRoster) {
-    fail(`roster holds ${roster} workers, expected ${expectedRoster}. Reset the demo data first:
-` +
-         `  npm run db:sql -- --file supabase/maintenance/reset-demo-data.sql`);
+  if (roster < 1) fail("no workers on the roster at all");
+  if (roster + 1 > 20) fail(`roster of ${roster} exceeds what the headcount stepper allows`);
+  // One more slot per day than there are workers, so the shortfall is certain.
+  const headcount1 = roster + 1;
+  for (let i = 1; i < headcount1; i++) {
+    await page.getByRole("button", { name: "Fler på rad 1" }).click();
   }
-  // Four people pre-picked each day. Five slots a day therefore cannot all be
-  // covered, which is what the shortfall flag is for.
-  for (let i = 0; i < 3; i++) await page.getByRole("button", { name: "Fler på rad 1" }).click();
   await page.getByRole("button", { name: "+ Lägg till rad" }).click();
   await page.getByLabel("Timmar på rad 2").fill("7,5");
   const row2 = page.locator("fieldset:has(legend:text-is('Pass per dag')) > div > div").nth(1);
   await row2.locator('input[type="time"]').first().fill("14:00");
   await row2.locator('input[type="time"]').nth(1).fill("22:00");
 
-  await mustSee(page, "2 rad(er) × 12 dag(ar) = 24 pass, 60 platser",
+  const expectedSlots = MONTH_DAYS.length * (headcount1 + 1);   // row 2 keeps 1
+  await mustSee(page,
+    `2 rad(er) × ${MONTH_DAYS.length} dag(ar) = ${MONTH_DAYS.length * 2} pass, ${expectedSlots} platser`,
     "the batch arithmetic is wrong");
   await mustSee(page, "saknar folk som markerat dagen", "the batch shortfall was not flagged");
   await shot(page, "32-mall-rader");
-  log("two template rows over twelve days = 24 passes, 60 slots; shortfall flagged");
+  log(`two template rows over ${MONTH_DAYS.length} days = ${MONTH_DAYS.length * 2} passes, ` +
+      `${expectedSlots} slots; shortfall flagged`);
 
-  await page.getByRole("button", { name: /Skapa 24 pass/ }).click();
+  await page.getByRole("button", { name: new RegExp(`Skapa ${MONTH_DAYS.length * 2} pass`) }).click();
   // The heading first: "24 pass" alone also matches the button that submitted
   // the form, so a failed generation would have read as a success.
   await mustSee(page, "Passen är skapade", "the batch did not generate");
-  await mustSee(page, "24 pass", "the batch did not generate 24 passes");
+  await mustSee(page, `${MONTH_DAYS.length * 2} pass`, "the batch did not generate the right number of passes");
   await shot(page, "33-genererat");
   log("generated 24 passes and filled them down the tiers");
 

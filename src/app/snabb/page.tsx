@@ -6,6 +6,7 @@ import { Button, Field, Input, Notice, Screen, Select } from "@/components/ui";
 import { NyArbetareForm, type CreatedWorker } from "@/components/ny-arbetare";
 import { getSupabase } from "@/lib/supabase/client";
 import { stockholmToday } from "@/lib/dates";
+import { defaultHours } from "@/lib/hours";
 import { useAccount } from "@/lib/account";
 
 type Project = { id: string; name: string };
@@ -45,7 +46,10 @@ function SnabbPass() {
   const [date, setDate] = useState(stockholmToday());
   const [start, setStart] = useState("07:00");
   const [end, setEnd] = useState("16:00");
-  const [hours, setHours] = useState("8");
+  const [hours, setHours] = useState(() => defaultHours("07:00", "16:00"));
+  // Once the admin types their own figure the field is theirs, and changing a
+  // time stops touching it.
+  const [hoursTouched, setHoursTouched] = useState(false);
   const [creatingWorker, setCreatingWorker] = useState(false);
   const [credentials, setCredentials] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -83,6 +87,12 @@ function SnabbPass() {
 
     setDone(workers.find((w) => w.id === workerId)?.name ?? "Arbetaren");
     setSaving(false);
+  }
+
+  function setTime(key: "start" | "end", value: string) {
+    const next = { start, end, [key]: value } as { start: string; end: string };
+    if (key === "start") setStart(value); else setEnd(value);
+    if (!hoursTouched) setHours(defaultHours(next.start, next.end));
   }
 
   // ---- Ny Arbetare, from inside the dropdown --------------------------------
@@ -186,22 +196,30 @@ function SnabbPass() {
 
       <div className="grid grid-cols-2 gap-3">
         <Field label="Börjar">
-          <Input type="time" value={start} onChange={(e) => setStart(e.target.value)} />
+          <Input type="time" value={start} onChange={(e) => setTime("start", e.target.value)} />
         </Field>
         <Field label="Slutar">
-          <Input type="time" value={end} onChange={(e) => setEnd(e.target.value)} />
+          <Input type="time" value={end} onChange={(e) => setTime("end", e.target.value)} />
         </Field>
       </div>
 
-      <Field label="Timmar" hint="Skrivs för hand. Rasten räknas inte.">
-        <Input inputMode="decimal" value={hours} onChange={(e) => setHours(e.target.value)} />
+      <Field label="Timmar" hint="Förifylls som tiden minus 30 min. Ändra om rasten var längre.">
+        <Input
+          center
+          inputMode="decimal"
+          value={hours}
+          onChange={(e) => { setHours(e.target.value); setHoursTouched(true); }}
+        />
       </Field>
 
       <Notice kind="info">
         Har personen redan ett pass den dagen tas det bort och detta gäller i stället.
       </Notice>
 
-      <Button onClick={save} disabled={saving || !projectId || !workerId || hours.trim() === ""}>
+      <Button
+        onClick={save}
+        disabled={saving || !projectId || !workerId || !(Number(hours.replace(",", ".")) > 0)}
+      >
         {saving ? "Skapar…" : "Skapa Snabb Pass"}
       </Button>
     </Screen>

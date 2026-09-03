@@ -12,6 +12,10 @@ Full specification: [docs/spec.md](docs/spec.md).
 ```
 1.  Hours are typed by a human. Nothing derives them — not from clock stamps,
     not from the start/end span. Unpaid lunch makes span != hours the normal case.
+    A new shift's hours field is PREFILLED as (end - start) - 30 min and stays
+    editable; it stops following the span the moment someone types over it, and
+    nothing recomputes it afterwards. A number a human must accept or correct is
+    not a derived number.
     An auto-assigned arbetsledare's hours are prefilled from the workers' span
     and stay editable: a number a human must accept or correct is not a derived
     number. One true exception, the bristsurvey — on a day no leader confirmed,

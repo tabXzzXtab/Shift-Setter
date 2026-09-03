@@ -6,13 +6,28 @@ import { Button, Field, Group, Input, Notice, Screen, Select } from "@/component
 import { PaintCalendar } from "@/components/paint-calendar";
 import { getSupabase } from "@/lib/supabase/client";
 import { stockholmToday } from "@/lib/dates";
+import { defaultHours } from "@/lib/hours";
 
 type Project = { id: string; name: string };
 type Worker = { id: string; name: string };
-type Row = { headcount: number; start: string; end: string; hours: string };
+type Row = {
+  headcount: number;
+  start: string;
+  end: string;
+  hours: string;
+  /** Set once the leader types their own figure. From then on the field is
+   *  theirs and the span stops touching it. */
+  hoursTouched: boolean;
+};
 type Short = { work_date: string; available: number; slots: number; short: number };
 
-const newRow = (): Row => ({ headcount: 1, start: "07:00", end: "16:00", hours: "8" });
+const newRow = (): Row => ({
+  headcount: 1,
+  start: "07:00",
+  end: "16:00",
+  hours: defaultHours("07:00", "16:00"),
+  hoursTouched: false,
+});
 
 /**
  * Skapa Pass -- a month's worth of demand in one pass of the thumb.
@@ -82,6 +97,20 @@ function NyttPass() {
 
   const shortDays = (shortfall ?? []).filter((s) => s.short > 0);
   const shortTotal = shortDays.reduce((n, s) => n + s.short, 0);
+
+  /**
+   * Changing a time re-suggests the hours -- but only while the leader has not
+   * typed their own. Overwriting a figure someone entered because they nudged
+   * an end time by five minutes would be the app arguing with them.
+   */
+  function setTime(i: number, key: "start" | "end", value: string) {
+    setRows((p) => p.map((x, j) => {
+      if (j !== i) return x;
+      const next = { ...x, [key]: value };
+      if (!x.hoursTouched) next.hours = defaultHours(next.start, next.end);
+      return next;
+    }));
+  }
 
   function toggleDay(date: string) {
     setDays((d) => (d.includes(date) ? d.filter((x) => x !== date) : [...d, date]));
@@ -238,7 +267,10 @@ function NyttPass() {
         </Select>
       </Field>
 
-      <Group label="Pass per dag" hint="Varje rad skapas på varje vald dag.">
+      <Group
+        label="Pass per dag"
+        hint="Varje rad skapas på varje vald dag. Timmar förifylls som tiden minus 30 min — ändra om rasten var längre."
+      >
         <div className="flex flex-col gap-4">
           {rows.map((r, i) => (
             <div key={i} className="border-2 border-black p-3">
@@ -283,14 +315,14 @@ function NyttPass() {
                   <span className="mb-1 block text-xs font-bold uppercase">Börjar</span>
                   <Input
                     type="time" value={r.start}
-                    onChange={(e) => setRows((p) => p.map((x, j) => j === i ? { ...x, start: e.target.value } : x))}
+                    onChange={(e) => setTime(i, "start", e.target.value)}
                   />
                 </label>
                 <label className="block">
                   <span className="mb-1 block text-xs font-bold uppercase">Slutar</span>
                   <Input
                     type="time" value={r.end}
-                    onChange={(e) => setRows((p) => p.map((x, j) => j === i ? { ...x, end: e.target.value } : x))}
+                    onChange={(e) => setTime(i, "end", e.target.value)}
                   />
                 </label>
                 <label className="block">
@@ -299,7 +331,8 @@ function NyttPass() {
                     center
                     inputMode="decimal" value={r.hours}
                     aria-label={`Timmar på rad ${i + 1}`}
-                    onChange={(e) => setRows((p) => p.map((x, j) => j === i ? { ...x, hours: e.target.value } : x))}
+                    onChange={(e) => setRows((p) => p.map((x, j) =>
+                      j === i ? { ...x, hours: e.target.value, hoursTouched: true } : x))}
                   />
                 </label>
               </div>
@@ -351,7 +384,10 @@ function NyttPass() {
       <div className="mt-6">
         <Button
           onClick={generate}
-          disabled={saving || !projectId || days.length === 0 || rows.some((r) => r.hours.trim() === "")}
+          disabled={
+            saving || !projectId || days.length === 0 ||
+            rows.some((r) => !(Number(r.hours.replace(",", ".")) > 0))
+          }
         >
           {saving ? `Skapar ${totalPasses} pass…` : `Skapa ${totalPasses} pass`}
         </Button>
