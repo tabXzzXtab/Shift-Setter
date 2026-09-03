@@ -1,5 +1,10 @@
 -- Clear demo/walkthrough data, keeping every admin account.
 --
+-- This DELETES the arbetsledare and arbetare logins too, so anyone holding a
+-- handed-out login loses it. Use `npm run demo:reset`, which runs this and then
+-- recreates the stable demo accounts; running this file alone leaves the demo
+-- with an admin and nobody else.
+--
 -- Keyed on role, not on an email address: this repository is public, and the
 -- founding admin's login identifier is half of a credential.
 --
