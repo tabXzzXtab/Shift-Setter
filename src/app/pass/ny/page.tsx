@@ -296,6 +296,7 @@ function NyttPass() {
                 <label className="block">
                   <span className="mb-1 block text-xs font-bold uppercase">Timmar</span>
                   <Input
+                    center
                     inputMode="decimal" value={r.hours}
                     aria-label={`Timmar på rad ${i + 1}`}
                     onChange={(e) => setRows((p) => p.map((x, j) => j === i ? { ...x, hours: e.target.value } : x))}

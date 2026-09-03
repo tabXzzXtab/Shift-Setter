@@ -127,8 +127,26 @@ export function Group({
 const inputClass =
   "block w-full min-h-[56px] border-2 border-black bg-white px-3 text-lg text-black outline-none focus:ring-4 focus:ring-black/20";
 
-export function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
-  return <input {...props} className={inputClass} />;
+/**
+ * `center` is for the small numeric boxes that sit beside a time field -- the
+ * hours in a template row. A bare input leaves its value on the left and
+ * riding low in a 56px box, which reads as adrift next to 07:00 and 16:00.
+ *
+ * The line-height is the content box exactly (56px tall, less the 2px borders),
+ * so the single line is centred vertically by construction rather than by
+ * whatever the browser's default happens to be -- Chrome, Safari and Firefox
+ * do not agree on that.
+ */
+export function Input({
+  center,
+  ...props
+}: React.InputHTMLAttributes<HTMLInputElement> & { center?: boolean }) {
+  return (
+    <input
+      {...props}
+      className={`${inputClass}${center ? " text-center leading-[52px]" : ""}`}
+    />
+  );
 }
 
 export function Textarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {

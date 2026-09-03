@@ -204,7 +204,7 @@ function Dag() {
                   </label>
                   <label className="block">
                     <span className="mb-1 block text-xs font-bold uppercase">Timmar</span>
-                    <Input inputMode="decimal" value={draft.hours}
+                    <Input center inputMode="decimal" value={draft.hours}
                       aria-label="Timmar"
                       onChange={(e) => setDraft({ ...draft, hours: e.target.value })} />
                   </label>
