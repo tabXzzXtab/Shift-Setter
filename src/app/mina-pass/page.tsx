@@ -34,6 +34,7 @@ function MinaPass() {
   const [shifts, setShifts] = useState<Shift[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  const [notes, setNotes] = useState<{ id: string; kind: string; work_date?: string }[]>([]);
 
   // The fetch returns rows; state settles after the await, never synchronously
   // inside the effect body. `reload` is how an action asks for a refresh.
@@ -51,13 +52,32 @@ function MinaPass() {
         .lte("work_date", addDays(today, 30))
         .order("work_date");
 
+      // In-app only: a message on next load. There is no server to push from,
+      // so a deleted shift is told here rather than arriving on the phone.
+      const { data: unread } = await getSupabase()
+        .from("notification")
+        .select("id, kind, payload")
+        .is("read_at", null)
+        .order("created_at", { ascending: false });
+
       if (!active) return;
       if (error) setError(error.message);
       else setShifts((data ?? []) as Shift[]);
+      setNotes((unread ?? []).map((n) => ({
+        id: n.id,
+        kind: n.kind,
+        work_date: (n.payload as { work_date?: string } | null)?.work_date,
+      })));
     })();
 
     return () => { active = false; };
   }, [reload]);
+
+  async function dismiss(id: string) {
+    await getSupabase().from("notification")
+      .update({ read_at: new Date().toISOString() }).eq("id", id);
+    setNotes((n) => n.filter((x) => x.id !== id));
+  }
 
   async function stamp(id: string, dir: "in" | "out") {
     setBusy(id);
@@ -77,6 +97,23 @@ function MinaPass() {
   return (
     <Screen title="Mina pass" back="/">
       {error && <Notice kind="error">{error}</Notice>}
+
+      {notes.map((n) => (
+        <div key={n.id} className="mb-4 border-2 border-black bg-black p-3 text-white">
+          <p className="mb-3 text-base">
+            {n.kind === "shift_deleted"
+              ? `Ditt pass ${n.work_date ?? ""} är borttaget.`
+              : "Du har en ny notis."}
+          </p>
+          <button
+            type="button"
+            onClick={() => dismiss(n.id)}
+            className="min-h-[44px] w-full border-2 border-white px-3 text-base font-bold"
+          >
+            Okej
+          </button>
+        </div>
+      ))}
 
       {shifts.length === 0 && <Empty>Inga pass just nu.</Empty>}
 
