@@ -18,7 +18,8 @@
     "test:race": "node scripts/race-test.mjs",
     "walkthrough:tiers": "node scripts/walkthrough-tiers.mjs",
     "walkthrough:batch": "node scripts/walkthrough-batch.mjs",
-    "check:print-colour": "node scripts/print-colour-check.mjs"
+    "check:print-colour": "node scripts/print-colour-check.mjs",
+    "walkthrough:snabb": "node scripts/walkthrough-snabb.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.113.0",

@@ -905,4 +905,185 @@ select pg_temp.ok(
   'BATCH.siblings_untouched',
   'the other three instances kept their own times, hours and headcount');
 
+-- ============================================================================
+-- SNABB PASS -- the escape hatch. Step 7.
+--
+-- Skips the picking, never the confirming.
+-- ============================================================================
+
+-- w3 already works that day on an ordinary pass. The Snabb Pass must win.
+insert into public.pass (id, project_id, work_date, start_time, end_time,
+                         planned_hours, headcount, created_by)
+select 'eeeeeeee-0000-0000-0000-000000000030'::uuid,
+       'aaaaaaaa-0000-0000-0000-00000000000a'::uuid,
+       app.stockholm_today() - 10, '07:00'::time, '16:00'::time, 8.00, 1::smallint,
+       (select v from fx where k = 'leaderA');
+
+insert into public.tilldelning (id, pass_id, worker_id, source, work_date)
+select 'dddddddd-0000-0000-0000-000000000030', 'eeeeeeee-0000-0000-0000-000000000030',
+       w.id, 'manuell', app.stockholm_today() - 10
+from public.worker w join fx on fx.v = w.account_id where fx.k = 'w3';
+
+-- Created by the ARBETSLEDARE, not the admin. Section 2 once said this was
+-- admin-only; Step 7 says both, and Step 7 is right.
+-- Worker ids resolved while still the owner. A leader cannot SELECT the worker
+-- table at all -- names come from worker_roster, which carries no email -- so
+-- looking one up mid-call returns NULL and reads as "no such worker".
+create temporary table wid as
+select fx.k, w.id from public.worker w join fx on fx.v = w.account_id;
+grant select on wid to public;
+
+create temporary table snabb_call(ok boolean, err text);
+-- The DO block below runs as `authenticated`, so it needs INSERT as well as
+-- SELECT on this temp table: it belongs to the session user, not to them.
+grant select, insert on snabb_call to public;
+
+set local role authenticated;
+select pg_temp.act_as((select v from fx where k = 'leaderA'));
+do $snabb$
+begin
+  perform public.create_snabb_pass(
+    'aaaaaaaa-0000-0000-0000-00000000000a'::uuid,
+    (select id from wid where k = 'w3'),
+    app.stockholm_today() - 10, '13:00'::time, '19:00'::time, 5.50);
+  insert into snabb_call values (true, null);
+exception when others then
+  insert into snabb_call values (false, sqlerrm);
+end $snabb$;
+reset role;
+
+select pg_temp.ok((select ok from snabb_call),
+  'SNABB.leader_may_create',
+  'an arbetsledare creates a Snabb Pass on their own project: ' ||
+  coalesce((select err from snabb_call), ''));
+
+select pg_temp.ok(
+  (select count(*) from public.tilldelning t
+   join public.worker w on w.id = t.worker_id join fx on fx.v = w.account_id
+   where fx.k = 'w3' and t.work_date = app.stockholm_today() - 10
+     and t.released_at is null) = 1,
+  'SNABB.one_assignment_stands',
+  'INVARIANT 2 holds: exactly one live assignment that date');
+
+select pg_temp.ok(
+  (select t.released_reason = 'replaced_by_snabb' from public.tilldelning t
+   where t.id = 'dddddddd-0000-0000-0000-000000000030'),
+  'SNABB.releases_earlier_same_day',
+  'the Snabb Pass wins and the earlier assignment is released');
+
+select pg_temp.ok(
+  (select t.source = 'snabb' from public.tilldelning t
+   join public.worker w on w.id = t.worker_id join fx on fx.v = w.account_id
+   where fx.k = 'w3' and t.work_date = app.stockholm_today() - 10
+     and t.released_at is null),
+  'SNABB.marked_snabb', 'how it entered is recorded, even though it prints the same');
+
+-- ---- it bypasses the headcount, and nothing else does ---------------------
+insert into public.pass (id, project_id, work_date, start_time, end_time,
+                         planned_hours, headcount, created_by)
+select 'eeeeeeee-0000-0000-0000-000000000031'::uuid,
+       'aaaaaaaa-0000-0000-0000-00000000000a'::uuid,
+       app.stockholm_today() + 80, '07:00'::time, '16:00'::time, 8.00, 1::smallint,
+       (select v from fx where k = 'leaderA');
+
+insert into public.tilldelning (pass_id, worker_id, source, work_date)
+select 'eeeeeeee-0000-0000-0000-000000000031', w.id, 'manuell', app.stockholm_today() + 80
+from public.worker w join fx on fx.v = w.account_id where fx.k = 'w1';
+
+-- One slot, already taken. An ordinary assignment is refused...
+select pg_temp.rejects($$
+  insert into public.tilldelning (pass_id, worker_id, source, work_date)
+  select 'eeeeeeee-0000-0000-0000-000000000031', w.id, 'manuell', app.stockholm_today() + 80
+  from public.worker w join fx on fx.v = w.account_id where fx.k = 'w2'
+$$, 'SNABB.headcount_still_guards_others');
+
+-- ...and a Snabb Pass is not.
+-- Recorded rather than called bare: with the bypass removed the guard raises,
+-- and a raw exception aborts the suite instead of failing THIS assertion --
+-- which is what a control has to be able to do.
+create temporary table snabb_full(ok boolean, err text);
+grant select, insert on snabb_full to public;
+
+set local role authenticated;
+select pg_temp.act_as((select v from fx where k = 'leaderA'));
+do $full$
+begin
+  perform public.assign_snabb('eeeeeeee-0000-0000-0000-000000000031',
+    (select id from wid where k = 'w2'));
+  insert into snabb_full values (true, null);
+exception when others then
+  insert into snabb_full values (false, sqlerrm);
+end $full$;
+reset role;
+
+select pg_temp.ok(
+  (select ok from snabb_full)
+  and (select count(*) from public.tilldelning t
+       where t.pass_id = 'eeeeeeee-0000-0000-0000-000000000031'
+         and t.released_at is null) = 2,
+  'SNABB.bypasses_headcount',
+  'covering a no-show on a full shift is exactly what the escape hatch is for: ' ||
+  coalesce((select err from snabb_full), ''));
+
+-- ---- but not on someone else's project, and not by a worker ---------------
+set local role authenticated;
+select pg_temp.act_as((select v from fx where k = 'leaderB'));
+select pg_temp.rejects($$
+  select public.create_snabb_pass(
+    'aaaaaaaa-0000-0000-0000-00000000000a'::uuid,
+    (select id from wid where k = 'w2'),
+    app.stockholm_today() + 81, '07:00'::time, '16:00'::time, 8.00)
+$$, 'SNABB.not_your_project');
+
+select pg_temp.act_as((select v from fx where k = 'w1'));
+select pg_temp.rejects($$
+  select public.create_snabb_pass(
+    'aaaaaaaa-0000-0000-0000-00000000000a'::uuid,
+    (select id from wid where k = 'w2'),
+    app.stockholm_today() + 82, '07:00'::time, '16:00'::time, 8.00)
+$$, 'SNABB.worker_cannot_create');
+reset role;
+
+-- ---- it skips the picking, never the confirming ---------------------------
+-- The day carries the ordinary pass (its worker released) and the Snabb Pass.
+-- Confirming it must still demand hours for the Snabb row like any other.
+set local role authenticated;
+select pg_temp.act_as((select v from fx where k = 'leaderA'));
+select pg_temp.rejects($$
+  insert into public.project_day (project_id, work_date, vad_vi_gjorde,
+                                  confirmed_at, confirmed_by, confirmed_via)
+  values ('aaaaaaaa-0000-0000-0000-00000000000a', app.stockholm_today() - 10,
+          'Snabbinsats på taket', now(),
+          (select v from fx where k='leaderA'), 'leader')
+$$, 'SNABB.confirm_needs_its_hours');
+reset role;
+
+-- Scoped to this project's passes. Unscoped, it reaches every assignment on
+-- that date across the whole database -- including days another project has
+-- already confirmed, which are final and refuse the write.
+update public.tilldelning t
+set confirmed_hours = 5.50
+where t.released_at is null
+  and t.pass_id in (
+    select p.id from public.pass p
+    where p.project_id = 'aaaaaaaa-0000-0000-0000-00000000000a'
+      and p.work_date = app.stockholm_today() - 10
+  );
+
+set local role authenticated;
+select pg_temp.act_as((select v from fx where k = 'leaderA'));
+insert into public.project_day (project_id, work_date, vad_vi_gjorde,
+                                confirmed_at, confirmed_by, confirmed_via)
+values ('aaaaaaaa-0000-0000-0000-00000000000a', app.stockholm_today() - 10,
+        'Snabbinsats på taket', now(),
+        (select v from fx where k='leaderA'), 'leader');
+reset role;
+
+select pg_temp.ok(
+  (select confirmed_via = 'leader' from public.project_day
+   where project_id = 'aaaaaaaa-0000-0000-0000-00000000000a'
+     and work_date = app.stockholm_today() - 10),
+  'SNABB.enters_the_confirmation_queue',
+  'a Snabb Pass confirms exactly like any other row');
+
 select pg_temp.ok(true, 'SUITE.complete', 'every assertion passed');

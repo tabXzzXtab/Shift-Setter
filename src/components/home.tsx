@@ -34,6 +34,7 @@ export function Home() {
             <BigLink href="/projekt/ny">Nytt projekt</BigLink>
             <BigLink href="/arbetare/ny">Ny arbetare</BigLink>
             <BigLink href="/projekt">Alla projekt</BigLink>
+            <BigLink href="/snabb">Snabb Pass</BigLink>
             <BigLink href="/arbetsdagbok">Arbetsdagbok</BigLink>
             <BigLink href="/dag">Öppna dag</BigLink>
           </>
@@ -42,6 +43,7 @@ export function Home() {
         {account.role === "arbetsledare" && (
           <>
             <BigLink href="/pass/ny">Skapa pass</BigLink>
+            <BigLink href="/snabb">Snabb Pass</BigLink>
             <BigLink href="/dag">Öppna dag</BigLink>
             <BigLink href="/bekrafta">Bekräfta pass</BigLink>
           </>

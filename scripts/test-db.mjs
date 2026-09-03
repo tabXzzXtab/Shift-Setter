@@ -136,6 +136,13 @@ const CONTROLS = [
              "interval '5 days'", "interval '0 days'"),
    "CASCADE.no_autofill_inside_five_days"],
 
+  ["Snabb Pass bypasses the headcount",
+   // One line, so the control cannot be broken by reindenting the function.
+   // Flipping the condition to false makes the guard apply to Snabb Pass too,
+   // and the full pass then refuses the second person.
+   perturbIn("app.tg_headcount_guard()", "if new.source = 'snabb' then", "if false then"),
+   "SNABB.bypasses_headcount"],
+
   ["invariant 7 -- project creation is a gate",
    `alter table public.project drop constraint ` +
    `"${"project_bestallare_orgnr_check"}"`,

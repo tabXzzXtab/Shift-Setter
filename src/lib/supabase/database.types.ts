@@ -940,6 +940,17 @@ export type Database = {
       }
       clock_in: { Args: { p_tilldelning: string }; Returns: string }
       clock_out: { Args: { p_tilldelning: string }; Returns: string }
+      create_snabb_pass: {
+        Args: {
+          p_date: string
+          p_end: string
+          p_hours: number
+          p_project: string
+          p_start: string
+          p_worker: string
+        }
+        Returns: string
+      }
       decline_offer: { Args: { p_pass: string }; Returns: undefined }
       delete_pass: { Args: { p_pass: string }; Returns: undefined }
       fill_passes: {
