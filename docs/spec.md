@@ -82,10 +82,10 @@ Ordinarie tid on the cover sums only the shifts inside the chosen range.
 [firstDate]-[lastDate]-[year]-[projektnamn].pdf
 ```
 
-Dates are `DDMon` — day number and three-letter month, the month abbreviation capitalised. The project name is lowercased. A 19–22 August 2026 range on Landskrona produces:
+Dates are `DDMon` — day number and three-letter month, **the month abbreviation capitalised**. The project name is the only part lowercased, as a slug. A 20 July – 28 August 2026 range on Demoprojektet produces:
 
 ```
-19Aug-22Aug-2026-landskrona.pdf
+20Jul-28Aug-2026-demoprojektet.pdf
 ```
 
 The name carries one year, so a range crossing a year boundary is not covered by this pattern. If one arises, stop and ask.
@@ -102,19 +102,48 @@ A warning, not a block — re-issuing a document is legitimate. But it must neve
 
 ### Bristsurvey — the admin's gap-filling path
 
-The admin cannot confirm days. Only the assigned arbetsledare can. That is the pressure the whole system runs on, and removing it would let the owner rubber-stamp days he was not present for.
+The admin cannot make a stage 1 confirmation. Only the assigned arbetsledare can. That is the pressure the whole system runs on, and removing it would let the owner rubber-stamp days he was not present for.
 
 But the leader can quit, go silent, or simply never get to it, and the document is a legal obligation that cannot wait.
 
-So: **when the admin picks a date range and something is missing, he gets a survey of exactly what is missing before generation.**
+So: **when the admin picks a date range and something in it is unconfirmed, he is stopped before generation and made to close the gaps himself.** Three screens, in order.
 
-The survey lists every gap:
+**Step 1 — the warning.** The background darkens and a popup appears:
 
-- Days with unconfirmed shifts — showing what the system **registered**: clock-in, clock-out, planned hours. Not confirmed figures, because there are none.
-- Days with no "Vad Vi Gjorde" text.
-- Any missing project or beställare field.
+> Att generera en obekräftad arbetsdagbok riskerar att du bokför obekräftade arbetstimmar, felaktiga tider och ej verifierade uppgifter i arbetsdagboken, vill du gå vidare?
 
-The admin fills them in. For the day descriptions this means ringing round and asking the workers what they did — deliberately laborious, because it should be the leader's job.
+- **Nej** — back to Alla Projekt.
+- **Ja** — on to Step 2.
+
+**The popup guards this path only.** A range where every day is already `leader_confirmed` generates straight to the PDF with nothing in the way. A warning that fires when nothing is wrong is a warning nobody reads by the third time.
+
+**Step 2 — whose job this was.** If the leader has not confirmed:
+
+> Passen du begär om har inte blivit bekräftade av **[Arbetsledare namn]**, be de att bekräfta passen.
+
+- **Tillbaka** — black, filled. Back to the previous screen.
+- **Bekräfta Uppgifter** — white, outlined. On to the survey.
+
+The heavier button is the one that leaves. Chasing the leader is the right outcome and it looks like the default; taking the day off him is the recessive option, deliberately. If a project has several arbetsledare, the screen names the ones who owe the confirmation.
+
+**Step 3 — the survey. One screen per unconfirmed day.**
+
+> Vad har ni uppfyllt på **[Projektnamn]** den **[Måndag 19:e Aug]**?
+
+A single text field, its placeholder an example drawn at 25% opacity that disappears on tap. One day, one question, one answer. For the admin this means ringing round and asking the workers what they did — deliberately laborious, because it should have been the leader's job.
+
+**Submitting confirms that day permanently**, as `admin_confirmed`.
+
+**Only the description is typed.** The survey asks for the day's account and nothing else. The figures come from what was registered:
+
+| Column | Source on a surveyed day |
+|---|---|
+| PASS TIDER | Clock-in and clock-out where they exist, otherwise the pass's planned times |
+| PASS TIMMAR | The clock span where the worker clocked both in and out, otherwise the pass's planned hours |
+
+**This is the one place hours derive from a span**, and it is an explicit exception to invariant 1 rather than an oversight. It can overstate a day by the length of an unpaid lunch. That is exactly what the Step 1 popup names — *obekräftade arbetstimmar, felaktiga tider* — and it is the price of a leader who never confirmed. The way to avoid paying it is to get the leader to confirm.
+
+**A missing project or beställare field** stops generation the same way and is filled in the same pass. Section 1's rule admits no empty cell, whatever kind of cell it is.
 
 Completing the survey unblocks generation. It is not a bypass of the no-empty-cells rule; it is the manual way of satisfying it.
 
@@ -164,7 +193,7 @@ Can also do everything an arbetsledare can, **except make a stage 1 confirmation
 Three routes put a day into `admin_confirmed` without a leader having confirmed it:
 
 - **Stage 2 approval** — a leader confirmed it and the admin signed off, with or without edits.
-- **Bristsurvey** — the leader never confirmed and the admin reconstructed the day from registered data (Section 1).
+- **Bristsurvey** — the leader never confirmed, so the admin supplied the day's account himself and the registered figures stood in for confirmed ones (Section 1).
 - **A flagged day** — the day ran with a worker as ansvarig, or with nobody, so there was no leader to make the claim. Admin and only admin confirms it (Step 5c).
 
 None of the three is the admin confirming a day a leader still could have. That distinction is the pressure the whole system runs on, and it survives the second stage intact.
@@ -220,13 +249,13 @@ Visible to admin and arbetsledare. Not to arbetare — they see their own shifts
 
 A leader gets buttons where a worker gets a trash icon because a leader is never simply absent. Somebody has to be answerable for the day, and the choice of who cannot be skipped.
 
-### Kommande pass — the leader's day list
+### Mina Pass — the leader's day list
 
-A subpage listing upcoming shifts, grouped by day. A leader running several projects gets a project filter to narrow it to one at a time.
+**One page, not two.** It opens on what is coming: future shifts, grouped by day. Scrolling back brings up the current day and then the past ones, in the same list and the same shape. A leader running several projects gets a project filter to narrow it to one at a time.
 
-This is the forward-looking counterpart to the confirmation queue: what is coming, rather than what has finished and needs an account of itself.
+**There is no Kommande Pass.** A page for what is coming and a page for what has been means choosing between them before you know what you are looking for, and what a leader wants is nearly always the shift on one side or the other of right now.
 
-Reached from the leader's hamburger menu as **Mina Pass** (Section 7). Whether Mina Pass is this list under a new name or a second list beside it is not settled.
+Reached from the leader's hamburger menu (Section 7).
 
 ## 3. Entities
 
@@ -382,7 +411,7 @@ There is no "move" feature and nothing splits automatically. If that person is n
 2. **If nobody is free, there is no popup.** The slot goes straight out as Acceptera Pass cards and appears in the open shift list. A popup listing nothing asks a question with no answers in it.
 3. If still nobody takes it, the day runs short-staffed. An unfilled slot is never an error — it is a day that ran with fewer people, and it confirms exactly like any other.
 
-**Inside five days, neither 1 nor 2 fires.** Step 5's freeze holds for a cancellation exactly as it holds for a dropout: no Välj Utbyte popup, no Acceptera Pass cards. The slot opens, sits in the open shift list, and is filled by manual placement or a Snabb Pass. A cancellation two days out is the same emergency as a dropout two days out, and the system does not start ringing phones on its own that close in.
+**Inside five days, 1 fires and 2 does not.** The Välj Utbyte popup is manual placement, which Step 5 has always allowed however close in the shift is — a leader standing there choosing a name is the opposite of an automatic refill. Acceptera Pass cards are the automatic part, and they do not go out inside five days. If nobody is picked from the popup, the slot opens, sits in the open shift list, and waits for a manual placement or a Snabb Pass.
 
 **Step 5c — Avboka Pass on an arbetsledare**
 
@@ -484,7 +513,7 @@ That block is the entire enforcement mechanism. The admin needs the document; on
 
 ## 5. Invariants — non-negotiable
 
-1. **Hours are typed by a human.** Nothing derives them. Not from clock stamps, not from the span. Unpaid lunch makes span ≠ hours the normal case. An auto-assigned leader's hours are *prefilled* from the workers' envelope and stay editable — a number a human must accept or correct is not a derived number, and nothing writes hours nobody looked at.
+1. **Hours are typed by a human.** Nothing derives them. Not from clock stamps, not from the span. Unpaid lunch makes span ≠ hours the normal case. An auto-assigned leader's hours are *prefilled* from the workers' envelope and stay editable — a number a human must accept or correct is not a derived number. **One exception, the bristsurvey:** on a day no leader ever confirmed, hours come from the clock span where one exists and the planned figure where it does not, with nobody typing them. That exception is the reason the survey opens behind a warning, and it exists nowhere else.
 2. **No worker holds two assignments on the same date.** Ever. **One exception, arbetsledare only:** a leader auto-assigned to two projects (Step 4b) holds a day on each. Nothing but auto-assignment creates it, and it does not extend to arbetare.
 3. **Clock stamps are append-only evidence.** The leader may overwrite the working value; the original survives, visible and attributed.
 4. **An arbetare never writes hours or confirmation state.** A leader writes them at stage 1; the admin writes them at stage 2 and on the two routes that reach `admin_confirmed` with no leader behind them. Enforced in the database, not the interface. The worker side of this has not moved, and it is the side that matters.
@@ -527,14 +556,14 @@ Each role lands on what it does most, and nothing important is more than one pre
 - **+ Nytt Projekt**
 - **+ Skapa Pass**
 - **+ Snabb Pass**
-- Below them, **Alla Project**: every project as a row — name, address, hours.
+- Below them, **Alla Projekt**: every project as a row — name, address, hours.
 
 The list is the work. Those three buttons sit above it because creating is the only thing an owner does that a list cannot show him.
 
 **Hamburger menu**, top left:
 
 - Kalender
-- Alla Project
+- Alla Projekt
 - Alla Pass
 - Alla Arbetare — **+ Ny Arbetare** lives inside it, not on the landing page
 
@@ -559,7 +588,7 @@ The Arbetsdagbok is not in either place. It lives inside the project (Section 1)
 
 **Top right:** the profile icon.
 
-Alla Projekt and Alla Arbetare stay reachable for a leader, off-menu.
+Alla Projekt and Alla Arbetare are not in the leader's menu. They stay reachable from the project rows.
 
 ### Arbetare
 
@@ -588,7 +617,8 @@ Nothing here is open. Anything discovered later that is not covered is a stop-an
 - A deleted shift is never re-offered to the people removed from it. Snabb Pass is the way back.
 - The arbetsledare is auto-assigned to any day their project has a worker on it, both leaders if a project has two. Times are the workers' envelope, hours are prefilled from it and editable, and the row prints like any other. This replaces Acceptera Pass for leaders entirely.
 - A leader may hold two projects on one date. Invariant 2's only exception.
-- Avboka Pass on a leader forces a replacement choice: another arbetsledare, a worker as ansvarig, or nobody. Avboka Pass on a worker offers Välj Utbyte, and falls through to Acceptera Pass and the open shift list when nobody has pre-picked — never inside five days.
+- Avboka Pass on a leader forces a replacement choice: another arbetsledare, a worker as ansvarig, or nobody.
+- Avboka Pass on a worker offers Välj Utbyte at any distance from the shift, since picking a name is manual placement. It falls through to Acceptera Pass and the open shift list only outside five days.
 
 **Identity**
 - Every worker has an account; not every account has a worker.
@@ -602,7 +632,9 @@ Nothing here is open. Anything discovered later that is not covered is a stop-an
 - The Arbetsdagbok generates from `leader_confirmed`. Stage 2 is not a gate.
 - Generating moves the days to Bekräftelse Historik whatever their stage.
 - A stage 2 edit after generation shows in Historik. The PDF is a snapshot and does not change.
-- A day that ran with no arbetsledare is flagged, skips stage 1, and only the admin can confirm it.
+- A day that ran with no arbetsledare is flagged, skips stage 1, and only the admin can confirm it. Flagged harder than a day a worker covered as ansvarig: the two are distinct cases in the record, not one.
+- Generating a range with anything unconfirmed goes through three screens — the warning popup, whose job this was, then one survey question per day. A clean range skips all three and downloads.
+- The bristsurvey asks only for the day's description. Times and hours come from what was registered, and that is the single place in the system where hours derive from a span.
 
 **Confirmation and the document**
 - The admin cannot confirm days. Missing days are filled through the bristsurvey, prefilled from registered data, with provenance recorded.
@@ -623,7 +655,8 @@ Nothing here is open. Anything discovered later that is not covered is a stop-an
 - Notifications are in-app only.
 - Payload fields renamed on port: `hours`, `passTider`, `vadViGjorde`.
 - Öppna Dag opens from the calendar only. No standalone page, no landing-page button.
-- The Arbetsdagbok lives inside the project. Direct download, no print dialog, named `19Aug-22Aug-2026-landskrona.pdf`.
+- The Arbetsdagbok lives inside the project. Direct download, no print dialog, named `20Jul-28Aug-2026-demoprojektet.pdf` — capitalised month, lowercased project slug.
+- Mina Pass is one page: future shifts by default, scroll back for the current day and the past. Kommande Pass is gone.
 - Landing pages and hamburger menus are settled for admin and arbetsledare (Section 7). The arbetare landing is not finalised.
 
 ## 8b. The DocMaker template port
