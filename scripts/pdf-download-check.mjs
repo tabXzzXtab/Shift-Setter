@@ -81,8 +81,8 @@ console.log(`\ndownloaded: ${suggested}`);
 
 if (printed) fail("window.print() was called -- the print dialog is still in the path");
 
-// [firstDate]-[lastDate]-[year]-[projektnamn].pdf, DDMon, all lowercase
-const MONTHS = ["jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec"];
+// [firstDate]-[lastDate]-[year]-[projektnamn].pdf -- Mon capitalised, slug not
+const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 const ddmon = (ymd) => `${ymd.split("-")[2]}${MONTHS[Number(ymd.split("-")[1]) - 1]}`;
 const slug = projectName.trim().toLowerCase()
   .replace(/[åä]/g, "a").replace(/ö/g, "o").replace(/[éè]/g, "e")
@@ -91,7 +91,9 @@ const expected = `${ddmon(FROM)}-${ddmon(TO)}-${TO.slice(0, 4)}-${slug}.pdf`;
 
 console.log(`expected:   ${expected}`);
 if (suggested !== expected) fail(`filename mismatch`);
-if (suggested !== suggested.toLowerCase()) fail("filename is not all lowercase");
+if (!/^\d{2}[A-Z][a-z]{2}-\d{2}[A-Z][a-z]{2}-\d{4}-[a-z0-9-]+\.pdf$/.test(suggested)) {
+  fail("filename shape is wrong: expected DDMon-DDMon-YYYY-slug.pdf");
+}
 
 // ---- the bytes --------------------------------------------------------------
 const bytes = new Uint8Array(readFileSync(out));
