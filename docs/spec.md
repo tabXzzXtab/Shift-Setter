@@ -253,7 +253,7 @@ A leader gets buttons where a worker gets a trash icon because a leader is never
 
 **One page, not two.** It opens on what is coming: future shifts, grouped by day. Scrolling back brings up the current day and then the past ones, in the same list and the same shape. A leader running several projects gets a project filter to narrow it to one at a time.
 
-**There is no Kommande Pass.** A page for what is coming and a page for what has been means choosing between them before you know what you are looking for, and what a leader wants is nearly always the shift on one side or the other of right now.
+Splitting the future off from the past would mean choosing between two pages before you know what you are looking for, and what a leader wants is nearly always the shift on one side or the other of right now.
 
 Reached from the leader's hamburger menu (Section 7).
 
@@ -656,7 +656,7 @@ Nothing here is open. Anything discovered later that is not covered is a stop-an
 - Payload fields renamed on port: `hours`, `passTider`, `vadViGjorde`.
 - Öppna Dag opens from the calendar only. No standalone page, no landing-page button.
 - The Arbetsdagbok lives inside the project. Direct download, no print dialog, named `20Jul-28Aug-2026-demoprojektet.pdf` — capitalised month, lowercased project slug.
-- Mina Pass is one page: future shifts by default, scroll back for the current day and the past. Kommande Pass is gone.
+- Mina Pass is one page: future shifts by default, scroll back for the current day and the past.
 - Landing pages and hamburger menus are settled for admin and arbetsledare (Section 7). The arbetare landing is not finalised.
 
 ## 8b. The DocMaker template port
