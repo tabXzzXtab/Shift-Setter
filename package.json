@@ -21,11 +21,13 @@
     "check:print-colour": "node scripts/print-colour-check.mjs",
     "walkthrough:snabb": "node scripts/walkthrough-snabb.mjs",
     "demo:accounts": "node scripts/demo-accounts.mjs",
-    "demo:reset": "npm run db:sql -- --file supabase/maintenance/reset-demo-data.sql && npm run demo:accounts"
+    "demo:reset": "npm run db:sql -- --file supabase/maintenance/reset-demo-data.sql && npm run demo:accounts",
+    "check:pdf-download": "node scripts/pdf-download-check.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.113.0",
     "next": "16.3.4",
+    "pdf-lib": "^1.17.1",
     "react": "19.2.8",
     "react-dom": "19.2.8"
   },

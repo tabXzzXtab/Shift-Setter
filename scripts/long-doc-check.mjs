@@ -50,7 +50,7 @@ await field(page, "Till och med").fill(to);
 await page.getByRole("button", { name: "Generera Arbetsdagbok" }).click();
 
 try {
-  await page.getByRole("button", { name: /Spara som PDF/ }).waitFor({ timeout: 60000 });
+  await page.getByRole("button", { name: /Ladda ner PDF/ }).waitFor({ timeout: 60000 });
 } catch {
   const main = await page.locator("main").innerText().catch(() => "(no main)");
   await page.screenshot({ path: path.join(ART, "FAILED-long-doc.png"), fullPage: true });

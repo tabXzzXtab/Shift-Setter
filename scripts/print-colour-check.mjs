@@ -43,7 +43,7 @@ await f(page, "Projekt").selectOption({ index: 1 });
 await f(page, "Från och med").fill(DATE);
 await f(page, "Till och med").fill(DATE);
 await page.getByRole("button", { name: "Generera Arbetsdagbok" }).click();
-try { await page.getByRole("button", { name: /Spara som PDF/ }).waitFor({ timeout: 40000 }); }
+try { await page.getByRole("button", { name: /Ladda ner PDF/ }).waitFor({ timeout: 40000 }); }
 catch { fail(`generation refused: ${await page.locator("main").innerText()}`); }
 
 await page.emulateMedia({ media: "print" });

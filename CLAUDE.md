@@ -122,6 +122,7 @@ before writing framework code.
 | `npm run demo:reset` | Clear demo data **and** recreate the stable demo logins |
 | `npm run test:race` | Two concurrent accepts on a one-slot pass, N rounds |
 | `node scripts/long-doc-check.mjs` | Print a long Arbetsdagbok; assert no header/footer overlap |
+| `node scripts/pdf-download-check.mjs <from> <to> [projekt]` | Download the PDF; assert filename, pages, bands |
 
 Account creation runs through the `create-account` Edge Function, because it
 needs the service-role key. Deploy it with:
@@ -242,6 +243,22 @@ which recreates the stable demo accounts from `.env.local` afterwards.
 - Repo: `tabXzzXtab/Shift-Setter` (public)
 - Supabase project: `ahujmzahjuvnlzbyyycc`, eu-west-2
 - Live: **https://tabxzzxtab.github.io/Shift-Setter/**
+
+## The Arbetsdagbok has two renderers
+
+The **PDF is the deliverable**, drawn by `src/lib/doc/pdf.ts` with pdf-lib. A
+static export has no server, and `window.print()` cannot be told to save a
+file -- it always opens a dialog -- so the document is drawn rather than
+printed. Helvetica, so no font is embedded and the file stays small; WinAnsi
+covers åäö, and anything outside it is folded before drawing rather than
+throwing mid-document.
+
+`src/components/arbetsdagbok-document.tsx` is the **on-screen preview** only.
+Both read the same `DocPayload`, so they cannot disagree about content -- but
+they can drift on layout. `check:pdf-download` guards the file that actually
+leaves the building.
+
+---
 
 `docs/spec.md` is updated in the **same commit** as the code it describes. A spec
 that drifts from the code makes both unauthoritative.

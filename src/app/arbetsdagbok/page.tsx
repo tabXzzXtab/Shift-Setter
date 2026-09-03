@@ -7,6 +7,7 @@ import { Button, Field, Input, Notice, Screen, Select } from "@/components/ui";
 import { getSupabase } from "@/lib/supabase/client";
 import { addDays, hhmm, stockholmToday } from "@/lib/dates";
 import type { DocDay, DocPayload } from "@/lib/doc/arbetsdagbok";
+import { arbetsdagbokFilename, buildArbetsdagbokPdf } from "@/lib/doc/pdf";
 
 type Project = {
   id: string;
@@ -38,6 +39,8 @@ function Arbetsdagbok() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [payload, setPayload] = useState<DocPayload | null>(null);
+  const [downloading, setDownloading] = useState(false);
+  const [saved, setSaved] = useState<string | null>(null);
 
   useEffect(() => {
     getSupabase()
@@ -148,21 +151,54 @@ function Arbetsdagbok() {
     setBusy(false);
   }
 
+  /**
+   * One tap, one file. The PDF is built here and handed to the browser as a
+   * blob through an anchor with `download` -- no print dialog, because
+   * window.print() cannot be told to save a file and always opens one.
+   */
+  async function download() {
+    if (!payload) return;
+    setDownloading(true);
+    setError(null);
+    try {
+      const bytes = await buildArbetsdagbokPdf(payload);
+      const name = arbetsdagbokFilename(from, to, payload.cover.project);
+      // Uint8Array -> ArrayBuffer slice keeps TypeScript and the Blob
+      // constructor agreed about the backing buffer.
+      const blob = new Blob([bytes.slice().buffer as ArrayBuffer], { type: "application/pdf" });
+      const href = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = href;
+      a.download = name;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      // Revoked on the next tick: Safari needs the URL to still resolve when
+      // the click is handled.
+      setTimeout(() => URL.revokeObjectURL(href), 10000);
+      setSaved(name);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Kunde inte skapa PDF-filen.");
+    }
+    setDownloading(false);
+  }
+
   if (payload) {
     return (
       <>
         <div className="no-print mx-auto w-full max-w-md p-4">
-          {/* A static export has no server to render a PDF, so the browser's
-              own print engine produces the file. Chrome cannot be told to
-              preselect a destination, so the one step it cannot skip is
-              choosing "Spara som PDF" -- say so rather than leave them in a
-              dialog they did not expect. */}
-          <p className="mb-3 text-base">
-            Välj <strong>Spara som PDF</strong> som skrivare i rutan som öppnas.
-          </p>
-          <Button onClick={() => window.print()}>Spara som PDF</Button>
+          {error && <Notice kind="error">{error}</Notice>}
+          {saved && <Notice kind="ok">Nedladdad: {saved}</Notice>}
+          <Button onClick={download} disabled={downloading}>
+            {downloading ? "Skapar PDF…" : "Ladda ner PDF"}
+          </Button>
           <div className="mt-3">
-            <Button variant="outline" onClick={() => setPayload(null)}>Tillbaka</Button>
+            <Button
+              variant="outline"
+              onClick={() => { setPayload(null); setSaved(null); }}
+            >
+              Tillbaka
+            </Button>
           </div>
         </div>
         <div className="ad-doc mx-auto w-full max-w-[210mm]">
