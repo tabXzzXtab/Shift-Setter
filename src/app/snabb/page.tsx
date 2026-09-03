@@ -14,7 +14,11 @@ type Worker = { id: string; name: string };
 const NEW = "__ny__";
 
 /**
- * Snabb Pass -- the escape hatch.
+ * Snabb Pass -- the escape hatch. ADMIN ONLY.
+ *
+ * Creating one is inseparable from putting someone on a shift who may not be
+ * on the roster, and adding them creates an account. That is the admin's
+ * power, so this whole screen is.
  *
  * Bypasses the entire priority list: no förval, no acceptance, no headcount
  * check, no priolista. For last-second dropouts, verbal arrangements, covering
@@ -126,6 +130,19 @@ function SnabbPass() {
     );
   }
 
+  // A courtesy, not a boundary: create_snabb_pass refuses anyone but an admin,
+  // and would do so whatever this screen showed. Saying it plainly beats a form
+  // whose every button fails.
+  if (account && account.role !== "admin") {
+    return (
+      <Screen title="Snabb Pass" back="/">
+        <Notice kind="info">
+          Endast administratören kan skapa Snabb Pass.
+        </Notice>
+      </Screen>
+    );
+  }
+
   return (
     <Screen title="Snabb Pass" back="/">
       {error && <Notice kind="error">{error}</Notice>}
@@ -147,12 +164,7 @@ function SnabbPass() {
         </Select>
       </Field>
 
-      <Field
-        label="Vem?"
-        hint={account?.role === "admin"
-          ? "Finns personen inte i listan — välj Ny arbetare."
-          : "Endast administratören kan lägga till någon som inte finns i listan."}
-      >
+      <Field label="Vem?" hint="Finns personen inte i listan — välj Ny arbetare.">
         <Select
           value={workerId}
           onChange={(e) => {
@@ -164,15 +176,7 @@ function SnabbPass() {
           {workers.map((w) => (
             <option key={w.id} value={w.id}>{w.name}</option>
           ))}
-          {/*
-            Creating a worker creates an ACCOUNT, and spec Section 2 keeps that
-            admin-only ("Create accounts and workers"; an arbetsledare "cannot
-            touch accounts"). Section 3 describes this very flow as the admin's.
-            So a leader picks from the roster; only the admin can add someone
-            who is not on it. The Edge Function enforces the same thing, and
-            would refuse a leader regardless of what this dropdown offered.
-          */}
-          {account?.role === "admin" && <option value={NEW}>+ Ny arbetare…</option>}
+          <option value={NEW}>+ Ny arbetare…</option>
         </Select>
       </Field>
 

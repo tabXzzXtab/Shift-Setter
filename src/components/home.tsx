@@ -43,7 +43,6 @@ export function Home() {
         {account.role === "arbetsledare" && (
           <>
             <BigLink href="/pass/ny">Skapa pass</BigLink>
-            <BigLink href="/snabb">Snabb Pass</BigLink>
             <BigLink href="/dag">Öppna dag</BigLink>
             <BigLink href="/bekrafta">Bekräfta pass</BigLink>
           </>

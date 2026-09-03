@@ -125,6 +125,7 @@ The only role that can:
 
 - Create projects
 - Assign arbetsledare to a project
+- Create Snabb Pass
 - Generate the Arbetsdagbok
 - Create accounts and workers
 - Change an account's role
@@ -141,9 +142,7 @@ Can also do everything an arbetsledare can, **except confirm days**. Confirmatio
 
 An arbetsledare confirms only for **projects they are assigned to**. Assignment happens when the admin creates the project. A project may have several.
 
-- Creates **Snabb Pass** — the escape hatch, on their own projects (Section 4, Step 7)
-
-Cannot: create projects, delete shifts, touch accounts, or generate the document.
+Cannot: create projects, create Snabb Pass, delete shifts, touch accounts, or generate the document.
 
 **An arbetsledare is also a worker.** Confirming is not a full-time job. They hold shifts like anyone else, and the admin decides which — necessarily on the projects they are assigned to, since a leader is not put on a project they do not run.
 
@@ -316,7 +315,7 @@ Workers clock themselves in and out. The timestamp is the server's, never the ph
 A pass that is scheduled but not started, and one that is in progress, are told apart by whether a clock-in exists, not by a separate state.
 
 **Step 7 — Snabb Pass, the escape hatch**
-Arbetsledare and admin only. Bypasses the entire priority list. Requires only a name. For last-second dropouts, verbal arrangements, covering a no-show. **On paper it is an ordinary shift** — it prints in the Arbetsdagbok exactly like any other row. Only the way it enters the system differs. It still enters the confirmation queue; Snabb Pass skips the picking, never the confirming. If that person held an assignment elsewhere that day, the Snabb Pass wins and the earlier one is released.
+**Admin only.** Bypasses the entire priority list. Requires only a name. For last-second dropouts, verbal arrangements, covering a no-show. **On paper it is an ordinary shift** — it prints in the Arbetsdagbok exactly like any other row. Only the way it enters the system differs. It still enters the confirmation queue; Snabb Pass skips the picking, never the confirming. If that person held an assignment elsewhere that day, the Snabb Pass wins and the earlier one is released.
 
 **Step 8 — Confirmation**
 
@@ -396,7 +395,7 @@ That block is the entire enforcement mechanism. The admin needs the document; on
 Everything below, plus: Skapa Projekt · Snabb Pass · Arbetsdagbok · Konton & Roller · shift deletion from the shift calendar
 
 **Arbetsledare**
-Hem · Skapa Pass · Snabb Pass · Bekräfta Pass · Skiftkalender · Kommande Pass · Alla Projekt · Alla Arbetare · own shifts and clocking, same as any worker
+Hem · Skapa Pass · Bekräfta Pass · Skiftkalender · Kommande Pass · Alla Projekt · Alla Arbetare · own shifts and clocking, same as any worker
 
 **Arbetare**
 Hem (own shifts, own confirmed hours this month, clock control) · Min kalender (förval) · Acceptera Pass · Min profil
@@ -409,8 +408,9 @@ Nothing here is open. Anything discovered later that is not covered is a stop-an
 - Three roles: admin, arbetsledare, arbetare. Admin holds real exclusive powers, not extra buttons.
 - Confirmation is scoped per project. Only assigned arbetsledare can confirm a project's days.
 - An arbetsledare is also a worker and holds shifts.
-- Snabb Pass is admin AND arbetsledare, on their own projects. Section 2 once
-  listed it as admin-only, which contradicted Step 7; Step 7 was right.
+- Snabb Pass is **admin only**. Section 2 and Step 7 once disagreed; Section 2
+  was right. Creating one is inseparable from adding people off-roster, and
+  that is an account-creation power the arbetsledare does not have.
 - The project dropdown is mandatory in Skapa Pass and lists only assigned projects. This makes an unassigned leader harmless without special handling.
 
 **Assignment**

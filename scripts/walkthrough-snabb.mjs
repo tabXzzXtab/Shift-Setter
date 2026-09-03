@@ -3,8 +3,8 @@
  * Snabb Pass in a browser -- the escape hatch, driven by an ARBETSLEDARE.
  *
  * What it proves:
- *   - a leader, not just the admin, can create one (Section 2 once said
- *     otherwise; Step 7 says both, and Step 7 is right)
+ *   - an ARBETSLEDARE is refused, and told so rather than shown a dead form
+ *   - the ADMIN creates one
  *   - Ny Arbetare from inside the worker dropdown: same form, same
  *     copy-then-create gate, back to the shift screen to finish
  *   - the person's earlier assignment that day is released and the Snabb Pass
@@ -130,27 +130,20 @@ try {
   await mustSee(page, "1 av 1 platser tillsatta", "the ordinary pass was not filled by the tiers");
   log(`ordinary pass on ${D}, filled from förval by Ada`);
 
-  // ---- the LEADER covers a no-show with someone already on the roster -------
-  // A leader picks from the roster: creating a worker creates an account, and
-  // that stays admin-only (Section 2). The dropdown does not even offer it.
+  // ---- the leader is refused ------------------------------------------------
+  // Snabb Pass is admin only: creating one is inseparable from adding someone
+  // off-roster, and that creates an account.
   await page.goto(`${BASE}/snabb/`, { waitUntil: "networkidle" });
-  await mustSee(page, "Endast administratören kan lägga till",
-    "a leader should be told they cannot add someone off-roster");
-  if (await page.locator('select option[value="__ny__"]').count()) {
-    fail("the leader was offered Ny Arbetare, which creates an account");
+  await mustSee(page, "Endast administratören kan skapa Snabb Pass",
+    "an arbetsledare should be told Snabb Pass is not theirs");
+  if (await page.getByRole("button", { name: "Skapa Snabb Pass" }).count()) {
+    fail("the leader was shown a Snabb Pass form the database would refuse");
   }
-  await field(page, "Projekt").selectOption({ label: project });
-  await field(page, "Datum").fill(D);
-  await field(page, "Timmar").fill("4");
-  await field(page, "Vem?").selectOption({ label: `Ada S${RUN}` });
-  await shot(page, "41-snabb-formular");
-  await page.getByRole("button", { name: "Skapa Snabb Pass" }).click();
-  await mustSee(page, "Snabb Pass skapat", "the arbetsledare could not create a Snabb Pass");
-  await shot(page, "42-snabb-skapat");
-  log("arbetsledare created a Snabb Pass for Ada, who already worked that day");
+  await shot(page, "41-snabb-nekad-ledare");
+  log("arbetsledare is told Snabb Pass is admin only, and gets no form");
   await signOut(page);
 
-  // ---- the ADMIN adds someone who is not on the roster at all ---------------
+  // ---- the admin covers the no-show, with an off-roster worker --------------
   await signIn(page, required("WALKTHROUGH_ADMIN_EMAIL"), required("WALKTHROUGH_ADMIN_PASSWORD"));
   await page.goto(`${BASE}/snabb/`, { waitUntil: "networkidle" });
   await field(page, "Projekt").selectOption({ label: project });
@@ -169,17 +162,25 @@ try {
   await shot(page, "40-snabb-ny-arbetare");
   await create.click();
 
-  // Back on the shift screen, with them selected, as though nothing happened.
   await mustSee(page, "Går förbi hela turordningen",
     "did not return to the Snabb Pass form after creating the worker");
   const selected = await field(page, "Vem?").inputValue();
   if (!selected || selected === "__ny__") fail("returned without the new worker selected");
-  log(`admin created ${newName} from inside the dropdown and returned to the shift`);
-
   await page.getByRole("button", { name: "Skapa Snabb Pass" }).click();
   await mustSee(page, "Snabb Pass skapat", "the Snabb Pass for the new worker failed");
   await mustSee(page, "Lösenord:", "the credentials for the new worker were not shown");
-  log("Snabb Pass created for a worker who was not on the roster a minute ago");
+  log(`admin created ${newName} from inside the dropdown and put them on the shift`);
+
+  // ---- and one for Ada, who already works that day --------------------------
+  await page.getByRole("button", { name: "Skapa ett till" }).click();
+  await field(page, "Projekt").selectOption({ label: project });
+  await field(page, "Datum").fill(D);
+  await field(page, "Timmar").fill("4");
+  await field(page, "Vem?").selectOption({ label: `Ada S${RUN}` });
+  await page.getByRole("button", { name: "Skapa Snabb Pass" }).click();
+  await mustSee(page, "Snabb Pass skapat", "the second Snabb Pass failed");
+  await shot(page, "42-snabb-skapat");
+  log("Snabb Pass for Ada, who already had a pass that day");
 
   // ---- the earlier assignment is gone, exactly one stands -------------------
   await signOut(page);

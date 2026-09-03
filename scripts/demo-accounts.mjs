@@ -78,7 +78,7 @@ async function ensure({ key, role, name }) {
 
 console.log("\nDemo logins:");
 const [leader] = await Promise.all([ensure(PEOPLE[0])]);
-const worker = await ensure(PEOPLE[1]);
+await ensure(PEOPLE[1]);
 
 // A project for them to work on, with the leader assigned -- without that the
 // leader's project dropdown is empty and they can do nothing at all.

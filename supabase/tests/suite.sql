@@ -94,6 +94,22 @@ insert into public.worker (account_id, name, email)
 select v, initcap(k), k || '@suite.test' from fx where k in ('w1','w2','w3','leaderA');
 -- leaderA has a worker record: an arbetsledare is also a worker (Section 2).
 
+-- Fixture worker ids, resolved while still the owner. A leader cannot SELECT
+-- the worker table at all -- names come from worker_roster, which carries no
+-- email -- so looking one up mid-call returns NULL and reads as "no such
+-- worker".
+create temporary table wid as
+select fx.k, w.id from public.worker w join fx on fx.v = w.account_id;
+grant select on wid to public;
+
+-- The suite runs against the REAL database, so real workers and whatever they
+-- have marked on their calendars are visible to the priority list. A day a
+-- real person marked would put them in the ranking and decide these assertions
+-- instead of the fixtures -- which is exactly what happened once someone
+-- started using the demo. Cleared inside this transaction, which is always
+-- rolled back, so the tiers are decided by the fixtures alone.
+delete from public.forval f where f.worker_id not in (select id from wid);
+
 insert into public.project (id, name, site_address, bestallare_address,
                             bestallare_bolag, bestallare_orgnr, services, start_date)
 values
@@ -924,22 +940,16 @@ select 'dddddddd-0000-0000-0000-000000000030', 'eeeeeeee-0000-0000-0000-00000000
        w.id, 'manuell', app.stockholm_today() - 10
 from public.worker w join fx on fx.v = w.account_id where fx.k = 'w3';
 
--- Created by the ARBETSLEDARE, not the admin. Section 2 once said this was
--- admin-only; Step 7 says both, and Step 7 is right.
--- Worker ids resolved while still the owner. A leader cannot SELECT the worker
--- table at all -- names come from worker_roster, which carries no email -- so
--- looking one up mid-call returns NULL and reads as "no such worker".
-create temporary table wid as
-select fx.k, w.id from public.worker w join fx on fx.v = w.account_id;
-grant select on wid to public;
-
+-- Created by the ADMIN. Section 2 and Step 7 once disagreed; Section 2 was
+-- right, because creating one is inseparable from adding someone off-roster,
+-- and that is an account-creation power the arbetsledare does not have.
 create temporary table snabb_call(ok boolean, err text);
 -- The DO block below runs as `authenticated`, so it needs INSERT as well as
 -- SELECT on this temp table: it belongs to the session user, not to them.
 grant select, insert on snabb_call to public;
 
 set local role authenticated;
-select pg_temp.act_as((select v from fx where k = 'leaderA'));
+select pg_temp.act_as((select v from fx where k = 'admin'));
 do $snabb$
 begin
   perform public.create_snabb_pass(
@@ -953,9 +963,19 @@ end $snabb$;
 reset role;
 
 select pg_temp.ok((select ok from snabb_call),
-  'SNABB.leader_may_create',
-  'an arbetsledare creates a Snabb Pass on their own project: ' ||
-  coalesce((select err from snabb_call), ''));
+  'SNABB.admin_may_create',
+  'the admin creates a Snabb Pass: ' || coalesce((select err from snabb_call), ''));
+
+-- The arbetsledare assigned to this very project is still refused.
+set local role authenticated;
+select pg_temp.act_as((select v from fx where k = 'leaderA'));
+select pg_temp.rejects($$
+  select public.create_snabb_pass(
+    'aaaaaaaa-0000-0000-0000-00000000000a'::uuid,
+    (select id from wid where k = 'w2'),
+    app.stockholm_today() + 83, '07:00'::time, '16:00'::time, 8.00)
+$$, 'SNABB.leader_cannot_create');
+reset role;
 
 select pg_temp.ok(
   (select count(*) from public.tilldelning t
@@ -1005,7 +1025,7 @@ create temporary table snabb_full(ok boolean, err text);
 grant select, insert on snabb_full to public;
 
 set local role authenticated;
-select pg_temp.act_as((select v from fx where k = 'leaderA'));
+select pg_temp.act_as((select v from fx where k = 'admin'));
 do $full$
 begin
   perform public.assign_snabb('eeeeeeee-0000-0000-0000-000000000031',
@@ -1027,14 +1047,6 @@ select pg_temp.ok(
 
 -- ---- but not on someone else's project, and not by a worker ---------------
 set local role authenticated;
-select pg_temp.act_as((select v from fx where k = 'leaderB'));
-select pg_temp.rejects($$
-  select public.create_snabb_pass(
-    'aaaaaaaa-0000-0000-0000-00000000000a'::uuid,
-    (select id from wid where k = 'w2'),
-    app.stockholm_today() + 81, '07:00'::time, '16:00'::time, 8.00)
-$$, 'SNABB.not_your_project');
-
 select pg_temp.act_as((select v from fx where k = 'w1'));
 select pg_temp.rejects($$
   select public.create_snabb_pass(
