@@ -12,14 +12,28 @@ Full specification: [docs/spec.md](docs/spec.md).
 ```
 1.  Hours are typed by a human. Nothing derives them — not from clock stamps,
     not from the start/end span. Unpaid lunch makes span != hours the normal case.
-2.  No worker holds two assignments on the same date. Ever.
+    An auto-assigned arbetsledare's hours are prefilled from the workers' span
+    and stay editable: a number a human must accept or correct is not a derived
+    number. One true exception, the bristsurvey — on a day no leader confirmed,
+    hours come from the clock span where the worker clocked both ends and the
+    planned figure where they did not. Nobody types those. That path, no other.
+2.  No worker holds two assignments on the same date. Ever. One exception,
+    arbetsledare only: a leader auto-assigned to two projects holds a day on
+    each, hours computed per project, a row in each Arbetsdagbok. Nothing but
+    auto-assignment creates it and it never extends to arbetare.
 3.  Clock stamps are append-only evidence. A leader may overwrite the working
     value; the original survives, visible and attributed to whoever changed it.
-4.  Only a leader writes hours or confirmation state. Enforced in the database,
-    not the interface.
+4.  An arbetare never writes hours or confirmation state. A leader writes them
+    at stage 1; the admin writes them at stage 2 and on the two routes that
+    reach admin_confirmed with no leader behind them. Enforced in the database,
+    not the interface. The worker side has not moved.
 4b. An arbetsledare confirms only for projects they are assigned to. This is a
     per-row scope, not a role check - the database must enforce it row by row.
-5.  Confirmation is final. No edits after.
+    A flagged day is outside every leader's scope: admin and only admin.
+5.  Confirmation is final at each stage. A leader cannot edit a day after
+    confirming it. Stage 2 may approve, edit and approve, or reject it back to
+    the leader — rejection is the only thing that reopens a day. Once
+    admin_confirmed, nothing edits it.
 6.  The Arbetsdagbok cannot generate with any cell empty — not shifts, not the
     "Vad Vi Gjorde" text, not the bestallare fields.
 7.  Every field the document needs is captured and validated at project creation.
@@ -46,19 +60,38 @@ Working rules:
 
 ## The admin is not above the leader on one thing
 
-**The admin cannot confirm days.** Only the assigned arbetsledare can. That is
-the pressure the whole system runs on; letting the owner confirm would
-rubber-stamp days he was not present for.
+**The admin cannot make a stage 1 confirmation.** Only the assigned
+arbetsledare can. That is the pressure the whole system runs on; letting the
+owner make that claim would rubber-stamp days he was not present for.
 
-When days are missing, the admin goes through the **bristsurvey** and
-reconstructs them from registered data. A surveyed day is a confirmed day: it
-leaves the leader's queue permanently and never returns. `project_day.confirmed_via`
-records which route was taken, because a leader confirming from site and an
-owner reconstructing from phone calls are different claims about the same hours.
+Confirmation happens twice. The leader states what happened and the day becomes
+`leader_confirmed`. The admin then reviews it: approve, edit and approve, or
+reject it back to the leader. Approval is `admin_confirmed`. **Reviewing a
+claim is not making one**, and the Arbetsdagbok generates from
+`leader_confirmed` — stage 2 is not a gate.
+
+Three routes reach `admin_confirmed`. Only the first has a leader behind it:
+
+- **Stage 2 approval.** A leader confirmed; the admin signed off, edits or not.
+- **Bristsurvey.** The leader never confirmed. The admin supplies the day's
+  account and the registered figures stand in for confirmed ones. It writes
+  straight to `admin_confirmed` and never enters the stage 2 queue.
+- **A flagged day.** The day ran with a worker as ansvarig, or with nobody at
+  all, so there was no leader to make the claim. Admin and only admin confirms
+  it, and `confirmed_via` keeps those two cases apart — a covered day and an
+  unattended one are different admissions.
+
+A surveyed day is a confirmed day: it leaves the leader's queue permanently and
+never returns. `project_day.confirmed_via` records which route was taken,
+because a leader confirming from site and an owner reconstructing from phone
+calls are different claims about the same hours. The stage is a separate axis
+from the route, and one column cannot carry both.
 
 In the database this is `app.confirms_project()` -- which deliberately does NOT
 fall back to `is_admin()` -- as distinct from `app.leads_project()`, which does.
-Do not merge them.
+Do not merge them. Stage 2, the bristsurvey and flagged days are separate
+writes that reach `admin_confirmed` without passing through it. They are not a
+reason to relax it.
 
 ---
 
