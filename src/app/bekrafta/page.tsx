@@ -15,12 +15,15 @@ type Row = {
   planned_hours: number;
   clock_in: string | null;
   clock_out: string | null;
+  confirmed_hours: number | null;
 };
 
 type Day = {
   project_id: string;
   project_name: string;
   work_date: string;
+  /** Set when the admin sent this day back. The reason he gave, verbatim. */
+  rejection_note: string | null;
   rows: Row[];
 };
 
@@ -37,7 +40,12 @@ type Day = {
  * marked late ONCE -- three corrections to one person's shift is one deviation,
  * not three, and the demotion moves them one position, not three.
  *
- * Confirmation is final. The database enforces that; this screen says so.
+ * Confirmation is final for the leader. The one thing that puts a day back in
+ * their hands is the admin rejecting it at stage 2 -- and such a day returns
+ * here flagged, carrying the reason he gave, with the text and the figures as
+ * they were left so the correction is a correction and not a re-typing.
+ *
+ * The database enforces the finality; this screen says so.
  */
 function Bekrafta() {
   const [day, setDay] = useState<Day | null | undefined>(undefined);
@@ -73,11 +81,16 @@ function Bekrafta() {
 
       const { data: days } = await sb
         .from("project_day")
-        .select("project_id, work_date, confirmed_at");
+        .select("project_id, work_date, confirmed_at, vad_vi_gjorde, rejected_at, rejection_note");
 
       if (!active) return;
+      // A rejected day has no confirmation on it any more, so it falls back
+      // into this queue on its own -- there is no separate list of returns.
       const done = new Set(
         (days ?? []).filter((d) => d.confirmed_at).map((d) => `${d.project_id}|${d.work_date}`),
+      );
+      const dayRecord = new Map(
+        (days ?? []).map((d) => [`${d.project_id}|${d.work_date}`, d]),
       );
 
       const open = ended.filter((p) => !done.has(`${p.project_id}|${p.work_date}`));
@@ -92,7 +105,7 @@ function Bekrafta() {
 
       const { data: assignments, error: aErr } = await sb
         .from("tilldelning")
-        .select("id, pass_id, worker_id, clock_in, clock_out")
+        .select("id, pass_id, worker_id, clock_in, clock_out, confirmed_hours")
         .in("pass_id", samePasses.map((p) => p.id))
         .is("released_at", null);
 
@@ -114,24 +127,34 @@ function Bekrafta() {
           planned_hours: Number(p.planned_hours),
           clock_in: a.clock_in,
           clock_out: a.clock_out,
+          confirmed_hours: a.confirmed_hours === null ? null : Number(a.confirmed_hours),
         };
       });
+
+      const record = dayRecord.get(`${first.project_id}|${first.work_date}`);
 
       setDay({
         project_id: first.project_id,
         project_name: (first.project as { name: string } | null)?.name ?? "Projekt",
         work_date: first.work_date,
+        rejection_note: (record?.rejected_at ?? null) === null ? null : record?.rejection_note ?? null,
         rows,
       });
       setEdits(
         Object.fromEntries(
           rows.map((r) => [
             r.tilldelning_id,
-            { start: r.start, end: r.end, hours: String(r.planned_hours).replace(".", ",") },
+            {
+              start: r.start,
+              end: r.end,
+              // A figure already typed is the one to correct. Only a day that
+              // has never been confirmed falls back to the planned number.
+              hours: String(r.confirmed_hours ?? r.planned_hours).replace(".", ","),
+            },
           ]),
         ),
       );
-      setGjorde("");
+      setGjorde(record?.vad_vi_gjorde ?? "");
     })();
 
     return () => { active = false; };
@@ -147,7 +170,7 @@ function Bekrafta() {
       const e = edits[row.tilldelning_id]!;
       const hours = Number(e.hours.replace(",", "."));
       const timesChanged = e.start !== row.start || e.end !== row.end;
-      const hoursChanged = hours !== row.planned_hours;
+      const hoursChanged = hours !== (row.confirmed_hours ?? row.planned_hours);
 
       if (timesChanged) {
         const { error: tErr } = await sb
@@ -168,14 +191,20 @@ function Bekrafta() {
     // The day record and the confirmation are one write. The database refuses
     // a confirmation whose "Vad Vi Gjorde" is blank, and refuses it from anyone
     // who is not the assigned arbetsledare.
-    const { error: dErr } = await sb.from("project_day").insert({
-      project_id: day.project_id,
-      work_date: day.work_date,
-      vad_vi_gjorde: gjorde.trim(),
-      confirmed_at: new Date().toISOString(),
-      confirmed_by: (await sb.auth.getUser()).data.user!.id,
-      confirmed_via: "leader",
-    });
+    // Upsert, not insert: a day the admin sent back already has its row, with
+    // the rejection recorded on it. That record is not the leader's to clear
+    // and the guard keeps it whatever this write says.
+    const { error: dErr } = await sb.from("project_day").upsert(
+      {
+        project_id: day.project_id,
+        work_date: day.work_date,
+        vad_vi_gjorde: gjorde.trim(),
+        confirmed_at: new Date().toISOString(),
+        confirmed_by: (await sb.auth.getUser()).data.user!.id,
+        confirmed_via: "leader",
+      },
+      { onConflict: "project_id,work_date" },
+    );
 
     if (dErr) { setError(dErr.message); setSaving(false); return; }
 
@@ -200,6 +229,12 @@ function Bekrafta() {
 
       <p className="mb-1 text-2xl font-bold">{longDayHeading(day.work_date)}</p>
       <p className="mb-6 text-lg">{day.project_name}</p>
+
+      {day.rejection_note !== null && (
+        <Notice kind="error">
+          Återsänd av admin: {day.rejection_note}
+        </Notice>
+      )}
 
       <div className="flex flex-col gap-4">
         {day.rows.map((r) => {
