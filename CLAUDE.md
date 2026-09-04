@@ -43,7 +43,9 @@ Full specification: [docs/spec.md](docs/spec.md).
 7.  Every field the document needs is captured and validated at project creation.
 8.  Deleted projects and workers make their shifts count nowhere, in every read.
 9.  Dates are Stockholm-anchored. Month windows half-open.
-10. Confirmed hours are the only hours shown to a worker.
+10. A worker sees their hours only once an Arbetsdagbok covering that date has
+    been generated, and the number is exactly what was filed. Confirmation
+    alone is not enough — a confirmed day can still be edited at stage two.
 11. The last active leader cannot be removed, demoted, or paused.
 
 Weakening any of these is a stop-and-ask, never a judgment call.

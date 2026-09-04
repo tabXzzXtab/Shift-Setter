@@ -42,6 +42,7 @@ column my_shift.clock_out timestamp with time zone
 column my_shift.confirmed_hours numeric
 column my_shift.day_confirmed boolean
 column my_shift.end_time time without time zone
+column my_shift.filed boolean
 column my_shift.id uuid
 column my_shift.pass_id uuid
 column my_shift.planned_hours numeric(4,2)
@@ -199,6 +200,7 @@ constr worker FOREIGN KEY (account_id) REFERENCES account(id) ON DELETE RESTRICT
 constr worker PRIMARY KEY (id)
 constr worker UNIQUE (account_id)
 index  CREATE INDEX arbetsdagbok_overlap_idx ON public.arbetsdagbok USING gist (project_id, covered)
+index  CREATE INDEX arbetsdagbok_project_covered_idx ON public.arbetsdagbok USING gist (project_id, covered)
 index  CREATE INDEX clock_edit_tilldelning_idx ON public.clock_edit USING btree (tilldelning_id, edited_at)
 index  CREATE INDEX forval_can_work_idx ON public.forval USING btree (work_date) WHERE can_work
 index  CREATE INDEX forval_date_idx ON public.forval USING btree (work_date, can_work)

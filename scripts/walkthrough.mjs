@@ -53,6 +53,30 @@ async function mustSee(page, text, why) {
   }
 }
 
+/**
+ * The Timmar cell on Mina pass, read whole and compared exactly.
+ *
+ * getByText matches substrings, so asserting "8 h" would also pass on "18 h",
+ * and asserting the absence of "8 h" would fail on an unrelated "18 h". This
+ * field has three states and the difference between them is the invariant, so
+ * it is read as one cell and compared in full.
+ */
+async function mustReadHours(page, expected, why) {
+  const dd = page.locator('div:has(> dt:text-is("Timmar")) > dd').first();
+  await dd.waitFor({ timeout: 20000 });
+  let got = "";
+  // The row renders before the fetch behind it resolves; poll rather than
+  // read once, or a slow screen fails as a wrong one.
+  for (let n = 0; n < 20; n++) {
+    got = (await dd.innerText()).trim();
+    if (got === expected) return;
+    await page.waitForTimeout(500);
+  }
+  await page.screenshot({ path: path.join(ART, "FAILED.png"), fullPage: true });
+  fail(`${why} (Timmar said "${got}", expected "${expected}")`);
+}
+
+
 const shot = async (page, name) => {
   await page.screenshot({ path: path.join(ART, `${name}.png`), fullPage: true });
 };
@@ -210,7 +234,7 @@ try {
 
   await page.goto(`${BASE}/mina-pass/`, { waitUntil: "networkidle" });
   await mustSee(page, projectName, "the worker cannot see their own shift");
-  await mustSee(page, "Inte bekräftat än",
+  await mustReadHours(page, "Inte bekräftat än",
     "hours were shown to the worker before the day was confirmed (invariant 10)");
   await shot(page, "08-arbetare-fore-stampling");
 
@@ -239,6 +263,19 @@ try {
 
   await signOut(page);
 
+  // ---- INVARIANT 10: CONFIRMED IS NOT FILED --------------------------------
+  // The day is confirmed and the hours are set. No Arbetsdagbok covers it yet,
+  // so the figure can still move at stage two -- and the worker is told that,
+  // rather than being left with a blank and no reason for it.
+  await signIn(page, worker.email, worker.password);
+  await page.goto(`${BASE}/mina-pass/`, { waitUntil: "networkidle" });
+  await mustReadHours(page, "Väntar på arbetsdagbok",
+    "confirmed hours were shown before the Arbetsdagbok was generated (invariant 10)");
+  await shot(page, "11b-vantar-pa-arbetsdagbok");
+  log("confirmed but not filed: the worker sees a status, not a number");
+  await signOut(page);
+
+
   // ---- ADMIN GENERATES -----------------------------------------------------
   await signIn(page, ADMIN.email, ADMIN.password);
   await page.goto(`${BASE}/arbetsdagbok/`, { waitUntil: "networkidle" });
@@ -263,6 +300,16 @@ try {
   const out = path.join(ART, "Arbetsdagbok-shift-setter.pdf");
   writeFileSync(out, pdf);
   log(`wrote ${out} (${(pdf.length / 1024).toFixed(0)} KB)`);
+
+  // ---- INVARIANT 10: FILED, SO THE NUMBER STOPS MOVING ---------------------
+  await signOut(page);
+  await signIn(page, worker.email, worker.password);
+  await page.goto(`${BASE}/mina-pass/`, { waitUntil: "networkidle" });
+  await mustReadHours(page, "8 h",
+    "the filed hours never reached the worker (invariant 10)");
+  await shot(page, "14-timmar-efter-arbetsdagbok");
+  log("filed: the worker sees exactly the 8 h that went into the document");
+
 
   console.log("\nWALKTHROUGH COMPLETE -- every step produced what it should.\n");
 } finally {

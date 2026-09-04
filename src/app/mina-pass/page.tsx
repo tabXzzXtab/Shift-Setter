@@ -17,6 +17,9 @@ type Shift = {
   clock_out: string | null;
   confirmed_hours: number | null;
   day_confirmed: boolean;
+  /** An Arbetsdagbok covering this day has been generated. Until then the
+   *  figure can still move, so it is not shown. */
+  filed: boolean;
 };
 
 /**
@@ -26,9 +29,10 @@ type Shift = {
  * rule breaks a night shift that ends at 06:00, and breaks catching up after
  * bad signal on site. Nothing is forbidden at the database level either.
  *
- * Hours are absent until the leader has confirmed the day. That is invariant
- * 10 and it is enforced by the my_shift view, not here: a number that shrinks
- * when someone corrects it is worse than no number.
+ * Hours are absent until an Arbetsdagbok covering the day has been generated.
+ * That is invariant 10 and it is enforced by the my_shift view, not here: a
+ * confirmed figure can still be edited at stage two, a filed one cannot, and a
+ * number that shrinks when someone corrects it is worse than no number.
  */
 function MinaPass() {
   const [shifts, setShifts] = useState<Shift[] | null>(null);
@@ -139,9 +143,17 @@ function MinaPass() {
               <div className="flex justify-between border-y-2 border-black py-2">
                 <dt>Timmar</dt>
                 <dd className="font-bold">
-                  {s.day_confirmed && s.confirmed_hours !== null
+                  {/*
+                    Three states, and the worker is told which. A blank with no
+                    reason reads as a fault; "waiting for the Arbetsdagbok" is
+                    a status, and the hours only appear once they can no longer
+                    change.
+                  */}
+                  {s.filed && s.confirmed_hours !== null
                     ? `${String(s.confirmed_hours).replace(".", ",")} h`
-                    : "Inte bekräftat än"}
+                    : s.day_confirmed
+                      ? "Väntar på arbetsdagbok"
+                      : "Inte bekräftat än"}
                 </dd>
               </div>
             </dl>

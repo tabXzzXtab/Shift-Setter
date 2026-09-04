@@ -91,20 +91,24 @@ const CONTROLS = [
    "alter table public.tilldelning disable trigger block_guard",
    "DEL.no_reoffer_enforced"],
 
-  ["invariant 10 -- hours hidden until confirmed",
+  ["invariant 10 -- hours hidden until FILED",
+   // The masking removed: hours leak the moment a day is confirmed, before any
+   // Arbetsdagbok covers it.
    `create or replace view public.my_shift with (security_invoker = false) as
       select t.id, t.pass_id, p.project_id, pr.name as project_name, pr.site_address,
              p.work_date, p.start_time, p.end_time, p.planned_hours,
              t.clock_in, t.clock_out,
              t.confirmed_hours::numeric,
-             (pd.confirmed_at is not null) as day_confirmed
+             (pd.confirmed_at is not null) as day_confirmed,
+             exists (select 1 from public.arbetsdagbok a
+                     where a.project_id = p.project_id and p.work_date <@ a.covered) as filed
       from public.tilldelning t
       join public.pass p on p.id = t.pass_id and p.deleted_at is null
       join public.project pr on pr.id = p.project_id and pr.deleted_at is null
       left join public.project_day pd
              on pd.project_id = p.project_id and pd.work_date = p.work_date
       where t.released_at is null and t.worker_id = app.current_worker_id()`,
-   "I10.hours_hidden_until_confirmed"],
+   "I10.hours_hidden_until_filed"],
 
   ["a worker must never see a colleague's personal data",
    "alter table public.worker disable row level security",

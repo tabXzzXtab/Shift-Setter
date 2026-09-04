@@ -878,6 +878,7 @@ export type Database = {
           confirmed_hours: number | null
           day_confirmed: boolean | null
           end_time: string | null
+          filed: boolean | null
           id: string | null
           pass_id: string | null
           planned_hours: number | null

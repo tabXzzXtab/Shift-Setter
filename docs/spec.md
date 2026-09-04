@@ -525,7 +525,7 @@ That block is the entire enforcement mechanism. The admin needs the document; on
 7. **Every field the document needs is captured and validated at project creation.**
 8. **Deleted projects and workers make their shifts count nowhere** — every read, no exceptions.
 9. **Dates are Stockholm-anchored.** Month windows half-open. A shift must never file under the wrong month because UTC midnight hasn't arrived yet.
-10. **Confirmed hours are the only hours shown to a worker.** A number that shrinks when someone corrects it is worse than no number.
+10. **A worker sees their hours only once an Arbetsdagbok covering that date has been generated,** and the number shown is exactly what was filed. Confirmation alone is not enough: a confirmed day can still be edited at stage two, and a number that shrinks when someone corrects it is worse than no number. Until the document exists the worker is told which of the two states applies — not confirmed yet, or confirmed and waiting to be filed — rather than being shown a blank.
 11. **The last active leader cannot be removed, demoted, or paused.** Otherwise nobody can promote anyone back and the system needs direct database access to recover.
 
 ---

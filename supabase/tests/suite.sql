@@ -463,13 +463,14 @@ select pg_temp.act_as((select v from fx where k = 'w3'));
 select pg_temp.ok(
   (select confirmed_hours is null from public.my_shift
    where work_date = app.stockholm_today() - 3),
-  'I10.hours_hidden_until_confirmed',
+  'I10.hours_hidden_until_filed',
   'a worker must not see hours that can still change');
 
+-- This day is inside the range the document generated above covers.
 select pg_temp.ok(
-  (select confirmed_hours = 8.00 from public.my_shift
+  (select confirmed_hours = 8.00 and filed from public.my_shift
    where work_date = app.stockholm_today() - 1),
-  'I10.hours_shown_when_confirmed', 'confirmed hours are visible');
+  'I10.hours_shown_once_filed', 'hours appear once an Arbetsdagbok covers the day');
 
 -- A worker cannot reach the assignment table directly.
 select pg_temp.ok(
@@ -1097,5 +1098,20 @@ select pg_temp.ok(
      and work_date = app.stockholm_today() - 10),
   'SNABB.enters_the_confirmation_queue',
   'a Snabb Pass confirms exactly like any other row');
+
+-- INVARIANT 10, the case that separates confirmed from filed. This day is
+-- confirmed, its hours are set, and no Arbetsdagbok covers it. The worker must
+-- still see nothing: a confirmed figure can be edited at stage two, a filed one
+-- cannot, and only the second has stopped moving.
+set local role authenticated;
+select pg_temp.act_as((select v from fx where k = 'w3'));
+
+select pg_temp.ok(
+  (select day_confirmed and not filed and confirmed_hours is null
+   from public.my_shift where work_date = app.stockholm_today() - 10),
+  'I10.confirmed_is_not_enough',
+  'confirmed but not filed: the day shows as confirmed and the hours stay hidden');
+
+reset role;
 
 select pg_temp.ok(true, 'SUITE.complete', 'every assertion passed');
