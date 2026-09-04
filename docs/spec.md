@@ -320,6 +320,16 @@ The relationship is one-directional:
 
 So an account-less worker cannot exist, and no policy needs to handle one.
 
+**Pausing an account** clears the person's future and leaves their past alone.
+
+- **Every assignment on a shift that has not started is released**, with reason `account_paused`. Not not-yet-*ended*: a shift someone is standing on right now is a fact that still has to be confirmed, and taking it off them would erase hours they actually worked. **The shift already in progress is untouched — it is their last until they are unpaused.**
+- **Pending Acceptera Pass offers are withdrawn.** An open offer to someone who cannot sign in is a question they cannot answer.
+- **Each freed slot follows the standard cascade** (Step 5b), because each release goes through the same path as any other vacancy: more than five days out the slot reopens and runs down the tiers automatically; inside five days it reopens and nothing auto-fills — manual placement or a Snabb Pass. Releasing quietly would leave a shift five weeks out short one person with nothing anywhere saying so.
+- **The tier walk stops considering them at all.** Their förval is still on the calendar, and without this a pass created tomorrow would offer itself to a paused person.
+- **Unpausing makes them assignable again and claws nothing back.** A slot somebody else has taken belongs to whoever took it. A pause is not a reservation.
+
+The one account this cannot touch is the last active admin, which invariant 11 refuses to pause at all.
+
 **Pass (the shift)**
 Project, date, start time, end time, planned hours, headcount. A pass is a *demand for people*, not a person's work. One pass with headcount 3 is one row, not three.
 
