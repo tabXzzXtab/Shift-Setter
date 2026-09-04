@@ -48,9 +48,19 @@ function MinKalender() {
     if (!workerId) return;
     let active = true;
     void (async () => {
+      // SCOPED TO THIS WORKER, explicitly.
+      //
+      // RLS on forval reads "app.is_staff() OR worker_id = current_worker_id()",
+      // which for an arbetare narrows this to their own rows and hid the
+      // missing filter completely. An arbetsledare IS staff and is also a
+      // worker who holds shifts -- so their own calendar came back holding
+      // every worker's availability, drawn as if it were theirs. Painting then
+      // toggled a day that looked marked because a colleague had marked it,
+      // and the leader could not mark themselves available at all.
       const { data, error } = await getSupabase()
         .from("forval")
         .select("work_date, can_work")
+        .eq("worker_id", workerId)
         .gte("work_date", first)
         .lte("work_date", addDays(first, daysInMonth - 1));
       if (!active) return;

@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import { AuthGate } from "@/components/auth-gate";
 import { Button, Empty, Field, Input, Notice, Screen, Textarea } from "@/components/ui";
 import { getSupabase } from "@/lib/supabase/client";
-import { hhmm, longDayHeading, passEndAt, stampToTime } from "@/lib/dates";
+import { hhmm, longDayHeading, stampToTime } from "@/lib/dates";
+import { pendingDays } from "@/lib/pending-days";
 
 type Row = {
   tilldelning_id: string;
@@ -64,44 +65,24 @@ function Bekrafta() {
     void (async () => {
       const sb = getSupabase();
 
-      // Passes on the leader's own projects (RLS does the scoping), already over.
-      const { data: passes, error: pErr } = await sb
-        .from("pass")
-        .select("id, project_id, work_date, start_time, end_time, planned_hours, project(name)")
-        .order("work_date");
+      // WHICH days are waiting is defined once, in lib/pending-days, and the
+      // landing page's widget reads the same function. A preview that
+      // disagreed with the page it opens would be worse than no preview.
+      let open;
+      try {
+        open = await pendingDays();
+      } catch (e) {
+        if (!active) return;
+        setError(e instanceof Error ? e.message : "Kunde inte läsa passen.");
+        setDay(null);
+        return;
+      }
 
       if (!active) return;
-      if (pErr) { setError(pErr.message); setDay(null); return; }
-
-      const now = Date.now();
-      const ended = (passes ?? []).filter(
-        (p) => passEndAt(p.work_date, p.start_time, p.end_time).getTime() <= now,
-      );
-      if (ended.length === 0) { setDay(null); return; }
-
-      const { data: days } = await sb
-        .from("project_day")
-        .select("project_id, work_date, confirmed_at, vad_vi_gjorde, rejected_at, rejection_note");
-
-      if (!active) return;
-      // A rejected day has no confirmation on it any more, so it falls back
-      // into this queue on its own -- there is no separate list of returns.
-      const done = new Set(
-        (days ?? []).filter((d) => d.confirmed_at).map((d) => `${d.project_id}|${d.work_date}`),
-      );
-      const dayRecord = new Map(
-        (days ?? []).map((d) => [`${d.project_id}|${d.work_date}`, d]),
-      );
-
-      const open = ended.filter((p) => !done.has(`${p.project_id}|${p.work_date}`));
       if (open.length === 0) { setDay(null); return; }
 
-      // Oldest first, then whichever project comes first on that date.
-      open.sort((a, b) => a.work_date.localeCompare(b.work_date) || a.project_id.localeCompare(b.project_id));
-      const first = open[0]!;
-      const samePasses = open.filter(
-        (p) => p.project_id === first.project_id && p.work_date === first.work_date,
-      );
+      const first = open[0];
+      const samePasses = first.passes;
 
       const { data: assignments, error: aErr } = await sb
         .from("tilldelning")
@@ -131,13 +112,11 @@ function Bekrafta() {
         };
       });
 
-      const record = dayRecord.get(`${first.project_id}|${first.work_date}`);
-
       setDay({
         project_id: first.project_id,
-        project_name: (first.project as { name: string } | null)?.name ?? "Projekt",
+        project_name: first.project_name,
         work_date: first.work_date,
-        rejection_note: (record?.rejected_at ?? null) === null ? null : record?.rejection_note ?? null,
+        rejection_note: first.rejection_note,
         rows,
       });
       setEdits(
@@ -154,7 +133,7 @@ function Bekrafta() {
           ]),
         ),
       );
-      setGjorde(record?.vad_vi_gjorde ?? "");
+      setGjorde(first.vad_vi_gjorde);
     })();
 
     return () => { active = false; };
