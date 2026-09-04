@@ -46,7 +46,10 @@ Full specification: [docs/spec.md](docs/spec.md).
 10. A worker sees their hours only once an Arbetsdagbok covering that date has
     been generated, and the number is exactly what was filed. Confirmation
     alone is not enough — a confirmed day can still be edited at stage two.
-11. The last active leader cannot be removed, demoted, or paused.
+11. The last active admin cannot be removed, demoted, or paused. Only an admin
+    can change a role, so an admin is the one whose disappearance cannot be
+    recovered from inside the app. The guard counts active admins; it does
+    not protect the last arbetsledare.
 
 Weakening any of these is a stop-and-ask, never a judgment call.
 
