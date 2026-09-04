@@ -499,6 +499,194 @@ update public.project set deleted_at = null
 where id = 'aaaaaaaa-0000-0000-0000-00000000000a';
 
 -- ============================================================================
+-- THE BRISTSURVEY -- the admin closes a day no leader ever confirmed
+--
+-- Two branches of the one derivation, on one day, so the assertions can tell
+-- them apart: w1 clocked both ends (6.5 h, and the pass was planned at 8, so a
+-- wrong source is visible), w2 clocked neither (falls back to the planned 8).
+-- w3's night shift already carries hours a leader typed, and the survey must
+-- not touch them.
+-- ============================================================================
+
+insert into public.pass (id, project_id, work_date, start_time, end_time,
+                         planned_hours, headcount, created_by)
+values ('cccccccc-0000-0000-0000-000000000005',
+        'aaaaaaaa-0000-0000-0000-00000000000a', app.stockholm_today() - 2,
+        '07:00', '16:00', 8.00, 2,
+        (select v from fx where k = 'leaderA'));
+
+insert into public.tilldelning (id, pass_id, worker_id, source, work_date)
+select 'dddddddd-0000-0000-0000-000000000005',
+       'cccccccc-0000-0000-0000-000000000005', w.id, 'forval', app.stockholm_today() - 2
+from public.worker w join fx on fx.v = w.account_id where fx.k = 'w1';
+
+insert into public.tilldelning (pass_id, worker_id, source, work_date)
+select 'cccccccc-0000-0000-0000-000000000005', w.id, 'forval', app.stockholm_today() - 2
+from public.worker w join fx on fx.v = w.account_id where fx.k = 'w2';
+
+set local role authenticated;
+
+-- The stamps are set as the leader, not as the owner: to anyone who is not
+-- staff the evidence trigger replaces a supplied stamp with now(), which is
+-- exactly right and which silently made this fixture a zero-hour span the
+-- first time. The story is a leader who corrected the stamps on site and then
+-- never got round to confirming the day -- which is how days end up here.
+select pg_temp.act_as((select v from fx where k = 'leaderA'));
+update public.tilldelning
+set clock_in  = app.pass_start_at(app.stockholm_today() - 2, '08:00'),
+    clock_out = app.pass_start_at(app.stockholm_today() - 2, '14:30')
+where id = 'dddddddd-0000-0000-0000-000000000005';
+
+select pg_temp.ok(
+  (select clock_out - clock_in = interval '6 hours 30 minutes'
+   from public.tilldelning where id = 'dddddddd-0000-0000-0000-000000000005'),
+  'BRIST.fixture_span_is_real',
+  'the fixture really does hold a 6.5 hour span, not a stamp the trigger replaced');
+
+-- A leader may not see the survey. It reads every worker's stamps across a
+-- whole project and names who owes the confirmations; that is the admin's view.
+select pg_temp.act_as((select v from fx where k = 'leaderA'));
+select pg_temp.rejects($$
+  select public.bristsurvey_gaps('aaaaaaaa-0000-0000-0000-00000000000a',
+                                 app.stockholm_today() - 5, app.stockholm_today() - 1)
+$$, 'BRIST.gaps_admin_only');
+
+-- Nor complete one. The admin cannot confirm as a leader; the leader cannot
+-- confirm as the admin either.
+select pg_temp.rejects($$
+  select public.complete_bristsurvey('aaaaaaaa-0000-0000-0000-00000000000a',
+                                     app.stockholm_today() - 2, 'Lade tak')
+$$, 'BRIST.leader_cannot_complete');
+
+select pg_temp.act_as((select v from fx where k = 'admin'));
+
+-- What is in the way: today-2 and today-3, and not today-1, which is confirmed.
+select pg_temp.ok(
+  (select jsonb_array_length(g->'days') = 2
+      and (g->'days'->0->>'work_date')::date = app.stockholm_today() - 3
+      and (g->'days'->1->>'work_date')::date = app.stockholm_today() - 2
+   from public.bristsurvey_gaps('aaaaaaaa-0000-0000-0000-00000000000a',
+                                app.stockholm_today() - 5, app.stockholm_today() - 1) g),
+  'BRIST.gaps_lists_unconfirmed',
+  'the survey names exactly the days in the way, and leaves the confirmed one out');
+
+-- Chasing the leader is the right outcome, so the screen has to be able to
+-- name them.
+select pg_temp.ok(
+  (select g->'leaders' ? (select w.name from public.worker w
+                          where w.account_id = (select v from fx where k = 'leaderA'))
+   from public.bristsurvey_gaps('aaaaaaaa-0000-0000-0000-00000000000a',
+                                app.stockholm_today() - 5, app.stockholm_today() - 1) g),
+  'BRIST.gaps_names_the_leader', 'the survey names whoever owed the confirmation');
+
+-- The figures come from what was registered, and the survey shows them before
+-- anything is written. 6.5 from the clock, 8 from the plan -- on the same day.
+select pg_temp.ok(
+  (select d->'rows' @> '[{"timmar": 6.50, "tider": "08:00-14:30", "stamplat": true}]'::jsonb
+      and d->'rows' @> '[{"timmar": 8.00, "tider": "07:00-16:00", "stamplat": false}]'::jsonb
+   from public.bristsurvey_gaps('aaaaaaaa-0000-0000-0000-00000000000a',
+                                app.stockholm_today() - 5, app.stockholm_today() - 1) g,
+        lateral jsonb_array_elements(g->'days') d
+   where (d->>'work_date')::date = app.stockholm_today() - 2),
+  'BRIST.gaps_prefills_registered',
+  'the clock span where both ends exist, the planned figure where they do not');
+
+-- The account of the day is the whole of what is typed, and it is mandatory.
+select pg_temp.rejects($$
+  select public.complete_bristsurvey('aaaaaaaa-0000-0000-0000-00000000000a',
+                                     app.stockholm_today() - 2, '   ')
+$$, 'BRIST.text_required');
+
+select public.complete_bristsurvey('aaaaaaaa-0000-0000-0000-00000000000a',
+                                   app.stockholm_today() - 2,
+                                   'Reste ställning på gaveln och bar in material.');
+select public.complete_bristsurvey('aaaaaaaa-0000-0000-0000-00000000000a',
+                                   app.stockholm_today() - 3,
+                                   'Nattarbete: rev och forslade bort gammalt tegel.');
+
+reset role;
+
+-- THE EXCEPTION TO INVARIANT 1, and the only one. Nobody typed these.
+select pg_temp.ok(
+  (select t.confirmed_hours = 6.50
+   from public.tilldelning t
+   where t.pass_id = 'cccccccc-0000-0000-0000-000000000005'
+     and t.worker_id = (select id from wid where k = 'w1')),
+  'BRIST.survey_hours_from_clock',
+  'a worker who clocked both ends gets the clock span, not the planned figure');
+
+select pg_temp.ok(
+  (select t.confirmed_hours = 8.00
+   from public.tilldelning t
+   where t.pass_id = 'cccccccc-0000-0000-0000-000000000005'
+     and t.worker_id = (select id from wid where k = 'w2')),
+  'BRIST.survey_hours_from_planned',
+  'a worker who clocked neither end gets the planned figure');
+
+-- Hours a human already typed are that human's. The survey fills gaps; it does
+-- not restate what was already stated.
+select pg_temp.ok(
+  (select t.confirmed_hours = 7.50
+   from public.tilldelning t
+   where t.pass_id = 'cccccccc-0000-0000-0000-000000000004' and t.released_at is null),
+  'BRIST.survey_leaves_typed_hours_alone',
+  'a figure a leader typed survives the survey untouched');
+
+-- Where a surveyed day lands: admin_confirmed, by the bristsurvey route, in
+-- the admin's name. Route and stage are separate axes and both are recorded.
+select pg_temp.ok(
+  (select stage = 'admin_confirmed' and confirmed_via = 'bristsurvey'
+      and confirmed_by = (select v from fx where k = 'admin')
+   from public.project_day
+   where project_id = 'aaaaaaaa-0000-0000-0000-00000000000a'
+     and work_date = app.stockholm_today() - 2),
+  'BRIST.survey_is_admin_confirmed',
+  'a surveyed day is admin_confirmed, by the survey route, in the admin''s name');
+
+-- The other route, for contrast: a leader's own confirmation stops at stage 1.
+select pg_temp.ok(
+  (select stage = 'leader_confirmed' and confirmed_via = 'leader'
+   from public.project_day
+   where project_id = 'aaaaaaaa-0000-0000-0000-00000000000a'
+     and work_date = app.stockholm_today() - 1),
+  'BRIST.leader_route_stops_at_stage_1',
+  'a leader-confirmed day is leader_confirmed; the stage is not the route');
+
+-- It leaves the leader's queue and never comes back.
+set local role authenticated;
+select pg_temp.act_as((select v from fx where k = 'admin'));
+select pg_temp.rejects($$
+  select public.complete_bristsurvey('aaaaaaaa-0000-0000-0000-00000000000a',
+                                     app.stockholm_today() - 2, 'Något annat')
+$$, 'BRIST.surveyed_day_is_final');
+
+-- And the survey is not a bypass of the no-empty-cells rule -- it is the
+-- manual way of satisfying it. The range that was blocked above now generates.
+insert into public.arbetsdagbok (project_id, covered, generated_by)
+values ('aaaaaaaa-0000-0000-0000-00000000000a',
+        daterange(app.stockholm_today() - 5, app.stockholm_today(), '[)'),
+        (select v from fx where k = 'admin'));
+
+reset role;
+
+select pg_temp.ok(
+  (select count(*) from public.arbetsdagbok
+   where project_id = 'aaaaaaaa-0000-0000-0000-00000000000a'
+     and covered = daterange(app.stockholm_today() - 5, app.stockholm_today(), '[)')) = 1,
+  'BRIST.survey_unblocks_generation',
+  'completing the survey satisfies invariant 6 for the range that was blocked');
+
+-- Nothing is left in the way afterwards.
+set local role authenticated;
+select pg_temp.act_as((select v from fx where k = 'admin'));
+select pg_temp.ok(
+  (select jsonb_array_length(g->'days') = 0 and g->'project'->'missing' = '[]'::jsonb
+   from public.bristsurvey_gaps('aaaaaaaa-0000-0000-0000-00000000000a',
+                                app.stockholm_today() - 5, app.stockholm_today() - 1) g),
+  'BRIST.no_gaps_after_survey', 'a surveyed range reports nothing left in the way');
+reset role;
+
+-- ============================================================================
 -- ANON -- the login gate is a courtesy; the database is the boundary
 -- ============================================================================
 

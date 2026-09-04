@@ -5,7 +5,8 @@ import { AuthGate } from "@/components/auth-gate";
 import { ArbetsdagbokDocument } from "@/components/arbetsdagbok-document";
 import { Button, Field, Input, Notice, Screen, Select } from "@/components/ui";
 import { getSupabase } from "@/lib/supabase/client";
-import { addDays, hhmm, stockholmToday } from "@/lib/dates";
+import { addDays, hhmm, stampToTime, stockholmToday } from "@/lib/dates";
+import { Bristsurvey, fetchGaps, hasGaps, type Gaps } from "@/components/bristsurvey";
 import type { DocDay, DocPayload } from "@/lib/doc/arbetsdagbok";
 import { arbetsdagbokFilename, buildArbetsdagbokPdf } from "@/lib/doc/pdf";
 
@@ -25,10 +26,12 @@ type Project = {
  * is warned about -- a warning, not a block: re-issuing a document is
  * legitimate, it just must never happen unknowingly.
  *
- * The no-empty-cells rule is NOT checked here. Inserting the arbetsdagbok row
- * IS the generation, and the database refuses it with a message naming exactly
- * what is missing. Checking in the client as well would be a second opinion
- * that could disagree with the only one that matters.
+ * The no-empty-cells rule is not decided here. Inserting the arbetsdagbok row
+ * IS the generation and the database refuses it outright; what this screen
+ * does first is ASK the database what is in the way, and open the bristsurvey
+ * on the answer. Same source of truth, a different question -- working it out
+ * in the browser would be a second opinion that could disagree with the only
+ * one that matters.
  */
 function Arbetsdagbok() {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -41,6 +44,7 @@ function Arbetsdagbok() {
   const [payload, setPayload] = useState<DocPayload | null>(null);
   const [downloading, setDownloading] = useState(false);
   const [saved, setSaved] = useState<string | null>(null);
+  const [gaps, setGaps] = useState<Gaps | null>(null);
 
   useEffect(() => {
     getSupabase()
@@ -80,13 +84,32 @@ function Arbetsdagbok() {
     return () => { active = false; };
   }, [projectId, from, to]);
 
+  /**
+   * Stopped before generation, not after: the spec's warning is about what is
+   * ABOUT to be booked, and a failed insert would already have been an attempt
+   * to book it.
+   */
   async function generate() {
+    setBusy(true);
+    setError(null);
+    try {
+      const found = await fetchGaps(projectId, from, to);
+      if (hasGaps(found)) { setGaps(found); setBusy(false); return; }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Kunde inte läsa vad som saknas.");
+      setBusy(false);
+      return;
+    }
+    await produce();
+  }
+
+  async function produce() {
     setBusy(true);
     setError(null);
     const sb = getSupabase();
 
-    // The database is the gate. If anything is missing this fails, and the
-    // message says what.
+    // The database is still the gate. If anything is missing this fails, and
+    // the message says what.
     const { error: gErr } = await sb.from("arbetsdagbok").insert({
       project_id: projectId,
       covered,
@@ -108,7 +131,7 @@ function Arbetsdagbok() {
 
     const { data: assignments } = await sb
       .from("tilldelning")
-      .select("pass_id, worker_id, confirmed_hours")
+      .select("pass_id, worker_id, confirmed_hours, clock_in, clock_out")
       .in("pass_id", (passes ?? []).map((p) => p.id))
       .is("released_at", null);
 
@@ -117,12 +140,19 @@ function Arbetsdagbok() {
 
     const { data: days } = await sb
       .from("project_day")
-      .select("work_date, vad_vi_gjorde")
+      .select("work_date, vad_vi_gjorde, confirmed_via")
       .eq("project_id", projectId)
       .gte("work_date", from)
       .lte("work_date", to);
 
     const gjorde = new Map((days ?? []).map((d) => [d.work_date, d.vad_vi_gjorde ?? ""]));
+    // On a surveyed day the times printed are the ones that were REGISTERED --
+    // the stamps where a worker made them, the planned span where they did not.
+    // A leader-confirmed day prints the planned span, because a leader stood
+    // behind those times; on a surveyed day nobody did.
+    const surveyed = new Set(
+      (days ?? []).filter((d) => d.confirmed_via === "bristsurvey").map((d) => d.work_date),
+    );
 
     const byDate = new Map<string, DocDay>();
     for (const p of passes ?? []) {
@@ -131,7 +161,10 @@ function Arbetsdagbok() {
         day.rows.push({
           arbetare: names.get(a.worker_id) ?? "",
           hours: String(a.confirmed_hours ?? "").replace(".", ","),
-          passTider: `${hhmm(p.start_time)}–${hhmm(p.end_time)}`,
+          passTider:
+            surveyed.has(p.work_date) && a.clock_in && a.clock_out
+              ? `${stampToTime(a.clock_in)}–${stampToTime(a.clock_out)}`
+              : `${hhmm(p.start_time)}–${hhmm(p.end_time)}`,
           // Written once per day, repeated down every row of that day's table.
           vadViGjorde: gjorde.get(p.work_date) ?? "",
         });
@@ -210,6 +243,16 @@ function Arbetsdagbok() {
 
   return (
     <Screen title="Arbetsdagbok" back="/">
+      {gaps && (
+        <Bristsurvey
+          gaps={gaps}
+          from={from}
+          to={to}
+          onAbandon={() => setGaps(null)}
+          onDone={() => { setGaps(null); void produce(); }}
+        />
+      )}
+
       {error && <Notice kind="error">{error}</Notice>}
 
       <Field label="Projekt">

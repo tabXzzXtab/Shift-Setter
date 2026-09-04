@@ -69,7 +69,7 @@ async function createPerson(page, name, email, role) {
   if (!password) fail(`no password for ${name}`);
   await page.getByRole("button", { name: "Tillverka arbetare" }).click();
   await page.getByText("Klar", { exact: false }).first().waitFor({ timeout: 20000 });
-  return { email, password };
+  return { email, password, name };
 }
 async function createProject(page, name, leaderLabel, today) {
   await page.goto(`${BASE}/projekt/ny/`, { waitUntil: "networkidle" });
@@ -92,7 +92,17 @@ async function tapDay(page, date) {
   await page.touchscreen.tap(b.x + b.width / 2, b.y + b.height / 2);
   await page.waitForTimeout(500);
 }
-async function makeBatch(page, project, dates, hours) {
+/**
+ * `pick` hand-picks a worker into the batch.
+ *
+ * Without it the slot goes to whoever the priority list ranks first, and this
+ * database holds every worker the other walkthroughs have ever created -- some
+ * of whom have marked these very dates. The deletion notification asserted at
+ * the end is addressed to ONE worker, so which worker holds the shift cannot
+ * be left to a ranking that changes with the calendar. Hand-picking is a Tier 1
+ * modifier and the worker has marked the day, so it decides the slot.
+ */
+async function makeBatch(page, project, dates, hours, pick) {
   await page.goto(`${BASE}/pass/ny/`, { waitUntil: "networkidle" });
   await page.getByText("Vilka dagar?").waitFor({ timeout: 20000 });
   for (const d of dates) await tapDay(page, d);
@@ -100,6 +110,7 @@ async function makeBatch(page, project, dates, hours) {
   await page.getByText("Vad behövs?").waitFor({ timeout: 20000 });
   await field(page, "Projekt").selectOption({ label: project });
   await page.getByLabel("Timmar på rad 1").fill(hours);
+  if (pick) await page.getByRole("button", { name: pick, exact: true }).click();
   await page.getByRole("button", { name: /Skapa \d+ pass/ }).click();
   await mustSee(page, "Passen är skapade", `the batch for ${project} did not generate`);
 }
@@ -117,13 +128,30 @@ const ymd = (n) => {
   const [y, m, d] = today.split("-").map(Number);
   return new Date(Date.UTC(y, m - 1, d + n, 12)).toISOString().slice(0, 10);
 };
-// A run of four consecutive days for project A, overlapping two of them for B.
-const RUN_A = [ymd(8), ymd(9), ymd(10), ymd(11)];
-const RUN_B = [ymd(10), ymd(11)];
 const ONGOING = ymd(-1);   // already started: cannot be deleted
-if (new Set([...RUN_A, ONGOING].map((d) => d.slice(0, 7))).size !== 1) {
-  fail("this run straddles a month boundary; the calendar would need paging");
-}
+
+/**
+ * A run of four consecutive days for project A, overlapping two of them for B.
+ *
+ * ANCHORED TO A MONDAY, and that is the whole point. The continuity check below
+ * measures that consecutive days touch, which they only do along a week row --
+ * a run crossing Sunday into Monday wraps to the next row and reads as a
+ * 375px gap. Starting at a fixed offset made this a test that passed or failed
+ * by the day of the week it was run on, which is worse than no test.
+ *
+ * Searched forward rather than computed, so the month guard below is satisfied
+ * by construction on every date it can be satisfied at all.
+ */
+const isMonday = (d) => new Date(`${d}T12:00:00Z`).getUTCDay() === 1;
+const RUN_A = (() => {
+  for (let n = 8; n <= 40; n++) {
+    if (!isMonday(ymd(n))) continue;
+    const run = [ymd(n), ymd(n + 1), ymd(n + 2), ymd(n + 3)];
+    if (new Set([...run, ONGOING].map((d) => d.slice(0, 7))).size === 1) return run;
+  }
+  fail("no Monday-anchored run fits in one calendar month with yesterday; the calendar would need paging");
+})();
+const RUN_B = [RUN_A[2], RUN_A[3]];
 
 console.log(`\nCalendar: A on ${RUN_A[0]}..${RUN_A.at(-1)}, B on ${RUN_B[0]}..${RUN_B.at(-1)}\n`);
 
@@ -145,7 +173,7 @@ try {
   await signOut(page);
 
   await signIn(page, L.email, L.password);
-  await makeBatch(page, A, RUN_A, "8");
+  await makeBatch(page, A, RUN_A, "8", W.name);
   await makeBatch(page, B, RUN_B, "6");
   await makeBatch(page, A, [ONGOING], "8");
   log("generated a four-day run on Alfa, a two-day run on Beta, and one past day");
@@ -182,7 +210,7 @@ try {
       return bar ? bar.getBoundingClientRect() : null;
     });
     return rects.map((r) => (r ? { x: r.x, right: r.right, y: r.y, h: r.height } : null));
-  }, RUN_A.slice(0, 3));   // the first three all sit on one week row here
+  }, RUN_A.slice(0, 3));   // Monday-anchored, so these three share a week row
 
   for (let i = 1; i < geom.length; i++) {
     const prev = geom[i - 1], cur = geom[i];
@@ -241,10 +269,27 @@ try {
   await signIn(page, required("WALKTHROUGH_ADMIN_EMAIL"), required("WALKTHROUGH_ADMIN_PASSWORD"));
   await page.goto(`${BASE}/kalender/`, { waitUntil: "networkidle" });
 
+  /**
+   * Scoped to THIS run's project, not .first().
+   *
+   * The day panel shows every project working that day, and this database
+   * keeps what every previous run of this walkthrough created -- on these same
+   * dates, because the dates come from the calendar and not from the run. So
+   * .first() deleted whichever Alfa happened to sort first, the notification
+   * went to a worker from a run three passes ago, and the assertion at the end
+   * failed while every screen it named had worked.
+   */
+  const deleteButton = (project) =>
+    // `> p`, a DIRECT child: the day panel is itself a <section> wrapping these,
+    // so a descendant match resolves to two nested elements and the locator
+    // never settles.
+    page.locator(`section:has(> p:text-is("${project}"))`)
+        .getByRole("button", { name: /Ta bort detta pass/ });
+
   // An ongoing pass cannot be deleted -- it is a fact to be confirmed.
   await tapDay(page, ONGOING);
-  await page.getByRole("button", { name: /Ta bort detta pass/ }).first().waitFor({ timeout: 20000 });
-  await page.getByRole("button", { name: /Ta bort detta pass/ }).first().click();
+  await deleteButton(A).waitFor({ timeout: 20000 });
+  await deleteButton(A).click();
   await mustSee(page, "Passet har redan börjat", "a started pass was deleted");
   await shot(page, "62-kalender-paborjat");
   log("a pass that has started cannot be deleted");
@@ -252,7 +297,7 @@ try {
   // A future one can.
   await tapDay(page, ONGOING);           // close it
   await tapDay(page, RUN_A[0]);
-  await page.getByRole("button", { name: /Ta bort detta pass/ }).first().click();
+  await deleteButton(A).click();
   await mustSee(page, "Passet är borttaget", "the future pass was not deleted");
   await shot(page, "63-kalender-borttaget");
   log("the admin deleted a future pass");

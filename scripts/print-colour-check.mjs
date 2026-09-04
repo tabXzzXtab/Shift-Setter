@@ -14,7 +14,8 @@ import { writeFileSync, readFileSync, mkdirSync } from "node:fs";
 import path from "node:path";
 import { createCanvas } from "@napi-rs/canvas";
 import * as pdfjs from "pdfjs-dist/legacy/build/pdf.mjs";
-import { required } from "./env.mjs";
+import postgres from "pg";
+import { connectionString, required } from "./env.mjs";
 
 const BASE = process.env.BASE_URL ?? "http://localhost:3000/Shift-Setter";
 const DATE = process.argv[2];
@@ -23,7 +24,37 @@ mkdirSync("artifacts", { recursive: true });
 const OUT = path.join("artifacts", "print-utan-bakgrund.pdf");
 
 const fail = (m) => { console.error(`\nFAILED: ${m}`); process.exit(1); };
+/**
+ * Which project to document -- asked of the database, not taken as option
+ * index 1. That index is alphabetical and lands on whichever project happens
+ * to sort first, which after a demo reset is an empty one: the check then
+ * reported a colour failure that was really "there is nothing to document".
+ */
+const pickProject = async (date) => {
+  const db = new postgres.Client({
+    connectionString: connectionString(),
+    ssl: { rejectUnauthorized: false },
+    connectionTimeoutMillis: 15000,
+  });
+  await db.connect();
+  const { rows } = await db.query(`
+    select pr.name
+    from public.project_day pd
+    join public.project pr on pr.id = pd.project_id and pr.deleted_at is null
+    where pd.work_date = $1::date and pd.confirmed_at is not null
+      and exists (select 1 from public.pass p
+                  where p.project_id = pr.id and p.work_date = pd.work_date
+                    and p.deleted_at is null)
+    order by pr.name limit 1`, [date]);
+  await db.end();
+  if (!rows.length) fail(`no project has a confirmed day on ${date}`);
+  return rows[0].name;
+};
+
 const f = (page, l) => page.locator(`label:has(span:text-is("${l}"))`).locator("input, select").first();
+
+const PROJEKT = await pickProject(DATE);
+console.log(`documenting ${PROJEKT} on ${DATE}`);
 
 const browser = await chromium.launch();
 const ctx = await browser.newContext({ ...devices["Pixel 7"], locale: "sv-SE", timezoneId: "Europe/Stockholm" });
@@ -39,7 +70,7 @@ await page.waitForURL((u) => !u.pathname.includes("/login"), { timeout: 20000 })
 await page.goto(`${BASE}/arbetsdagbok/`, { waitUntil: "networkidle" });
 await page.locator('label:has(span:text-is("Projekt")) select option:not([value=""])')
   .first().waitFor({ state: "attached", timeout: 20000 });
-await f(page, "Projekt").selectOption({ index: 1 });
+await f(page, "Projekt").selectOption({ label: PROJEKT });
 await f(page, "Från och med").fill(DATE);
 await f(page, "Till och med").fill(DATE);
 await page.getByRole("button", { name: "Generera Arbetsdagbok" }).click();

@@ -593,6 +593,7 @@ export type Database = {
             | null
           created_at: string
           project_id: string
+          stage: Database["public"]["Enums"]["day_stage"] | null
           vad_vi_gjorde: string | null
           work_date: string
         }
@@ -604,6 +605,7 @@ export type Database = {
             | null
           created_at?: string
           project_id: string
+          stage?: Database["public"]["Enums"]["day_stage"] | null
           vad_vi_gjorde?: string | null
           work_date: string
         }
@@ -615,6 +617,7 @@ export type Database = {
             | null
           created_at?: string
           project_id?: string
+          stage?: Database["public"]["Enums"]["day_stage"] | null
           vad_vi_gjorde?: string | null
           work_date?: string
         }
@@ -939,8 +942,16 @@ export type Database = {
           work_date: string
         }[]
       }
+      bristsurvey_gaps: {
+        Args: { p_from: string; p_project: string; p_to: string }
+        Returns: Json
+      }
       clock_in: { Args: { p_tilldelning: string }; Returns: string }
       clock_out: { Args: { p_tilldelning: string }; Returns: string }
+      complete_bristsurvey: {
+        Args: { p_project: string; p_text: string; p_work_date: string }
+        Returns: undefined
+      }
       create_snabb_pass: {
         Args: {
           p_date: string
@@ -992,6 +1003,7 @@ export type Database = {
         | "manuell"
         | "snabb"
       confirmation_source: "leader" | "bristsurvey"
+      day_stage: "leader_confirmed" | "admin_confirmed"
       notification_kind: "shift_deleted" | "shift_offered" | "day_unconfirmed"
       offer_state: "offered" | "accepted" | "declined" | "withdrawn"
       release_reason:
@@ -1129,6 +1141,7 @@ export const Constants = {
       app_role: ["admin", "arbetsledare", "arbetare"],
       assignment_source: ["handplockad", "forval", "oppen", "manuell", "snabb"],
       confirmation_source: ["leader", "bristsurvey"],
+      day_stage: ["leader_confirmed", "admin_confirmed"],
       notification_kind: ["shift_deleted", "shift_offered", "day_unconfirmed"],
       offer_state: ["offered", "accepted", "declined", "withdrawn"],
       release_reason: [

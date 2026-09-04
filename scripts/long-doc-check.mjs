@@ -12,7 +12,8 @@ import { chromium, devices } from "playwright";
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import path from "node:path";
 import * as pdfjs from "pdfjs-dist/legacy/build/pdf.mjs";
-import { required } from "./env.mjs";
+import pg from "pg";
+import { connectionString, required } from "./env.mjs";
 
 const BASE = process.env.BASE_URL ?? "http://localhost:3000/Shift-Setter";
 const ART = "artifacts";
@@ -39,18 +40,133 @@ await field(page, "Lösenord").fill(required("WALKTHROUGH_ADMIN_PASSWORD"));
 await page.getByRole("button", { name: "Logga in" }).click();
 await page.waitForURL((u) => !u.pathname.includes("/login"), { timeout: 20000 });
 
+/**
+ * A long, ENDED range to document -- seeded here rather than hoped for.
+ *
+ * This used to take option index 1 over a hardcoded July-to-September window,
+ * so it passed or failed on whatever data happened to be lying around: after a
+ * demo reset it picked an empty project and reported a layout failure that was
+ * really "there is nothing to document", and picking the biggest project
+ * instead found one whose days are all in the future and therefore cannot be
+ * confirmed at all. A check that can fail for a reason other than the one it is
+ * named after proves nothing, so it now makes its own subject.
+ *
+ * The days are seeded unconfirmed on purpose. Closing them through the
+ * bristsurvey is how the document gets made, which is both the case the survey
+ * exists for and the longest document this repo can produce on demand.
+ */
+const DAYS = 20;
+const PROJEKT = "Långdokument (kontroll)";
+
+const db = new pg.Client({
+  connectionString: connectionString(),
+  ssl: { rejectUnauthorized: false },
+  connectionTimeoutMillis: 15000,
+});
+await db.connect();
+
+const { rows: existing } = await db.query(
+  `select min(p.work_date)::text as from, max(p.work_date)::text as to,
+          count(distinct p.work_date) as days
+   from public.pass p
+   join public.project pr on pr.id = p.project_id and pr.deleted_at is null
+   where pr.name = $1 and p.deleted_at is null`, [PROJEKT]);
+
+if (Number(existing[0]?.days ?? 0) < DAYS) {
+  const { rowCount } = await db.query(`
+    with admin as (
+      select a.id from public.account a where a.role = 'admin' and a.active limit 1
+    ),
+    -- Four workers, so each day's table is four rows and the document runs long.
+    hands as (
+      select w.id, row_number() over (order by w.created_at) as n
+      from public.worker w where w.deleted_at is null limit 4
+    ),
+    proj as (
+      insert into public.project (name, site_address, bestallare_address,
+                                  bestallare_bolag, bestallare_orgnr, services,
+                                  start_date, created_by)
+      select $2, 'Kontrollgatan 1', 'Kundvägen 4', 'Kontroll AB', '556000-0000',
+             'Kontroll', app.stockholm_today() - $1::int, (select id from admin)
+      returning id
+    ),
+    days as (
+      -- Ended days only: a day is not confirmable until its last shift is over,
+      -- and the survey is the thing being driven here.
+      select app.stockholm_today() - g as d from generate_series($1::int, 1, -1) g
+    ),
+    made as (
+      insert into public.pass (project_id, work_date, start_time, end_time,
+                               planned_hours, headcount, created_by)
+      select (select id from proj), d, '07:00', '16:00', 8.00,
+             (select count(*) from hands)::smallint, (select id from admin)
+      from days
+      returning id, work_date
+    )
+    insert into public.tilldelning (pass_id, worker_id, source, work_date)
+    select m.id, h.id, 'manuell', m.work_date from made m cross join hands h
+    returning 1`, [DAYS, PROJEKT]);
+  console.log(`seeded ${PROJEKT}: ${DAYS} ended days, ${rowCount} assignments`);
+}
+
+const { rows } = await db.query(
+  `select min(p.work_date)::text as from, max(p.work_date)::text as to
+   from public.pass p
+   join public.project pr on pr.id = p.project_id and pr.deleted_at is null
+   where pr.name = $1 and p.deleted_at is null`, [PROJEKT]);
+await db.end();
+
+const projekt = PROJEKT;
+const { from, to } = rows[0];
+console.log(`documenting ${projekt}, ${from}..${to}`);
+
 await page.goto(`${BASE}/arbetsdagbok/`, { waitUntil: "networkidle" });
 await page.locator('label:has(span:text-is("Projekt")) select option:not([value=""])').first().waitFor({ state: "attached", timeout: 20000 });
-await field(page, "Projekt").selectOption({ index: 1 });
+await field(page, "Projekt").selectOption({ label: projekt });
 
-const from = process.env.FROM ?? "2026-07-01";
-const to = process.env.TO ?? "2026-09-01";
 await field(page, "Från och med").fill(from);
 await field(page, "Till och med").fill(to);
 await page.getByRole("button", { name: "Generera Arbetsdagbok" }).click();
 
+/**
+ * Nobody confirmed these days, so the bristsurvey opens -- and closing it is
+ * how the document gets made. Driving it here is not a detour: a long document
+ * reconstructed by the owner is exactly the case the survey exists for, and it
+ * is also the longest one this repo can produce on demand.
+ */
+const download = page.getByRole("button", { name: /Ladda ner PDF/ });
+const warning = page.getByRole("button", { name: "Ja", exact: true });
+
+// Whichever lands first. The gaps are fetched before anything is drawn, so a
+// bare count() here reads the DOM before the answer has arrived and walks past
+// a survey that is about to open.
+await Promise.race([
+  download.waitFor({ timeout: 40000 }).catch(() => {}),
+  warning.waitFor({ timeout: 40000 }).catch(() => {}),
+]);
+
+if (await warning.count()) {
+  await warning.click();
+  const onward = page.getByRole("button", { name: "Bekräfta Uppgifter" });
+  if (await onward.count()) await onward.click();
+
+  // Scoped to the panel, and driven off the panel's own presence. Counting on
+  // the download button instead ran one extra lap: the last day closes, the
+  // document is still being built, and the "textbox" the loop then grabbed was
+  // the date picker underneath.
+  const panel = page.locator('[role="dialog"]');
+  for (let n = 0; n < 200 && (await panel.count()); n++) {
+    const box = panel.getByRole("textbox").first();
+    if (!(await box.count())) break;
+    await box.fill(`Dag ${n + 1}: rekonstruerad i efterhand av administratören.`);
+    await panel.getByRole("button", { name: "Bekräfta dagen" }).click();
+    await page.waitForTimeout(400);
+  }
+  console.log("closed the range through the bristsurvey");
+}
+
 try {
-  await page.getByRole("button", { name: /Ladda ner PDF/ }).waitFor({ timeout: 60000 });
+  await download.waitFor({ timeout: 60000 });
 } catch {
   const main = await page.locator("main").innerText().catch(() => "(no main)");
   await page.screenshot({ path: path.join(ART, "FAILED-long-doc.png"), fullPage: true });

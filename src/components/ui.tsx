@@ -125,7 +125,8 @@ export function Group({
 }
 
 const inputClass =
-  "block w-full min-h-[56px] border-2 border-black bg-white px-3 text-lg text-black outline-none focus:ring-4 focus:ring-black/20";
+  "block w-full min-h-[56px] border-2 border-black bg-white px-3 text-lg text-black " +
+  "placeholder:text-black/25 outline-none focus:ring-4 focus:ring-black/20";
 
 /**
  * `center` is for the small numeric boxes that sit beside a time field -- the

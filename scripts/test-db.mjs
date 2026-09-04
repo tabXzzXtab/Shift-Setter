@@ -59,11 +59,38 @@ const CONTROLS = [
    "I5.hours_after_confirm"],
 
   ["confirmation scope and provenance",
-   "alter table public.project_day disable trigger confirmation_guard",
+   // Two objects, one protection. The CHECK is a tripwire ON the trigger --
+   // it exists to catch a confirmed row whose stage the trigger never set --
+   // so leaving it armed while the trigger is off makes every confirmation in
+   // the suite die on the tripwire instead of reaching the assertion this
+   // control is about. Disabling half a protection tests the other half.
+   "alter table public.project_day disable trigger confirmation_guard; " +
+   "alter table public.project_day drop constraint project_day_stage_matches_confirmation",
    // I4b.wrong_leader still holds without the trigger -- the project_day RLS
    // policy also scopes leaders to their own projects. Defence in depth, so
    // the first assertion that actually depends on the trigger is this one.
    "BRIST.admin_cannot_confirm_as_leader"],
+
+  ["a surveyed day lands at admin_confirmed, not stage 1",
+   // The route stays 'bristsurvey' either way, which is the point: if stage
+   // could be read off the route this control would be impossible to write.
+   perturbIn("app.tg_confirmation_guard()",
+             "new.stage := 'admin_confirmed';", "new.stage := 'leader_confirmed';"),
+   "BRIST.survey_is_admin_confirmed"],
+
+  ["the survey derives hours from the clock, not the plan",
+   // Invariant 1's one exception, removed. A small, distinctive fragment: the
+   // "when " prefix is what keeps this off the identical predicate in the
+   // overflow check above it. Both branches then fall back to the planned
+   // figure, so a worker who clocked a 6.5 hour day is billed 8.
+   perturbIn("public.complete_bristsurvey(uuid, date, text)",
+             "when t.clock_in is not null and t.clock_out is not null", "when false"),
+   "BRIST.survey_hours_from_clock"],
+
+  ["the survey is the admin's alone",
+   perturbIn("public.bristsurvey_gaps(uuid, date, date)",
+             "if not app.is_admin() then", "if false then"),
+   "BRIST.gaps_admin_only"],
 
   ["\"Vad Vi Gjorde\" required before confirming",
    "alter table public.project_day drop constraint vad_vi_gjorde_required_to_confirm",

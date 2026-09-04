@@ -1,6 +1,7 @@
 enum   app_role = admin,arbetsledare,arbetare
 enum   assignment_source = handplockad,forval,oppen,manuell,snabb
 enum   confirmation_source = leader,bristsurvey
+enum   day_stage = leader_confirmed,admin_confirmed
 enum   notification_kind = shift_deleted,shift_offered,day_unconfirmed
 enum   offer_state = offered,accepted,declined,withdrawn
 enum   release_reason = removed_by_leader,replaced_by_snabb,shift_deleted,absent_at_confirmation
@@ -101,6 +102,7 @@ column project_day.confirmed_by uuid
 column project_day.confirmed_via confirmation_source
 column project_day.created_at timestamp with time zone NOT NULL DEFAULT now()
 column project_day.project_id uuid NOT NULL
+column project_day.stage day_stage
 column project_day.vad_vi_gjorde text
 column project_day.work_date date NOT NULL
 column project_leader.account_id uuid NOT NULL
@@ -180,6 +182,7 @@ constr project CHECK ((btrim(site_address) <> ''::text))
 constr project FOREIGN KEY (created_by) REFERENCES account(id)
 constr project PRIMARY KEY (id)
 constr project_day CHECK ((((confirmed_at IS NULL) AND (confirmed_by IS NULL) AND (confirmed_via IS NULL)) OR ((confirmed_at IS NOT NULL) AND (confirmed_by IS NOT NULL) AND (confirmed_via IS NOT NULL))))
+constr project_day CHECK (((confirmed_at IS NULL) = (stage IS NULL)))
 constr project_day CHECK (((confirmed_at IS NULL) OR ((vad_vi_gjorde IS NOT NULL) AND (btrim(vad_vi_gjorde) <> ''::text))))
 constr project_day FOREIGN KEY (confirmed_by) REFERENCES account(id)
 constr project_day FOREIGN KEY (project_id) REFERENCES project(id) ON DELETE CASCADE
@@ -320,7 +323,7 @@ func   app.tg_arbetsdagbok_guard() md5=f86304934a0a46e27e5af4b82d47bd24
 func   app.tg_assignment_write_guard() md5=339f51fbf897b60a9f01bf6251d66e43
 func   app.tg_block_guard() md5=7e67025837c229da9a7f75c54150dae5
 func   app.tg_clock_evidence() md5=6c33ff53dff91ccee095fa5abb4ec25d
-func   app.tg_confirmation_guard() md5=e9ba808501928c91099fe1bb78f048ed
+func   app.tg_confirmation_guard() md5=a9fde9d78d31a886a67e3f6c4335baeb
 func   app.tg_headcount_guard() md5=74a4944a10b83aba5bd5bd3b4e933697
 func   app.tg_last_admin_guard() md5=6c4fd5dcb72f8a568c492f7139ed8c2c
 func   app.tg_pass_delete_guard() md5=f4d3d483aab732281e868750071d7eb2
@@ -330,9 +333,11 @@ func   app.week_start(d date) md5=4a8f6c192e41cf4a14ebb5f87e671c29
 func   public.accept_offer(p_pass uuid) md5=4e6081afac5dad10ccfee3666d80296d
 func   public.assign_snabb(p_pass uuid, p_worker uuid) md5=2941adb07cca8418f1ba9086a65e3a8e
 func   public.batch_shortfall(p_dates date[], p_slots_per_day integer) md5=8dd3975240b28be0721227084e229bc2
+func   public.bristsurvey_gaps(p_project uuid, p_from date, p_to date) md5=2966c826968375d2b93623bbc9705cca
 func   public.cash_dist(money, money) md5=1acd79b2b4b9df652d58d90e72f05a29
 func   public.clock_in(p_tilldelning uuid) md5=6c4856b310eb35c37580a0125356847f
 func   public.clock_out(p_tilldelning uuid) md5=0cba39279e3ae3f7f67c95f6f627bfa2
+func   public.complete_bristsurvey(p_project uuid, p_work_date date, p_text text) md5=2a5e37876f4aeee40a3603ec26d641f2
 func   public.create_snabb_pass(p_project uuid, p_worker uuid, p_date date, p_start time without time zone, p_end time without time zone, p_hours numeric) md5=8bdb92da55e4c4fe1dbe54ad1d6aa65d
 func   public.date_dist(date, date) md5=3983f43755ffa80d869985d91ee8e538
 func   public.decline_offer(p_pass uuid) md5=3b77c01816ffe8db5847a74c338cae38

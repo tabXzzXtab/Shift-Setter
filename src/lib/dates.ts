@@ -47,6 +47,28 @@ export function longDayHeading(ymd: string): string {
   return `${weekday} ${d} ${month}`;
 }
 
+/**
+ * "Måndag 19:e Aug" -- the bristsurvey's one question, per day.
+ *
+ * Swedish ordinals take :a after 1 and 2 and :e after everything else, and
+ * that is by the last digit, so the 21st is 21:a and the 11th is 11:e. Getting
+ * it wrong reads as a machine wrote the question, and the whole point of this
+ * screen is that a person is being asked.
+ */
+export function surveyDayHeading(ymd: string): string {
+  const [y, m, d] = ymd.split("-").map(Number);
+  const t = new Date(Date.UTC(y!, m! - 1, d!, 12));
+  const weekday = WEEKDAY.format(t);
+  const month = new Intl.DateTimeFormat("sv-SE", {
+    timeZone: "Europe/Stockholm",
+    month: "short",
+  }).format(t).replace(".", "");
+  const last = d! % 10;
+  const suffix = (last === 1 || last === 2) && d! !== 11 && d! !== 12 ? "a" : "e";
+  const cap = (w: string) => w.charAt(0).toUpperCase() + w.slice(1);
+  return `${cap(weekday)} ${d}:${suffix} ${cap(month)}`;
+}
+
 /** HH:MM from a stored time value, which Postgres returns as HH:MM:SS. */
 export function hhmm(time: string | null | undefined): string {
   return time ? time.slice(0, 5) : "";

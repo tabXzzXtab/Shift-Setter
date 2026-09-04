@@ -132,7 +132,9 @@ The heavier button is the one that leaves. Chasing the leader is the right outco
 
 A single text field, its placeholder an example drawn at 25% opacity that disappears on tap. One day, one question, one answer. For the admin this means ringing round and asking the workers what they did — deliberately laborious, because it should have been the leader's job.
 
-**Submitting confirms that day permanently**, as `admin_confirmed`.
+Beneath the field, the day's registered figures are shown read-only, each marked *stämplat* or *planerat*. They cannot be edited — typing them would be a stage 1 claim by another name. They are shown because Step 1's warning names *obekräftade arbetstimmar, felaktiga tider*, and the admin should see the figures he is about to book in his own name before he books them.
+
+**Submitting confirms that day permanently**, as `admin_confirmed`. The survey re-reads what is left after every step rather than counting down a list taken once: a leader may confirm one of these days while the admin is on the phone, and the survey must not then ask about a day that is no longer his to close.
 
 **Only the description is typed.** The survey asks for the day's account and nothing else. The figures come from what was registered:
 
@@ -146,6 +148,8 @@ A single text field, its placeholder an example drawn at 25% opacity that disapp
 **A missing project or beställare field** stops generation the same way and is filled in the same pass. Section 1's rule admits no empty cell, whatever kind of cell it is.
 
 Completing the survey unblocks generation. It is not a bypass of the no-empty-cells rule; it is the manual way of satisfying it.
+
+**The admin is stopped before generation, not after.** The screen asks the database what is in the way and opens the survey on the answer — the same source of truth the generation guard uses, asked a different question. Working it out in the browser would be a second opinion that could disagree with the only one that matters, and a failed insert would already have been an attempt to book the thing the warning is about.
 
 **A surveyed day is a confirmed day.** It leaves the arbetsledare's queue and never comes back. The admin has taken the shot — if the reconstructed figures are wrong, that is on him, and asking the leader to re-confirm a day already printed into a legal document would be worse than pointless.
 
