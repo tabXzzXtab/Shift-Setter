@@ -24,7 +24,8 @@
     "demo:reset": "npm run db:sql -- --file supabase/maintenance/reset-demo-data.sql && npm run demo:accounts",
     "check:pdf-download": "node scripts/pdf-download-check.mjs",
     "walkthrough:kalender": "node scripts/walkthrough-kalender.mjs",
-    "walkthrough:brist": "node scripts/walkthrough-brist.mjs"
+    "walkthrough:brist": "node scripts/walkthrough-brist.mjs",
+    "walkthrough:admin": "node scripts/walkthrough-admin.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.113.0",

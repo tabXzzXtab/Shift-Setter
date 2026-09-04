@@ -168,6 +168,7 @@ before writing framework code.
 | `npm run walkthrough:snabb` | Snabb Pass: leader creates one, admin adds an off-roster worker |
 | `npm run walkthrough:kalender` | Shift calendar: colours, continuous bars, delete rules |
 | `npm run walkthrough:brist` | Bristsurvey: the warning, whose job it was, one question per day |
+| `npm run walkthrough:admin` | Admin landing page: the three actions, the menu, the list, Inställningar |
 | `npm run demo:reset` | Clear demo data **and** recreate the stable demo logins |
 | `npm run test:race` | Two concurrent accepts on a one-slot pass, N rounds |
 | `node scripts/long-doc-check.mjs` | Print a long Arbetsdagbok; assert no header/footer overlap |
