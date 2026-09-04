@@ -4,13 +4,15 @@ enum   confirmation_source = leader,bristsurvey
 enum   day_stage = leader_confirmed,admin_confirmed
 enum   notification_kind = shift_deleted,shift_offered,day_unconfirmed
 enum   offer_state = offered,accepted,declined,withdrawn
-enum   release_reason = removed_by_leader,replaced_by_snabb,shift_deleted,absent_at_confirmation
+enum   release_reason = removed_by_leader,replaced_by_snabb,shift_deleted,absent_at_confirmation,account_paused
+enum   review_action = approved,rejected
 column account.active boolean NOT NULL DEFAULT true
 column account.created_at timestamp with time zone NOT NULL DEFAULT now()
 column account.created_by uuid
 column account.id uuid NOT NULL
 column account.role app_role NOT NULL DEFAULT 'arbetare'::app_role
 column account_directory.active boolean
+column account_directory.email text
 column account_directory.id uuid
 column account_directory.name text
 column account_directory.role app_role
@@ -27,6 +29,26 @@ column clock_edit.id bigint NOT NULL
 column clock_edit.new_value timestamp with time zone
 column clock_edit.old_value timestamp with time zone
 column clock_edit.tilldelning_id uuid NOT NULL
+column day_history.confirmed_at timestamp with time zone
+column day_history.confirmed_by_name text
+column day_history.confirmed_via confirmation_source
+column day_history.filed boolean
+column day_history.project_id uuid
+column day_history.project_name text
+column day_history.rejected_at timestamp with time zone
+column day_history.rejection_note text
+column day_history.reviewed_at timestamp with time zone
+column day_history.reviewed_by_name text
+column day_history.stage day_stage
+column day_history.vad_vi_gjorde text
+column day_history.work_date date
+column day_review.acted_at timestamp with time zone NOT NULL DEFAULT now()
+column day_review.acted_by uuid NOT NULL
+column day_review.action review_action NOT NULL
+column day_review.id bigint NOT NULL
+column day_review.note text
+column day_review.project_id uuid NOT NULL
+column day_review.work_date date NOT NULL
 column forval.can_work boolean NOT NULL
 column forval.updated_at timestamp with time zone NOT NULL DEFAULT now()
 column forval.work_date date NOT NULL
@@ -85,6 +107,27 @@ column pass_offer.pass_id uuid NOT NULL
 column pass_offer.responded_at timestamp with time zone
 column pass_offer.state offer_state NOT NULL DEFAULT 'offered'::offer_state
 column pass_offer.worker_id uuid NOT NULL
+column profile.account_id uuid NOT NULL
+column profile.adress text
+column profile.anhorig_namn text
+column profile.anhorig_telefon text
+column profile.bankgiro text
+column profile.clearingnummer text
+column profile.f_skatt boolean NOT NULL DEFAULT false
+column profile.fakturaadress text
+column profile.foretag_postnummer text
+column profile.foretag_stad text
+column profile.foretagsnamn text
+column profile.har_foretag boolean NOT NULL DEFAULT false
+column profile.kontonummer text
+column profile.lan text
+column profile.momsreg text
+column profile.organisationsnummer text
+column profile.postnummer text
+column profile.stad text
+column profile.telefon text
+column profile.updated_at timestamp with time zone NOT NULL DEFAULT now()
+column profile.updated_by uuid
 column project.bestallare_address text NOT NULL
 column project.bestallare_bolag text NOT NULL
 column project.bestallare_orgnr text NOT NULL
@@ -102,9 +145,19 @@ column project_day.confirmed_by uuid
 column project_day.confirmed_via confirmation_source
 column project_day.created_at timestamp with time zone NOT NULL DEFAULT now()
 column project_day.project_id uuid NOT NULL
+column project_day.rejected_at timestamp with time zone
+column project_day.rejected_by uuid
+column project_day.rejection_note text
+column project_day.reviewed_at timestamp with time zone
+column project_day.reviewed_by uuid
 column project_day.stage day_stage
 column project_day.vad_vi_gjorde text
 column project_day.work_date date NOT NULL
+column project_hours.hours numeric
+column project_hours.name text
+column project_hours.project_id uuid
+column project_hours.site_address text
+column project_hours.start_date date
 column project_leader.account_id uuid NOT NULL
 column project_leader.assigned_at timestamp with time zone NOT NULL DEFAULT now()
 column project_leader.project_id uuid NOT NULL
@@ -149,6 +202,10 @@ constr clock_edit CHECK ((field = ANY (ARRAY['clock_in'::text, 'clock_out'::text
 constr clock_edit FOREIGN KEY (edited_by) REFERENCES account(id)
 constr clock_edit FOREIGN KEY (tilldelning_id) REFERENCES tilldelning(id) ON DELETE CASCADE
 constr clock_edit PRIMARY KEY (id)
+constr day_review CHECK (((action <> 'rejected'::review_action) OR ((note IS NOT NULL) AND (btrim(note) <> ''::text))))
+constr day_review FOREIGN KEY (acted_by) REFERENCES account(id)
+constr day_review FOREIGN KEY (project_id, work_date) REFERENCES project_day(project_id, work_date) ON DELETE CASCADE
+constr day_review PRIMARY KEY (id)
 constr forval FOREIGN KEY (worker_id) REFERENCES worker(id) ON DELETE CASCADE
 constr forval PRIMARY KEY (worker_id, work_date)
 constr notification FOREIGN KEY (account_id) REFERENCES account(id) ON DELETE CASCADE
@@ -173,6 +230,9 @@ constr pass_offer FOREIGN KEY (pass_id) REFERENCES pass(id) ON DELETE CASCADE
 constr pass_offer FOREIGN KEY (worker_id) REFERENCES worker(id) ON DELETE CASCADE
 constr pass_offer PRIMARY KEY (id)
 constr pass_offer UNIQUE (pass_id, worker_id)
+constr profile FOREIGN KEY (account_id) REFERENCES account(id) ON DELETE CASCADE
+constr profile FOREIGN KEY (updated_by) REFERENCES account(id)
+constr profile PRIMARY KEY (account_id)
 constr project CHECK ((btrim(bestallare_address) <> ''::text))
 constr project CHECK ((btrim(bestallare_bolag) <> ''::text))
 constr project CHECK ((btrim(bestallare_orgnr) <> ''::text))
@@ -182,10 +242,15 @@ constr project CHECK ((btrim(site_address) <> ''::text))
 constr project FOREIGN KEY (created_by) REFERENCES account(id)
 constr project PRIMARY KEY (id)
 constr project_day CHECK ((((confirmed_at IS NULL) AND (confirmed_by IS NULL) AND (confirmed_via IS NULL)) OR ((confirmed_at IS NOT NULL) AND (confirmed_by IS NOT NULL) AND (confirmed_via IS NOT NULL))))
+constr project_day CHECK ((((rejected_at IS NULL) AND (rejected_by IS NULL) AND (rejection_note IS NULL)) OR ((rejected_at IS NOT NULL) AND (rejected_by IS NOT NULL) AND (rejection_note IS NOT NULL) AND (btrim(rejection_note) <> ''::text))))
 constr project_day CHECK (((confirmed_at IS NULL) = (stage IS NULL)))
 constr project_day CHECK (((confirmed_at IS NULL) OR ((vad_vi_gjorde IS NOT NULL) AND (btrim(vad_vi_gjorde) <> ''::text))))
+constr project_day CHECK (((reviewed_at IS NULL) = (reviewed_by IS NULL)))
+constr project_day CHECK (((reviewed_at IS NULL) OR (stage = 'admin_confirmed'::day_stage)))
 constr project_day FOREIGN KEY (confirmed_by) REFERENCES account(id)
 constr project_day FOREIGN KEY (project_id) REFERENCES project(id) ON DELETE CASCADE
+constr project_day FOREIGN KEY (rejected_by) REFERENCES account(id)
+constr project_day FOREIGN KEY (reviewed_by) REFERENCES account(id)
 constr project_day PRIMARY KEY (project_id, work_date)
 constr project_leader FOREIGN KEY (account_id) REFERENCES account(id) ON DELETE CASCADE
 constr project_leader FOREIGN KEY (project_id) REFERENCES project(id) ON DELETE CASCADE
@@ -205,6 +270,7 @@ constr worker UNIQUE (account_id)
 index  CREATE INDEX arbetsdagbok_overlap_idx ON public.arbetsdagbok USING gist (project_id, covered)
 index  CREATE INDEX arbetsdagbok_project_covered_idx ON public.arbetsdagbok USING gist (project_id, covered)
 index  CREATE INDEX clock_edit_tilldelning_idx ON public.clock_edit USING btree (tilldelning_id, edited_at)
+index  CREATE INDEX day_review_day_idx ON public.day_review USING btree (project_id, work_date, acted_at)
 index  CREATE INDEX forval_can_work_idx ON public.forval USING btree (work_date) WHERE can_work
 index  CREATE INDEX forval_date_idx ON public.forval USING btree (work_date, can_work)
 index  CREATE INDEX notification_unread_idx ON public.notification USING btree (account_id, created_at DESC) WHERE (read_at IS NULL)
@@ -220,6 +286,7 @@ index  CREATE INDEX worker_active_idx ON public.worker USING btree (id) WHERE (d
 index  CREATE UNIQUE INDEX account_pkey ON public.account USING btree (id)
 index  CREATE UNIQUE INDEX arbetsdagbok_pkey ON public.arbetsdagbok USING btree (id)
 index  CREATE UNIQUE INDEX clock_edit_pkey ON public.clock_edit USING btree (id)
+index  CREATE UNIQUE INDEX day_review_pkey ON public.day_review USING btree (id)
 index  CREATE UNIQUE INDEX forval_pkey ON public.forval USING btree (worker_id, work_date)
 index  CREATE UNIQUE INDEX notification_pkey ON public.notification USING btree (id)
 index  CREATE UNIQUE INDEX pass_batch_handpick_pkey ON public.pass_batch_handpick USING btree (batch_id, worker_id)
@@ -228,6 +295,7 @@ index  CREATE UNIQUE INDEX pass_block_pkey ON public.pass_block USING btree (pas
 index  CREATE UNIQUE INDEX pass_offer_pass_id_worker_id_key ON public.pass_offer USING btree (pass_id, worker_id)
 index  CREATE UNIQUE INDEX pass_offer_pkey ON public.pass_offer USING btree (id)
 index  CREATE UNIQUE INDEX pass_pkey ON public.pass USING btree (id)
+index  CREATE UNIQUE INDEX profile_pkey ON public.profile USING btree (account_id)
 index  CREATE UNIQUE INDEX project_day_pkey ON public.project_day USING btree (project_id, work_date)
 index  CREATE UNIQUE INDEX project_leader_pkey ON public.project_leader USING btree (project_id, account_id)
 index  CREATE UNIQUE INDEX project_pkey ON public.project USING btree (id)
@@ -243,6 +311,7 @@ policy clock_edit.clock_edit_leader_select [SELECT] USING((EXISTS ( SELECT 1
    FROM (tilldelning t
      JOIN pass p ON ((p.id = t.pass_id)))
   WHERE ((t.id = clock_edit.tilldelning_id) AND app.leads_project(p.project_id))))) CHECK(-)
+policy day_review.day_review_staff_select [SELECT] USING(app.leads_project(project_id)) CHECK(-)
 policy forval.forval_own_write [ALL] USING((worker_id = app.current_worker_id())) CHECK((worker_id = app.current_worker_id()))
 policy forval.forval_select [SELECT] USING((app.is_staff() OR (worker_id = app.current_worker_id()))) CHECK(-)
 policy notification.notification_own_select [SELECT] USING((account_id = ( SELECT auth.uid() AS uid))) CHECK(-)
@@ -263,6 +332,7 @@ policy pass_offer.pass_offer_leader_write [ALL] USING((EXISTS ( SELECT 1
    FROM pass p
   WHERE ((p.id = pass_offer.pass_id) AND app.leads_project(p.project_id)))))
 policy pass_offer.pass_offer_select [SELECT] USING((app.is_staff() OR (worker_id = app.current_worker_id()))) CHECK(-)
+policy profile.profile_self_or_admin [ALL] USING(((account_id = ( SELECT auth.uid() AS uid)) OR app.is_admin())) CHECK(((account_id = ( SELECT auth.uid() AS uid)) OR app.is_admin()))
 policy project.project_admin_write [ALL] USING(app.is_admin()) CHECK(app.is_admin())
 policy project.project_staff_select [SELECT] USING(((deleted_at IS NULL) AND app.leads_project(id))) CHECK(-)
 policy project_day.project_day_leader [ALL] USING(app.leads_project(project_id)) CHECK(app.leads_project(project_id))
@@ -282,6 +352,7 @@ policy worker.worker_self_profile_update [UPDATE] USING(((account_id = ( SELECT 
 rls    account enabled=t
 rls    arbetsdagbok enabled=t
 rls    clock_edit enabled=t
+rls    day_review enabled=t
 rls    forval enabled=t
 rls    notification enabled=t
 rls    pass enabled=t
@@ -289,11 +360,13 @@ rls    pass_batch enabled=t
 rls    pass_batch_handpick enabled=t
 rls    pass_block enabled=t
 rls    pass_offer enabled=t
+rls    profile enabled=t
 rls    project enabled=t
 rls    project_day enabled=t
 rls    project_leader enabled=t
 rls    tilldelning enabled=t
 rls    worker enabled=t
+trig   account_pause on account -> tg_account_pause enabled=O
 trig   arbetsdagbok_guard on arbetsdagbok -> tg_arbetsdagbok_guard enabled=O
 trig   assignment_write_guard on tilldelning -> tg_assignment_write_guard enabled=O
 trig   block_guard on tilldelning -> tg_block_guard enabled=O
@@ -303,6 +376,8 @@ trig   enforce_bucket_name_length_trigger on storage.buckets -> enforce_bucket_n
 trig   headcount_guard on tilldelning -> tg_headcount_guard enabled=O
 trig   last_admin_guard on account -> tg_last_admin_guard enabled=O
 trig   pass_delete_guard on pass -> tg_pass_delete_guard enabled=O
+trig   pass_edit_guard on pass -> tg_pass_edit_guard enabled=O
+trig   profile_touch on profile -> tg_profile_touch enabled=O
 trig   protect_buckets_delete on storage.buckets -> protect_delete enabled=O
 trig   protect_objects_delete on storage.objects -> protect_delete enabled=O
 trig   sync_work_date on tilldelning -> tg_sync_work_date enabled=O
@@ -312,25 +387,29 @@ trig   worker_self_edit_guard on worker -> tg_worker_self_edit_guard enabled=O
 func   app.confirms_project(p_project uuid) md5=c3d7d74eefb17d760930c36afc604682
 func   app.current_role() md5=9aac5306319ae740d224ff2203a64880
 func   app.current_worker_id() md5=74dddcd603933dd85350f7d4fd99efdf
-func   app.fill_pass(p_pass uuid) md5=fb4ddb0a7c943bf3f93f019d83ee5f35
+func   app.fill_pass(p_pass uuid) md5=7cb6078b23b665a9de496f0231528e63
 func   app.is_admin() md5=3d4f4a5b9492b42ec49925b7895a09c5
 func   app.is_staff() md5=2e999136779c7d843714a9924d1dc8fc
 func   app.leads_project(p_project uuid) md5=f1d9360a0c4753413b5ac7fa20a587db
 func   app.pass_end_at(p_date date, p_start time without time zone, p_end time without time zone) md5=5cbed15c09406f178bd3175eac1980f4
 func   app.pass_start_at(p_date date, p_start time without time zone) md5=9fa0f40882eca98efe820667c724d176
 func   app.stockholm_today() md5=8b086d188d946a11d35cafa583ec6465
+func   app.tg_account_pause() md5=00172728bd0502a02a550a4a1e0cfdc9
 func   app.tg_arbetsdagbok_guard() md5=f86304934a0a46e27e5af4b82d47bd24
-func   app.tg_assignment_write_guard() md5=339f51fbf897b60a9f01bf6251d66e43
+func   app.tg_assignment_write_guard() md5=0117e43f64eb760c660b914086baf5dd
 func   app.tg_block_guard() md5=7e67025837c229da9a7f75c54150dae5
 func   app.tg_clock_evidence() md5=6c33ff53dff91ccee095fa5abb4ec25d
-func   app.tg_confirmation_guard() md5=a9fde9d78d31a886a67e3f6c4335baeb
+func   app.tg_confirmation_guard() md5=50d7bd21fa7525c6b98859d4b843fd7e
 func   app.tg_headcount_guard() md5=74a4944a10b83aba5bd5bd3b4e933697
 func   app.tg_last_admin_guard() md5=6c4fd5dcb72f8a568c492f7139ed8c2c
 func   app.tg_pass_delete_guard() md5=f4d3d483aab732281e868750071d7eb2
+func   app.tg_pass_edit_guard() md5=dda07b7abfaa8f7eb519081febb29535
+func   app.tg_profile_touch() md5=2cd0a5f82ac61406b149da8b7d574ddc
 func   app.tg_sync_work_date() md5=73d0cc0d6a532f106c8449760ce90c5d
 func   app.tg_worker_self_edit_guard() md5=1d48b1ab95436213192e2a5329677630
 func   app.week_start(d date) md5=4a8f6c192e41cf4a14ebb5f87e671c29
 func   public.accept_offer(p_pass uuid) md5=4e6081afac5dad10ccfee3666d80296d
+func   public.approve_day(p_project uuid, p_work_date date, p_text text, p_rows jsonb) md5=5165a1ac04f26c220246a93943c1882b
 func   public.assign_snabb(p_pass uuid, p_worker uuid) md5=2941adb07cca8418f1ba9086a65e3a8e
 func   public.batch_shortfall(p_dates date[], p_slots_per_day integer) md5=8dd3975240b28be0721227084e229bc2
 func   public.bristsurvey_gaps(p_project uuid, p_from date, p_to date) md5=2966c826968375d2b93623bbc9705cca
@@ -527,6 +606,7 @@ func   public.int4_dist(integer, integer) md5=70022e3435f9747864cf180d2d97e3dc
 func   public.int8_dist(bigint, bigint) md5=a73c1806b07543ad4167457378c84df9
 func   public.interval_dist(interval, interval) md5=c2001397d4f589efc976e1f2db79c9ac
 func   public.oid_dist(oid, oid) md5=98f1ff8d3c8373653d6d3a2e298a7eba
+func   public.reject_day(p_project uuid, p_work_date date, p_note text) md5=5e4ec66b9ad25be694015c2db8afa0d2
 func   public.release_assignment(p_tilldelning uuid, p_reason release_reason) md5=1983347acadd4f94439618837e894b64
 func   public.time_dist(time without time zone, time without time zone) md5=570a6afc92722fa17cb3fb725c661bb5
 func   public.ts_dist(timestamp without time zone, timestamp without time zone) md5=cd9d836b7dd414c3713096792f16bf8d
@@ -535,6 +615,8 @@ grant  DELETE on account to authenticated
 grant  DELETE on account_directory to authenticated
 grant  DELETE on arbetsdagbok to authenticated
 grant  DELETE on clock_edit to authenticated
+grant  DELETE on day_history to authenticated
+grant  DELETE on day_review to authenticated
 grant  DELETE on forval to authenticated
 grant  DELETE on my_offer to authenticated
 grant  DELETE on my_shift to authenticated
@@ -544,8 +626,12 @@ grant  DELETE on pass_batch to authenticated
 grant  DELETE on pass_batch_handpick to authenticated
 grant  DELETE on pass_block to authenticated
 grant  DELETE on pass_offer to authenticated
+grant  DELETE on profile to anon
+grant  DELETE on profile to authenticated
 grant  DELETE on project to authenticated
 grant  DELETE on project_day to authenticated
+grant  DELETE on project_hours to anon
+grant  DELETE on project_hours to authenticated
 grant  DELETE on project_leader to authenticated
 grant  DELETE on tilldelning to authenticated
 grant  DELETE on worker to authenticated
@@ -554,6 +640,8 @@ grant  INSERT on account to authenticated
 grant  INSERT on account_directory to authenticated
 grant  INSERT on arbetsdagbok to authenticated
 grant  INSERT on clock_edit to authenticated
+grant  INSERT on day_history to authenticated
+grant  INSERT on day_review to authenticated
 grant  INSERT on forval to authenticated
 grant  INSERT on my_offer to authenticated
 grant  INSERT on my_shift to authenticated
@@ -563,8 +651,12 @@ grant  INSERT on pass_batch to authenticated
 grant  INSERT on pass_batch_handpick to authenticated
 grant  INSERT on pass_block to authenticated
 grant  INSERT on pass_offer to authenticated
+grant  INSERT on profile to anon
+grant  INSERT on profile to authenticated
 grant  INSERT on project to authenticated
 grant  INSERT on project_day to authenticated
+grant  INSERT on project_hours to anon
+grant  INSERT on project_hours to authenticated
 grant  INSERT on project_leader to authenticated
 grant  INSERT on tilldelning to authenticated
 grant  INSERT on worker to authenticated
@@ -573,6 +665,8 @@ grant  REFERENCES on account to authenticated
 grant  REFERENCES on account_directory to authenticated
 grant  REFERENCES on arbetsdagbok to authenticated
 grant  REFERENCES on clock_edit to authenticated
+grant  REFERENCES on day_history to authenticated
+grant  REFERENCES on day_review to authenticated
 grant  REFERENCES on forval to authenticated
 grant  REFERENCES on my_offer to authenticated
 grant  REFERENCES on my_shift to authenticated
@@ -582,8 +676,12 @@ grant  REFERENCES on pass_batch to authenticated
 grant  REFERENCES on pass_batch_handpick to authenticated
 grant  REFERENCES on pass_block to authenticated
 grant  REFERENCES on pass_offer to authenticated
+grant  REFERENCES on profile to anon
+grant  REFERENCES on profile to authenticated
 grant  REFERENCES on project to authenticated
 grant  REFERENCES on project_day to authenticated
+grant  REFERENCES on project_hours to anon
+grant  REFERENCES on project_hours to authenticated
 grant  REFERENCES on project_leader to authenticated
 grant  REFERENCES on tilldelning to authenticated
 grant  REFERENCES on worker to authenticated
@@ -592,6 +690,8 @@ grant  SELECT on account to authenticated
 grant  SELECT on account_directory to authenticated
 grant  SELECT on arbetsdagbok to authenticated
 grant  SELECT on clock_edit to authenticated
+grant  SELECT on day_history to authenticated
+grant  SELECT on day_review to authenticated
 grant  SELECT on forval to authenticated
 grant  SELECT on my_offer to authenticated
 grant  SELECT on my_shift to authenticated
@@ -601,8 +701,12 @@ grant  SELECT on pass_batch to authenticated
 grant  SELECT on pass_batch_handpick to authenticated
 grant  SELECT on pass_block to authenticated
 grant  SELECT on pass_offer to authenticated
+grant  SELECT on profile to anon
+grant  SELECT on profile to authenticated
 grant  SELECT on project to authenticated
 grant  SELECT on project_day to authenticated
+grant  SELECT on project_hours to anon
+grant  SELECT on project_hours to authenticated
 grant  SELECT on project_leader to authenticated
 grant  SELECT on tilldelning to authenticated
 grant  SELECT on worker to authenticated
@@ -611,6 +715,8 @@ grant  TRIGGER on account to authenticated
 grant  TRIGGER on account_directory to authenticated
 grant  TRIGGER on arbetsdagbok to authenticated
 grant  TRIGGER on clock_edit to authenticated
+grant  TRIGGER on day_history to authenticated
+grant  TRIGGER on day_review to authenticated
 grant  TRIGGER on forval to authenticated
 grant  TRIGGER on my_offer to authenticated
 grant  TRIGGER on my_shift to authenticated
@@ -620,8 +726,12 @@ grant  TRIGGER on pass_batch to authenticated
 grant  TRIGGER on pass_batch_handpick to authenticated
 grant  TRIGGER on pass_block to authenticated
 grant  TRIGGER on pass_offer to authenticated
+grant  TRIGGER on profile to anon
+grant  TRIGGER on profile to authenticated
 grant  TRIGGER on project to authenticated
 grant  TRIGGER on project_day to authenticated
+grant  TRIGGER on project_hours to anon
+grant  TRIGGER on project_hours to authenticated
 grant  TRIGGER on project_leader to authenticated
 grant  TRIGGER on tilldelning to authenticated
 grant  TRIGGER on worker to authenticated
@@ -630,6 +740,8 @@ grant  TRUNCATE on account to authenticated
 grant  TRUNCATE on account_directory to authenticated
 grant  TRUNCATE on arbetsdagbok to authenticated
 grant  TRUNCATE on clock_edit to authenticated
+grant  TRUNCATE on day_history to authenticated
+grant  TRUNCATE on day_review to authenticated
 grant  TRUNCATE on forval to authenticated
 grant  TRUNCATE on my_offer to authenticated
 grant  TRUNCATE on my_shift to authenticated
@@ -639,8 +751,12 @@ grant  TRUNCATE on pass_batch to authenticated
 grant  TRUNCATE on pass_batch_handpick to authenticated
 grant  TRUNCATE on pass_block to authenticated
 grant  TRUNCATE on pass_offer to authenticated
+grant  TRUNCATE on profile to anon
+grant  TRUNCATE on profile to authenticated
 grant  TRUNCATE on project to authenticated
 grant  TRUNCATE on project_day to authenticated
+grant  TRUNCATE on project_hours to anon
+grant  TRUNCATE on project_hours to authenticated
 grant  TRUNCATE on project_leader to authenticated
 grant  TRUNCATE on tilldelning to authenticated
 grant  TRUNCATE on worker to authenticated
@@ -649,6 +765,8 @@ grant  UPDATE on account to authenticated
 grant  UPDATE on account_directory to authenticated
 grant  UPDATE on arbetsdagbok to authenticated
 grant  UPDATE on clock_edit to authenticated
+grant  UPDATE on day_history to authenticated
+grant  UPDATE on day_review to authenticated
 grant  UPDATE on forval to authenticated
 grant  UPDATE on my_offer to authenticated
 grant  UPDATE on my_shift to authenticated
@@ -658,8 +776,12 @@ grant  UPDATE on pass_batch to authenticated
 grant  UPDATE on pass_batch_handpick to authenticated
 grant  UPDATE on pass_block to authenticated
 grant  UPDATE on pass_offer to authenticated
+grant  UPDATE on profile to anon
+grant  UPDATE on profile to authenticated
 grant  UPDATE on project to authenticated
 grant  UPDATE on project_day to authenticated
+grant  UPDATE on project_hours to anon
+grant  UPDATE on project_hours to authenticated
 grant  UPDATE on project_leader to authenticated
 grant  UPDATE on tilldelning to authenticated
 grant  UPDATE on worker to authenticated

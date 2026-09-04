@@ -512,6 +512,20 @@ Every `leader_confirmed` day arrives in the admin's review queue. Three outcomes
 
 **An edit after generation.** If the document was already produced from the `leader_confirmed` figures and the admin then edits at stage 2, Bekräftelse Historik shows the new figures. The PDF does not change — it is a snapshot. Regenerating the range is how a corrected document is obtained.
 
+**The screen is Granska Pass**, reached from the admin's menu rather than the landing page: the landing page is three buttons and the list (Section 7), and a queue is not a fourth thing to create. It opens on the oldest waiting day, one day at a time, the same shape as the leader's Bekräfta Pass — an owner working through a fortnight should not have to decide where to look.
+
+**Rejection carries a note, and the note is mandatory.** A day sent back with no reason is a day the leader re-confirms exactly as it was. The rejected day loses its confirmation and returns to the leader's queue **flagged**, carrying the admin's words, with its text and its figures left as they were — the leader is correcting something, not retyping it.
+
+**The approval is recorded on its own axis.** `confirmed_at` / `confirmed_by` / `confirmed_via` are the leader's claim and are frozen the moment they are written; the admin's sign-off is `reviewed_at` / `reviewed_by`. Stage 2 can move the stage and it can move the figures, but it can never move whose claim it was. Reviewing a claim is not making one, and one pair of columns cannot say both things.
+
+**The last rejection stays on the day.** It is not cleared when the leader re-confirms — the leader's queue flags a day whose confirmation is gone and whose rejection is not, and the historik reads the same columns to say that a day came back once.
+
+**Bekräftelse Historik is a log, and every stage 2 act is appended to it.** The columns above hold the current state of one day and cannot hold a history: a day rejected twice keeps only the second note, and the first rejection — the one that says this leader has now been sent back twice — would disappear. So each approval and each rejection is written as its own row, with who and when, and nothing rewrites one afterwards.
+
+**A day is in the historik once it is finished with.** Two routes in, and a day can arrive by both: the admin approved it at stage 2, or an Arbetsdagbok was generated over it, which consumes a day whatever stage it had reached. **Admin and arbetsledare both read it**, scoped to the projects they are on, and both read the same definition — a leader and the owner looking at two different versions of the same log would be worse than no log.
+
+**Once `admin_confirmed`, nothing edits it.** Not the text, not the hours, not the times, and it cannot be sent back either. PASS TIDER lives on the pass rather than on the assignment, so that wall is two guards and not one; without the second it would protect half a row.
+
 ---
 
 **Everything on these screens exists for the document.** The time edits, the hours edits, the removals, the "Vad Vi Gjorde" text — none of it is bookkeeping for its own sake. Each one lands in a cell of the Arbetsdagbok. That is why each stage is final once passed, and why nothing generates until stage 1 is done.
@@ -644,7 +658,10 @@ Nothing here is open. Anything discovered later that is not covered is a stop-an
 
 **Two-stage confirmation**
 - Stage 1 is the leader's: clock in and out, confirm the day, write Vad Vi Gjorde, edit times, mark late. Status `leader_confirmed`.
-- Stage 2 is the admin's: approve, edit and approve, or reject back to the arbetsledare. Status on approval `admin_confirmed`.
+- Stage 2 is the admin's: approve, edit and approve, or reject back to the arbetsledare. Status on approval `admin_confirmed`. The screen is Granska Pass, in the admin's menu.
+- A rejection needs a note. The day returns to the leader flagged, keeping its text and its figures, and the rejection stays on the record after it is re-confirmed.
+- The approval is `reviewed_at` / `reviewed_by`, separate from the leader's claim, which stage 2 can never rewrite.
+- Bekräftelse Historik holds every day that is finished with — approved at stage 2 or consumed by a document — and appends every stage 2 act as its own row. Admin and arbetsledare both read it, scoped to their projects.
 - The Arbetsdagbok generates from `leader_confirmed`. Stage 2 is not a gate.
 - Generating moves the days to Bekräftelse Historik whatever their stage.
 - A stage 2 edit after generation shows in Historik. The PDF is a snapshot and does not change.

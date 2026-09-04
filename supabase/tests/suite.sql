@@ -687,6 +687,242 @@ select pg_temp.ok(
 reset role;
 
 -- ============================================================================
+-- STAGE 2 -- the admin reviews the claim; he never makes one
+--
+-- Project B's yesterday, kept deliberately off project A: a rejection reopens a
+-- day, and the document assertions above rest on project A's days staying shut.
+--
+-- Three outcomes and no fourth: approve, edit and approve, reject and send
+-- back. Everything here turns on the difference between reviewing a claim and
+-- making one -- the admin may accept, correct or refuse the leader's
+-- confirmation, and at no point may he author one.
+-- ============================================================================
+
+set local role authenticated;
+select pg_temp.act_as((select v from fx where k = 'leaderB'));
+
+update public.tilldelning set confirmed_hours = 8.00
+where pass_id = 'cccccccc-0000-0000-0000-000000000002' and released_at is null;
+
+insert into public.project_day (project_id, work_date, vad_vi_gjorde,
+                                confirmed_at, confirmed_by, confirmed_via)
+values ('bbbbbbbb-0000-0000-0000-00000000000b', app.stockholm_today() - 1,
+        'Bar in material och städade.', now(),
+        (select v from fx where k='leaderB'), 'leader');
+
+reset role;
+
+select pg_temp.ok(
+  (select stage = 'leader_confirmed' and reviewed_at is null and rejected_at is null
+   from public.project_day
+   where project_id = 'bbbbbbbb-0000-0000-0000-00000000000b'
+     and work_date = app.stockholm_today() - 1),
+  'STAGE2.arrives_in_the_queue',
+  'a leader''s confirmation lands at stage 1 and waits to be reviewed');
+
+-- Stage 1 is final FOR THE LEADER. They cannot sign off their own claim, and
+-- they cannot send it back to themselves either.
+set local role authenticated;
+select pg_temp.act_as((select v from fx where k = 'leaderB'));
+
+select pg_temp.rejects($$
+  update public.project_day set stage = 'admin_confirmed'
+  where project_id = 'bbbbbbbb-0000-0000-0000-00000000000b'
+    and work_date = app.stockholm_today() - 1
+$$, 'STAGE2.leader_cannot_approve');
+
+select pg_temp.rejects($$
+  select public.reject_day('bbbbbbbb-0000-0000-0000-00000000000b',
+                           app.stockholm_today() - 1, 'Fel tider')
+$$, 'STAGE2.leader_cannot_reject');
+
+select pg_temp.act_as((select v from fx where k = 'admin'));
+
+-- A rejection with no reason is a day sent back to be re-confirmed exactly as
+-- it was. Written straight at the table rather than through reject_day, which
+-- refuses a blank note itself: the guard behind it has to refuse one too.
+select pg_temp.rejects($$
+  update public.project_day set stage = null, rejection_note = '   '
+  where project_id = 'bbbbbbbb-0000-0000-0000-00000000000b'
+    and work_date = app.stockholm_today() - 1
+$$, 'STAGE2.reject_needs_note');
+
+-- Reject and send back. The only route that reopens a confirmed day.
+select public.reject_day('bbbbbbbb-0000-0000-0000-00000000000b',
+                         app.stockholm_today() - 1,
+                         'Timmarna stämmer inte med stämplingarna.');
+reset role;
+
+select pg_temp.ok(
+  (select confirmed_at is null and stage is null and confirmed_via is null
+      and confirmed_by is null
+      and rejected_by = (select v from fx where k='admin')
+      and rejection_note = 'Timmarna stämmer inte med stämplingarna.'
+      and vad_vi_gjorde = 'Bar in material och städade.'
+   from public.project_day
+   where project_id = 'bbbbbbbb-0000-0000-0000-00000000000b'
+     and work_date = app.stockholm_today() - 1),
+  'STAGE2.rejection_reopens_the_day',
+  'a rejected day loses its confirmation, keeps its text, and carries the note');
+
+select pg_temp.ok(
+  (select count(*) = 1 from public.day_review
+   where project_id = 'bbbbbbbb-0000-0000-0000-00000000000b'
+     and work_date = app.stockholm_today() - 1
+     and action = 'rejected'
+     and note = 'Timmarna stämmer inte med stämplingarna.'
+     and acted_by = (select v from fx where k='admin')),
+  'STAGE2.rejection_is_logged', 'every stage 2 act is appended to the log');
+
+-- The day is back in the leader's hands: the figures move again, and so does
+-- the day. What does not move is the record that it came back.
+set local role authenticated;
+select pg_temp.act_as((select v from fx where k = 'leaderB'));
+
+update public.tilldelning set confirmed_hours = 6.50
+where pass_id = 'cccccccc-0000-0000-0000-000000000002' and released_at is null;
+
+update public.project_day
+set vad_vi_gjorde = 'Bar in material, städade och rev ställning.',
+    confirmed_at  = now(),
+    confirmed_by  = (select v from fx where k='leaderB'),
+    confirmed_via = 'leader'
+where project_id = 'bbbbbbbb-0000-0000-0000-00000000000b'
+  and work_date = app.stockholm_today() - 1;
+
+reset role;
+
+select pg_temp.ok(
+  (select pd.stage = 'leader_confirmed' and pd.rejected_at is not null
+      and (select t.confirmed_hours = 6.50 from public.tilldelning t
+           where t.pass_id = 'cccccccc-0000-0000-0000-000000000002'
+             and t.released_at is null)
+   from public.project_day pd
+   where pd.project_id = 'bbbbbbbb-0000-0000-0000-00000000000b'
+     and pd.work_date = app.stockholm_today() - 1),
+  'STAGE2.rejection_puts_the_day_back',
+  'a rejected day is the leader''s again, and the record still says it came back');
+
+set local role authenticated;
+select pg_temp.act_as((select v from fx where k = 'admin'));
+
+-- REVIEWING A CLAIM IS NOT MAKING ONE. The admin may approve the confirmation
+-- in front of him; he may not put his own name on it.
+select pg_temp.rejects($$
+  update public.project_day
+  set stage = 'admin_confirmed', confirmed_by = (select v from fx where k='admin')
+  where project_id = 'bbbbbbbb-0000-0000-0000-00000000000b'
+    and work_date = app.stockholm_today() - 1
+$$, 'STAGE2.claim_stays_the_leaders');
+
+-- Edit and approve: one outcome, therefore one write. The corrections and the
+-- approval commit together or not at all.
+select public.approve_day(
+  'bbbbbbbb-0000-0000-0000-00000000000b', app.stockholm_today() - 1,
+  'Bar in material, städade och rev ställning på baksidan.',
+  jsonb_build_array(jsonb_build_object(
+    'tilldelning', (select t.id from public.tilldelning t
+                    where t.pass_id = 'cccccccc-0000-0000-0000-000000000002'
+                      and t.released_at is null),
+    'pass',   'cccccccc-0000-0000-0000-000000000002',
+    'hours',  7.25,
+    'start',  '07:00',
+    'end',    '15:30')));
+
+reset role;
+
+select pg_temp.ok(
+  (select stage = 'admin_confirmed'
+      and confirmed_via = 'leader'
+      and confirmed_by  = (select v from fx where k='leaderB')
+      and reviewed_by   = (select v from fx where k='admin')
+      and reviewed_at is not null
+      and vad_vi_gjorde = 'Bar in material, städade och rev ställning på baksidan.'
+   from public.project_day
+   where project_id = 'bbbbbbbb-0000-0000-0000-00000000000b'
+     and work_date = app.stockholm_today() - 1),
+  'STAGE2.edit_and_approve',
+  'approval moves the stage and names the reviewer; the claim stays the leader''s');
+
+select pg_temp.ok(
+  (select confirmed_hours = 7.25 from public.tilldelning
+   where pass_id = 'cccccccc-0000-0000-0000-000000000002' and released_at is null),
+  'STAGE2.admin_hours_stand', 'the figures the admin corrected are the ones that stand');
+
+select pg_temp.ok(
+  (select start_time = '07:00'::time and end_time = '15:30'::time
+   from public.pass where id = 'cccccccc-0000-0000-0000-000000000002'),
+  'STAGE2.admin_times_stand', 'PASS TIDER is a cell of the document and moves with the rest');
+
+-- INVARIANT 5, the second wall. Once admin_confirmed, nothing edits it -- not
+-- the text, not the hours, not the times, and it cannot be sent back either.
+set local role authenticated;
+select pg_temp.act_as((select v from fx where k = 'admin'));
+
+select pg_temp.rejects($$
+  update public.project_day set vad_vi_gjorde = 'efterhandsändring'
+  where project_id = 'bbbbbbbb-0000-0000-0000-00000000000b'
+    and work_date = app.stockholm_today() - 1
+$$, 'STAGE2.approved_day_is_final');
+
+select pg_temp.rejects($$
+  update public.tilldelning set confirmed_hours = 12.00
+  where pass_id = 'cccccccc-0000-0000-0000-000000000002' and released_at is null
+$$, 'STAGE2.hours_final_after_approval');
+
+select pg_temp.rejects($$
+  update public.pass set start_time = '05:00'
+  where id = 'cccccccc-0000-0000-0000-000000000002'
+$$, 'STAGE2.times_final_after_approval');
+
+select pg_temp.rejects($$
+  select public.reject_day('bbbbbbbb-0000-0000-0000-00000000000b',
+                           app.stockholm_today() - 1, 'För sent')
+$$, 'STAGE2.approved_day_cannot_be_sent_back');
+
+-- BEKRÄFTELSE HISTORIK -- one definition, read by both roles, showing current
+-- values rather than whatever a document once printed.
+select pg_temp.ok(
+  (select stage = 'admin_confirmed' and confirmed_via = 'leader'
+      and confirmed_by_name is not null and reviewed_by_name is not null
+      and vad_vi_gjorde = 'Bar in material, städade och rev ställning på baksidan.'
+   from public.day_history
+   where project_id = 'bbbbbbbb-0000-0000-0000-00000000000b'
+     and work_date = app.stockholm_today() - 1),
+  'STAGE2.historik_shows_current_values',
+  'the historik reads live values, not the ones a document printed');
+
+select pg_temp.act_as((select v from fx where k = 'leaderB'));
+
+select pg_temp.ok(
+  (select count(*) = 1 from public.day_history
+   where project_id = 'bbbbbbbb-0000-0000-0000-00000000000b'
+     and work_date = app.stockholm_today() - 1),
+  'STAGE2.historik_readable_by_the_leader',
+  'the leader can read the log of their own days, not only the admin');
+
+select pg_temp.ok(
+  (select count(*) = 2 from public.day_review
+   where project_id = 'bbbbbbbb-0000-0000-0000-00000000000b'
+     and work_date = app.stockholm_today() - 1),
+  'STAGE2.log_holds_both_acts', 'the rejection and the approval are both in the log');
+
+select pg_temp.rejects($$
+  insert into public.day_review (project_id, work_date, action, acted_by)
+  values ('bbbbbbbb-0000-0000-0000-00000000000b', app.stockholm_today() - 1,
+          'approved', (select v from fx where k='leaderB'))
+$$, 'STAGE2.log_is_append_only_by_the_guard');
+
+select pg_temp.act_as((select v from fx where k = 'leaderA'));
+select pg_temp.ok(
+  (select count(*) = 0 from public.day_history
+   where project_id = 'bbbbbbbb-0000-0000-0000-00000000000b'),
+  'STAGE2.historik_scoped_to_your_projects',
+  'a leader reads the log for the projects they are on and no others');
+
+reset role;
+
+-- ============================================================================
 -- ANON -- the login gate is a courtesy; the database is the boundary
 -- ============================================================================
 
@@ -1301,5 +1537,158 @@ select pg_temp.ok(
   'confirmed but not filed: the day shows as confirmed and the hours stay hidden');
 
 reset role;
+
+-- ============================================================================
+-- PROFIL -- the narrowest read in the database
+--
+-- Self or admin. NOT an arbetsledare: a leader is staff for everything to do
+-- with shifts and nothing to do with a colleague's bank account.
+-- ============================================================================
+
+set local role authenticated;
+select pg_temp.act_as((select v from fx where k = 'w1'));
+
+insert into public.profile (account_id, telefon, clearingnummer, kontonummer)
+values ((select v from fx where k = 'w1'), '070-1111111', '8327', '9941234');
+
+select pg_temp.ok(
+  (select telefon = '070-1111111' from public.profile
+   where account_id = (select v from fx where k = 'w1')),
+  'PROFILE.self_can_write', 'a worker fills in their own profile');
+
+-- A colleague is a stranger to this row.
+select pg_temp.act_as((select v from fx where k = 'w2'));
+select pg_temp.ok(
+  (select count(*) from public.profile
+   where account_id = (select v from fx where k = 'w1')) = 0,
+  'PROFILE.worker_cannot_read_colleague',
+  'another arbetare must not see a colleague''s bank details');
+
+-- An UPDATE blocked by RLS filters to zero rows rather than raising, so this
+-- asserts on state and not on an exception.
+update public.profile set telefon = '070-9999999'
+where account_id = (select v from fx where k = 'w1');
+
+select pg_temp.act_as((select v from fx where k = 'leaderA'));
+select pg_temp.ok(
+  (select count(*) from public.profile
+   where account_id = (select v from fx where k = 'w1')) = 0,
+  'PROFILE.leader_cannot_read_colleague',
+  'an arbetsledare runs the shifts, not the payroll');
+
+select pg_temp.act_as((select v from fx where k = 'admin'));
+select pg_temp.ok(
+  (select telefon = '070-1111111' from public.profile
+   where account_id = (select v from fx where k = 'w1')),
+  'PROFILE.admin_reads_all',
+  'the admin sees it, and the colleague''s write never landed');
+
+-- The Konton list needs an address for every account, including one with no
+-- worker record. It can only come from auth.users.
+select pg_temp.ok(
+  (select email like '%@%' from public.account_directory
+   where id = (select v from fx where k = 'admin')),
+  'DIR.email_from_auth',
+  'an account with no worker row still has an identity to show');
+
+reset role;
+
+-- ============================================================================
+-- PAUSING AN ACCOUNT -- "the current shift is their last"
+-- ============================================================================
+
+-- One shift already running, one still to come, and an offer outstanding.
+insert into public.pass (id, project_id, work_date, start_time, end_time,
+                         planned_hours, headcount, created_by)
+select p.a, 'aaaaaaaa-0000-0000-0000-00000000000a'::uuid, p.b, p.c, p.d, p.e, p.f,
+       (select v from fx where k = 'leaderA')
+from (values
+  -- Started at midnight and running until just before the next: by the clock
+  -- this one is happening right now, whenever "now" is.
+  ('cccccccc-0000-0000-0000-000000000006'::uuid, app.stockholm_today(),
+   '00:00'::time, '23:59'::time, 8.00::numeric, 1::smallint),
+  ('cccccccc-0000-0000-0000-000000000007', app.stockholm_today() + 25,
+   '07:00', '16:00', 8.00, 2),
+  ('cccccccc-0000-0000-0000-000000000008', app.stockholm_today() + 26,
+   '07:00', '16:00', 8.00, 1)
+) as p(a, b, c, d, e, f);
+
+insert into public.tilldelning (id, pass_id, worker_id, source, work_date)
+values
+  ('dddddddd-0000-0000-0000-000000000006',
+   'cccccccc-0000-0000-0000-000000000006', (select id from wid where k = 'w2'),
+   'manuell', app.stockholm_today()),
+  ('dddddddd-0000-0000-0000-000000000007',
+   'cccccccc-0000-0000-0000-000000000007', (select id from wid where k = 'w2'),
+   'manuell', app.stockholm_today() + 25);
+
+insert into public.pass_offer (pass_id, worker_id)
+values ('cccccccc-0000-0000-0000-000000000008', (select id from wid where k = 'w2'));
+
+-- The pause is made by the admin, through the ordinary column. The release it
+-- triggers runs as whoever pressed the button, and a release needs someone who
+-- leads the project -- which is why this cannot be done as the database owner
+-- with no auth.uid() at all.
+set local role authenticated;
+select pg_temp.act_as((select v from fx where k = 'admin'));
+update public.account set active = false where id = (select v from fx where k = 'w2');
+reset role;
+
+select pg_temp.ok(
+  (select released_at is not null and released_reason = 'account_paused'
+   from public.tilldelning where id = 'dddddddd-0000-0000-0000-000000000007'),
+  'PAUSE.releases_future',
+  'a shift that has not started is released, and the record says why');
+
+select pg_temp.ok(
+  (select released_at is null
+   from public.tilldelning where id = 'dddddddd-0000-0000-0000-000000000006'),
+  'PAUSE.keeps_started_shift',
+  'a shift they are standing on is theirs; it is hours they actually worked');
+
+select pg_temp.ok(
+  (select state = 'withdrawn' from public.pass_offer
+   where pass_id = 'cccccccc-0000-0000-0000-000000000008'
+     and worker_id = (select id from wid where k = 'w2')),
+  'PAUSE.withdraws_offers',
+  'an open offer to a paused person is a question they cannot answer');
+
+-- And the walk stops considering them. w2 has marked this day can-work and
+-- nobody else has, so an active w2 would take the slot outright; a paused one
+-- must not even be offered it down Tier 3.
+insert into public.pass (id, project_id, work_date, start_time, end_time,
+                         planned_hours, headcount, created_by)
+values ('cccccccc-0000-0000-0000-000000000009',
+        'aaaaaaaa-0000-0000-0000-00000000000a', app.stockholm_today() + 27,
+        '07:00', '16:00', 8.00, 1, (select v from fx where k = 'leaderA'));
+
+insert into public.forval (worker_id, work_date, can_work)
+values ((select id from wid where k = 'w2'), app.stockholm_today() + 27, true);
+
+select app.fill_pass('cccccccc-0000-0000-0000-000000000009');
+
+select pg_temp.ok(
+  (select count(*) from public.tilldelning t
+   where t.pass_id = 'cccccccc-0000-0000-0000-000000000009'
+     and t.worker_id = (select id from wid where k = 'w2')) = 0
+  and
+  (select count(*) from public.pass_offer o
+   where o.pass_id = 'cccccccc-0000-0000-0000-000000000009'
+     and o.worker_id = (select id from wid where k = 'w2')) = 0,
+  'PAUSE.excluded_from_tier_walk',
+  'a paused account is neither assigned nor offered a future shift');
+
+-- Unpausing makes them assignable again. It does not claw back the slot: the
+-- release stands, and pass_block keeps them off that particular shift.
+set local role authenticated;
+select pg_temp.act_as((select v from fx where k = 'admin'));
+update public.account set active = true where id = (select v from fx where k = 'w2');
+reset role;
+
+select pg_temp.ok(
+  (select released_at is not null
+   from public.tilldelning where id = 'dddddddd-0000-0000-0000-000000000007'),
+  'PAUSE.unpause_does_not_restore',
+  'unpausing returns the person, not the shift someone else may now hold');
 
 select pg_temp.ok(true, 'SUITE.complete', 'every assertion passed');

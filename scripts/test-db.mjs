@@ -102,6 +102,59 @@ const CONTROLS = [
    // the constraint catches.
    "BRIST.confirmed_by_without_confirmation"],
 
+  // ---- STAGE 2 -------------------------------------------------------------
+  // Invariant 5 is two walls now, and each is a separate line in a separate
+  // guard. A control per wall, so "confirmation is final" cannot quietly come
+  // to mean "final at whichever stage still happens to be enforced".
+  ["stage 1 is final for the leader",
+   perturbIn("app.tg_confirmation_guard()",
+             "if not app.is_admin() then   -- stage 2 is the admin's alone", "if false then"),
+   // STAGE2.leader_cannot_approve rests on this wall too, but the leader
+   // editing his own confirmed day comes first in the suite and is the same
+   // rule: stage 1 is final for whoever made it.
+   "I5.day_after_confirm"],
+
+  ["admin_confirmed is terminal -- the day record",
+   perturbIn("app.tg_confirmation_guard()",
+             "if old.stage = 'admin_confirmed' then", "if false then"),
+   // The surveyed day is the first admin_confirmed day the suite tries to
+   // move, and re-surveying it is the same wall from the other side. Note it
+   // only gets through because now() is transaction-start time and constant --
+   // the re-survey writes back the identical confirmed_at, so nothing about
+   // the claim looks changed and the approve branch accepts it.
+   "BRIST.surveyed_day_is_final"],
+
+  ["admin_confirmed is terminal -- the hours",
+   perturbIn("app.tg_assignment_write_guard()",
+             "if v_stage = 'admin_confirmed' then", "if false then"),
+   "STAGE2.hours_final_after_approval"],
+
+  ["admin_confirmed is terminal -- the times",
+   // PASS TIDER lives on the pass, not the assignment, so it has its own guard.
+   // Without it the wall protects half a row.
+   "drop trigger pass_edit_guard on public.pass",
+   "STAGE2.times_final_after_approval"],
+
+  ["reviewing a claim is not making one",
+   // The admin may approve the leader's confirmation; he may not put his own
+   // name on it. Removed, and stage 2 becomes a way to author a stage 1 claim.
+   perturbIn("app.tg_confirmation_guard()",
+             "if v_claim_moved and new.stage is not null then", "if false then"),
+   "STAGE2.claim_stays_the_leaders"],
+
+  ["a rejection carries the admin's note",
+   // Three objects, one rule. The trigger refuses a blank note, and two CHECKs
+   // stand behind it -- on the day and on the log row it writes. Leaving either
+   // armed makes the suite die on the tripwire instead of reaching the
+   // assertion this control is about, so the whole rule comes off at once.
+   async (client) =>
+     (await perturbIn("app.tg_confirmation_guard()",
+                      "if new.rejection_note is null or btrim(new.rejection_note) = '' then",
+                      "if false then")(client)) +
+     "; alter table public.project_day drop constraint project_day_rejection_fields_together" +
+     "; alter table public.day_review drop constraint rejection_carries_a_note",
+   "STAGE2.reject_needs_note"],
+
   ["invariant 11 -- the last active admin",
    "alter table public.account disable trigger last_admin_guard",
    "I11.demote_last_admin"],

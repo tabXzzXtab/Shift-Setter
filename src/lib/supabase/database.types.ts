@@ -100,6 +100,13 @@ export type Database = {
             referencedRelation: "project"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "arbetsdagbok_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "project_hours"
+            referencedColumns: ["project_id"]
+          },
         ]
       }
       clock_edit: {
@@ -158,6 +165,65 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "tilldelning"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      day_review: {
+        Row: {
+          acted_at: string
+          acted_by: string
+          action: Database["public"]["Enums"]["review_action"]
+          id: number
+          note: string | null
+          project_id: string
+          work_date: string
+        }
+        Insert: {
+          acted_at?: string
+          acted_by: string
+          action: Database["public"]["Enums"]["review_action"]
+          id?: never
+          note?: string | null
+          project_id: string
+          work_date: string
+        }
+        Update: {
+          acted_at?: string
+          acted_by?: string
+          action?: Database["public"]["Enums"]["review_action"]
+          id?: never
+          note?: string | null
+          project_id?: string
+          work_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "day_review_acted_by_fkey"
+            columns: ["acted_by"]
+            isOneToOne: false
+            referencedRelation: "account"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "day_review_acted_by_fkey"
+            columns: ["acted_by"]
+            isOneToOne: false
+            referencedRelation: "account_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "day_review_project_id_work_date_fkey"
+            columns: ["project_id", "work_date"]
+            isOneToOne: false
+            referencedRelation: "day_history"
+            referencedColumns: ["project_id", "work_date"]
+          },
+          {
+            foreignKeyName: "day_review_project_id_work_date_fkey"
+            columns: ["project_id", "work_date"]
+            isOneToOne: false
+            referencedRelation: "project_day"
+            referencedColumns: ["project_id", "work_date"]
           },
         ]
       }
@@ -332,6 +398,13 @@ export type Database = {
             referencedRelation: "project"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "pass_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "project_hours"
+            referencedColumns: ["project_id"]
+          },
         ]
       }
       pass_batch: {
@@ -374,6 +447,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "project"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pass_batch_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "project_hours"
+            referencedColumns: ["project_id"]
           },
         ]
       }
@@ -524,6 +604,107 @@ export type Database = {
           },
         ]
       }
+      profile: {
+        Row: {
+          account_id: string
+          adress: string | null
+          anhorig_namn: string | null
+          anhorig_telefon: string | null
+          bankgiro: string | null
+          clearingnummer: string | null
+          f_skatt: boolean
+          fakturaadress: string | null
+          foretag_postnummer: string | null
+          foretag_stad: string | null
+          foretagsnamn: string | null
+          har_foretag: boolean
+          kontonummer: string | null
+          lan: string | null
+          momsreg: string | null
+          organisationsnummer: string | null
+          postnummer: string | null
+          stad: string | null
+          telefon: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          account_id: string
+          adress?: string | null
+          anhorig_namn?: string | null
+          anhorig_telefon?: string | null
+          bankgiro?: string | null
+          clearingnummer?: string | null
+          f_skatt?: boolean
+          fakturaadress?: string | null
+          foretag_postnummer?: string | null
+          foretag_stad?: string | null
+          foretagsnamn?: string | null
+          har_foretag?: boolean
+          kontonummer?: string | null
+          lan?: string | null
+          momsreg?: string | null
+          organisationsnummer?: string | null
+          postnummer?: string | null
+          stad?: string | null
+          telefon?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          account_id?: string
+          adress?: string | null
+          anhorig_namn?: string | null
+          anhorig_telefon?: string | null
+          bankgiro?: string | null
+          clearingnummer?: string | null
+          f_skatt?: boolean
+          fakturaadress?: string | null
+          foretag_postnummer?: string | null
+          foretag_stad?: string | null
+          foretagsnamn?: string | null
+          har_foretag?: boolean
+          kontonummer?: string | null
+          lan?: string | null
+          momsreg?: string | null
+          organisationsnummer?: string | null
+          postnummer?: string | null
+          stad?: string | null
+          telefon?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profile_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: true
+            referencedRelation: "account"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profile_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: true
+            referencedRelation: "account_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profile_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "account"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profile_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "account_directory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       project: {
         Row: {
           bestallare_address: string
@@ -593,6 +774,11 @@ export type Database = {
             | null
           created_at: string
           project_id: string
+          rejected_at: string | null
+          rejected_by: string | null
+          rejection_note: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
           stage: Database["public"]["Enums"]["day_stage"] | null
           vad_vi_gjorde: string | null
           work_date: string
@@ -605,6 +791,11 @@ export type Database = {
             | null
           created_at?: string
           project_id: string
+          rejected_at?: string | null
+          rejected_by?: string | null
+          rejection_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
           stage?: Database["public"]["Enums"]["day_stage"] | null
           vad_vi_gjorde?: string | null
           work_date: string
@@ -617,6 +808,11 @@ export type Database = {
             | null
           created_at?: string
           project_id?: string
+          rejected_at?: string | null
+          rejected_by?: string | null
+          rejection_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
           stage?: Database["public"]["Enums"]["day_stage"] | null
           vad_vi_gjorde?: string | null
           work_date?: string
@@ -641,6 +837,41 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "project"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_day_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "project_hours"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "project_day_rejected_by_fkey"
+            columns: ["rejected_by"]
+            isOneToOne: false
+            referencedRelation: "account"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_day_rejected_by_fkey"
+            columns: ["rejected_by"]
+            isOneToOne: false
+            referencedRelation: "account_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_day_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "account"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_day_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "account_directory"
             referencedColumns: ["id"]
           },
         ]
@@ -682,6 +913,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "project"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_leader_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "project_hours"
+            referencedColumns: ["project_id"]
           },
         ]
       }
@@ -847,12 +1085,48 @@ export type Database = {
       account_directory: {
         Row: {
           active: boolean | null
+          email: string | null
           id: string | null
           name: string | null
           role: Database["public"]["Enums"]["app_role"] | null
           worker_id: string | null
         }
         Relationships: []
+      }
+      day_history: {
+        Row: {
+          confirmed_at: string | null
+          confirmed_by_name: string | null
+          confirmed_via:
+            | Database["public"]["Enums"]["confirmation_source"]
+            | null
+          filed: boolean | null
+          project_id: string | null
+          project_name: string | null
+          rejected_at: string | null
+          rejection_note: string | null
+          reviewed_at: string | null
+          reviewed_by_name: string | null
+          stage: Database["public"]["Enums"]["day_stage"] | null
+          vad_vi_gjorde: string | null
+          work_date: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_day_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "project"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_day_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "project_hours"
+            referencedColumns: ["project_id"]
+          },
+        ]
       }
       my_offer: {
         Row: {
@@ -900,6 +1174,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "pass_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "project_hours"
+            referencedColumns: ["project_id"]
+          },
+          {
             foreignKeyName: "tilldelning_pass_id_fkey"
             columns: ["pass_id"]
             isOneToOne: false
@@ -907,6 +1188,16 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      project_hours: {
+        Row: {
+          hours: number | null
+          name: string | null
+          project_id: string | null
+          site_address: string | null
+          start_date: string | null
+        }
+        Relationships: []
       }
       worker_roster: {
         Row: {
@@ -929,6 +1220,15 @@ export type Database = {
     }
     Functions: {
       accept_offer: { Args: { p_pass: string }; Returns: string }
+      approve_day: {
+        Args: {
+          p_project: string
+          p_rows?: Json
+          p_text?: string
+          p_work_date: string
+        }
+        Returns: undefined
+      }
       assign_snabb: {
         Args: { p_pass: string; p_worker: string }
         Returns: string
@@ -982,6 +1282,10 @@ export type Database = {
           work_date: string
         }[]
       }
+      reject_day: {
+        Args: { p_note: string; p_project: string; p_work_date: string }
+        Returns: undefined
+      }
       release_assignment: {
         Args: {
           p_reason?: Database["public"]["Enums"]["release_reason"]
@@ -1011,6 +1315,8 @@ export type Database = {
         | "replaced_by_snabb"
         | "shift_deleted"
         | "absent_at_confirmation"
+        | "account_paused"
+      review_action: "approved" | "rejected"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1149,7 +1455,9 @@ export const Constants = {
         "replaced_by_snabb",
         "shift_deleted",
         "absent_at_confirmation",
+        "account_paused",
       ],
+      review_action: ["approved", "rejected"],
     },
   },
 } as const
