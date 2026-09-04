@@ -54,7 +54,13 @@ function Arbetsdagbok() {
       .then(({ data }) => {
         const rows = (data ?? []) as Project[];
         setProjects(rows);
-        if (rows.length === 1) setProjectId(rows[0]!.id);
+        // The document lives inside the project (spec Section 1), so the admin
+        // arrives here by pressing a project row and should not have to pick it
+        // again. Read from location rather than useSearchParams: this is a
+        // static export, and the value is only needed once, after mount.
+        const asked = new URLSearchParams(window.location.search).get("projekt");
+        if (asked && rows.some((r) => r.id === asked)) setProjectId(asked);
+        else if (rows.length === 1) setProjectId(rows[0]!.id);
       });
   }, []);
 

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
+import { PlusIcon } from "./icons";
 
 /**
  * Black and white. No styling before function.
@@ -65,6 +66,35 @@ export function Button({
     <button type={type} onClick={onClick} disabled={disabled} className={`${base} ${look}`}>
       {children}
     </button>
+  );
+}
+
+/**
+ * The page a role lands on. Same shell as Screen, minus the title row --
+ * a landing page wears the AppBar there instead.
+ */
+export function Landing({ children }: { children: ReactNode }) {
+  return (
+    <main className="mx-auto min-h-dvh w-full max-w-md px-4 pb-24 pt-4">{children}</main>
+  );
+}
+
+/**
+ * The three things an owner does that a list cannot show him, and their
+ * equivalents for the other roles: a filled button carrying a + .
+ *
+ * Filled rather than outlined because these sit above a list and have to read
+ * as actions rather than as its first rows.
+ */
+export function ActionLink({ href, children }: { href: string; children: ReactNode }) {
+  return (
+    <Link
+      href={href}
+      className="flex min-h-[64px] w-full items-center gap-3 border-2 border-black bg-black px-4 text-lg font-bold text-white"
+    >
+      <PlusIcon />
+      <span>{children}</span>
+    </Link>
   );
 }
 
@@ -152,6 +182,38 @@ export function Input({
 
 export function Textarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
   return <textarea {...props} className={`${inputClass} min-h-[120px] py-3`} />;
+}
+
+/**
+ * A checkbox that is a target, not a speck.
+ *
+ * The whole 56px row is the label, so a thumb anywhere on it toggles -- a 16px
+ * native box is unmissable on a desktop and unhittable with a cold hand on a
+ * site. `accent-black` keeps the checked state inside the palette.
+ */
+export function Check({
+  label,
+  checked,
+  onChange,
+  disabled,
+}: {
+  label: string;
+  checked: boolean;
+  onChange: (v: boolean) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <label className="mb-4 flex min-h-[56px] w-full items-center gap-3 border-2 border-black px-4">
+      <input
+        type="checkbox"
+        checked={checked}
+        disabled={disabled}
+        onChange={(e) => onChange(e.target.checked)}
+        className="h-7 w-7 shrink-0 accent-black"
+      />
+      <span className="text-lg font-bold">{label}</span>
+    </label>
+  );
 }
 
 export function Select(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
