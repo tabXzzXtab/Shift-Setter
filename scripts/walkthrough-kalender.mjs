@@ -303,15 +303,18 @@ try {
   log("the admin deleted a future pass");
   await signOut(page);
 
-  // ---- the worker is told, and it is gone from their list -------------------
+  // ---- the worker is told ---------------------------------------------------
+  // On the LANDING page: the notice used to live on Mina pass, and moved to
+  // the badge under the stamp when the arbetare landing page was built. One
+  // home for it, so dismissing it once dismisses it.
   await signIn(page, W.email, W.password);
-  await page.goto(`${BASE}/mina-pass/`, { waitUntil: "networkidle" });
+  await page.goto(`${BASE}/`, { waitUntil: "networkidle" });
   await mustSee(page, `Ditt pass ${RUN_A[0]} är borttaget`, "the worker was not notified");
   await shot(page, "64-arbetare-notis");
   log("the worker is told their pass was removed");
 
   await page.getByRole("button", { name: "Okej" }).first().click();
-  await page.waitForTimeout(800);
+  await page.waitForTimeout(1200);
   await page.reload({ waitUntil: "networkidle" });
   await mustNotSee(page, `Ditt pass ${RUN_A[0]} är borttaget`, "the notice came back after dismissal");
   log("dismissing the notice keeps it dismissed");
