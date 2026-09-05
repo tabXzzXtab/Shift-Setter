@@ -73,13 +73,29 @@ async function createPerson(page, name, email, role) {
   return { email, password, name };
 }
 
+/**
+ * Page the calendar forward until the day is on screen.
+ *
+ * Every calendar here shows one month. The "nobody is free" day has to be one
+ * nobody has ever marked, which on a database this old means months out, and
+ * a cell that is not rendered is not a cell you can tap.
+ */
+async function reachDay(page, date) {
+  for (let i = 0; i < 18; i++) {
+    if (await page.locator(`[data-date="${date}"]`).count()) return;
+    await page.getByRole("button", { name: "Nästa månad", exact: true }).click();
+    await page.waitForTimeout(400);
+  }
+  fail(`could not page the calendar to ${date}`);
+}
+
 /** Read before tapping: the calendar gesture is a toggle. */
 async function markDays(page, dates) {
   for (const date of dates) {
     const marked = () => page.locator(`[data-date="${date}"][aria-label*="kan jobba"]`);
     for (let attempt = 1; attempt <= 3; attempt++) {
       await page.goto(`${BASE}/min-kalender/`, { waitUntil: "networkidle" });
-      await page.locator(`[data-date="${date}"]`).waitFor({ timeout: 20000 });
+      await reachDay(page, date);
       await page.waitForTimeout(800);
       if (await marked().count()) break;
       await page.getByRole("button", { name: "Kan jobba", exact: true }).click();
@@ -96,8 +112,8 @@ async function markDays(page, dates) {
 async function makePass(page, project, date, pick) {
   await page.goto(`${BASE}/pass/ny/`, { waitUntil: "networkidle" });
   await page.getByText("Vilka dagar?").waitFor({ timeout: 20000 });
+  await reachDay(page, date);
   const cell = page.locator(`[data-date="${date}"]`);
-  await cell.waitFor({ timeout: 20000 });
   await cell.scrollIntoViewIfNeeded();
   const b = await cell.boundingBox();
   await page.touchscreen.tap(b.x + b.width / 2, b.y + b.height / 2);
@@ -113,8 +129,8 @@ async function makePass(page, project, date, pick) {
 /** Open the day in the shift calendar and press the bin beside a name. */
 async function avboka(page, date, name) {
   await page.goto(`${BASE}/kalender/`, { waitUntil: "networkidle" });
+  await reachDay(page, date);
   const cell = page.locator(`[data-date="${date}"]`);
-  await cell.waitFor({ timeout: 20000 });
   await cell.scrollIntoViewIfNeeded();
   const b = await cell.boundingBox();
   await page.touchscreen.tap(b.x + b.width / 2, b.y + b.height / 2);
@@ -133,7 +149,16 @@ page.on("pageerror", (e) => fail(`page error: ${e.message}`));
 
 const sv = new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Stockholm" });
 const day = (n) => sv.format(new Date(Date.now() + n * 864e5));
-const FAR = day(10), NONE = day(11), NEAR = day(2);
+const FAR = day(10), NEAR = day(2);
+
+/**
+ * The "nobody is free" day has to be a day NOBODY has ever marked, and the
+ * candidate list is company-wide. A fixed offset is not that: this script's
+ * own previous run left an Alva who marked it and was then taken off it, so
+ * she was free and the popup fired where the test wanted silence. Spread per
+ * run, far past every other walkthrough's dates.
+ */
+const NONE = day(120 + (Number(RUN) % 240));
 
 console.log(`\nAvboka Pass at ${BASE}\n`);
 
