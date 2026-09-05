@@ -2281,6 +2281,59 @@ $$, 'S5C.leader_cannot_flag_a_day');
 
 select pg_temp.act_as((select v from fx where k = 'admin'));
 
+-- Gör Arbetare Ansvarig is the fallback for having NOBODY to hand the day to,
+-- so reaching it means arranging exactly that. The suite runs against the real
+-- database, which carries every arbetsledare the company has -- and every one
+-- left behind by a walkthrough -- so "nobody is free" has to be built rather
+-- than assumed. One filler shift each, on this date, on a project nobody
+-- leads: they are now working, so none of them can take this day.
+reset role;
+do $filler$
+declare
+  v_project uuid := 'aeaeaeae-0000-0000-0000-00000000000e';
+  r         record;
+  v_pass    uuid;
+begin
+  insert into public.project (id, name, site_address, bestallare_address,
+                              bestallare_bolag, bestallare_orgnr, services, start_date)
+  values (v_project, 'Upptagna Arbetsledare', 'Gata 0', 'Kund 0', 'Bolag AB',
+          '556000-0000', 'Bygg', app.stockholm_today() - 30)
+  on conflict (id) do nothing;
+
+  for r in
+    select w.id
+    from public.account a
+    join public.worker  w on w.account_id = a.id and w.deleted_at is null
+    where a.role = 'arbetsledare' and a.active
+      and not exists (
+        select 1 from public.tilldelning t
+        where t.worker_id = w.id and t.work_date = app.stockholm_today() - 5
+          and t.released_at is null)
+  loop
+    insert into public.pass (project_id, work_date, start_time, end_time,
+                             planned_hours, headcount, created_by)
+    values (v_project, app.stockholm_today() - 5, '07:00', '16:00', 8.00, 1,
+            (select v from fx where k = 'admin'))
+    returning id into v_pass;
+
+    insert into public.tilldelning (pass_id, worker_id, source)
+    values (v_pass, r.id, 'manuell');
+  end loop;
+end $filler$;
+
+set local role authenticated;
+select pg_temp.act_as((select v from fx where k = 'admin'));
+
+select pg_temp.ok(
+  (select (public.leader_replacement_options(
+     (select t.id from public.tilldelning t
+      where t.source = 'ledare' and t.released_at is null
+        and t.project_id = 'aaaaaaaa-0000-0000-0000-00000000000a'
+        and t.work_date = app.stockholm_today() - 5)) -> 'leaders')
+   = '[]'::jsonb),
+  'S5C.ansvarig_only_when_nobody_is_free',
+  'the popup offers it only with an empty list, and so does the function');
+
 -- Somebody who was not on the shift cannot have been in charge of it.
 select pg_temp.rejects($$
   select public.make_worker_ansvarig(
@@ -2605,5 +2658,118 @@ select pg_temp.ok(
      and pd.work_date  = app.stockholm_today() - 7),
   'SWAP.swapped_in_can_confirm',
   'the arbetsledare who stood on the day confirms it, member of it or not');
+
+-- ============================================================================
+-- THE REPLACEMENT COMES BACK, AND ANSVARIG IS A LAST RESORT
+--
+-- Two holes found by reading Step 5c against the spec.
+--
+-- F1: app.sync_leader_day() draws only from project_leader, so it could never
+-- bring back a leader who was not a member -- which a route 1 replacement and
+-- a Step 5d swap-in both are, by construction. Empty the day and refill it and
+-- the replacement was gone, with no arbetsledare row and no flag: the
+-- unattended day Step 5c exists to make deliberate, reached by accident.
+--
+-- F3: Gör Arbetare Ansvarig is the fallback for having nobody to hand the day
+-- to. The popup knew that; the function did not.
+-- ============================================================================
+
+-- A third arbetsledare who leads NOTHING. That is the whole point of them:
+-- a replacement comes from wherever one is free, and is therefore never a
+-- member of the project they are covering.
+insert into auth.users (instance_id, id, aud, role, email, encrypted_password,
+                        email_confirmed_at, created_at, updated_at,
+                        raw_app_meta_data, raw_user_meta_data)
+values ('00000000-0000-0000-0000-000000000000',
+        'fcfcfcfc-0000-0000-0000-00000000000c', 'authenticated', 'authenticated',
+        'leaderC@suite.test', '', now(), now(), now(), '{}'::jsonb, '{}'::jsonb);
+
+insert into public.account (id, role, active)
+values ('fcfcfcfc-0000-0000-0000-00000000000c', 'arbetsledare', true);
+
+insert into public.worker (id, account_id, name, email)
+values ('fcfcfcfc-0000-0000-0000-00000000000f', 'fcfcfcfc-0000-0000-0000-00000000000c',
+        'Leaderc', 'leaderC@suite.test');
+
+insert into public.project (id, name, site_address, bestallare_address,
+                            bestallare_bolag, bestallare_orgnr, services, start_date)
+values ('fdfdfdfd-0000-0000-0000-00000000000d', 'Utbytesprojektet',
+        'Gata 9', 'Kund 9', 'Bolag AB', '556000-0009', 'Bygg',
+        app.stockholm_today());
+
+insert into public.project_leader (project_id, account_id)
+values ('fdfdfdfd-0000-0000-0000-00000000000d', (select v from fx where k = 'leaderA'));
+
+insert into public.pass (id, project_id, work_date, start_time, end_time,
+                         planned_hours, headcount, created_by)
+values ('fdfdfdfd-0000-0000-0000-000000000001', 'fdfdfdfd-0000-0000-0000-00000000000d',
+        app.stockholm_today() + 130, '07:00', '16:00', 8.00, 2,
+        (select v from fx where k = 'leaderA'));
+
+insert into public.tilldelning (id, pass_id, worker_id, source)
+values ('fdfdfdfd-0000-0000-0000-000000000011', 'fdfdfdfd-0000-0000-0000-000000000001',
+        (select id from wid where k = 'w1'), 'manuell');
+
+-- Route 1: the member leader hands the day to somebody who leads nothing.
+set local role authenticated;
+select pg_temp.act_as((select v from fx where k = 'admin'));
+select public.replace_leader(
+  (select t.id from public.tilldelning t
+   where t.project_id = 'fdfdfdfd-0000-0000-0000-00000000000d'
+     and t.source = 'ledare' and t.released_at is null),
+  'fcfcfcfc-0000-0000-0000-00000000000f');
+reset role;
+
+-- The day empties completely, then gets somebody else.
+update public.tilldelning set released_at = now(), released_reason = 'removed_by_leader'
+where id = 'fdfdfdfd-0000-0000-0000-000000000011';
+
+insert into public.tilldelning (id, pass_id, worker_id, source)
+values ('fdfdfdfd-0000-0000-0000-000000000012', 'fdfdfdfd-0000-0000-0000-000000000001',
+        (select id from wid where k = 'w2'), 'manuell');
+
+select pg_temp.ok(
+  (select count(*) from public.tilldelning t
+   where t.project_id = 'fdfdfdfd-0000-0000-0000-00000000000d'
+     and t.work_date = app.stockholm_today() + 130
+     and t.source = 'ledare' and t.released_at is null
+     and t.worker_id = 'fcfcfcfc-0000-0000-0000-00000000000f') = 1,
+  'S5C.replacement_returns_when_the_day_does',
+  'the person who was standing there comes back when there is a day again');
+
+-- And the member who was taken off it does not come back with them.
+select pg_temp.ok(
+  (select count(*) from public.tilldelning t
+   where t.project_id = 'fdfdfdfd-0000-0000-0000-00000000000d'
+     and t.work_date = app.stockholm_today() + 130
+     and t.source = 'ledare' and t.released_at is null
+     and t.worker_id = (select id from wid where k = 'leaderA')) = 0,
+  'S5C.removed_member_stays_off_after_a_refill',
+  'a person decided they were off this day, and a roster edit is not a reversal');
+
+-- The day is led, so it is not an admission about anything.
+select pg_temp.ok(
+  not exists (
+    select 1 from public.project_day pd
+    where pd.project_id = 'fdfdfdfd-0000-0000-0000-00000000000d'
+      and pd.work_date = app.stockholm_today() + 130
+      and pd.flagged_as is not null),
+  'S5C.refilled_day_is_not_flagged',
+  'somebody is answerable for it, so there is nothing to admit');
+
+-- ---- F3: ansvarig is the fallback, not an alternative ---------------------
+-- leaderA is free that day now: they were taken off this project's day and
+-- hold nothing else on it. So a worker must not be made ansvarig instead.
+set local role authenticated;
+select pg_temp.act_as((select v from fx where k = 'admin'));
+select pg_temp.rejects($ans$
+  select public.make_worker_ansvarig(
+    (select t.id from public.tilldelning t
+     where t.project_id = 'fdfdfdfd-0000-0000-0000-00000000000d'
+       and t.work_date = app.stockholm_today() + 130
+       and t.source = 'ledare' and t.released_at is null),
+    (select id from wid where k = 'w2'))
+$ans$, 'S5C.ansvarig_needs_no_leader_free');
+reset role;
 
 select pg_temp.ok(true, 'SUITE.complete', 'every assertion passed');

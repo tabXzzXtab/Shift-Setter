@@ -350,7 +350,7 @@ The same record carries the day's confirmation stage. **Two statuses, not one:**
 | `leader_confirmed` | The arbetsledare has confirmed the day. Enough to generate the Arbetsdagbok. |
 | `admin_confirmed` | The admin has reviewed and approved it. Terminal. |
 
-The stage is a separate axis from `confirmed_via`, which records the *route* — leader, bristsurvey, a worker as ansvarig, nobody. Route and stage answer different questions, and neither can be read off the other.
+The stage is a separate axis from `confirmed_via`, which records the *route by which the day was closed* — leader, bristsurvey, or one of the two flagged routes taken directly. How the day RAN is `flagged_as`, a third axis again: a day that ran with a worker as ansvarig and was later closed through the bristsurvey carries both, and neither can be read off the other two.
 
 **Förval (availability)**
 Worker plus date, marked can-work or can't-work. Not tied to a project or a shift. Writes nothing anywhere until a leader creates a shift on that day.
@@ -449,7 +449,9 @@ A leader is never simply removed. Somebody has to be answerable for the day, so 
 - A notification goes to the admin.
 - **Admin and only admin confirms it.** Not the project's other leaders, not the ansvarig worker. The worker was covering, not supervising, and a leader who was not there has no more standing than the owner does.
 
-**The record tells the two apart.** `confirmed_via` distinguishes a day a worker covered as ansvarig from a day nobody was responsible for. Both are flagged and both are admin-only, but they are different admissions about how the day ran, and collapsing them into one value loses the part that matters.
+**The record tells the two apart, on the axis that describes how the day RAN.** `flagged_as` distinguishes a day a worker covered as ansvarig from a day nobody was responsible for. Both are flagged and both are admin-only, but they are different admissions about how the day ran, and collapsing them into one value loses the part that matters.
+
+**`flagged_as` and `confirmed_via` answer different questions, and a flagged day needs both.** `flagged_as` is how the day ran — set when the leader came off it, before anybody confirmed anything, and frozen by the guard the moment the day closes so that confirming a day can never be a way to forget how it went. `confirmed_via` is how the day was *closed*: `worker_ansvarig` or `ingen_ledare` when the admin confirmed it directly, and `bristsurvey` when he reached it by generating the document and reconstructing the day from phone calls. Both routes are open to a flagged day and they are different acts, so the column that records the act records which one it was. Reading how a day ran off the column that says how it was closed is the mistake this pair of columns exists to prevent.
 
 **Generating before the admin confirms a flagged day raises the bristsurvey for that day alone** (Section 1). The rest of the range is already satisfied, so the survey narrows to the one day that is not.
 
@@ -755,5 +757,5 @@ Carry these forward. They were each learned the hard way:
 - The last-leader lockout guard.
 - Stockholm-anchored date handling.
 - The soft clocking window — today and yesterday visible, nothing forbidden at the database level. A hard same-day rule breaks night shifts and breaks catch-up after poor signal.
-- The two confirmation stages as separate statuses, and `confirmed_via` as an axis separate from both. Route and stage answer different questions; one column cannot carry both.
+- The two confirmation stages as separate statuses, `confirmed_via` as an axis separate from both, and `flagged_as` as a third. Stage, closing route and how the day ran answer three different questions; one column cannot carry them.
 - The flagged day: admin-only confirmation for a day no leader was on, distinguished in the record from a day a worker covered as ansvarig. Losing that distinction turns an admission into a normal day.

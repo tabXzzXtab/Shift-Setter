@@ -94,11 +94,14 @@ Three routes reach `admin_confirmed`. Only the first has a leader behind it:
   straight to `admin_confirmed` and never enters the stage 2 queue.
 - **A flagged day.** The day ran with a worker as ansvarig, or with nobody at
   all, so there was no leader to make the claim. Admin and only admin confirms
-  it, and `confirmed_via` keeps those two cases apart — a covered day and an
+  it, and `flagged_as` keeps those two cases apart — a covered day and an
   unattended one are different admissions.
 
 A surveyed day is a confirmed day: it leaves the leader's queue permanently and
-never returns. `project_day.confirmed_via` records which route was taken,
+never returns. `project_day.confirmed_via` records which route CLOSED the day,
+and `project_day.flagged_as` records how the day RAN — a flagged day closed
+through the bristsurvey carries `bristsurvey` on the first and its flag on the
+second, because those are two different facts,
 because a leader confirming from site and an owner reconstructing from phone
 calls are different claims about the same hours. The stage is a separate axis
 from the route, and one column cannot carry both.
