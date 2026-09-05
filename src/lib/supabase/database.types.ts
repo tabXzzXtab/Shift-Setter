@@ -522,6 +522,13 @@ export type Database = {
             foreignKeyName: "pass_block_pass_id_fkey"
             columns: ["pass_id"]
             isOneToOne: false
+            referencedRelation: "open_pass"
+            referencedColumns: ["pass_id"]
+          },
+          {
+            foreignKeyName: "pass_block_pass_id_fkey"
+            columns: ["pass_id"]
+            isOneToOne: false
             referencedRelation: "pass"
             referencedColumns: ["id"]
           },
@@ -574,6 +581,13 @@ export type Database = {
           worker_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "pass_offer_pass_id_fkey"
+            columns: ["pass_id"]
+            isOneToOne: false
+            referencedRelation: "open_pass"
+            referencedColumns: ["pass_id"]
+          },
           {
             foreignKeyName: "pass_offer_pass_id_fkey"
             columns: ["pass_id"]
@@ -980,6 +994,13 @@ export type Database = {
             foreignKeyName: "tilldelning_pass_id_fkey"
             columns: ["pass_id"]
             isOneToOne: false
+            referencedRelation: "open_pass"
+            referencedColumns: ["pass_id"]
+          },
+          {
+            foreignKeyName: "tilldelning_pass_id_fkey"
+            columns: ["pass_id"]
+            isOneToOne: false
             referencedRelation: "pass"
             referencedColumns: ["id"]
           },
@@ -1143,6 +1164,13 @@ export type Database = {
             foreignKeyName: "pass_offer_pass_id_fkey"
             columns: ["pass_id"]
             isOneToOne: false
+            referencedRelation: "open_pass"
+            referencedColumns: ["pass_id"]
+          },
+          {
+            foreignKeyName: "pass_offer_pass_id_fkey"
+            columns: ["pass_id"]
+            isOneToOne: false
             referencedRelation: "pass"
             referencedColumns: ["id"]
           },
@@ -1184,10 +1212,31 @@ export type Database = {
             foreignKeyName: "tilldelning_pass_id_fkey"
             columns: ["pass_id"]
             isOneToOne: false
+            referencedRelation: "open_pass"
+            referencedColumns: ["pass_id"]
+          },
+          {
+            foreignKeyName: "tilldelning_pass_id_fkey"
+            columns: ["pass_id"]
+            isOneToOne: false
             referencedRelation: "pass"
             referencedColumns: ["id"]
           },
         ]
+      }
+      open_pass: {
+        Row: {
+          end_time: string | null
+          headcount: number | null
+          pass_id: string | null
+          planned_hours: number | null
+          project_name: string | null
+          site_address: string | null
+          slots_open: number | null
+          start_time: string | null
+          work_date: string | null
+        }
+        Relationships: []
       }
       project_hours: {
         Row: {

@@ -80,6 +80,15 @@ column notification.id uuid NOT NULL DEFAULT gen_random_uuid()
 column notification.kind notification_kind NOT NULL
 column notification.payload jsonb NOT NULL DEFAULT '{}'::jsonb
 column notification.read_at timestamp with time zone
+column open_pass.end_time time without time zone
+column open_pass.headcount smallint
+column open_pass.pass_id uuid
+column open_pass.planned_hours numeric(4,2)
+column open_pass.project_name text
+column open_pass.site_address text
+column open_pass.slots_open bigint
+column open_pass.start_time time without time zone
+column open_pass.work_date date
 column pass.batch_id uuid
 column pass.created_at timestamp with time zone NOT NULL DEFAULT now()
 column pass.created_by uuid NOT NULL
@@ -621,6 +630,7 @@ grant  DELETE on forval to authenticated
 grant  DELETE on my_offer to authenticated
 grant  DELETE on my_shift to authenticated
 grant  DELETE on notification to authenticated
+grant  DELETE on open_pass to authenticated
 grant  DELETE on pass to authenticated
 grant  DELETE on pass_batch to authenticated
 grant  DELETE on pass_batch_handpick to authenticated
@@ -646,6 +656,7 @@ grant  INSERT on forval to authenticated
 grant  INSERT on my_offer to authenticated
 grant  INSERT on my_shift to authenticated
 grant  INSERT on notification to authenticated
+grant  INSERT on open_pass to authenticated
 grant  INSERT on pass to authenticated
 grant  INSERT on pass_batch to authenticated
 grant  INSERT on pass_batch_handpick to authenticated
@@ -671,6 +682,7 @@ grant  REFERENCES on forval to authenticated
 grant  REFERENCES on my_offer to authenticated
 grant  REFERENCES on my_shift to authenticated
 grant  REFERENCES on notification to authenticated
+grant  REFERENCES on open_pass to authenticated
 grant  REFERENCES on pass to authenticated
 grant  REFERENCES on pass_batch to authenticated
 grant  REFERENCES on pass_batch_handpick to authenticated
@@ -696,6 +708,7 @@ grant  SELECT on forval to authenticated
 grant  SELECT on my_offer to authenticated
 grant  SELECT on my_shift to authenticated
 grant  SELECT on notification to authenticated
+grant  SELECT on open_pass to authenticated
 grant  SELECT on pass to authenticated
 grant  SELECT on pass_batch to authenticated
 grant  SELECT on pass_batch_handpick to authenticated
@@ -721,6 +734,7 @@ grant  TRIGGER on forval to authenticated
 grant  TRIGGER on my_offer to authenticated
 grant  TRIGGER on my_shift to authenticated
 grant  TRIGGER on notification to authenticated
+grant  TRIGGER on open_pass to authenticated
 grant  TRIGGER on pass to authenticated
 grant  TRIGGER on pass_batch to authenticated
 grant  TRIGGER on pass_batch_handpick to authenticated
@@ -746,6 +760,7 @@ grant  TRUNCATE on forval to authenticated
 grant  TRUNCATE on my_offer to authenticated
 grant  TRUNCATE on my_shift to authenticated
 grant  TRUNCATE on notification to authenticated
+grant  TRUNCATE on open_pass to authenticated
 grant  TRUNCATE on pass to authenticated
 grant  TRUNCATE on pass_batch to authenticated
 grant  TRUNCATE on pass_batch_handpick to authenticated
@@ -771,6 +786,7 @@ grant  UPDATE on forval to authenticated
 grant  UPDATE on my_offer to authenticated
 grant  UPDATE on my_shift to authenticated
 grant  UPDATE on notification to authenticated
+grant  UPDATE on open_pass to authenticated
 grant  UPDATE on pass to authenticated
 grant  UPDATE on pass_batch to authenticated
 grant  UPDATE on pass_batch_handpick to authenticated

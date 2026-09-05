@@ -170,6 +170,7 @@ before writing framework code.
 | `npm run walkthrough:brist` | Bristsurvey: the warning, whose job it was, one question per day |
 | `npm run walkthrough:admin` | Admin landing page: the three actions, the menu, the list, Inställningar |
 | `npm run walkthrough:ledare` | Arbetsledare landing page: the widget, the red dot, the map card |
+| `npm run walkthrough:arbetare` | Arbetare landing page: the stamp, the badge, the cards, Öppna Pass |
 | `npm run demo:reset` | Clear demo data **and** recreate the stable demo logins |
 | `npm run test:race` | Two concurrent accepts on a one-slot pass, N rounds |
 | `node scripts/long-doc-check.mjs` | Print a long Arbetsdagbok; assert no header/footer overlap |

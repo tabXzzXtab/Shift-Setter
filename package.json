@@ -26,7 +26,8 @@
     "walkthrough:kalender": "node scripts/walkthrough-kalender.mjs",
     "walkthrough:brist": "node scripts/walkthrough-brist.mjs",
     "walkthrough:admin": "node scripts/walkthrough-admin.mjs",
-    "walkthrough:ledare": "node scripts/walkthrough-ledare.mjs"
+    "walkthrough:ledare": "node scripts/walkthrough-ledare.mjs",
+    "walkthrough:arbetare": "node scripts/walkthrough-arbetare.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.113.0",
