@@ -1426,6 +1426,8 @@ export type Database = {
         Args: { p_tilldelning: string; p_worker: string }
         Returns: undefined
       }
+      swap_leaders: { Args: { p_a: string; p_b: string }; Returns: undefined }
+      swap_partners: { Args: { p_tilldelning: string }; Returns: Json }
     }
     Enums: {
       app_role: "admin" | "arbetsledare" | "arbetare"

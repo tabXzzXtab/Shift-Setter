@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Button, Empty, Input, Notice } from "@/components/ui";
 import { BytArbetsledare, replacementOptions, type Options } from "./byt-arbetsledare";
+import { BytaPlats, swapPartners, type SwapOptions } from "./byta-plats";
 import { getSupabase } from "@/lib/supabase/client";
 import { hhmm, longDayHeading } from "@/lib/dates";
 import { useAccount } from "@/lib/account";
@@ -62,6 +63,24 @@ export function DagPanel({ date }: { date: string }) {
   const [busy, setBusy] = useState<string | null>(null);
   const [vacancy, setVacancy] = useState<Vacancy | null>(null);
   const [swap, setSwap] = useState<Options | null>(null);
+  const [trade, setTrade] = useState<SwapOptions | null>(null);
+
+  /**
+   * Two leaders trading the same day. Offered only when the day actually holds
+   * a second one on another project -- with nobody to trade with, the button
+   * would open a list of nothing.
+   */
+  async function askWhoToSwapWith(tilldelningId: string) {
+    setBusy(tilldelningId);
+    setError(null);
+    setNote(null);
+    try {
+      setTrade(await swapPartners(tilldelningId));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Kunde inte läsa vilka som kan byta.");
+    }
+    setBusy(null);
+  }
 
   /**
    * Step 5c. avboka_pass refuses a leader's row outright -- a leader is never
@@ -229,6 +248,16 @@ export function DagPanel({ date }: { date: string }) {
     setBusy(null);
   }
 
+  /**
+   * Is there an arbetsledare on ANOTHER project this day? The swap needs
+   * somebody who already has a day to trade, which is the difference between
+   * this and Step 5c's list of leaders who happen to be free.
+   */
+  const leadersElsewhere = (projectId: string) =>
+    (passes ?? []).some(
+      (q) => q.project_id !== projectId && q.people.some((x) => x.source === "ledare"),
+    );
+
   return (
     <div>
       {/*
@@ -273,6 +302,14 @@ export function DagPanel({ date }: { date: string }) {
             </Button>
           </div>
         </div>
+      )}
+
+      {trade && (
+        <BytaPlats
+          options={trade}
+          onClose={() => setTrade(null)}
+          onDone={(message) => { setTrade(null); setNote(message); setReload((n) => n + 1); }}
+        />
       )}
 
       {swap && (
@@ -360,6 +397,20 @@ export function DagPanel({ date }: { date: string }) {
                   >
                     Avboka Pass — {person.name}
                   </button>
+
+                  {/* Only the admin, and only when the day really does hold a
+                      second arbetsledare on another project -- otherwise the
+                      button opens a list of nothing. */}
+                  {account?.role === "admin" && leadersElsewhere(p.project_id) && (
+                    <button
+                      type="button"
+                      onClick={() => askWhoToSwapWith(person.tilldelning_id)}
+                      disabled={busy === person.tilldelning_id}
+                      className="mt-2 min-h-[56px] w-full border-2 border-black px-3 text-base font-bold disabled:opacity-30"
+                    >
+                      Byta Plats Med Arbetsledare — {person.name}
+                    </button>
+                  )}
                 </li>
               ))}
             </ul>

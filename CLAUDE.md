@@ -173,6 +173,7 @@ before writing framework code.
 | `npm run walkthrough:arbetare` | Arbetare landing page: the stamp, the badge, the cards, Öppna Pass |
 | `npm run walkthrough:avboka` | Avboka Pass on a worker: Välj Utbyte, the cards, the five-day split |
 | `npm run walkthrough:bytledare` | Avboka Pass on an arbetsledare: the three routes, the flagged day |
+| `npm run walkthrough:bytaplats` | Byta Plats Med Arbetsledare: admin only, the trade, the envelope |
 | `npm run walkthrough:minapass` | Mina Pass: the Lista/Kalender toggle, invariant 10, fills not colours |
 | `npm run demo:reset` | Clear demo data **and** recreate the stable demo logins |
 | `npm run test:race` | Two concurrent accepts on a one-slot pass, N rounds |

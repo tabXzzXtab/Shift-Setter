@@ -2372,4 +2372,171 @@ select pg_temp.ok(
      and t.work_date = app.stockholm_today() - 6) = 0,
   'S5C.nobody_is_on_the_day', 'and there is genuinely nobody on it');
 
+-- ============================================================================
+-- BYTA PLATS MED ARBETSLEDARE -- two leaders trade the same day
+--
+-- TWO FRESH PROJECTS, and that is not tidiness. leaderA leads both fixture
+-- projects -- STEP4B needs that to test invariant 2's exception -- so a day
+-- with passes on both puts leaderA on each of them and leaderB alongside on
+-- one. A swap between overlapping leaders is refused, correctly, and the
+-- fixture would have ended up testing the refusal instead of the swap.
+--
+-- The two envelopes are made DIFFERENT on purpose: 07:00-16:00 on one and
+-- 06:00-14:00 on the other. Moving the person without the hours, or the hours
+-- without the person, would each leave one assertion still passing.
+-- ============================================================================
+
+insert into public.project (id, name, site_address, bestallare_address,
+                            bestallare_bolag, bestallare_orgnr, services, start_date)
+values
+  ('11111111-aaaa-0000-0000-0000000000c1', 'Projekt C', 'Cgatan 1',
+   'Kundgatan 2', 'Kund AB', '556788-2369', 'Bygg', app.stockholm_today() - 30),
+  ('11111111-aaaa-0000-0000-0000000000d1', 'Projekt D', 'Dgatan 1',
+   'Kundgatan 2', 'Kund AB', '556788-2369', 'Bygg', app.stockholm_today() - 30);
+
+insert into public.project_leader (project_id, account_id)
+select '11111111-aaaa-0000-0000-0000000000c1'::uuid, v from fx where k = 'leaderA'
+union all
+select '11111111-aaaa-0000-0000-0000000000d1'::uuid, v from fx where k = 'leaderB';
+
+insert into public.pass (id, project_id, work_date, start_time, end_time,
+                         planned_hours, headcount, created_by)
+values
+  ('cccccccc-0000-0000-0000-000000000020',
+   '11111111-aaaa-0000-0000-0000000000c1', app.stockholm_today() - 7,
+   -- Two slots: the last assertion adds a second worker to run the placement
+   -- again, and a one-slot pass would refuse them for the wrong reason.
+   '07:00', '16:00', 8.00, 2, (select v from fx where k = 'leaderA')),
+  ('cccccccc-0000-0000-0000-000000000021',
+   '11111111-aaaa-0000-0000-0000000000d1', app.stockholm_today() - 7,
+   '06:00', '14:00', 7.50, 1, (select v from fx where k = 'leaderB'));
+
+-- A worker on each is what puts each project's leader on the day (Step 4b).
+insert into public.tilldelning (pass_id, worker_id, source, work_date, confirmed_hours)
+values
+  ('cccccccc-0000-0000-0000-000000000020', (select id from wid where k = 'w1'),
+   'manuell', app.stockholm_today() - 7, 8.00),
+  ('cccccccc-0000-0000-0000-000000000021', (select id from wid where k = 'w2'),
+   'manuell', app.stockholm_today() - 7, 7.50);
+
+select pg_temp.ok(
+  (select t.worker_id = (select id from wid where k = 'leaderA')
+      and t.own_start = '07:00' and t.own_end = '16:00'
+   from public.tilldelning t
+   where t.source = 'ledare' and t.released_at is null
+     and t.work_date  = app.stockholm_today() - 7
+     and t.project_id = '11111111-aaaa-0000-0000-0000000000c1')
+  and
+  (select t.worker_id = (select id from wid where k = 'leaderB')
+      and t.own_start = '06:00' and t.own_end = '14:00'
+   from public.tilldelning t
+   where t.source = 'ledare' and t.released_at is null
+     and t.work_date  = app.stockholm_today() - 7
+     and t.project_id = '11111111-aaaa-0000-0000-0000000000d1'),
+  'SWAP.each_project_has_its_own_leader',
+  'each project starts with its own arbetsledare and its own hours');
+
+-- ---- who can be swapped with ----------------------------------------------
+set local role authenticated;
+
+-- A leader may not move somebody else's day.
+select pg_temp.act_as((select v from fx where k = 'leaderA'));
+select pg_temp.rejects($$
+  select public.swap_partners(
+    (select t.id from public.tilldelning t
+     where t.source = 'ledare' and t.released_at is null
+       and t.work_date  = app.stockholm_today() - 7
+       and t.project_id = '11111111-aaaa-0000-0000-0000000000c1'))
+$$, 'SWAP.leader_cannot_initiate');
+
+select pg_temp.act_as((select v from fx where k = 'admin'));
+
+select pg_temp.ok(
+  (select (g->'partners') @> jsonb_build_array(jsonb_build_object(
+            'project_id', '11111111-aaaa-0000-0000-0000000000d1'::text,
+            'start_time', '06:00', 'end_time', '14:00'))
+      and not ((g->'partners') @> jsonb_build_array(jsonb_build_object(
+            'project_id', '11111111-aaaa-0000-0000-0000000000c1'::text)))
+   from public.swap_partners(
+     (select t.id from public.tilldelning t
+      where t.source = 'ledare' and t.released_at is null
+        and t.work_date  = app.stockholm_today() - 7
+        and t.project_id = '11111111-aaaa-0000-0000-0000000000c1')) g),
+  'SWAP.partner_is_the_other_project',
+  'the partner offered is the other project''s leader, and never your own');
+
+-- ---- the swap --------------------------------------------------------------
+select public.swap_leaders(
+  (select t.id from public.tilldelning t
+   where t.source = 'ledare' and t.released_at is null
+     and t.work_date  = app.stockholm_today() - 7
+     and t.project_id = '11111111-aaaa-0000-0000-0000000000c1'),
+  (select t.id from public.tilldelning t
+   where t.source = 'ledare' and t.released_at is null
+     and t.work_date  = app.stockholm_today() - 7
+     and t.project_id = '11111111-aaaa-0000-0000-0000000000d1'));
+reset role;
+
+-- THE PERSON MOVED, AND SO DID THE HOURS. leaderA was on 07:00-16:00 and is
+-- now on 06:00-14:00, because the envelope belongs to the project and the
+-- people on it, never to the leader.
+select pg_temp.ok(
+  (select t.worker_id = (select id from wid where k = 'leaderB')
+      and t.own_start = '07:00' and t.own_end = '16:00'
+   from public.tilldelning t
+   where t.source = 'ledare' and t.released_at is null
+     and t.work_date  = app.stockholm_today() - 7
+     and t.project_id = '11111111-aaaa-0000-0000-0000000000c1')
+  and
+  (select t.worker_id = (select id from wid where k = 'leaderA')
+      and t.own_start = '06:00' and t.own_end = '14:00'
+   from public.tilldelning t
+   where t.source = 'ledare' and t.released_at is null
+     and t.work_date  = app.stockholm_today() - 7
+     and t.project_id = '11111111-aaaa-0000-0000-0000000000d1'),
+  'SWAP.traded_places_and_hours',
+  'each holds the other''s project, on that project''s span');
+
+select pg_temp.ok(
+  (select count(*) from public.tilldelning t
+   where t.source = 'ledare' and t.released_at is null
+     and t.work_date = app.stockholm_today() - 7
+     and t.project_id in ('11111111-aaaa-0000-0000-0000000000c1',
+                          '11111111-aaaa-0000-0000-0000000000d1')) = 2,
+  'SWAP.both_projects_still_led',
+  'nobody lost a leader; they changed places');
+
+-- NEITHER DAY IS FLAGGED. That is the whole difference between a planned swap
+-- and somebody dropping out: every project still has someone answerable.
+select pg_temp.ok(
+  (select coalesce(bool_and(pd.flagged_as is null), true)
+   from public.project_day pd
+   where pd.work_date = app.stockholm_today() - 7
+     and pd.project_id in ('11111111-aaaa-0000-0000-0000000000c1',
+                           '11111111-aaaa-0000-0000-0000000000d1')),
+  'SWAP.neither_day_is_flagged',
+  'a swap leaves nobody unaccounted for, so nothing about it is flagged');
+
+select pg_temp.ok(
+  (select count(*) from public.notification n
+   where n.kind = 'leader_replaced'
+     and (n.payload->>'swapped')::boolean
+     and (n.payload->>'work_date')::date = app.stockholm_today() - 7) = 2,
+  'SWAP.both_notified', 'neither of them asked for it, so both are told');
+
+-- A LATER ROSTER EDIT MUST NOT UNDO IT. app.sync_leader_day() puts a project's
+-- own leaders back on any day their people are working, and the released rows
+-- are the only thing telling it not to. Adding a worker runs it again.
+insert into public.tilldelning (pass_id, worker_id, source, work_date, confirmed_hours)
+values ('cccccccc-0000-0000-0000-000000000020', (select id from wid where k = 'w3'),
+        'manuell', app.stockholm_today() - 7, 8.00);
+
+select pg_temp.ok(
+  (select count(*) from public.tilldelning t
+   where t.source = 'ledare' and t.released_at is null
+     and t.work_date  = app.stockholm_today() - 7
+     and t.project_id = '11111111-aaaa-0000-0000-0000000000c1') = 1,
+  'SWAP.survives_a_roster_edit',
+  'the swap holds; the original leader is not put back on top of it');
+
 select pg_temp.ok(true, 'SUITE.complete', 'every assertion passed');

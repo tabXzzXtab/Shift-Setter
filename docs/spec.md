@@ -453,6 +453,25 @@ A leader is never simply removed. Somebody has to be answerable for the day, so 
 
 **Generating before the admin confirms a flagged day raises the bristsurvey for that day alone** (Section 1). The rest of the range is already satisfied, so the survey narrows to the one day that is not.
 
+**Step 5d — Byta Plats Med Arbetsledare**
+
+Two leaders trading the same day. Not Step 5c: nobody is being taken off anything, so there is no Ingen Arbetsledare here, no warning, and **neither day is flagged** — every project involved still has somebody answerable for it when it is done. That is the whole difference between a planned swap and somebody dropping out.
+
+**Admin only**, and offered only on a day that actually holds a second arbetsledare on another project. A swap moves somebody else's day as well as your own, so it is not a leader's to make, and with nobody to trade with the button would open a list of nothing.
+
+Pressing **Byta Plats Med Arbetsledare** on a leader in Öppna Dag opens:
+
+> **Vem ska [Arbetsledare Name] byta plats med?**
+
+- **Every other arbetsledare working that day on a different project**, each shown with the project and the hours they are handing over. Not "available" in Step 5c's sense — a swap needs somebody who already has a day to trade.
+- Selecting one trades them. Both are notified; neither asked for it.
+
+**The envelope follows the project, not the person.** A leader's `own_start`/`own_end` is computed from the workers on *that* project that day, so after the swap each holds the other project's span — which is the point: they are covering a different site, with different people on it.
+
+**Each side is released the way a removal is released, and a replacement row inserted behind it.** `app.sync_leader_day()` puts a project's own leaders back on any day their people are working, and it treats exactly one thing as a decision not to: a row released as `removed_by_leader`. Rewriting `worker_id` in place would leave no such record, and the next edit to either day's roster would quietly re-place both leaders on their original projects, on top of the swap.
+
+**Open — whose queue the swapped day belongs to.** `app.confirms_project()` and `app.leads_project()` both scope on `project_leader` *membership*, which a swap does not touch. So today the leader who swapped in cannot see or confirm the day they worked, and the leader who swapped out still can. Resolving it means changing what invariant 4b scopes on, and that is not decided here.
+
 **Step 6 — The day happens**
 Workers clock themselves in and out. The timestamp is the server's, never the phone's — a phone running ten minutes fast writes ten minutes of error into evidence of hours worked and nobody would notice.
 

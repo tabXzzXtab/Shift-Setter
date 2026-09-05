@@ -327,6 +327,21 @@ const CONTROLS = [
              "and t.released_at is not null"),
    "STEP4B.comes_back_when_the_day_does"],
 
+  // ---- BYTA PLATS, two leaders trading a day ------------------------------
+  ["a swap is the admin's to make",
+   perturbIn("public.swap_partners(uuid)",
+             "if not app.is_admin() then", "if false then"),
+   "SWAP.leader_cannot_initiate"],
+
+  ["a swap survives the next roster edit",
+   // The released rows are the only thing telling sync_leader_day that a
+   // person decided this. Release them as anything else and the next worker
+   // added to either day puts both original leaders back on top of the swap.
+   perturbIn("public.swap_leaders(uuid, uuid)",
+             "set released_at = now(), released_reason = 'removed_by_leader',",
+             "set released_at = now(), released_reason = 'no_workers_left',"),
+   "SWAP.survives_a_roster_edit"],
+
   ["invariant 7 -- project creation is a gate",
    `alter table public.project drop constraint ` +
    `"${"project_bestallare_orgnr_check"}"`,
