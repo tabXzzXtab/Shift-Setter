@@ -2,25 +2,17 @@
 
 import { useEffect, useState } from "react";
 import { AuthGate } from "@/components/auth-gate";
-import { Button, Empty, Notice, Screen } from "@/components/ui";
+import { Notice, Screen } from "@/components/ui";
+import { OfferStack, type Offer } from "@/components/offer-stack";
 import { getSupabase } from "@/lib/supabase/client";
-import { hhmm } from "@/lib/dates";
-
-type Offer = {
-  pass_id: string;
-  work_date: string;
-  start_time: string;
-  end_time: string;
-  planned_hours: number;
-  project_name: string;
-  site_address: string;
-};
 
 /**
- * Acceptera Pass -- Tier 3.
+ * Acceptera Pass -- Tier 3, on its own page.
  *
- * The card carries date, project, address, times and hours, because that is
- * everything needed to answer without asking anyone.
+ * The same stack the landing page shows, from the same component: an offer
+ * must not look like two different things depending on how it was reached.
+ * This page exists because the landing page is a phone screen and a worker
+ * with eight offers should be able to give them a screen of their own.
  *
  * First accepted wins and the slot closes instantly. Losing is normal here, so
  * the refusal is worded as a fact rather than an error: someone else was
@@ -34,7 +26,7 @@ function Acceptera() {
   const [offers, setOffers] = useState<Offer[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
-  const [busy, setBusy] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
   const [reload, setReload] = useState(0);
 
   useEffect(() => {
@@ -45,14 +37,14 @@ function Acceptera() {
         .select("*")
         .order("work_date");
       if (!active) return;
-      if (error) setError(error.message);
-      else setOffers((data ?? []) as Offer[]);
+      if (error) { setError(error.message); setOffers([]); return; }
+      setOffers((data ?? []) as Offer[]);
     })();
     return () => { active = false; };
   }, [reload]);
 
   async function respond(passId: string, take: boolean) {
-    setBusy(passId);
+    setBusy(true);
     setError(null);
     setNote(null);
 
@@ -60,7 +52,6 @@ function Acceptera() {
       .rpc(take ? "accept_offer" : "decline_offer", { p_pass: passId });
 
     if (error) {
-      // Not an error the worker did anything about.
       setNote(
         /full|not offered/i.test(error.message)
           ? "Någon annan hann först. Passet är taget."
@@ -68,10 +59,12 @@ function Acceptera() {
       );
     } else if (take) {
       setNote("Passet är ditt.");
+    } else {
+      setNote("Passet ligger kvar under Öppna Pass om du ändrar dig.");
     }
 
+    setBusy(false);
     setReload((r) => r + 1);
-    setBusy(null);
   }
 
   if (offers === null) {
@@ -83,37 +76,7 @@ function Acceptera() {
       {error && <Notice kind="error">{error}</Notice>}
       {note && <Notice kind="info">{note}</Notice>}
 
-      {offers.length === 0 && <Empty>Inga pass erbjuds just nu.</Empty>}
-
-      <div className="flex flex-col gap-4">
-        {offers.map((o) => (
-          <section key={o.pass_id} className="border-2 border-black p-4">
-            <p className="text-2xl font-bold">{o.work_date}</p>
-            <p className="text-lg">{o.project_name}</p>
-            <p className="mb-3 text-base text-neutral-700">{o.site_address}</p>
-
-            <dl className="mb-4 text-base">
-              <div className="flex justify-between border-t-2 border-black py-2">
-                <dt>Tider</dt>
-                <dd className="font-bold">{hhmm(o.start_time)}–{hhmm(o.end_time)}</dd>
-              </div>
-              <div className="flex justify-between border-y-2 border-black py-2">
-                <dt>Timmar</dt>
-                <dd className="font-bold">{String(o.planned_hours).replace(".", ",")} h</dd>
-              </div>
-            </dl>
-
-            <div className="flex flex-col gap-2">
-              <Button onClick={() => respond(o.pass_id, true)} disabled={busy === o.pass_id}>
-                Ta passet
-              </Button>
-              <Button variant="outline" onClick={() => respond(o.pass_id, false)} disabled={busy === o.pass_id}>
-                Nej tack
-              </Button>
-            </div>
-          </section>
-        ))}
-      </div>
+      <OfferStack offers={offers} busy={busy} onRespond={respond} />
     </Screen>
   );
 }

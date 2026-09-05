@@ -1,18 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
 import { AppBar, type MenuItem } from "./app-bar";
+import { NastaPassCard } from "./nasta-pass-card";
 import { ActionLink, Landing, Notice } from "./ui";
-import { PinIcon } from "./icons";
 import { getSupabase } from "@/lib/supabase/client";
 import { pendingDays } from "@/lib/pending-days";
-import { addDays, longDayHeading, stockholmToday } from "@/lib/dates";
-
-// Leaflet reaches for `window` on import, and this app is prerendered at build
-// time. Loaded only in the browser, and only once there is an address to show.
-const ProjectMap = dynamic(() => import("./project-map"), { ssr: false });
+import { longDayHeading } from "@/lib/dates";
 
 const MENU: MenuItem[] = [
   { href: "/min-kalender", label: "Min Pass Kalender" },
@@ -24,7 +19,6 @@ const MENU: MenuItem[] = [
 ];
 
 type Waiting = { key: string; date: string; workers: string[]; hours: number };
-type Next = { project: string; address: string; date: string } | null;
 
 /** Swedish decimal comma, and no trailing ",0" on a whole number. */
 const hh = (n: number) => {
@@ -50,7 +44,6 @@ const hh = (n: number) => {
  */
 export function HomeArbetsledare() {
   const [waiting, setWaiting] = useState<Waiting[] | null>(null);
-  const [next, setNext] = useState<Next | undefined>(undefined);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -95,25 +88,6 @@ export function HomeArbetsledare() {
       } catch (e) {
         if (live) { setError(e instanceof Error ? e.message : "Kunde inte läsa passen."); setWaiting([]); }
       }
-    })();
-
-    void (async () => {
-      // A leader is also a worker and holds shifts, so their next one is read
-      // from the same view a worker reads. site_address is the PROJECT's
-      // address -- where the work is -- and not the beställare's, which is
-      // where the invoice goes.
-      const today = stockholmToday();
-      const { data } = await getSupabase()
-        .from("my_shift")
-        .select("project_name, site_address, work_date")
-        .gte("work_date", today)
-        .lte("work_date", addDays(today, 365))
-        .order("work_date")
-        .limit(1);
-
-      if (!live) return;
-      const s = (data ?? [])[0];
-      setNext(s ? { project: s.project_name ?? "Projekt", address: s.site_address ?? "", date: s.work_date! } : null);
     })();
 
     return () => { live = false; };
@@ -163,36 +137,7 @@ export function HomeArbetsledare() {
         ))}
       </Link>
 
-      {/* ---- Nästa Pass ---------------------------------------------------- */}
-      <h2 className="mb-3 text-sm font-bold uppercase tracking-wide">Nästa Pass</h2>
-
-      {next === undefined && <p className="text-base">Laddar…</p>}
-      {next === null && (
-        <p className="border-2 border-dashed border-black p-6 text-center text-base">
-          Inga kommande pass.
-        </p>
-      )}
-
-      {next && (
-        // The whole card is the link. Tapping it hands the address to whatever
-        // the phone uses for navigation rather than trying to be a map itself.
-        <a
-          href={`https://maps.google.com/maps?q=${encodeURIComponent(next.address)}`}
-          target="_blank"
-          rel="noreferrer"
-          className="block border-2 border-black"
-        >
-          {next.address && <ProjectMap address={next.address} />}
-          <div className="p-4">
-            <p className="text-xl font-bold">{next.project}</p>
-            <p className="flex items-start gap-2 text-base">
-              <span className="mt-[2px] shrink-0"><PinIcon /></span>
-              <span>{next.address}</span>
-            </p>
-            <p className="mt-2 text-base font-bold">{longDayHeading(next.date)}</p>
-          </div>
-        </a>
-      )}
+      <NastaPassCard />
     </Landing>
   );
 }

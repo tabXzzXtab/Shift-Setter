@@ -130,7 +130,10 @@ page.on("pageerror", (e) => fail(`page error: ${e.message}`));
 
 const sv = new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Stockholm" });
 const today = sv.format(new Date());
-const soon = sv.format(new Date(Date.now() + 4 * 864e5));
+// Five open days, so the stack has more behind it than it is allowed to show
+// and the cap is something the test can actually see.
+const OPEN = [4, 5, 6, 7, 8].map((n) => sv.format(new Date(Date.now() + n * 864e5)));
+const soon = OPEN[0];
 const ADDRESS = "Stortorget 1, 211 22 Malmö";
 
 console.log(`\nArbetare landing page at ${BASE}\n`);
@@ -163,7 +166,7 @@ try {
 
   await signIn(page, L.email, L.password);
   await makePass(page, project, today, "8", W.name);
-  await makePass(page, project, soon, "6", null);   // nobody pre-picked it: Tier 3 offers it
+  for (const d of OPEN) await makePass(page, project, d, "6", null);  // Tier 3 offers them
   await signOut(page);
 
   // One unread notice, written straight in. The path that CREATES one -- an
@@ -174,7 +177,7 @@ try {
      select w.account_id, 'shift_deleted', jsonb_build_object('work_date', $2::text)
      from public.worker w where w.name = $1`, [W.name, soon]);
 
-  log(`a shift today for ${W.name}, an open one on ${soon}, and one unread notice`);
+  log(`a shift today for ${W.name}, ${OPEN.length} open ones, and one unread notice`);
 
   // ---- the landing page ----------------------------------------------------
   await signIn(page, W.email, W.password);
@@ -242,6 +245,11 @@ try {
   );
   log("stamping out finishes the day");
 
+  // Put the browser clock back. It was pushed a day forward to prove the stamp
+  // comes from the server, and leaving it there makes every later screen read
+  // "today" as tomorrow -- which quietly emptied Nästa Pass.
+  await page.clock.setSystemTime(new Date());
+
   // ---- the two buttons -----------------------------------------------------
   await page.goto(`${BASE}/`, { waitUntil: "networkidle" });
   await landed(page);
@@ -254,43 +262,99 @@ try {
   }
   log("Mina Pass and Arbetsdagar -- the latter is Min Kalender under its new name");
 
+  // ---- Nästa Pass, above the stack ----------------------------------------
+  const nasta = page.locator('a[href^="https://maps.google.com/maps?q="]');
+  await nasta.waitFor({ timeout: 20000 });
+  const nastaText = await nasta.innerText();
+  if (!nastaText.includes(project) || !nastaText.includes(ADDRESS)) {
+    fail(`the Nästa Pass card is missing the project or address: ${JSON.stringify(nastaText)}`);
+  }
+  try {
+    await nasta.locator(".leaflet-container").waitFor({ timeout: 30000 });
+  } catch {
+    await shot(page, "FAILED");
+    fail("the Nästa Pass card has no Leaflet map");
+  }
+  log("Nästa Pass: map, project, address, date, and it opens native navigation");
+
   // ---- the Acceptera Pass cards -------------------------------------------
-  const card = page.locator("section.border-2").filter({ hasText: project });
+  const card = page.locator('[data-offer-card="front"]');
+  await card.waitFor({ timeout: 20000 });
+
+  const [nBox, cBox] = await Promise.all([nasta.boundingBox(), card.boundingBox()]);
+  if (!(nBox.y + nBox.height <= cBox.y)) {
+    fail(`Nästa Pass must sit above the stack: it ends ${nBox.y + nBox.height}, stack starts ${cBox.y}`);
+  }
+  log("Nästa Pass sits above the Acceptera Pass stack");
   await card.first().waitFor({ timeout: 20000 });
-  const text = await card.first().innerText();
+  const text = await card.innerText();
   for (const bit of [project, ADDRESS]) {
     if (!text.includes(bit)) fail(`the card is missing ${JSON.stringify(bit)}`);
   }
   for (const label of ["Acceptera", "Neka"]) {
-    if (!(await card.first().getByRole("button", { name: label, exact: true }).count())) {
+    if (!(await card.getByRole("button", { name: label, exact: true }).count())) {
       fail(`the card has no "${label}" button`);
     }
   }
   try {
-    await card.first().locator(".leaflet-container").waitFor({ timeout: 30000 });
+    await card.locator(".leaflet-container").waitFor({ timeout: 30000 });
   } catch {
     await shot(page, "FAILED");
     fail("the card has no Leaflet map (Nominatim may have refused the lookup)");
   }
+  // The stack: at most three slivers, each lower and smaller than the one in
+  // front, and no rotation anywhere. A matrix(a,b,c,d,e,f) with b or c set is
+  // a rotation or a skew, which is exactly what this layout must not have.
+  const slivers = page.locator('[aria-hidden="true"].absolute.border-2');
+  const count = await slivers.count();
+  if (count !== 3) fail(`expected 3 slivers behind the front card, saw ${count}`);
+
+  let lastBottom = 0, lastScale = 1;
+  for (let i = 0; i < count; i++) {
+    const m = await slivers.nth(i).evaluate((el) => getComputedStyle(el).transform);
+    const [a, b, c, d, , f] = m.replace(/matrix\(|\)/g, "").split(",").map(Number);
+    if (b !== 0 || c !== 0) fail(`sliver ${i} is rotated or skewed: ${m}`);
+    if (a !== d) fail(`sliver ${i} is scaled unevenly: ${m}`);
+    if (!(a < 1 && a >= 0.8)) fail(`sliver ${i} scale ${a} is outside one step per layer`);
+    if (!(f > 0)) fail(`sliver ${i} is not offset downward: ${m}`);
+
+    const box = await slivers.nth(i).boundingBox();
+    if (Math.abs((box.x + box.width / 2) - (cBox.x + cBox.width / 2)) > 1) {
+      fail(`sliver ${i} is not centred under the front card`);
+    }
+    // Deepest is drawn first, so walking the DOM walks FORWARD through the
+    // stack: each one sits a step higher and a step larger than the last,
+    // which is the same rule as "each card behind is lower and smaller".
+    if (i > 0) {
+      if (!(box.y + box.height < lastBottom)) fail("the slivers do not step downward");
+      if (!(a > lastScale)) fail("the slivers do not grow toward the front");
+    }
+    lastBottom = box.y + box.height;
+    lastScale = a;
+  }
+  log(`${count} slivers behind, stepped down and centred, none rotated`);
+
   await shot(page, "w2-acceptera-kort");
   log(`card reads ${JSON.stringify(text.replace(/\n+/g, " | "))}, with a map`);
 
   // Acceptera sits left of Neka.
   const [ax, nx] = await Promise.all([
-    card.first().getByRole("button", { name: "Acceptera", exact: true }).boundingBox(),
-    card.first().getByRole("button", { name: "Neka", exact: true }).boundingBox(),
+    card.getByRole("button", { name: "Acceptera", exact: true }).boundingBox(),
+    card.getByRole("button", { name: "Neka", exact: true }).boundingBox(),
   ]);
   if (!(ax.x < nx.x)) fail("Acceptera must sit left of Neka");
   log("Acceptera left, Neka right");
 
   // ---- Neka, and where the shift goes --------------------------------------
-  await card.first().getByRole("button", { name: "Neka", exact: true }).click();
-  await page.waitForTimeout(2500);
-  if (await page.locator("section.border-2").filter({ hasText: project }).count()) {
+  const before = await card.innerText();
+  await card.getByRole("button", { name: "Neka", exact: true }).click();
+  await page.waitForTimeout(3000);
+  const after = await page.locator('[data-offer-card="front"]').innerText();
+  if (after === before) {
     await shot(page, "FAILED");
-    fail("the card is still there after Neka");
+    fail("the declined card is still at the front");
   }
-  log("Neka -- the card is gone");
+  log("Neka -- the card goes and the one behind it comes forward");
 
   await page.getByRole("button", { name: "Meny", exact: true }).click();
   const panel = page.getByRole("dialog", { name: "Meny" });

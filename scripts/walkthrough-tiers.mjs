@@ -59,6 +59,12 @@ async function signIn(page, email, password) {
 }
 async function signOut(page) {
   await page.goto(`${BASE}/`, { waitUntil: "networkidle" });
+  // Logga ut moved inside the profile popup when the landing pages were
+  // rebuilt. Opened only when it is not already on the page, so this still
+  // works on any screen that keeps it in view.
+  if (!(await page.getByRole("button", { name: "Logga ut" }).count())) {
+    await page.getByRole("button", { name: "Profil", exact: true }).click();
+  }
   await page.getByRole("button", { name: "Logga ut" }).click();
   await page.waitForURL(/login/, { timeout: 20000 });
 }
@@ -248,16 +254,26 @@ try {
   await signIn(page, W3.email, W3.password);
   await page.goto(`${BASE}/acceptera/`, { waitUntil: "networkidle" });
   await mustSee(page, project, "the card never reached Acceptera Pass");
-  await mustSee(page, D2, "the card should show the date");
+  // The card is the shared one now, and it writes the day out rather than
+  // printing an ISO date: "FREDAG 25 SEP", not "2026-09-25".
+  const heading = new Intl.DateTimeFormat("sv-SE", {
+    timeZone: "Europe/Stockholm", weekday: "long", day: "numeric", month: "short",
+  }).format(new Date(`${D2}T12:00:00Z`));
+  await mustSee(page, heading.split(" ")[0].toUpperCase(),
+    `the card should show the day, ${heading}`);
   await mustSee(page, "Bruksgatan 8", "the card should show the address");
   await shot(page, "24-acceptera-kort");
 
-  await page.getByRole("button", { name: "Ta passet" }).click();
+  await page.getByRole("button", { name: "Acceptera" }).click();
   await mustSee(page, "Passet är ditt", "accepting did not take the slot");
   log("W3 accepted the card");
 
   await page.goto(`${BASE}/mina-pass/`, { waitUntil: "networkidle" });
-  await mustSee(page, D2, "the accepted shift should now be theirs");
+  // Mina Pass writes the day out too, and its list opens scrolled to the first
+  // day that has not happened yet -- which is this one.
+  await mustSee(page, heading.split(" ")[0].toUpperCase(),
+    "the accepted shift should now be theirs");
+  await mustSee(page, project, "and it should name the project");
   await shot(page, "25-accepterat-pass");
   log("the accepted shift is an ordinary shift on their list");
 

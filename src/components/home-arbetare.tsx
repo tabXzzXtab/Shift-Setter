@@ -1,15 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
 import { AppBar, type MenuItem } from "./app-bar";
+import { NastaPassCard } from "./nasta-pass-card";
+import { OfferStack, type Offer } from "./offer-stack";
 import { Landing, Notice } from "./ui";
-import { PinIcon } from "./icons";
 import { getSupabase } from "@/lib/supabase/client";
-import { addDays, hhmm, longDayHeading, stockholmToday } from "@/lib/dates";
-
-const ProjectMap = dynamic(() => import("./project-map"), { ssr: false });
+import { addDays, hhmm, stockholmToday } from "@/lib/dates";
 
 const MENU: MenuItem[] = [{ href: "/oppna-pass", label: "Öppna Pass" }];
 
@@ -21,16 +19,6 @@ type Shift = {
   project_name: string;
   clock_in: string | null;
   clock_out: string | null;
-};
-
-type Offer = {
-  pass_id: string;
-  work_date: string;
-  start_time: string;
-  end_time: string;
-  planned_hours: number;
-  project_name: string;
-  site_address: string;
 };
 
 type Note = { id: string; kind: string; work_date?: string };
@@ -214,56 +202,20 @@ export function HomeArbetare() {
         </Link>
       </div>
 
-      {/* ---- Acceptera Pass, as cards --------------------------------------- */}
+      {/* ---- Nästa Pass ---------------------------------------------------- */}
+      <div className="mb-8">
+        <NastaPassCard />
+      </div>
+
+      {/* ---- Acceptera Pass, as a stack ------------------------------------- */}
       <h2 className="mb-3 text-sm font-bold uppercase tracking-wide">Acceptera Pass</h2>
       {note && <Notice kind="info">{note}</Notice>}
 
-      {offers !== null && offers.length === 0 && (
-        <p className="border-2 border-dashed border-black p-6 text-center text-base">
-          Inga pass erbjuds just nu.
-        </p>
+      {offers === null ? (
+        <p className="text-base">Laddar…</p>
+      ) : (
+        <OfferStack offers={offers} busy={busy} onRespond={respond} />
       )}
-
-      <div className="flex flex-col gap-4">
-        {(offers ?? []).map((o) => (
-          <section key={o.pass_id} className="border-2 border-black">
-            {o.site_address && <ProjectMap address={o.site_address} />}
-            <div className="p-4">
-              <p className="text-xl font-bold">{o.project_name}</p>
-              <p className="flex items-start gap-2 text-base">
-                <span className="mt-[2px] shrink-0"><PinIcon /></span>
-                <span>{o.site_address}</span>
-              </p>
-              <p className="mt-2 text-base font-bold">{longDayHeading(o.work_date)}</p>
-              <p className="text-base text-neutral-700">
-                {hhmm(o.start_time)}–{hhmm(o.end_time)} ·{" "}
-                {String(o.planned_hours).replace(".", ",")} h
-              </p>
-
-              {/* Acceptera left, Neka right. Both full height, because a
-                  smaller Neka would be a thumb pressed the wrong way. */}
-              <div className="mt-4 grid grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={() => respond(o.pass_id, true)}
-                  disabled={busy}
-                  className="flex min-h-[56px] items-center justify-center border-2 border-black bg-black px-3 text-lg font-bold text-white disabled:opacity-30"
-                >
-                  Acceptera
-                </button>
-                <button
-                  type="button"
-                  onClick={() => respond(o.pass_id, false)}
-                  disabled={busy}
-                  className="flex min-h-[56px] items-center justify-center border-2 border-black px-3 text-lg font-bold disabled:opacity-30"
-                >
-                  Neka
-                </button>
-              </div>
-            </div>
-          </section>
-        ))}
-      </div>
     </Landing>
   );
 }
