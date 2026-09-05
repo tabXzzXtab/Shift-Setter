@@ -87,6 +87,29 @@ const CONTROLS = [
              "when t.clock_in is not null and t.clock_out is not null", "when false"),
    "BRIST.survey_hours_from_clock"],
 
+  // ---- STEP 5c, the flagged day -------------------------------------------
+  ["invariant 4b's last line -- a flagged day is outside every leader's scope",
+   perturbIn("app.tg_confirmation_guard()",
+             "if new.flagged_as is not null then", "if false then"),
+   "S5C.leader_cannot_confirm_a_flagged_day"],
+
+  ["a flagged day is confirmed as what it actually was",
+   // Without it, a day a worker covered can be closed as one nobody was on,
+   // and the two admissions stop being different.
+   perturbIn("app.tg_confirmation_guard()",
+             "if new.flagged_as is distinct from new.confirmed_via then", "if false then"),
+   "S5C.wrong_flag_refused"],
+
+  ["letting a day run unsupervised is the admin's alone",
+   perturbIn("app.flag_day(uuid, public.confirmation_source, uuid)",
+             "if not app.is_admin() then", "if false then"),
+   "S5C.leader_cannot_flag_a_day"],
+
+  ["the ansvarig was on the shift",
+   perturbIn("public.make_worker_ansvarig(uuid, uuid)",
+             "if not exists (", "if false and not exists ("),
+   "S5C.ansvarig_must_be_on_the_shift"],
+
   ["unpausing puts the arbetsledare back",
    // The pause has a trigger and the reactivation had none, so a leader came
    // back only when some worker's assignment next happened to move.

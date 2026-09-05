@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Button, Empty, Input, Notice } from "@/components/ui";
+import { BytArbetsledare, replacementOptions, type Options } from "./byt-arbetsledare";
 import { getSupabase } from "@/lib/supabase/client";
 import { hhmm, longDayHeading } from "@/lib/dates";
 import { useAccount } from "@/lib/account";
@@ -60,6 +61,24 @@ export function DagPanel({ date }: { date: string }) {
   const [note, setNote] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [vacancy, setVacancy] = useState<Vacancy | null>(null);
+  const [swap, setSwap] = useState<Options | null>(null);
+
+  /**
+   * Step 5c. avboka_pass refuses a leader's row outright -- a leader is never
+   * simply removed -- so pressing Avboka Pass on one opens the question of who
+   * takes the day instead.
+   */
+  async function askWhoTakesOver(tilldelningId: string) {
+    setBusy(tilldelningId);
+    setError(null);
+    setNote(null);
+    try {
+      setSwap(await replacementOptions(tilldelningId));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Kunde inte läsa vilka som är lediga.");
+    }
+    setBusy(null);
+  }
   const [editing, setEditing] = useState<string | null>(null);
   const [draft, setDraft] = useState<{ start: string; end: string; hours: string; headcount: number } | null>(null);
   const [reload, setReload] = useState(0);
@@ -256,6 +275,14 @@ export function DagPanel({ date }: { date: string }) {
         </div>
       )}
 
+      {swap && (
+        <BytArbetsledare
+          options={swap}
+          onClose={() => setSwap(null)}
+          onDone={(message) => { setSwap(null); setNote(message); setReload((n) => n + 1); }}
+        />
+      )}
+
       {error && <Notice kind="error">{error}</Notice>}
       {note && <Notice kind="info">{note}</Notice>}
 
@@ -318,6 +345,21 @@ export function DagPanel({ date }: { date: string }) {
                       </span>
                     )}
                   </span>
+                </li>
+              ))}
+
+              {/* Not a trash icon, and that is the point: this does not take
+                  somebody off a day, it asks who is answerable for it instead. */}
+              {p.people.filter((x) => x.source === "ledare").map((person) => (
+                <li key={`avboka-${person.tilldelning_id}`}>
+                  <button
+                    type="button"
+                    onClick={() => askWhoTakesOver(person.tilldelning_id)}
+                    disabled={busy === person.tilldelning_id}
+                    className="min-h-[56px] w-full border-2 border-black px-3 text-base font-bold disabled:opacity-30"
+                  >
+                    Avboka Pass — {person.name}
+                  </button>
                 </li>
               ))}
             </ul>

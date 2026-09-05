@@ -23,6 +23,8 @@ type Day = {
   work_date: string;
   vad_vi_gjorde: string;
   came_back: boolean;
+  /** Step 5c: 'worker_ansvarig' or 'ingen_ledare'. Null on an ordinary day. */
+  flagged_as: string | null;
   rows: Row[];
 };
 
@@ -60,19 +62,28 @@ function Granska() {
     void (async () => {
       const sb = getSupabase();
 
-      // The queue is exactly the days sitting at stage 1. A surveyed day and a
-      // day already approved are not in it, and never were.
+      // Two kinds of day, and they are not the same job.
+      //
+      // Stage 1 days carry a leader's claim and the admin reviews it. Flagged
+      // days (Step 5c) carry nothing: nobody stated what happened, so there is
+      // no claim to approve or reject and the admin writes the only account
+      // there will be. A surveyed day and an approved day are in neither list.
       const { data: days, error: dErr } = await sb
         .from("project_day")
-        .select("project_id, work_date, vad_vi_gjorde, rejected_at, project(name)")
-        .eq("stage", "leader_confirmed")
+        .select("project_id, work_date, vad_vi_gjorde, rejected_at, flagged_as, stage, confirmed_at, project(name)")
+        .or("stage.eq.leader_confirmed,and(flagged_as.not.is.null,confirmed_at.is.null)")
         .order("work_date");
 
       if (!active) return;
       if (dErr) { setError(dErr.message); setDay(null); return; }
       if (!days || days.length === 0) { setDay(null); return; }
 
-      const first = days[0]!;
+      // Flagged first, and not merely highlighted: a day nobody was answerable
+      // for is the one the owner should be looking at.
+      const queue = [...days].sort((a, b) =>
+        Number(Boolean(b.flagged_as)) - Number(Boolean(a.flagged_as)) ||
+        a.work_date.localeCompare(b.work_date));
+      const first = queue[0]!;
 
       const { data: passes, error: pErr } = await sb
         .from("pass")
@@ -116,6 +127,7 @@ function Granska() {
         work_date: first.work_date,
         vad_vi_gjorde: first.vad_vi_gjorde ?? "",
         came_back: first.rejected_at !== null,
+        flagged_as: first.flagged_as ?? null,
         rows,
       });
       setEdits(
@@ -164,12 +176,21 @@ function Granska() {
       return row;
     });
 
-    const { error: rErr } = await getSupabase().rpc("approve_day", {
-      p_project: day.project_id,
-      p_work_date: day.work_date,
-      p_text: gjorde.trim(),
-      p_rows: rows,
-    });
+    // A flagged day is confirmed, not approved: there is no claim behind it,
+    // so nothing is being signed off and the review axis stays empty.
+    const { error: rErr } = day.flagged_as
+      ? await getSupabase().rpc("confirm_flagged_day", {
+          p_project: day.project_id,
+          p_work_date: day.work_date,
+          p_text: gjorde.trim(),
+          p_rows: rows,
+        })
+      : await getSupabase().rpc("approve_day", {
+          p_project: day.project_id,
+          p_work_date: day.work_date,
+          p_text: gjorde.trim(),
+          p_rows: rows,
+        });
 
     setBusy(false);
     if (rErr) { setError(rErr.message); return; }
@@ -212,10 +233,24 @@ function Granska() {
       <p className="mb-1 text-2xl font-bold">{longDayHeading(day.work_date)}</p>
       <p className="mb-4 text-lg">{day.project_name}</p>
 
-      <p className="mb-6 text-base text-neutral-700">
-        Arbetsledaren har bekräftat dagen. Du godkänner, rättar och godkänner,
-        eller skickar tillbaka.
-      </p>
+      {day.flagged_as ? (
+        <div className="mb-6 border-4 border-black bg-black p-4 text-white">
+          <p className="text-lg font-bold">
+            {day.flagged_as === "ingen_ledare"
+              ? "Dagen kördes utan arbetsledare."
+              : "Dagen kördes med en arbetare som ansvarig."}
+          </p>
+          <p className="mt-2 text-base">
+            Ingen arbetsledare har bekräftat den och ingen kan. Du skriver
+            dagens redogörelse och timmarna, och bara du kan bekräfta den.
+          </p>
+        </div>
+      ) : (
+        <p className="mb-6 text-base text-neutral-700">
+          Arbetsledaren har bekräftat dagen. Du godkänner, rättar och godkänner,
+          eller skickar tillbaka.
+        </p>
+      )}
 
       {day.came_back && (
         <Notice kind="info">Den här dagen har varit återsänd en gång tidigare.</Notice>
@@ -273,14 +308,20 @@ function Granska() {
         </Field>
       </div>
 
-      <Notice kind="info">Godkänt är slutgiltigt. Efter det ändras ingenting.</Notice>
+      <Notice kind="info">
+        {day.flagged_as
+          ? "Bekräftat är slutgiltigt. Efter det ändras ingenting."
+          : "Godkänt är slutgiltigt. Efter det ändras ingenting."}
+      </Notice>
 
       <div className="flex flex-col gap-3">
         <Button onClick={approve} disabled={busy || gjorde.trim() === ""}>
-          {busy ? "Sparar…" : "Godkänn"}
+          {busy ? "Sparar…" : day.flagged_as ? "Bekräfta dagen" : "Godkänn"}
         </Button>
 
-        {!rejecting ? (
+        {/* Nothing to send back: a flagged day has no claim in it, and there is
+            no arbetsledare it could be returned to. */}
+        {day.flagged_as ? null : !rejecting ? (
           <Button variant="outline" onClick={() => setRejecting(true)} disabled={busy}>
             Underkänn
           </Button>

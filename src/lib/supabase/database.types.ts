@@ -781,12 +781,14 @@ export type Database = {
       }
       project_day: {
         Row: {
+          ansvarig_worker_id: string | null
           confirmed_at: string | null
           confirmed_by: string | null
           confirmed_via:
             | Database["public"]["Enums"]["confirmation_source"]
             | null
           created_at: string
+          flagged_as: Database["public"]["Enums"]["confirmation_source"] | null
           project_id: string
           rejected_at: string | null
           rejected_by: string | null
@@ -798,12 +800,14 @@ export type Database = {
           work_date: string
         }
         Insert: {
+          ansvarig_worker_id?: string | null
           confirmed_at?: string | null
           confirmed_by?: string | null
           confirmed_via?:
             | Database["public"]["Enums"]["confirmation_source"]
             | null
           created_at?: string
+          flagged_as?: Database["public"]["Enums"]["confirmation_source"] | null
           project_id: string
           rejected_at?: string | null
           rejected_by?: string | null
@@ -815,12 +819,14 @@ export type Database = {
           work_date: string
         }
         Update: {
+          ansvarig_worker_id?: string | null
           confirmed_at?: string | null
           confirmed_by?: string | null
           confirmed_via?:
             | Database["public"]["Enums"]["confirmation_source"]
             | null
           created_at?: string
+          flagged_as?: Database["public"]["Enums"]["confirmation_source"] | null
           project_id?: string
           rejected_at?: string | null
           rejected_by?: string | null
@@ -832,6 +838,27 @@ export type Database = {
           work_date?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "project_day_ansvarig_worker_id_fkey"
+            columns: ["ansvarig_worker_id"]
+            isOneToOne: false
+            referencedRelation: "account_directory"
+            referencedColumns: ["worker_id"]
+          },
+          {
+            foreignKeyName: "project_day_ansvarig_worker_id_fkey"
+            columns: ["ansvarig_worker_id"]
+            isOneToOne: false
+            referencedRelation: "worker"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_day_ansvarig_worker_id_fkey"
+            columns: ["ansvarig_worker_id"]
+            isOneToOne: false
+            referencedRelation: "worker_roster"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "project_day_confirmed_by_fkey"
             columns: ["confirmed_by"]
@@ -1325,6 +1352,15 @@ export type Database = {
         Args: { p_project: string; p_text: string; p_work_date: string }
         Returns: undefined
       }
+      confirm_flagged_day: {
+        Args: {
+          p_project: string
+          p_rows?: Json
+          p_text: string
+          p_work_date: string
+        }
+        Returns: undefined
+      }
       create_snabb_pass: {
         Args: {
           p_date: string
@@ -1355,6 +1391,18 @@ export type Database = {
           work_date: string
         }[]
       }
+      leader_replacement_options: {
+        Args: { p_tilldelning: string }
+        Returns: Json
+      }
+      leave_day_unsupervised: {
+        Args: { p_tilldelning: string }
+        Returns: undefined
+      }
+      make_worker_ansvarig: {
+        Args: { p_tilldelning: string; p_worker: string }
+        Returns: undefined
+      }
       place_replacement: {
         Args: { p_pass: string; p_worker: string }
         Returns: undefined
@@ -1374,6 +1422,10 @@ export type Database = {
           reopened: boolean
         }[]
       }
+      replace_leader: {
+        Args: { p_tilldelning: string; p_worker: string }
+        Returns: undefined
+      }
     }
     Enums: {
       app_role: "admin" | "arbetsledare" | "arbetare"
@@ -1384,9 +1436,18 @@ export type Database = {
         | "manuell"
         | "snabb"
         | "ledare"
-      confirmation_source: "leader" | "bristsurvey"
+      confirmation_source:
+        | "leader"
+        | "bristsurvey"
+        | "worker_ansvarig"
+        | "ingen_ledare"
       day_stage: "leader_confirmed" | "admin_confirmed"
-      notification_kind: "shift_deleted" | "shift_offered" | "day_unconfirmed"
+      notification_kind:
+        | "shift_deleted"
+        | "shift_offered"
+        | "day_unconfirmed"
+        | "day_flagged"
+        | "leader_replaced"
       offer_state: "offered" | "accepted" | "declined" | "withdrawn"
       release_reason:
         | "removed_by_leader"
@@ -1532,9 +1593,20 @@ export const Constants = {
         "snabb",
         "ledare",
       ],
-      confirmation_source: ["leader", "bristsurvey"],
+      confirmation_source: [
+        "leader",
+        "bristsurvey",
+        "worker_ansvarig",
+        "ingen_ledare",
+      ],
       day_stage: ["leader_confirmed", "admin_confirmed"],
-      notification_kind: ["shift_deleted", "shift_offered", "day_unconfirmed"],
+      notification_kind: [
+        "shift_deleted",
+        "shift_offered",
+        "day_unconfirmed",
+        "day_flagged",
+        "leader_replaced",
+      ],
       offer_state: ["offered", "accepted", "declined", "withdrawn"],
       release_reason: [
         "removed_by_leader",

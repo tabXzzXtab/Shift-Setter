@@ -32,6 +32,12 @@ export type PendingDay = {
  * it. Rejection needs no special case: the admin sending a day back removes
  * its confirmation, so it falls into this list on its own.
  *
+ * A FLAGGED DAY IS NOT WAITING ON ANYONE HERE. Step 5c: a day that ran with a
+ * worker covering, or with nobody, has no stage 1 claim in it to make -- not
+ * by the project's other leaders and not by the one taken off it. Invariant
+ * 4b's last line, and the database refuses such a confirmation outright; this
+ * only keeps the queue from showing a day nobody can answer.
+ *
  * Scoping is RLS's, not this function's. The pass policy limits rows to
  * projects the caller leads, so an admin calling it sees every project and an
  * arbetare sees nothing.
@@ -55,10 +61,12 @@ export async function pendingDays(): Promise<PendingDay[]> {
 
   const { data: days } = await sb
     .from("project_day")
-    .select("project_id, work_date, confirmed_at, vad_vi_gjorde, rejected_at, rejection_note");
+    .select("project_id, work_date, confirmed_at, vad_vi_gjorde, rejected_at, rejection_note, flagged_as");
 
   const done = new Set(
-    (days ?? []).filter((d) => d.confirmed_at).map((d) => `${d.project_id}|${d.work_date}`),
+    (days ?? [])
+      .filter((d) => d.confirmed_at || d.flagged_as)
+      .map((d) => `${d.project_id}|${d.work_date}`),
   );
   const record = new Map((days ?? []).map((d) => [`${d.project_id}|${d.work_date}`, d]));
 

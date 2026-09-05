@@ -1,8 +1,8 @@
 enum   app_role = admin,arbetsledare,arbetare
 enum   assignment_source = handplockad,forval,oppen,manuell,snabb,ledare
-enum   confirmation_source = leader,bristsurvey
+enum   confirmation_source = leader,bristsurvey,worker_ansvarig,ingen_ledare
 enum   day_stage = leader_confirmed,admin_confirmed
-enum   notification_kind = shift_deleted,shift_offered,day_unconfirmed
+enum   notification_kind = shift_deleted,shift_offered,day_unconfirmed,day_flagged,leader_replaced
 enum   offer_state = offered,accepted,declined,withdrawn
 enum   release_reason = removed_by_leader,replaced_by_snabb,shift_deleted,absent_at_confirmation,account_paused,no_workers_left
 enum   review_action = approved,rejected
@@ -149,10 +149,12 @@ column project.name text NOT NULL
 column project.services text NOT NULL
 column project.site_address text NOT NULL
 column project.start_date date NOT NULL
+column project_day.ansvarig_worker_id uuid
 column project_day.confirmed_at timestamp with time zone
 column project_day.confirmed_by uuid
 column project_day.confirmed_via confirmation_source
 column project_day.created_at timestamp with time zone NOT NULL DEFAULT now()
+column project_day.flagged_as confirmation_source
 column project_day.project_id uuid NOT NULL
 column project_day.rejected_at timestamp with time zone
 column project_day.rejected_by uuid
@@ -255,10 +257,13 @@ constr project FOREIGN KEY (created_by) REFERENCES account(id)
 constr project PRIMARY KEY (id)
 constr project_day CHECK ((((confirmed_at IS NULL) AND (confirmed_by IS NULL) AND (confirmed_via IS NULL)) OR ((confirmed_at IS NOT NULL) AND (confirmed_by IS NOT NULL) AND (confirmed_via IS NOT NULL))))
 constr project_day CHECK ((((rejected_at IS NULL) AND (rejected_by IS NULL) AND (rejection_note IS NULL)) OR ((rejected_at IS NOT NULL) AND (rejected_by IS NOT NULL) AND (rejection_note IS NOT NULL) AND (btrim(rejection_note) <> ''::text))))
+constr project_day CHECK (((ansvarig_worker_id IS NOT NULL) = (flagged_as = 'worker_ansvarig'::confirmation_source)))
 constr project_day CHECK (((confirmed_at IS NULL) = (stage IS NULL)))
 constr project_day CHECK (((confirmed_at IS NULL) OR ((vad_vi_gjorde IS NOT NULL) AND (btrim(vad_vi_gjorde) <> ''::text))))
+constr project_day CHECK (((flagged_as IS NULL) OR (flagged_as = ANY (ARRAY['worker_ansvarig'::confirmation_source, 'ingen_ledare'::confirmation_source]))))
 constr project_day CHECK (((reviewed_at IS NULL) = (reviewed_by IS NULL)))
 constr project_day CHECK (((reviewed_at IS NULL) OR (stage = 'admin_confirmed'::day_stage)))
+constr project_day FOREIGN KEY (ansvarig_worker_id) REFERENCES worker(id)
 constr project_day FOREIGN KEY (confirmed_by) REFERENCES account(id)
 constr project_day FOREIGN KEY (project_id) REFERENCES project(id) ON DELETE CASCADE
 constr project_day FOREIGN KEY (rejected_by) REFERENCES account(id)
@@ -292,6 +297,7 @@ index  CREATE INDEX notification_unread_idx ON public.notification USING btree (
 index  CREATE INDEX pass_date_idx ON public.pass USING btree (work_date) WHERE (deleted_at IS NULL)
 index  CREATE INDEX pass_offer_open_idx ON public.pass_offer USING btree (worker_id) WHERE (state = 'offered'::offer_state)
 index  CREATE INDEX pass_project_date_idx ON public.pass USING btree (project_id, work_date) WHERE (deleted_at IS NULL)
+index  CREATE INDEX project_day_flagged_idx ON public.project_day USING btree (flagged_as, work_date) WHERE (flagged_as IS NOT NULL)
 index  CREATE INDEX project_day_survey_idx ON public.project_day USING btree (project_id, work_date) WHERE (confirmed_via = 'bristsurvey'::confirmation_source)
 index  CREATE INDEX project_leader_account_idx ON public.project_leader USING btree (account_id)
 index  CREATE INDEX tilldelning_date_active_idx ON public.tilldelning USING btree (work_date, worker_id) WHERE (released_at IS NULL)
@@ -407,6 +413,7 @@ func   app.confirms_project(p_project uuid) md5=c3d7d74eefb17d760930c36afc604682
 func   app.current_role() md5=9aac5306319ae740d224ff2203a64880
 func   app.current_worker_id() md5=74dddcd603933dd85350f7d4fd99efdf
 func   app.fill_pass(p_pass uuid) md5=ce17a6d7c777332276fef3842c5de8b8
+func   app.flag_day(p_tilldelning uuid, p_flag confirmation_source, p_worker uuid) md5=0adb6220d986f91660bef798807d598f
 func   app.is_admin() md5=3d4f4a5b9492b42ec49925b7895a09c5
 func   app.is_staff() md5=2e999136779c7d843714a9924d1dc8fc
 func   app.leads_project(p_project uuid) md5=f1d9360a0c4753413b5ac7fa20a587db
@@ -414,13 +421,14 @@ func   app.pass_end_at(p_date date, p_start time without time zone, p_end time w
 func   app.pass_start_at(p_date date, p_start time without time zone) md5=9fa0f40882eca98efe820667c724d176
 func   app.stockholm_today() md5=8b086d188d946a11d35cafa583ec6465
 func   app.sync_leader_day(p_project uuid, p_date date) md5=2419f6eb4832bd9dbfc785e57a5dd936
+func   app.take_leader_off(p_tilldelning uuid) md5=a6cec3a6842e253b2c4fa868f68e1b7a
 func   app.tg_account_pause() md5=00172728bd0502a02a550a4a1e0cfdc9
 func   app.tg_account_unpause() md5=5796a885a774351e6d2b1d4f46170343
 func   app.tg_arbetsdagbok_guard() md5=f86304934a0a46e27e5af4b82d47bd24
 func   app.tg_assignment_write_guard() md5=0117e43f64eb760c660b914086baf5dd
 func   app.tg_block_guard() md5=b26fbbab450281b7deb537ec3212c1bd
 func   app.tg_clock_evidence() md5=6c33ff53dff91ccee095fa5abb4ec25d
-func   app.tg_confirmation_guard() md5=50d7bd21fa7525c6b98859d4b843fd7e
+func   app.tg_confirmation_guard() md5=0fb98d4a5280bc9324a621a955acb7fb
 func   app.tg_headcount_guard() md5=f670cf086f1ab865d3d818b75225c070
 func   app.tg_last_admin_guard() md5=6c4fd5dcb72f8a568c492f7139ed8c2c
 func   app.tg_leader_day() md5=d55ddf7a8227ddd0f73386690ee55145
@@ -441,6 +449,7 @@ func   public.cash_dist(money, money) md5=1acd79b2b4b9df652d58d90e72f05a29
 func   public.clock_in(p_tilldelning uuid) md5=6c4856b310eb35c37580a0125356847f
 func   public.clock_out(p_tilldelning uuid) md5=0cba39279e3ae3f7f67c95f6f627bfa2
 func   public.complete_bristsurvey(p_project uuid, p_work_date date, p_text text) md5=e511adf511d6a1b6fa953d9d1113c1c7
+func   public.confirm_flagged_day(p_project uuid, p_work_date date, p_text text, p_rows jsonb) md5=5af47daac0ae6d9807a1ffe947a807bd
 func   public.create_snabb_pass(p_project uuid, p_worker uuid, p_date date, p_start time without time zone, p_end time without time zone, p_hours numeric) md5=8bdb92da55e4c4fe1dbe54ad1d6aa65d
 func   public.date_dist(date, date) md5=3983f43755ffa80d869985d91ee8e538
 func   public.decline_offer(p_pass uuid) md5=3b77c01816ffe8db5847a74c338cae38
@@ -629,10 +638,14 @@ func   public.int2_dist(smallint, smallint) md5=e28cfd9bdc2bae4a5d31338e45f7cc09
 func   public.int4_dist(integer, integer) md5=70022e3435f9747864cf180d2d97e3dc
 func   public.int8_dist(bigint, bigint) md5=a73c1806b07543ad4167457378c84df9
 func   public.interval_dist(interval, interval) md5=c2001397d4f589efc976e1f2db79c9ac
+func   public.leader_replacement_options(p_tilldelning uuid) md5=2a7b429196ee79137274571b9e10c8c5
+func   public.leave_day_unsupervised(p_tilldelning uuid) md5=d2d5b2c0260dc0626d33c38c6451fed3
+func   public.make_worker_ansvarig(p_tilldelning uuid, p_worker uuid) md5=fe2d6666920e2a7750703b8e24b81e98
 func   public.oid_dist(oid, oid) md5=98f1ff8d3c8373653d6d3a2e298a7eba
 func   public.place_replacement(p_pass uuid, p_worker uuid) md5=e449b122190431d9a0cf9e717d96abe0
 func   public.reject_day(p_project uuid, p_work_date date, p_note text) md5=5e4ec66b9ad25be694015c2db8afa0d2
 func   public.release_assignment(p_tilldelning uuid, p_reason release_reason) md5=1983347acadd4f94439618837e894b64
+func   public.replace_leader(p_tilldelning uuid, p_worker uuid) md5=a279675035fb73084464d85f437abf82
 func   public.time_dist(time without time zone, time without time zone) md5=570a6afc92722fa17cb3fb725c661bb5
 func   public.ts_dist(timestamp without time zone, timestamp without time zone) md5=cd9d836b7dd414c3713096792f16bf8d
 func   public.tstz_dist(timestamp with time zone, timestamp with time zone) md5=d9abd396677b459458fae044fa46f4b1

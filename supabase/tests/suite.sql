@@ -2122,4 +2122,254 @@ select pg_temp.ok(
   'PAUSE.unpause_puts_the_leader_back',
   'reactivating an arbetsledare puts them back on the days their people are on');
 
+-- ============================================================================
+-- STEP 5c -- Avboka Pass on an arbetsledare, and the three answers
+--
+-- Three past days, one per route, because the routes do different things to
+-- the record and the difference is the whole point.
+--
+-- leaderB gets a worker record here. Until now they had none, which is what
+-- STEP4B.no_worker_record_is_not_placed is about -- so this comes after it,
+-- and after everything else, because taking leaders off days is not a thing
+-- later assertions should have to work around.
+-- ============================================================================
+
+insert into public.worker (account_id, name, email)
+select v, 'Leaderb', 'leaderb.worker@suite.test' from fx where k = 'leaderB'
+on conflict do nothing;
+
+-- Into the fixture lookup as well. Assertions below run as leaderA, and the
+-- worker table's own policy lets a leader read exactly one row -- their own --
+-- so reading leaderB's id from public.worker there returns NULL and fails an
+-- assertion about something else entirely.
+insert into wid (k, id)
+select 'leaderB', w.id from public.worker w
+where w.account_id = (select v from fx where k = 'leaderB');
+
+insert into public.pass (id, project_id, work_date, start_time, end_time,
+                         planned_hours, headcount, created_by)
+select p.a, 'aaaaaaaa-0000-0000-0000-00000000000a'::uuid, p.b, '07:00'::time, '16:00'::time,
+       8.00::numeric, 1::smallint, (select v from fx where k = 'leaderA')
+from (values
+  ('cccccccc-0000-0000-0000-000000000010'::uuid, app.stockholm_today() - 4),  -- route 1
+  ('cccccccc-0000-0000-0000-000000000011', app.stockholm_today() - 5),        -- route 2
+  ('cccccccc-0000-0000-0000-000000000012', app.stockholm_today() - 6)         -- route 3
+) as p(a, b);
+
+-- A worker on each day is what puts leaderA on it (Step 4b).
+insert into public.tilldelning (pass_id, worker_id, source, work_date, confirmed_hours)
+values
+  ('cccccccc-0000-0000-0000-000000000010', (select id from wid where k = 'w1'),
+   'manuell', app.stockholm_today() - 4, 8.00),
+  ('cccccccc-0000-0000-0000-000000000011', (select id from wid where k = 'w2'),
+   'manuell', app.stockholm_today() - 5, 8.00),
+  ('cccccccc-0000-0000-0000-000000000012', (select id from wid where k = 'w3'),
+   'manuell', app.stockholm_today() - 6, 8.00);
+
+-- The leader rows the routes act on. Hours set now, because confirming a day
+-- may not leave anyone's unset and these days get confirmed below.
+update public.tilldelning t set confirmed_hours = 9.00
+where t.source = 'ledare' and t.released_at is null
+  and t.project_id = 'aaaaaaaa-0000-0000-0000-00000000000a'
+  and t.work_date in (app.stockholm_today() - 4, app.stockholm_today() - 5,
+                      app.stockholm_today() - 6);
+
+select pg_temp.ok(
+  (select count(*) from public.tilldelning t
+   where t.source = 'ledare' and t.released_at is null
+     and t.project_id = 'aaaaaaaa-0000-0000-0000-00000000000a'
+     and t.work_date in (app.stockholm_today() - 4, app.stockholm_today() - 5,
+                         app.stockholm_today() - 6)) = 3,
+  'S5C.three_days_with_a_leader_on_them',
+  'each day has its arbetsledare before anyone is taken off it');
+
+-- ---- what the popup offers -------------------------------------------------
+set local role authenticated;
+select pg_temp.act_as((select v from fx where k = 'leaderA'));
+
+select pg_temp.ok(
+  (select (g->'leaders') @> jsonb_build_array(
+            jsonb_build_object('worker_id', (select id from wid where k = 'leaderB')))
+   from public.leader_replacement_options(
+     (select t.id from public.tilldelning t
+      where t.source = 'ledare' and t.released_at is null
+        and t.project_id = 'aaaaaaaa-0000-0000-0000-00000000000a'
+        and t.work_date = app.stockholm_today() - 4)) g),
+  'S5C.options_list_free_leaders',
+  'an arbetsledare not working that day is offered as a replacement');
+
+select pg_temp.ok(
+  (select not ((g->'leaders') @> jsonb_build_array(
+                 jsonb_build_object('worker_id', (select id from wid where k = 'leaderA'))))
+      and (g->'roster') @> jsonb_build_array(
+            jsonb_build_object('worker_id', (select id from wid where k = 'w1')))
+   from public.leader_replacement_options(
+     (select t.id from public.tilldelning t
+      where t.source = 'ledare' and t.released_at is null
+        and t.project_id = 'aaaaaaaa-0000-0000-0000-00000000000a'
+        and t.work_date = app.stockholm_today() - 4)) g),
+  'S5C.options_exclude_the_one_leaving',
+  'the leader being replaced is not their own replacement, and the roster is the shift');
+
+-- ---- ROUTE 1: another arbetsledare takes the day ---------------------------
+select public.replace_leader(
+  (select t.id from public.tilldelning t
+   where t.source = 'ledare' and t.released_at is null
+     and t.project_id = 'aaaaaaaa-0000-0000-0000-00000000000a'
+     and t.work_date = app.stockholm_today() - 4),
+  (select id from wid where k = 'leaderB'));
+reset role;
+
+select pg_temp.ok(
+  (select count(*) from public.tilldelning t
+   where t.source = 'ledare' and t.released_at is null
+     and t.project_id = 'aaaaaaaa-0000-0000-0000-00000000000a'
+     and t.work_date = app.stockholm_today() - 4
+     and t.worker_id = (select id from wid where k = 'leaderB')) = 1,
+  'S5C.replacement_holds_the_day', 'the arbetsledare who was picked is on the day');
+
+select pg_temp.ok(
+  (select released_reason = 'removed_by_leader'
+   from public.tilldelning t
+   where t.source = 'ledare' and t.released_at is not null
+     and t.project_id = 'aaaaaaaa-0000-0000-0000-00000000000a'
+     and t.work_date = app.stockholm_today() - 4
+     and t.worker_id = (select id from wid where k = 'leaderA')),
+  'S5C.replaced_leader_stays_off',
+  'a person decided this, so the next schedule edit does not put them back');
+
+select pg_temp.ok(
+  (select count(*) from public.notification n
+   where n.kind = 'leader_replaced'
+     and (n.payload->>'work_date')::date = app.stockholm_today() - 4) = 2,
+  'S5C.both_notified', 'neither of them chose it, so neither has to find out by looking');
+
+select pg_temp.ok(
+  (select coalesce(bool_and(pd.flagged_as is null), true)
+   from public.project_day pd
+   where pd.project_id = 'aaaaaaaa-0000-0000-0000-00000000000a'
+     and pd.work_date = app.stockholm_today() - 4),
+  'S5C.a_swap_is_not_a_flag',
+  'somebody is answerable for the day, so nothing about it is flagged');
+
+-- ---- ROUTE 2: a worker covers as ansvarig ----------------------------------
+-- Admin only. A leader may swap like for like; deciding a day runs without an
+-- arbetsledare is the owner's admission to make.
+set local role authenticated;
+select pg_temp.act_as((select v from fx where k = 'leaderA'));
+select pg_temp.rejects($$
+  select public.leave_day_unsupervised(
+    (select t.id from public.tilldelning t
+     where t.source = 'ledare' and t.released_at is null
+       and t.project_id = 'aaaaaaaa-0000-0000-0000-00000000000a'
+       and t.work_date = app.stockholm_today() - 5))
+$$, 'S5C.leader_cannot_flag_a_day');
+
+select pg_temp.act_as((select v from fx where k = 'admin'));
+
+-- Somebody who was not on the shift cannot have been in charge of it.
+select pg_temp.rejects($$
+  select public.make_worker_ansvarig(
+    (select t.id from public.tilldelning t
+     where t.source = 'ledare' and t.released_at is null
+       and t.project_id = 'aaaaaaaa-0000-0000-0000-00000000000a'
+       and t.work_date = app.stockholm_today() - 5),
+    (select id from wid where k = 'w3'))
+$$, 'S5C.ansvarig_must_be_on_the_shift');
+
+select public.make_worker_ansvarig(
+  (select t.id from public.tilldelning t
+   where t.source = 'ledare' and t.released_at is null
+     and t.project_id = 'aaaaaaaa-0000-0000-0000-00000000000a'
+     and t.work_date = app.stockholm_today() - 5),
+  (select id from wid where k = 'w2'));
+reset role;
+
+select pg_temp.ok(
+  (select pd.flagged_as = 'worker_ansvarig'
+      and pd.ansvarig_worker_id = (select id from wid where k = 'w2')
+      and pd.confirmed_at is null
+   from public.project_day pd
+   where pd.project_id = 'aaaaaaaa-0000-0000-0000-00000000000a'
+     and pd.work_date = app.stockholm_today() - 5),
+  'S5C.worker_ansvarig_flags_the_day',
+  'the day is flagged, names who covered, and is not confirmed by doing so');
+
+select pg_temp.ok(
+  (select count(*) from public.notification n
+   where n.kind = 'day_flagged'
+     and n.account_id = (select v from fx where k = 'admin')
+     and (n.payload->>'work_date')::date = app.stockholm_today() - 5) = 1,
+  'S5C.admin_is_told', 'the admin hears about it without going to look');
+
+-- INVARIANT 4b's last line. Not the project's other leaders, not the one who
+-- was taken off, not anyone.
+set local role authenticated;
+select pg_temp.act_as((select v from fx where k = 'leaderA'));
+select pg_temp.rejects($$
+  update public.project_day
+  set vad_vi_gjorde = 'Vi jobbade', confirmed_at = now(),
+      confirmed_by = (select v from fx where k='leaderA'), confirmed_via = 'leader'
+  where project_id = 'aaaaaaaa-0000-0000-0000-00000000000a'
+    and work_date = app.stockholm_today() - 5
+$$, 'S5C.leader_cannot_confirm_a_flagged_day');
+
+-- Nor may the admin call it something it was not.
+select pg_temp.act_as((select v from fx where k = 'admin'));
+select pg_temp.rejects($$
+  update public.project_day
+  set vad_vi_gjorde = 'Vi jobbade', confirmed_at = now(),
+      confirmed_by = (select v from fx where k='admin'), confirmed_via = 'ingen_ledare'
+  where project_id = 'aaaaaaaa-0000-0000-0000-00000000000a'
+    and work_date = app.stockholm_today() - 5
+$$, 'S5C.wrong_flag_refused');
+
+-- Confirming AND trying to wipe the flag in the same write. The guard freezes
+-- how a day ran before it reads how it is being closed, so this succeeds with
+-- the flag intact. Take the freeze away and the route check below catches it
+-- instead -- the two are halves of one protection, which is why the control
+-- for S5C.wrong_flag_refused covers both.
+update public.project_day
+set vad_vi_gjorde = 'W2 höll ihop dagen.', confirmed_at = now(),
+    confirmed_by = (select v from fx where k='admin'), confirmed_via = 'worker_ansvarig',
+    flagged_as = null, ansvarig_worker_id = null
+where project_id = 'aaaaaaaa-0000-0000-0000-00000000000a'
+  and work_date = app.stockholm_today() - 5;
+reset role;
+
+select pg_temp.ok(
+  (select pd.stage = 'admin_confirmed' and pd.confirmed_via = 'worker_ansvarig'
+      and pd.flagged_as = 'worker_ansvarig'
+      and pd.ansvarig_worker_id = (select id from wid where k = 'w2')
+   from public.project_day pd
+   where pd.project_id = 'aaaaaaaa-0000-0000-0000-00000000000a'
+     and pd.work_date = app.stockholm_today() - 5),
+  'S5C.flag_survives_confirmation',
+  'confirming a day is not a way to forget how it ran');
+
+-- ---- ROUTE 3: nobody ------------------------------------------------------
+set local role authenticated;
+select pg_temp.act_as((select v from fx where k = 'admin'));
+select public.leave_day_unsupervised(
+  (select t.id from public.tilldelning t
+   where t.source = 'ledare' and t.released_at is null
+     and t.project_id = 'aaaaaaaa-0000-0000-0000-00000000000a'
+     and t.work_date = app.stockholm_today() - 6));
+reset role;
+
+select pg_temp.ok(
+  (select pd.flagged_as = 'ingen_ledare' and pd.ansvarig_worker_id is null
+   from public.project_day pd
+   where pd.project_id = 'aaaaaaaa-0000-0000-0000-00000000000a'
+     and pd.work_date = app.stockholm_today() - 6),
+  'S5C.unsupervised_is_its_own_admission',
+  'a day nobody was answerable for is not the same record as a covered one');
+
+select pg_temp.ok(
+  (select count(*) from public.tilldelning t
+   where t.source = 'ledare' and t.released_at is null
+     and t.project_id = 'aaaaaaaa-0000-0000-0000-00000000000a'
+     and t.work_date = app.stockholm_today() - 6) = 0,
+  'S5C.nobody_is_on_the_day', 'and there is genuinely nobody on it');
+
 select pg_temp.ok(true, 'SUITE.complete', 'every assertion passed');

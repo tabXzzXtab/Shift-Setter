@@ -29,7 +29,8 @@
     "walkthrough:ledare": "node scripts/walkthrough-ledare.mjs",
     "walkthrough:arbetare": "node scripts/walkthrough-arbetare.mjs",
     "walkthrough:avboka": "node scripts/walkthrough-avboka.mjs",
-    "walkthrough:minapass": "node scripts/walkthrough-minapass.mjs"
+    "walkthrough:minapass": "node scripts/walkthrough-minapass.mjs",
+    "walkthrough:bytledare": "node scripts/walkthrough-byt-ledare.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.113.0",
