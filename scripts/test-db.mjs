@@ -30,7 +30,11 @@ const perturbIn = (signature, find, replace) => async (client) => {
   const { rows } = await client.query(
     `select pg_get_functiondef($1::regprocedure) as def`, [signature],
   );
-  const def = rows[0].def;
+  // Line endings normalised before matching. A function body carries whatever
+  // the migration file had, so a CRLF file made every multi-line control
+  // unmatchable -- loudly, but for a reason that has nothing to do with the
+  // guard. Postgres does not care which it gets back.
+  const def = rows[0].def.replace(/\r\n/g, "\n");
   if (!def.includes(find)) {
     throw new Error(`control text no longer present in ${signature}: ${find.slice(0, 60)}…`);
   }
@@ -366,6 +370,46 @@ const CONTROLS = [
              "if not (app.leads_project(new.project_id) or app.holds_the_day(new.project_id, new.work_date)) then",
              "if not app.leads_project(new.project_id) then"),
    "SWAP.swapped_in_can_confirm"],
+
+  // ---- PAUSE, both halves of it -------------------------------------------
+  ["a paused account gives up what it has not started",
+   // The whole trigger. Without it a paused person keeps every future shift
+   // and the schedule shows somebody who can no longer sign in.
+   "drop trigger account_pause on public.account",
+   "PAUSE.releases_future"],
+
+  ["a pause takes the future, never the shift already running",
+   // The time filter alone. Everything else about the pause still works, so
+   // releases_future passes and this lands on the one assertion the filter
+   // holds up. Perturbed to the DAY rather than removed outright: releasing
+   // every past shift makes the pause collide with invariant 5 on a day that
+   // is already admin_confirmed, and the suite would die on that instead of
+   // on the assertion. This releases today and nothing earlier, which is
+   // exactly the mistake the filter prevents.
+   perturbIn("app.tg_account_pause()",
+             "      and app.pass_start_at(p.work_date, p.start_time) > now()\n" +
+             "    order by p.work_date",
+             "      and p.work_date >= app.stockholm_today()\n    order by p.work_date"),
+   "PAUSE.keeps_started_shift"],
+
+  // ---- the two holes found reading Step 5c against the spec ---------------
+
+  ["a replacement leader comes back when the day does",
+   // The memory of who was standing there, removed. The member insert above it
+   // still runs, so the day is not left empty by accident -- it is left to
+   // whoever is a MEMBER, which after route 1 is nobody, and the replacement
+   // never returns.
+   perturbIn("app.sync_leader_day(uuid,date)",
+             "and r.released_reason = 'no_workers_left'", "and false"),
+   "S5C.replacement_returns_when_the_day_does"],
+
+  ["a worker is made ansvarig only when no arbetsledare is free",
+   // The candidate set emptied, so the guard can never find anybody and the
+   // fallback becomes an alternative -- which is the whole difference between
+   // covering a gap and choosing to run a day without a supervisor.
+   perturbIn("public.make_worker_ansvarig(uuid,uuid)",
+             "where a.role = 'arbetsledare'", "where false"),
+   "S5C.ansvarig_needs_no_leader_free"],
 
   ["invariant 7 -- project creation is a gate",
    `alter table public.project drop constraint ` +

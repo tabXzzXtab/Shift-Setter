@@ -31,7 +31,8 @@
     "walkthrough:avboka": "node scripts/walkthrough-avboka.mjs",
     "walkthrough:minapass": "node scripts/walkthrough-minapass.mjs",
     "walkthrough:bytledare": "node scripts/walkthrough-byt-ledare.mjs",
-    "walkthrough:bytaplats": "node scripts/walkthrough-byta-plats.mjs"
+    "walkthrough:bytaplats": "node scripts/walkthrough-byta-plats.mjs",
+    "walkthrough:pausa": "node scripts/walkthrough-pausa.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.113.0",
