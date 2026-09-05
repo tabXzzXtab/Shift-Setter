@@ -4,7 +4,7 @@
  *
  *   + Skapa Pass · the Bekräfta Pass widget with its red dot · the Nästa Pass
  *   card with a Leaflet map and a link into the phone's own navigation ·
- *   a menu of exactly two things.
+ *   a menu of exactly three things.
  *
  * The widget is the part worth testing hardest: it claims to preview the days
  * actually waiting, so the assertions check that the day it names is the day
@@ -272,7 +272,7 @@ try {
   const items = await panel.getByRole("link").allInnerTexts();
   // Each entry carries a trailing arrow glyph; strip it to get the label.
   const got = items.map((t) => t.replace("→", "").trim()).sort();
-  const expect = ["Min Pass Kalender", "Mina Pass"].sort();
+  const expect = ["Min Pass Kalender", "Mina Pass", "Bekräftelse Historik"].sort();
   if (JSON.stringify(got) !== JSON.stringify(expect)) {
     fail(`menu holds ${JSON.stringify(got)}, expected ${JSON.stringify(expect)}`);
   }

@@ -17,6 +17,10 @@ const ProjectMap = dynamic(() => import("./project-map"), { ssr: false });
 const MENU: MenuItem[] = [
   { href: "/min-kalender", label: "Min Pass Kalender" },
   { href: "/mina-pass", label: "Mina Pass" },
+  // Both roles read the log, scoped to the projects they are on -- day_history
+  // answers the same question for the leader and the owner, so this is the
+  // same page the admin opens and not a second version of it.
+  { href: "/historik", label: "Bekräftelse Historik" },
 ];
 
 type Waiting = { key: string; date: string; workers: string[]; hours: number };
