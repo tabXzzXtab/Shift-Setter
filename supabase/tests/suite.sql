@@ -1691,4 +1691,163 @@ select pg_temp.ok(
   'PAUSE.unpause_does_not_restore',
   'unpausing returns the person, not the shift someone else may now hold');
 
+-- ============================================================================
+-- AVBOKA PASS on a worker -- Step 5b
+--
+-- Four passes, because the rule has two axes and both matter: is anyone free,
+-- and is the shift inside five days. The popup fires on the first alone; the
+-- Acceptera Pass cards need both.
+-- ============================================================================
+
+insert into public.pass (id, project_id, work_date, start_time, end_time,
+                         planned_hours, headcount, created_by)
+select p.a, 'aaaaaaaa-0000-0000-0000-00000000000a'::uuid, p.b, '07:00'::time, '16:00'::time,
+       8.00::numeric, 1::smallint, (select v from fx where k = 'leaderA')
+from (values
+  ('cccccccc-0000-0000-0000-00000000000a'::uuid, app.stockholm_today() + 30),  -- far, someone free
+  ('cccccccc-0000-0000-0000-00000000000b', app.stockholm_today() + 31),        -- far, nobody free
+  ('cccccccc-0000-0000-0000-00000000000c', app.stockholm_today() + 3),         -- near, someone free
+  ('cccccccc-0000-0000-0000-00000000000d', app.stockholm_today() + 4),         -- near, nobody free
+  ('cccccccc-0000-0000-0000-00000000000e', app.stockholm_today() + 30)         -- to keep w3 busy
+) as p(a, b);
+
+insert into public.tilldelning (id, pass_id, worker_id, source, work_date)
+values
+  ('dddddddd-0000-0000-0000-00000000000a', 'cccccccc-0000-0000-0000-00000000000a',
+   (select id from wid where k = 'w1'), 'forval', app.stockholm_today() + 30),
+  ('dddddddd-0000-0000-0000-00000000000b', 'cccccccc-0000-0000-0000-00000000000b',
+   (select id from wid where k = 'w1'), 'forval', app.stockholm_today() + 31),
+  ('dddddddd-0000-0000-0000-00000000000c', 'cccccccc-0000-0000-0000-00000000000c',
+   (select id from wid where k = 'w1'), 'forval', app.stockholm_today() + 3),
+  ('dddddddd-0000-0000-0000-00000000000d', 'cccccccc-0000-0000-0000-00000000000d',
+   (select id from wid where k = 'w1'), 'forval', app.stockholm_today() + 4),
+  -- w3 marked the same day AND is working it. They are the control for the
+  -- exclusion: free means free, not merely willing.
+  ('dddddddd-0000-0000-0000-00000000000e', 'cccccccc-0000-0000-0000-00000000000e',
+   (select id from wid where k = 'w3'), 'forval', app.stockholm_today() + 30);
+
+-- w2 is free on the two "someone free" days and on nothing else.
+insert into public.forval (worker_id, work_date, can_work)
+values
+  ((select id from wid where k = 'w2'), app.stockholm_today() + 30, true),
+  ((select id from wid where k = 'w2'), app.stockholm_today() + 3,  true),
+  ((select id from wid where k = 'w3'), app.stockholm_today() + 30, true);
+
+set local role authenticated;
+
+-- A leader on another project cannot take someone off this one.
+select pg_temp.act_as((select v from fx where k = 'leaderB'));
+select pg_temp.rejects($$
+  select public.avboka_pass('dddddddd-0000-0000-0000-00000000000a')
+$$, 'AVBOKA.other_leader_refused');
+
+select pg_temp.act_as((select v from fx where k = 'leaderA'));
+
+-- ---- far, and someone is free: the popup, and nothing automatic -----------
+select pg_temp.ok(
+  -- On the id alone: this runs as leaderA, and worker's own policy lets a
+  -- leader read exactly one row -- their own. Looking the name up here would
+  -- return NULL and fail an assertion about something else entirely.
+  (select (g->'replacements') @> jsonb_build_array(
+            jsonb_build_object('worker_id', (select id from wid where k = 'w2')))
+   from public.avboka_pass('dddddddd-0000-0000-0000-00000000000a') g),
+  'AVBOKA.popup_lists_free_forval',
+  'whoever marked the day and is not working it is offered as a replacement');
+
+-- The other half of the same sentence. w3 marked this day too and is standing
+-- on another shift on it, so they are not available to take this one.
+select pg_temp.ok(
+  (select not ((g->'replacements') @> jsonb_build_array(
+                 jsonb_build_object('worker_id', (select id from wid where k = 'w3'))))
+   -- The same pass again: w3's day is +30, and asking about any other day
+   -- would be a question w3 could not appear in whatever the filter did.
+   -- Releasing an already-released row is a no-op, so this just recomputes.
+   from public.avboka_pass('dddddddd-0000-0000-0000-00000000000a') g),
+  'AVBOKA.busy_forval_not_offered',
+  'someone already working that day is not a replacement, however they marked it');
+
+reset role;
+
+select pg_temp.ok(
+  (select count(*) from public.tilldelning t
+   where t.pass_id = 'cccccccc-0000-0000-0000-00000000000a' and t.released_at is null) = 0,
+  'AVBOKA.no_autofill_when_someone_free',
+  'the slot waits for the leader to choose; it does not fill itself');
+
+select pg_temp.ok(
+  (select count(*) from public.pass_offer o
+   where o.pass_id = 'cccccccc-0000-0000-0000-00000000000a') = 0,
+  'AVBOKA.no_cards_when_someone_free',
+  'the cards are for having nobody to ask, and there was somebody');
+
+-- Picking a name fills it on the spot.
+set local role authenticated;
+select pg_temp.act_as((select v from fx where k = 'leaderA'));
+select public.place_replacement('cccccccc-0000-0000-0000-00000000000a',
+                                (select id from wid where k = 'w2'));
+reset role;
+
+select pg_temp.ok(
+  (select count(*) from public.tilldelning t
+   where t.pass_id = 'cccccccc-0000-0000-0000-00000000000a'
+     and t.worker_id = (select id from wid where k = 'w2')
+     and t.released_at is null and t.source = 'manuell') = 1,
+  'AVBOKA.place_fills_the_slot', 'the chosen replacement takes the place');
+
+select pg_temp.ok(
+  (select headcount from public.pass where id = 'cccccccc-0000-0000-0000-00000000000a') = 1,
+  'AVBOKA.headcount_never_drops', 'the pass still needs the same number of people');
+
+-- ---- far, and nobody is free: no popup, cards go out ----------------------
+set local role authenticated;
+select pg_temp.act_as((select v from fx where k = 'leaderA'));
+select pg_temp.ok(
+  (select g->'replacements' = '[]'::jsonb and (g->>'beyond_five_days')::boolean
+          and (g->>'offered')::int > 0
+   from public.avboka_pass('dddddddd-0000-0000-0000-00000000000b') g),
+  'AVBOKA.cards_when_nobody_free',
+  'with nobody to ask, the slot goes straight out as Acceptera Pass');
+reset role;
+
+select pg_temp.ok(
+  (select count(*) from public.pass_offer o
+   where o.pass_id = 'cccccccc-0000-0000-0000-00000000000b' and o.state = 'offered') > 0,
+  'AVBOKA.offers_exist', 'and the offers are really there');
+
+select pg_temp.ok(
+  (select count(*) from public.pass_offer o
+   where o.pass_id = 'cccccccc-0000-0000-0000-00000000000b'
+     and o.worker_id = (select id from wid where k = 'w1')) = 0,
+  'AVBOKA.removed_not_offered_back',
+  'the person taken off is never offered their own slot back');
+
+-- ---- near, and someone is free: the popup STILL fires ---------------------
+-- Choosing a name is manual placement, which Step 5 allows however close the
+-- shift is. This is the assertion that separates the two halves of the rule.
+set local role authenticated;
+select pg_temp.act_as((select v from fx where k = 'leaderA'));
+select pg_temp.ok(
+  (select jsonb_array_length(g->'replacements') > 0
+          and not (g->>'beyond_five_days')::boolean
+          and (g->>'offered')::int = 0
+   from public.avboka_pass('dddddddd-0000-0000-0000-00000000000c') g),
+  'AVBOKA.popup_inside_five_days',
+  'inside five days the popup fires and the cards do not');
+reset role;
+
+select pg_temp.ok(
+  (select count(*) from public.pass_offer o
+   where o.pass_id = 'cccccccc-0000-0000-0000-00000000000c') = 0,
+  'AVBOKA.no_cards_inside_five_days', 'nothing automatic went out that close in');
+
+-- ---- near, and nobody is free: nothing at all -----------------------------
+set local role authenticated;
+select pg_temp.act_as((select v from fx where k = 'leaderA'));
+select pg_temp.ok(
+  (select g->'replacements' = '[]'::jsonb and (g->>'offered')::int = 0
+   from public.avboka_pass('dddddddd-0000-0000-0000-00000000000d') g),
+  'AVBOKA.nothing_inside_five_days_with_nobody',
+  'the day runs short-staffed, which is a fact and not an error');
+reset role;
+
 select pg_temp.ok(true, 'SUITE.complete', 'every assertion passed');

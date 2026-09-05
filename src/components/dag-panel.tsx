@@ -7,6 +7,18 @@ import { hhmm, longDayHeading } from "@/lib/dates";
 import { useAccount } from "@/lib/account";
 
 type Person = { tilldelning_id: string; worker_id: string; name: string; source: string };
+type Replacement = { worker_id: string; name: string };
+
+/** What avboka_pass() hands back: who is free, and whether cards went out. */
+type Vacancy = {
+  pass_id: string;
+  work_date: string;
+  beyond_five_days: boolean;
+  offered: number;
+  replacements: Replacement[];
+  /** Carried for the popup heading, not from the database. */
+  removed: string;
+};
 type PassRow = {
   id: string;
   project_id: string;
@@ -26,8 +38,12 @@ type PassRow = {
  * and deletion is admin-only, refuses a shift that has started, notifies the
  * people on it and blocks them from being re-offered it, all in the database.
  *
- * Removing a worker is Step 5b: the slot REOPENS, headcount does not drop, and
- * the cascade runs unless the shift is inside five days.
+ * Removing a worker is Step 5b: the slot REOPENS and headcount does not drop.
+ * If anyone who marked förval is free, Välj Utbyte opens and picking a name
+ * fills the slot on the spot -- at any distance from the shift, because
+ * choosing a person is manual placement and not an automatic refill. Only when
+ * nobody is free do the Acceptera Pass cards go out, and only outside five
+ * days. A popup listing nothing would ask a question with no answers in it.
  *
  * Editing a pass here edits THAT pass. A batch generates independent rows, not
  * a series, so changing this Tuesday cannot reach the next one.
@@ -38,6 +54,7 @@ export function DagPanel({ date }: { date: string }) {
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  const [vacancy, setVacancy] = useState<Vacancy | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
   const [draft, setDraft] = useState<{ start: string; end: string; hours: string; headcount: number } | null>(null);
   const [reload, setReload] = useState(0);
@@ -93,17 +110,39 @@ export function DagPanel({ date }: { date: string }) {
     setNote(null);
 
     const { data, error } = await getSupabase()
-      .rpc("release_assignment", { p_tilldelning: person.tilldelning_id });
+      .rpc("avboka_pass", { p_tilldelning: person.tilldelning_id });
 
-    if (error) setError(error.message);
-    else {
-      const r = data?.[0];
-      setNote(
-        r?.reopened
-          ? `${person.name} är borttagen. Platsen öppnades igen: ${r.filled} tillsatt, ${r.offered} fick Acceptera Pass.`
-          : `${person.name} är borttagen. Passet är inom fem dagar, så platsen fylls inte automatiskt — sätt in någon själv.`,
-      );
+    if (error) {
+      setError(error.message);
+    } else {
+      const v = { ...(data as unknown as Omit<Vacancy, "removed">), removed: person.name };
+      if (v.replacements.length > 0) {
+        setVacancy(v);
+      } else {
+        setNote(
+          v.beyond_five_days
+            ? `${person.name} är borttagen. Ingen förvald var ledig, så platsen gick ut som Acceptera Pass till ${v.offered}.`
+            : `${person.name} är borttagen. Ingen förvald var ledig och passet är inom fem dagar — sätt in någon själv eller använd Snabb Pass.`,
+        );
+      }
     }
+    setReload((n) => n + 1);
+    setBusy(null);
+  }
+
+  /** Picking a name from Välj Utbyte fills the slot on the spot. */
+  async function place(workerId: string, name: string) {
+    if (!vacancy) return;
+    setBusy(workerId);
+    setError(null);
+
+    const { error } = await getSupabase()
+      .rpc("place_replacement", { p_pass: vacancy.pass_id, p_worker: workerId });
+
+    if (error) setError(saySwedish(error.message));
+    else setNote(`${name} tog ${vacancy.removed}s plats.`);
+
+    setVacancy(null);
     setReload((n) => n + 1);
     setBusy(null);
   }
@@ -166,6 +205,50 @@ export function DagPanel({ date }: { date: string }) {
 
   return (
     <div>
+      {/*
+        VÄLJ UTBYTE -- Step 5b's popup.
+        Over a darkened page, because the slot is open right now and the answer
+        is one press away. Closing it without picking is allowed and leaves the
+        slot open: the cards are the fallback for having nobody to ask, not a
+        consolation for indecision, so nothing goes out behind the leader's
+        back after they decided to handle it themselves.
+      */}
+      {vacancy && (
+        <div
+          className="fixed inset-0 z-50 overflow-y-auto bg-black/70 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Välj Utbyte"
+        >
+          <div className="mx-auto w-full max-w-md border-2 border-black bg-white p-4">
+            <h2 className="mb-1 text-xl font-bold">Välj Utbyte</h2>
+            <p className="mb-4 text-base">
+              {vacancy.removed} är borttagen. De här har förvalt {vacancy.work_date} och
+              är lediga.
+            </p>
+
+            <div className="mb-3 flex flex-col gap-2">
+              {vacancy.replacements.map((r) => (
+                <button
+                  key={r.worker_id}
+                  type="button"
+                  onClick={() => place(r.worker_id, r.name)}
+                  disabled={busy === r.worker_id}
+                  className="flex min-h-[56px] w-full items-center justify-between border-2 border-black px-4 text-lg font-bold disabled:opacity-30"
+                >
+                  <span>{r.name}</span>
+                  <span aria-hidden className="text-2xl">→</span>
+                </button>
+              ))}
+            </div>
+
+            <Button variant="outline" onClick={() => setVacancy(null)}>
+              Ingen av dem
+            </Button>
+          </div>
+        </div>
+      )}
+
       {error && <Notice kind="error">{error}</Notice>}
       {note && <Notice kind="info">{note}</Notice>}
 

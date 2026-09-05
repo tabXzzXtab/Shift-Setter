@@ -27,7 +27,8 @@
     "walkthrough:brist": "node scripts/walkthrough-brist.mjs",
     "walkthrough:admin": "node scripts/walkthrough-admin.mjs",
     "walkthrough:ledare": "node scripts/walkthrough-ledare.mjs",
-    "walkthrough:arbetare": "node scripts/walkthrough-arbetare.mjs"
+    "walkthrough:arbetare": "node scripts/walkthrough-arbetare.mjs",
+    "walkthrough:avboka": "node scripts/walkthrough-avboka.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.113.0",

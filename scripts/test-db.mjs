@@ -227,6 +227,40 @@ const CONTROLS = [
    perturbIn("app.tg_headcount_guard()", "if new.source = 'snabb' then", "if false then"),
    "SNABB.bypasses_headcount"],
 
+  // ---- AVBOKA PASS, Step 5b -----------------------------------------------
+  ["the cards wait until there is nobody to ask",
+   // Dropping the "nobody free" half sends Acceptera Pass out over the top of
+   // a popup that is about to be answered -- the exact thing Step 5b's
+   // ordering exists to prevent.
+   perturbIn("public.avboka_pass(uuid)",
+             "if v_people = '[]'::jsonb and v_beyond then", "if v_beyond then"),
+   // fill_pass walks the förval tiers before it offers anything, so the first
+   // thing that breaks is the slot filling itself while the popup is open --
+   // the same guard, caught one assertion earlier.
+   "AVBOKA.no_autofill_when_someone_free"],
+
+  ["the popup fires inside five days too",
+   // Making the popup obey the five-day rule as well collapses manual
+   // placement into the automatic path, and a leader standing in front of the
+   // day loses the one thing they were there to do.
+   perturbIn("public.avboka_pass(uuid)",
+             "if v_people = '[]'::jsonb and v_beyond then",
+             "if not v_beyond then v_people := '[]'::jsonb; end if; if v_people = '[]'::jsonb and v_beyond then"),
+   "AVBOKA.popup_inside_five_days"],
+
+  ["a replacement must not already be working that day",
+   // INVARIANT 2 as a question rather than a refusal: without the filter the
+   // popup offers someone who is already booked, and picking them raises.
+   perturbIn("public.avboka_pass(uuid)",
+             "where t2.worker_id = w.id and t2.work_date = v_pass.work_date",
+             "where t2.worker_id = w.id and t2.work_date = 'epoch'::date"),
+   "AVBOKA.busy_forval_not_offered"],
+
+  ["taking someone off is the project's leader's to do",
+   perturbIn("public.avboka_pass(uuid)",
+             "if not app.leads_project(v_pass.project_id) then", "if false then"),
+   "AVBOKA.other_leader_refused"],
+
   ["invariant 7 -- project creation is a gate",
    `alter table public.project drop constraint ` +
    `"${"project_bestallare_orgnr_check"}"`,

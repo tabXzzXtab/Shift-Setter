@@ -1282,6 +1282,7 @@ export type Database = {
         Args: { p_pass: string; p_worker: string }
         Returns: string
       }
+      avboka_pass: { Args: { p_tilldelning: string }; Returns: Json }
       batch_shortfall: {
         Args: { p_dates: string[]; p_slots_per_day: number }
         Returns: {
@@ -1330,6 +1331,10 @@ export type Database = {
           available: number
           work_date: string
         }[]
+      }
+      place_replacement: {
+        Args: { p_pass: string; p_worker: string }
+        Returns: undefined
       }
       reject_day: {
         Args: { p_note: string; p_project: string; p_work_date: string }
