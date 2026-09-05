@@ -87,6 +87,20 @@ const CONTROLS = [
              "when t.clock_in is not null and t.clock_out is not null", "when false"),
    "BRIST.survey_hours_from_clock"],
 
+  ["unpausing puts the arbetsledare back",
+   // The pause has a trigger and the reactivation had none, so a leader came
+   // back only when some worker's assignment next happened to move.
+   "drop trigger account_unpause on public.account",
+   "PAUSE.unpause_puts_the_leader_back"],
+
+  ["the survey reads an arbetsledare's own span",
+   // Dropped, the fallback takes p.planned_hours off whichever pass the
+   // leader's row happens to hang on -- somebody else's figure, frozen into a
+   // legal document by the one path that exists to get a day right.
+   perturbIn("public.complete_bristsurvey(uuid, date, text)",
+             "when t.source = 'ledare' and t.own_start is not null", "when false"),
+   "BRIST.leader_hours_from_the_envelope"],
+
   ["the survey is the admin's alone",
    perturbIn("public.bristsurvey_gaps(uuid, date, date)",
              "if not app.is_admin() then", "if false then"),

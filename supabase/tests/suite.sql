@@ -623,6 +623,7 @@ select pg_temp.ok(
   'BRIST.survey_hours_from_planned',
   'a worker who clocked neither end gets the planned figure');
 
+
 -- Hours a human already typed are that human's. The survey fills gaps; it does
 -- not restate what was already stated.
 select pg_temp.ok(
@@ -2034,5 +2035,91 @@ select pg_temp.rejects($ar$
        and t.source = 'ledare' and t.released_at is null))
 $ar$, 'STEP4B.avboka_refuses_a_leader');
 reset role;
+
+-- ============================================================================
+-- The surveyed day's arbetsledare figure -- checked here, after STEP 4b
+--
+-- Deliberately last. The value was written when the bristsurvey ran, much
+-- earlier, and a confirmed day cannot be edited afterwards, so reading it here
+-- reads the same number. Asserting it up there made it the first thing in the
+-- suite that needs the leader_day trigger alive, which quietly stole the
+-- target of the control that turns that trigger off.
+-- ============================================================================
+-- STEP 4b, and the reason this needed its own case. leaderA is on this day
+-- automatically, and their row hangs on PASS5 -- whose planned figure is 8.00
+-- because that is what the leader typed for the WORKERS. The leader's own day
+-- is the envelope, 07:00 to 16:00, and the survey has to take it from the row
+-- rather than from the pass underneath it. 9.00, not 8.00: the two differ on
+-- purpose, so reading the wrong one cannot pass by coincidence.
+select pg_temp.ok(
+  (select t.confirmed_hours = 9.00
+   from public.tilldelning t
+   where t.project_id = 'aaaaaaaa-0000-0000-0000-00000000000a'
+     and t.work_date  = app.stockholm_today() - 2
+     and t.source     = 'ledare'
+     and t.released_at is null),
+  'BRIST.leader_hours_from_the_envelope',
+  'a surveyed day gives the arbetsledare their own span, not the pass''s');
+
+-- ============================================================================
+-- PAUSING AND UNPAUSING AN ARBETSLEDARE -- Step 4b's other direction
+--
+-- Last in the suite, because pausing leaderA lets go of every future day they
+-- lead and nothing after this should have to work around that.
+-- ============================================================================
+
+insert into public.pass (id, project_id, work_date, start_time, end_time,
+                         planned_hours, headcount, created_by)
+values ('cccccccc-0000-0000-0000-00000000000f',
+        'aaaaaaaa-0000-0000-0000-00000000000a', app.stockholm_today() + 50,
+        '07:00', '16:00', 8.00, 1, (select v from fx where k = 'leaderA'));
+
+insert into public.tilldelning (pass_id, worker_id, source, work_date)
+values ('cccccccc-0000-0000-0000-00000000000f',
+        (select id from wid where k = 'w3'), 'manuell', app.stockholm_today() + 50);
+
+select pg_temp.ok(
+  (select count(*) from public.tilldelning t
+   where t.project_id = 'aaaaaaaa-0000-0000-0000-00000000000a'
+     and t.work_date  = app.stockholm_today() + 50
+     and t.source = 'ledare' and t.released_at is null) = 1,
+  'PAUSE.leader_on_the_day_to_begin_with',
+  'a worker taking the day puts the arbetsledare on it');
+
+set local role authenticated;
+select pg_temp.act_as((select v from fx where k = 'admin'));
+update public.account set active = false where id = (select v from fx where k = 'leaderA');
+reset role;
+
+select pg_temp.ok(
+  (select released_reason = 'account_paused'
+   from public.tilldelning t
+   where t.project_id = 'aaaaaaaa-0000-0000-0000-00000000000a'
+     and t.work_date  = app.stockholm_today() + 50
+     and t.source = 'ledare'),
+  'PAUSE.leader_row_says_what_happened',
+  'the row records the pause, not a departure the workers never made');
+
+select pg_temp.ok(
+  (select count(*) from public.tilldelning t
+   where t.project_id = 'aaaaaaaa-0000-0000-0000-00000000000a'
+     and t.work_date  = app.stockholm_today() + 50
+     and t.source = 'ledare' and t.released_at is null) = 0,
+  'PAUSE.leader_off_the_day',
+  'a paused arbetsledare is not on a shift that has not started');
+
+-- The half that was missing. Nothing used to run in this direction at all.
+set local role authenticated;
+select pg_temp.act_as((select v from fx where k = 'admin'));
+update public.account set active = true where id = (select v from fx where k = 'leaderA');
+reset role;
+
+select pg_temp.ok(
+  (select count(*) from public.tilldelning t
+   where t.project_id = 'aaaaaaaa-0000-0000-0000-00000000000a'
+     and t.work_date  = app.stockholm_today() + 50
+     and t.source = 'ledare' and t.released_at is null) = 1,
+  'PAUSE.unpause_puts_the_leader_back',
+  'reactivating an arbetsledare puts them back on the days their people are on');
 
 select pg_temp.ok(true, 'SUITE.complete', 'every assertion passed');
