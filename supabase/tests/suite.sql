@@ -628,7 +628,8 @@ select pg_temp.ok(
 select pg_temp.ok(
   (select t.confirmed_hours = 7.50
    from public.tilldelning t
-   where t.pass_id = 'cccccccc-0000-0000-0000-000000000004' and t.released_at is null),
+   where t.pass_id = 'cccccccc-0000-0000-0000-000000000004' and t.released_at is null
+     and t.source <> 'ledare'),
   'BRIST.survey_leaves_typed_hours_alone',
   'a figure a leader typed survives the survey untouched');
 
@@ -821,9 +822,12 @@ select public.approve_day(
   'bbbbbbbb-0000-0000-0000-00000000000b', app.stockholm_today() - 1,
   'Bar in material, städade och rev ställning på baksidan.',
   jsonb_build_array(jsonb_build_object(
+    -- The WORKER's row. Step 4b puts the project's arbetsledare on this day
+    -- too, and a bare pass_id now matches both.
     'tilldelning', (select t.id from public.tilldelning t
                     where t.pass_id = 'cccccccc-0000-0000-0000-000000000002'
-                      and t.released_at is null),
+                      and t.released_at is null
+                      and t.source <> 'ledare'),
     'pass',   'cccccccc-0000-0000-0000-000000000002',
     'hours',  7.25,
     'start',  '07:00',
@@ -1151,7 +1155,8 @@ reset role;
 
 select pg_temp.ok(
   (select count(*) from public.tilldelning t
-   where t.pass_id = 'eeeeeeee-0000-0000-0000-000000000004' and t.released_at is null) = 0,
+   where t.pass_id = 'eeeeeeee-0000-0000-0000-000000000004' and t.released_at is null
+     and t.source <> 'ledare') = 0,
   'TIER3.nothing_assigned_without_forval',
   'an empty forval list assigns nobody -- it goes to Acceptera Pass instead');
 
@@ -1221,7 +1226,8 @@ reset role;
 
 select pg_temp.ok(
   (select count(*) from public.tilldelning t
-   where t.pass_id = 'eeeeeeee-0000-0000-0000-000000000010' and t.released_at is null) = 2,
+   where t.pass_id = 'eeeeeeee-0000-0000-0000-000000000010' and t.released_at is null
+     and t.source <> 'ledare') = 2,
   'CASCADE.filled_to_start', 'the pass starts full, so a removal has something to reopen');
 
 -- Take one of them off.
@@ -1229,8 +1235,11 @@ set local role authenticated;
 select pg_temp.act_as((select v from fx where k = 'leaderA'));
 create temporary table cascade_far as
 select * from public.release_assignment(
+  -- A WORKER's row. `limit 1` would otherwise be free to hand back the
+  -- arbetsledare's, and this test is about a vacated slot.
   (select t.id from public.tilldelning t
-   where t.pass_id = 'eeeeeeee-0000-0000-0000-000000000010' and t.released_at is null limit 1));
+   where t.pass_id = 'eeeeeeee-0000-0000-0000-000000000010' and t.released_at is null
+     and t.source <> 'ledare' limit 1));
 grant select on cascade_far to public;
 reset role;
 
@@ -1249,7 +1258,8 @@ select pg_temp.ok(
 
 select pg_temp.ok(
   (select count(*) from public.tilldelning t
-   where t.pass_id = 'eeeeeeee-0000-0000-0000-000000000010' and t.released_at is null) = 2,
+   where t.pass_id = 'eeeeeeee-0000-0000-0000-000000000010' and t.released_at is null
+     and t.source <> 'ledare') = 2,
   'CASCADE.back_to_full', 'the slot was filled, not lost');
 
 select pg_temp.ok(
@@ -1288,7 +1298,8 @@ select pg_temp.ok((select reopened from cascade_near) = false,
 
 select pg_temp.ok(
   (select count(*) from public.tilldelning t
-   where t.pass_id = 'eeeeeeee-0000-0000-0000-000000000011' and t.released_at is null) = 0,
+   where t.pass_id = 'eeeeeeee-0000-0000-0000-000000000011' and t.released_at is null
+     and t.source <> 'ledare') = 0,
   'CASCADE.left_short_inside_five_days',
   'w3 was willing and free, and was still not placed automatically');
 
@@ -1465,7 +1476,8 @@ select pg_temp.ok(
   (select ok from snabb_full)
   and (select count(*) from public.tilldelning t
        where t.pass_id = 'eeeeeeee-0000-0000-0000-000000000031'
-         and t.released_at is null) = 2,
+         and t.released_at is null
+         and t.source <> 'ledare') = 2,
   'SNABB.bypasses_headcount',
   'covering a no-show on a full shift is exactly what the escape hatch is for: ' ||
   coalesce((select err from snabb_full), ''));
@@ -1769,8 +1781,11 @@ select pg_temp.ok(
 reset role;
 
 select pg_temp.ok(
+  -- Slots, not rows. The project still has w3 on this date, so Step 4b's
+  -- arbetsledare row is legitimately sitting on this pass.
   (select count(*) from public.tilldelning t
-   where t.pass_id = 'cccccccc-0000-0000-0000-00000000000a' and t.released_at is null) = 0,
+   where t.pass_id = 'cccccccc-0000-0000-0000-00000000000a' and t.released_at is null
+     and t.source <> 'ledare') = 0,
   'AVBOKA.no_autofill_when_someone_free',
   'the slot waits for the leader to choose; it does not fill itself');
 
@@ -1848,6 +1863,176 @@ select pg_temp.ok(
    from public.avboka_pass('dddddddd-0000-0000-0000-00000000000d') g),
   'AVBOKA.nothing_inside_five_days_with_nobody',
   'the day runs short-staffed, which is a fact and not an error');
+reset role;
+
+-- ============================================================================
+-- STEP 4b -- the arbetsledare is placed automatically
+--
+-- The row exists because workers are there. Everything asserted below follows
+-- from that one sentence: it appears with the first worker, spans the whole of
+-- what the workers span, occupies no slot, and goes when the last of them does.
+--
+-- Runs last, and adds leaderA to project B on the way, so the extra scope
+-- cannot reach any assertion above it.
+-- ============================================================================
+
+insert into public.pass (id, project_id, work_date, start_time, end_time,
+                         planned_hours, headcount, created_by)
+values
+  -- +60: one project, two shifts. The envelope must be 06:00 -> 16:00.
+  ('fafafafa-0000-0000-0000-000000000001', 'aaaaaaaa-0000-0000-0000-00000000000a',
+   app.stockholm_today() + 120, '07:00', '16:00', 8.00, 1,
+   (select v from fx where k = 'leaderA')),
+  ('fafafafa-0000-0000-0000-000000000002', 'aaaaaaaa-0000-0000-0000-00000000000a',
+   app.stockholm_today() + 120, '06:00', '14:00', 7.50, 1,
+   (select v from fx where k = 'leaderA')),
+  -- +61: leaderA is working as a worker elsewhere that day.
+  ('fafafafa-0000-0000-0000-000000000003', 'bbbbbbbb-0000-0000-0000-00000000000b',
+   app.stockholm_today() + 121, '08:00', '17:00', 8.00, 1,
+   (select v from fx where k = 'leaderB')),
+  ('fafafafa-0000-0000-0000-000000000004', 'aaaaaaaa-0000-0000-0000-00000000000a',
+   app.stockholm_today() + 121, '07:00', '16:00', 8.00, 1,
+   (select v from fx where k = 'leaderA')),
+  -- +62: both projects have people, and leaderA runs both.
+  ('fafafafa-0000-0000-0000-000000000005', 'aaaaaaaa-0000-0000-0000-00000000000a',
+   app.stockholm_today() + 122, '07:00', '16:00', 8.00, 1,
+   (select v from fx where k = 'leaderA')),
+  ('fafafafa-0000-0000-0000-000000000006', 'bbbbbbbb-0000-0000-0000-00000000000b',
+   app.stockholm_today() + 122, '09:00', '18:00', 8.00, 1,
+   (select v from fx where k = 'leaderB'));
+
+insert into public.tilldelning (id, pass_id, worker_id, source)
+values
+  ('fbfbfbfb-0000-0000-0000-000000000001', 'fafafafa-0000-0000-0000-000000000001',
+   (select id from wid where k = 'w1'), 'manuell'),
+  ('fbfbfbfb-0000-0000-0000-000000000002', 'fafafafa-0000-0000-0000-000000000002',
+   (select id from wid where k = 'w2'), 'manuell');
+
+select pg_temp.ok(
+  (select count(*) from public.tilldelning t
+   where t.project_id = 'aaaaaaaa-0000-0000-0000-00000000000a'
+     and t.work_date = app.stockholm_today() + 120
+     and t.source = 'ledare' and t.released_at is null
+     and t.worker_id = (select id from wid where k = 'leaderA')) = 1,
+  'STEP4B.leader_placed',
+  'a worker holding a slot puts that projects arbetsledare on the day');
+
+select pg_temp.ok(
+  (select t.own_start = '06:00'::time and t.own_end = '16:00'::time
+   from public.tilldelning t
+   where t.project_id = 'aaaaaaaa-0000-0000-0000-00000000000a'
+     and t.work_date = app.stockholm_today() + 120
+     and t.source = 'ledare' and t.released_at is null),
+  'STEP4B.envelope_is_the_workers_span',
+  'earliest start to latest end across every worker on that project that day');
+
+-- The row hangs on the day's earliest pass, whose headcount is 1 and whose one
+-- slot is w2's. Both rows are there and the guard never fired.
+select pg_temp.ok(
+  (select count(*) from public.tilldelning t
+   where t.pass_id = 'fafafafa-0000-0000-0000-000000000002'
+     and t.released_at is null and t.source <> 'ledare') = 1
+  and (select count(*) from public.tilldelning t
+       where t.pass_id = 'fafafafa-0000-0000-0000-000000000002'
+         and t.released_at is null and t.source = 'ledare') = 1,
+  'STEP4B.no_headcount_consumed',
+  'the leaders row was never a slot the pass demanded');
+
+update public.pass set start_time = '05:00'
+where id = 'fafafafa-0000-0000-0000-000000000002';
+
+select pg_temp.ok(
+  (select t.own_start = '05:00'::time from public.tilldelning t
+   where t.project_id = 'aaaaaaaa-0000-0000-0000-00000000000a'
+     and t.work_date = app.stockholm_today() + 120
+     and t.source = 'ledare' and t.released_at is null),
+  'STEP4B.envelope_follows_an_edit',
+  'the span is the workers, so it moves when their times do');
+
+-- ---- a leader already working as a worker that day is not placed ----------
+insert into public.tilldelning (pass_id, worker_id, source)
+values ('fafafafa-0000-0000-0000-000000000003',
+        (select id from wid where k = 'leaderA'), 'manuell');
+insert into public.tilldelning (pass_id, worker_id, source)
+values ('fafafafa-0000-0000-0000-000000000004',
+        (select id from wid where k = 'w1'), 'manuell');
+
+select pg_temp.ok(
+  (select count(*) from public.tilldelning t
+   where t.worker_id = (select id from wid where k = 'leaderA')
+     and t.work_date = app.stockholm_today() + 121
+     and t.source = 'ledare' and t.released_at is null) = 0,
+  'STEP4B.busy_leader_not_placed',
+  'the exception is two PROJECTS, not a leader working a shift as a worker');
+
+-- ---- invariant 2's exception: one day on each project they run ------------
+insert into public.project_leader (project_id, account_id)
+values ('bbbbbbbb-0000-0000-0000-00000000000b', (select v from fx where k = 'leaderA'));
+
+insert into public.tilldelning (pass_id, worker_id, source)
+values ('fafafafa-0000-0000-0000-000000000005',
+        (select id from wid where k = 'w1'), 'manuell');
+insert into public.tilldelning (pass_id, worker_id, source)
+values ('fafafafa-0000-0000-0000-000000000006',
+        (select id from wid where k = 'w2'), 'manuell');
+
+select pg_temp.ok(
+  (select count(distinct t.project_id) from public.tilldelning t
+   where t.worker_id = (select id from wid where k = 'leaderA')
+     and t.work_date = app.stockholm_today() + 122
+     and t.source = 'ledare' and t.released_at is null) = 2,
+  'STEP4B.two_projects_one_day',
+  'a leader running two projects with people on them holds a day on each');
+
+-- leaderB leads project B and has no worker record at all. Nothing to place,
+-- and nothing wrong.
+select pg_temp.ok(
+  (select count(*) from public.tilldelning t
+   join public.worker w on w.id = t.worker_id
+   where w.account_id = (select v from fx where k = 'leaderB')
+     and t.source = 'ledare') = 0,
+  'STEP4B.no_worker_record_is_not_placed',
+  'an arbetsledare who never works shifts has no row to place');
+
+-- ---- the row goes when the reason for it goes, and comes back with it -----
+update public.tilldelning set released_at = now(), released_reason = 'removed_by_leader'
+where id in ('fbfbfbfb-0000-0000-0000-000000000001', 'fbfbfbfb-0000-0000-0000-000000000002');
+
+select pg_temp.ok(
+  (select count(*) from public.tilldelning t
+   where t.project_id = 'aaaaaaaa-0000-0000-0000-00000000000a'
+     and t.work_date = app.stockholm_today() + 120
+     and t.source = 'ledare' and t.released_at is null) = 0
+  and (select count(*) from public.tilldelning t
+       where t.project_id = 'aaaaaaaa-0000-0000-0000-00000000000a'
+         and t.work_date = app.stockholm_today() + 120
+         and t.source = 'ledare'
+         and t.released_reason = 'no_workers_left') = 1,
+  'STEP4B.released_when_last_worker_leaves',
+  'the row existed because workers were there, and they are not');
+
+insert into public.tilldelning (pass_id, worker_id, source)
+values ('fafafafa-0000-0000-0000-000000000001',
+        (select id from wid where k = 'w3'), 'manuell');
+
+select pg_temp.ok(
+  (select count(*) from public.tilldelning t
+   where t.project_id = 'aaaaaaaa-0000-0000-0000-00000000000a'
+     and t.work_date = app.stockholm_today() + 120
+     and t.source = 'ledare' and t.released_at is null) = 1,
+  'STEP4B.comes_back_when_the_day_does',
+  'a row released because the basis vanished is not a deliberate removal');
+
+-- ---- and the worker's route off a shift is not the leader's ---------------
+set local role authenticated;
+select pg_temp.act_as((select v from fx where k = 'leaderA'));
+select pg_temp.rejects($ar$
+  select public.avboka_pass(
+    (select t.id from public.tilldelning t
+     where t.project_id = 'aaaaaaaa-0000-0000-0000-00000000000a'
+       and t.work_date = app.stockholm_today() + 120
+       and t.source = 'ledare' and t.released_at is null))
+$ar$, 'STEP4B.avboka_refuses_a_leader');
 reset role;
 
 select pg_temp.ok(true, 'SUITE.complete', 'every assertion passed');

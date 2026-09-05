@@ -137,7 +137,7 @@ function Arbetsdagbok() {
 
     const { data: assignments } = await sb
       .from("tilldelning")
-      .select("pass_id, worker_id, confirmed_hours, clock_in, clock_out")
+      .select("pass_id, worker_id, confirmed_hours, clock_in, clock_out, source, own_start, own_end")
       .in("pass_id", (passes ?? []).map((p) => p.id))
       .is("released_at", null);
 
@@ -167,10 +167,17 @@ function Arbetsdagbok() {
         day.rows.push({
           arbetare: names.get(a.worker_id) ?? "",
           hours: String(a.confirmed_hours ?? "").replace(".", ","),
+          // An auto-assigned arbetsledare's day is the workers' envelope, not
+          // the times of whichever pass their row hangs on (Step 4b). The
+          // document does not mark the row as different -- the customer is
+          // buying hours on their site -- but the times have to be the ones
+          // that person was actually there for.
           passTider:
             surveyed.has(p.work_date) && a.clock_in && a.clock_out
               ? `${stampToTime(a.clock_in)}–${stampToTime(a.clock_out)}`
-              : `${hhmm(p.start_time)}–${hhmm(p.end_time)}`,
+              : a.source === "ledare" && a.own_start && a.own_end
+                ? `${hhmm(a.own_start)}–${hhmm(a.own_end)}`
+                : `${hhmm(p.start_time)}–${hhmm(p.end_time)}`,
           // Written once per day, repeated down every row of that day's table.
           vadViGjorde: gjorde.get(p.work_date) ?? "",
         });

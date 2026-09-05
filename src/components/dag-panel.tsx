@@ -6,7 +6,12 @@ import { getSupabase } from "@/lib/supabase/client";
 import { hhmm, longDayHeading } from "@/lib/dates";
 import { useAccount } from "@/lib/account";
 
-type Person = { tilldelning_id: string; worker_id: string; name: string; source: string };
+type Person = {
+  tilldelning_id: string; worker_id: string; name: string; source: string;
+  /** Step 4b: the workers' envelope, carried on an auto-assigned leader's
+   *  own row. Null on a worker's row, which reads the pass. */
+  own_start: string | null; own_end: string | null;
+};
 type Replacement = { worker_id: string; name: string };
 
 /** What avboka_pass() hands back: who is free, and whether cards went out. */
@@ -75,7 +80,7 @@ export function DagPanel({ date }: { date: string }) {
       const ids = (rows ?? []).map((r) => r.id);
       const { data: assignments } = ids.length
         ? await sb.from("tilldelning")
-            .select("id, pass_id, worker_id, source")
+            .select("id, pass_id, worker_id, source, own_start, own_end")
             .in("pass_id", ids).is("released_at", null)
         : { data: [] };
 
@@ -98,6 +103,8 @@ export function DagPanel({ date }: { date: string }) {
             worker_id: a.worker_id,
             name: names.get(a.worker_id) ?? "Okänd",
             source: a.source,
+            own_start: a.own_start,
+            own_end: a.own_end,
           })),
       })));
     })();
@@ -264,12 +271,14 @@ export function DagPanel({ date }: { date: string }) {
             <p className="mb-1 text-lg">
               {hhmm(p.start_time)}–{hhmm(p.end_time)} · {String(p.planned_hours).replace(".", ",")} h
             </p>
+            {/* Step 4b: the leader's row was never a slot the pass demanded,
+                so it is not counted against the headcount here either. */}
             <p className="mb-4 text-base">
-              {p.people.length} av {p.headcount} platser
+              {p.people.filter((x) => x.source !== "ledare").length} av {p.headcount} platser
             </p>
 
             <ul className="mb-4 flex flex-col gap-2">
-              {p.people.map((person) => (
+              {p.people.filter((x) => x.source !== "ledare").map((person) => (
                 <li key={person.tilldelning_id} className="flex items-stretch gap-2">
                   <span className="flex min-h-[56px] flex-1 items-center border-2 border-black px-3 text-lg font-bold">
                     {person.name}
@@ -285,11 +294,32 @@ export function DagPanel({ date }: { date: string }) {
                   </button>
                 </li>
               ))}
-              {p.people.length === 0 && (
+              {p.people.filter((x) => x.source !== "ledare").length === 0 && (
                 <li className="border-2 border-dashed border-black p-3 text-base">
                   Ingen tillsatt än.
                 </li>
               )}
+
+              {/* Placed automatically because their people are here, with the
+                  span running from the first arrival to the last departure.
+                  No trash icon: a leader is never simply absent, and taking one
+                  off forces the question of who is answerable for the day. */}
+              {p.people.filter((x) => x.source === "ledare").map((person) => (
+                <li
+                  key={person.tilldelning_id}
+                  className="flex min-h-[56px] items-center justify-between gap-2 border-2 border-dashed border-black px-3"
+                >
+                  <span className="text-lg font-bold">{person.name}</span>
+                  <span className="text-right text-sm font-bold uppercase tracking-wide">
+                    Arbetsledare
+                    {person.own_start && person.own_end && (
+                      <span className="block text-base font-normal normal-case tracking-normal">
+                        {hhmm(person.own_start)}–{hhmm(person.own_end)}
+                      </span>
+                    )}
+                  </span>
+                </li>
+              ))}
             </ul>
 
             {editing === p.id && draft ? (

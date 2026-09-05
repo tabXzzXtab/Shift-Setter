@@ -947,7 +947,10 @@ export type Database = {
           created_at: string
           id: string
           late: boolean
+          own_end: string | null
+          own_start: string | null
           pass_id: string
+          project_id: string
           released_at: string | null
           released_by: string | null
           released_reason: Database["public"]["Enums"]["release_reason"] | null
@@ -964,7 +967,10 @@ export type Database = {
           created_at?: string
           id?: string
           late?: boolean
+          own_end?: string | null
+          own_start?: string | null
           pass_id: string
+          project_id: string
           released_at?: string | null
           released_by?: string | null
           released_reason?: Database["public"]["Enums"]["release_reason"] | null
@@ -981,7 +987,10 @@ export type Database = {
           created_at?: string
           id?: string
           late?: boolean
+          own_end?: string | null
+          own_start?: string | null
           pass_id?: string
+          project_id?: string
           released_at?: string | null
           released_by?: string | null
           released_reason?: Database["public"]["Enums"]["release_reason"] | null
@@ -1003,6 +1012,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "pass"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tilldelning_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "project"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tilldelning_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "project_hours"
+            referencedColumns: ["project_id"]
           },
           {
             foreignKeyName: "tilldelning_released_by_fkey"
@@ -1360,6 +1383,7 @@ export type Database = {
         | "oppen"
         | "manuell"
         | "snabb"
+        | "ledare"
       confirmation_source: "leader" | "bristsurvey"
       day_stage: "leader_confirmed" | "admin_confirmed"
       notification_kind: "shift_deleted" | "shift_offered" | "day_unconfirmed"
@@ -1370,6 +1394,7 @@ export type Database = {
         | "shift_deleted"
         | "absent_at_confirmation"
         | "account_paused"
+        | "no_workers_left"
       review_action: "approved" | "rejected"
     }
     CompositeTypes: {
@@ -1499,7 +1524,14 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "arbetsledare", "arbetare"],
-      assignment_source: ["handplockad", "forval", "oppen", "manuell", "snabb"],
+      assignment_source: [
+        "handplockad",
+        "forval",
+        "oppen",
+        "manuell",
+        "snabb",
+        "ledare",
+      ],
       confirmation_source: ["leader", "bristsurvey"],
       day_stage: ["leader_confirmed", "admin_confirmed"],
       notification_kind: ["shift_deleted", "shift_offered", "day_unconfirmed"],
@@ -1510,6 +1542,7 @@ export const Constants = {
         "shift_deleted",
         "absent_at_confirmation",
         "account_paused",
+        "no_workers_left",
       ],
       review_action: ["approved", "rejected"],
     },

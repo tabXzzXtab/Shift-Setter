@@ -6,6 +6,7 @@ import { Button, Empty, Field, Input, Notice, Screen, Textarea } from "@/compone
 import { getSupabase } from "@/lib/supabase/client";
 import { hhmm, longDayHeading, stampToTime } from "@/lib/dates";
 import { pendingDays } from "@/lib/pending-days";
+import { spanHours } from "@/lib/hours";
 
 type Row = {
   tilldelning_id: string;
@@ -17,6 +18,11 @@ type Row = {
   clock_in: string | null;
   clock_out: string | null;
   confirmed_hours: number | null;
+  /** Step 4b: an auto-assigned arbetsledare. Their times are the workers'
+   *  envelope carried on the row itself, not the times of whichever pass the
+   *  row hangs on, and correcting them writes back to the row rather than
+   *  moving everybody's shift. */
+  is_leader: boolean;
 };
 
 type Day = {
@@ -86,7 +92,7 @@ function Bekrafta() {
 
       const { data: assignments, error: aErr } = await sb
         .from("tilldelning")
-        .select("id, pass_id, worker_id, clock_in, clock_out, confirmed_hours")
+        .select("id, pass_id, worker_id, clock_in, clock_out, confirmed_hours, source, own_start, own_end")
         .in("pass_id", samePasses.map((p) => p.id))
         .is("released_at", null);
 
@@ -99,16 +105,25 @@ function Bekrafta() {
 
       const rows: Row[] = (assignments ?? []).map((a) => {
         const p = samePasses.find((x) => x.id === a.pass_id)!;
+        const leader = a.source === "ledare";
+        const start = hhmm(leader && a.own_start ? a.own_start : p.start_time);
+        const end = hhmm(leader && a.own_end ? a.own_end : p.end_time);
         return {
           tilldelning_id: a.id,
           worker_name: names.get(a.worker_id) ?? "Okänd",
           pass_id: a.pass_id,
-          start: hhmm(p.start_time),
-          end: hhmm(p.end_time),
-          planned_hours: Number(p.planned_hours),
+          start,
+          end,
+          // A leader's figure is prefilled from the envelope, with no break
+          // taken off: lunch is theirs to subtract. A worker's is the pass's
+          // planned number.
+          planned_hours: leader
+            ? Number(spanHours(start, end).replace(",", "."))
+            : Number(p.planned_hours),
           clock_in: a.clock_in,
           clock_out: a.clock_out,
           confirmed_hours: a.confirmed_hours === null ? null : Number(a.confirmed_hours),
+          is_leader: leader,
         };
       });
 
@@ -152,10 +167,18 @@ function Bekrafta() {
       const hoursChanged = hours !== (row.confirmed_hours ?? row.planned_hours);
 
       if (timesChanged) {
-        const { error: tErr } = await sb
-          .from("pass")
-          .update({ start_time: e.start, end_time: e.end })
-          .eq("id", row.pass_id);
+        // A leader's span belongs to their row. Writing it to the pass would
+        // move every worker on that shift, and the leader was correcting when
+        // THEY were there, not when the job ran.
+        const { error: tErr } = row.is_leader
+          ? await sb
+              .from("tilldelning")
+              .update({ own_start: e.start, own_end: e.end })
+              .eq("id", row.tilldelning_id)
+          : await sb
+              .from("pass")
+              .update({ start_time: e.start, end_time: e.end })
+              .eq("id", row.pass_id);
         if (tErr) { setError(tErr.message); setSaving(false); return; }
       }
 
@@ -220,7 +243,17 @@ function Bekrafta() {
           const e = edits[r.tilldelning_id]!;
           return (
             <section key={r.tilldelning_id} className="border-2 border-black p-4">
-              <p className="mb-3 text-xl font-bold">{r.worker_name}</p>
+              <p className="mb-3 flex flex-wrap items-baseline gap-2 text-xl font-bold">
+                {r.worker_name}
+                {/* Step 4b: placed because their people were there, not by the
+                    priority list. Saying so is why the span looks unlike
+                    anyone else's on the day. */}
+                {r.is_leader && (
+                  <span className="border border-black px-1 text-xs font-bold uppercase tracking-wide">
+                    Arbetsledare
+                  </span>
+                )}
+              </p>
 
               <p className="mb-3 text-base text-neutral-700">
                 Stämplade {stampToTime(r.clock_in) || "—"} till {stampToTime(r.clock_out) || "—"}

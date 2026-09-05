@@ -406,6 +406,10 @@ The priority list is for workers. A leader does not queue for their own project.
 
 **Their hours are prefilled from that span and stay editable.** The prefilled number is a starting point the leader overwrites before confirming — lunch comes off it like anyone else's. This does not weaken invariant 1: a number a human must accept or correct is not a derived number. Nothing writes a leader's hours that no human looked at.
 
+**The row exists because workers are there, and only while they are.** Take the last worker off a project's day and the leader's row goes with it — released, not deleted, because a leader who had already clocked in leaves evidence and invariant 3 does not lose evidence when a schedule changes. Put a worker back on that day and the leader is placed again. Only a person taking the leader off (Step 5c) keeps them off; a row released because the shift was deleted or the day emptied is the basis disappearing, not a decision anyone made.
+
+**A leader already working that day as a worker is not placed.** Invariant 2's exception is a leader on two *projects*, not a leader who holds an ordinary shift somewhere and is therefore not available to supervise. They cannot be in both places. The project they lead then has a day with no leader on it, which is a real gap and is recorded as one — Step 5c, not a silent double-booking.
+
 **They clock themselves in and out**, same as any worker, same server timestamps.
 
 **They print as a row in the Arbetsdagbok**, same as any worker. The document does not mark a leader's row as different. The customer is buying hours on their site, and a leader's hours are hours on their site.

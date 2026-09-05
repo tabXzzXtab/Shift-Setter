@@ -1,10 +1,10 @@
 enum   app_role = admin,arbetsledare,arbetare
-enum   assignment_source = handplockad,forval,oppen,manuell,snabb
+enum   assignment_source = handplockad,forval,oppen,manuell,snabb,ledare
 enum   confirmation_source = leader,bristsurvey
 enum   day_stage = leader_confirmed,admin_confirmed
 enum   notification_kind = shift_deleted,shift_offered,day_unconfirmed
 enum   offer_state = offered,accepted,declined,withdrawn
-enum   release_reason = removed_by_leader,replaced_by_snabb,shift_deleted,absent_at_confirmation,account_paused
+enum   release_reason = removed_by_leader,replaced_by_snabb,shift_deleted,absent_at_confirmation,account_paused,no_workers_left
 enum   review_action = approved,rejected
 column account.active boolean NOT NULL DEFAULT true
 column account.created_at timestamp with time zone NOT NULL DEFAULT now()
@@ -178,7 +178,10 @@ column tilldelning.confirmed_hours numeric(4,2)
 column tilldelning.created_at timestamp with time zone NOT NULL DEFAULT now()
 column tilldelning.id uuid NOT NULL DEFAULT gen_random_uuid()
 column tilldelning.late boolean NOT NULL DEFAULT false
+column tilldelning.own_end time without time zone
+column tilldelning.own_start time without time zone
 column tilldelning.pass_id uuid NOT NULL
+column tilldelning.project_id uuid NOT NULL
 column tilldelning.released_at timestamp with time zone
 column tilldelning.released_by uuid
 column tilldelning.released_reason release_reason
@@ -266,7 +269,10 @@ constr project_leader FOREIGN KEY (project_id) REFERENCES project(id) ON DELETE 
 constr project_leader PRIMARY KEY (project_id, account_id)
 constr tilldelning CHECK ((((released_at IS NULL) AND (released_reason IS NULL)) OR ((released_at IS NOT NULL) AND (released_reason IS NOT NULL))))
 constr tilldelning CHECK (((confirmed_hours >= (0)::numeric) AND (confirmed_hours <= (24)::numeric)))
+constr tilldelning CHECK (((own_start IS NULL) = (own_end IS NULL)))
+constr tilldelning CHECK (((own_start IS NULL) OR (source = 'ledare'::assignment_source)))
 constr tilldelning FOREIGN KEY (pass_id) REFERENCES pass(id) ON DELETE CASCADE
+constr tilldelning FOREIGN KEY (project_id) REFERENCES project(id)
 constr tilldelning FOREIGN KEY (released_by) REFERENCES account(id)
 constr tilldelning FOREIGN KEY (worker_id) REFERENCES worker(id) ON DELETE RESTRICT
 constr tilldelning PRIMARY KEY (id)
@@ -308,7 +314,8 @@ index  CREATE UNIQUE INDEX profile_pkey ON public.profile USING btree (account_i
 index  CREATE UNIQUE INDEX project_day_pkey ON public.project_day USING btree (project_id, work_date)
 index  CREATE UNIQUE INDEX project_leader_pkey ON public.project_leader USING btree (project_id, account_id)
 index  CREATE UNIQUE INDEX project_pkey ON public.project USING btree (id)
-index  CREATE UNIQUE INDEX tilldelning_one_per_worker_per_day ON public.tilldelning USING btree (worker_id, work_date) WHERE (released_at IS NULL)
+index  CREATE UNIQUE INDEX tilldelning_one_leader_row_per_project_day ON public.tilldelning USING btree (worker_id, work_date, project_id) WHERE ((released_at IS NULL) AND (source = 'ledare'::assignment_source))
+index  CREATE UNIQUE INDEX tilldelning_one_per_worker_per_day ON public.tilldelning USING btree (worker_id, work_date) WHERE ((released_at IS NULL) AND (source <> 'ledare'::assignment_source))
 index  CREATE UNIQUE INDEX tilldelning_pkey ON public.tilldelning USING btree (id)
 index  CREATE UNIQUE INDEX worker_account_id_key ON public.worker USING btree (account_id)
 index  CREATE UNIQUE INDEX worker_email_key ON public.worker USING btree (lower(email))
@@ -384,6 +391,8 @@ trig   confirmation_guard on project_day -> tg_confirmation_guard enabled=O
 trig   enforce_bucket_name_length_trigger on storage.buckets -> enforce_bucket_name_length enabled=O
 trig   headcount_guard on tilldelning -> tg_headcount_guard enabled=O
 trig   last_admin_guard on account -> tg_last_admin_guard enabled=O
+trig   leader_day on tilldelning -> tg_leader_day enabled=O
+trig   leader_day_pass on pass -> tg_leader_day_pass enabled=O
 trig   pass_delete_guard on pass -> tg_pass_delete_guard enabled=O
 trig   pass_edit_guard on pass -> tg_pass_edit_guard enabled=O
 trig   profile_touch on profile -> tg_profile_touch enabled=O
@@ -396,31 +405,34 @@ trig   worker_self_edit_guard on worker -> tg_worker_self_edit_guard enabled=O
 func   app.confirms_project(p_project uuid) md5=c3d7d74eefb17d760930c36afc604682
 func   app.current_role() md5=9aac5306319ae740d224ff2203a64880
 func   app.current_worker_id() md5=74dddcd603933dd85350f7d4fd99efdf
-func   app.fill_pass(p_pass uuid) md5=7cb6078b23b665a9de496f0231528e63
+func   app.fill_pass(p_pass uuid) md5=ce17a6d7c777332276fef3842c5de8b8
 func   app.is_admin() md5=3d4f4a5b9492b42ec49925b7895a09c5
 func   app.is_staff() md5=2e999136779c7d843714a9924d1dc8fc
 func   app.leads_project(p_project uuid) md5=f1d9360a0c4753413b5ac7fa20a587db
 func   app.pass_end_at(p_date date, p_start time without time zone, p_end time without time zone) md5=5cbed15c09406f178bd3175eac1980f4
 func   app.pass_start_at(p_date date, p_start time without time zone) md5=9fa0f40882eca98efe820667c724d176
 func   app.stockholm_today() md5=8b086d188d946a11d35cafa583ec6465
+func   app.sync_leader_day(p_project uuid, p_date date) md5=2419f6eb4832bd9dbfc785e57a5dd936
 func   app.tg_account_pause() md5=00172728bd0502a02a550a4a1e0cfdc9
 func   app.tg_arbetsdagbok_guard() md5=f86304934a0a46e27e5af4b82d47bd24
 func   app.tg_assignment_write_guard() md5=0117e43f64eb760c660b914086baf5dd
-func   app.tg_block_guard() md5=7e67025837c229da9a7f75c54150dae5
+func   app.tg_block_guard() md5=b26fbbab450281b7deb537ec3212c1bd
 func   app.tg_clock_evidence() md5=6c33ff53dff91ccee095fa5abb4ec25d
 func   app.tg_confirmation_guard() md5=50d7bd21fa7525c6b98859d4b843fd7e
-func   app.tg_headcount_guard() md5=74a4944a10b83aba5bd5bd3b4e933697
+func   app.tg_headcount_guard() md5=f670cf086f1ab865d3d818b75225c070
 func   app.tg_last_admin_guard() md5=6c4fd5dcb72f8a568c492f7139ed8c2c
-func   app.tg_pass_delete_guard() md5=f4d3d483aab732281e868750071d7eb2
+func   app.tg_leader_day() md5=d55ddf7a8227ddd0f73386690ee55145
+func   app.tg_leader_day_pass() md5=691021ec0d2c47200fc8dd2106b10d59
+func   app.tg_pass_delete_guard() md5=91f1c76f9afd189463ca8c9f26b04390
 func   app.tg_pass_edit_guard() md5=dda07b7abfaa8f7eb519081febb29535
 func   app.tg_profile_touch() md5=2cd0a5f82ac61406b149da8b7d574ddc
-func   app.tg_sync_work_date() md5=73d0cc0d6a532f106c8449760ce90c5d
+func   app.tg_sync_work_date() md5=205305b41ade44114ec626dc29b463e5
 func   app.tg_worker_self_edit_guard() md5=1d48b1ab95436213192e2a5329677630
 func   app.week_start(d date) md5=4a8f6c192e41cf4a14ebb5f87e671c29
-func   public.accept_offer(p_pass uuid) md5=4e6081afac5dad10ccfee3666d80296d
+func   public.accept_offer(p_pass uuid) md5=2f95270ad8439ba89f80c3567c7328db
 func   public.approve_day(p_project uuid, p_work_date date, p_text text, p_rows jsonb) md5=5165a1ac04f26c220246a93943c1882b
 func   public.assign_snabb(p_pass uuid, p_worker uuid) md5=2941adb07cca8418f1ba9086a65e3a8e
-func   public.avboka_pass(p_tilldelning uuid) md5=acf902fb4983c3e87ce76c15dc228829
+func   public.avboka_pass(p_tilldelning uuid) md5=4172a9c4a9875df3a49ed8964594acd6
 func   public.batch_shortfall(p_dates date[], p_slots_per_day integer) md5=8dd3975240b28be0721227084e229bc2
 func   public.bristsurvey_gaps(p_project uuid, p_from date, p_to date) md5=2966c826968375d2b93623bbc9705cca
 func   public.cash_dist(money, money) md5=1acd79b2b4b9df652d58d90e72f05a29

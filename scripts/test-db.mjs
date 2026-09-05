@@ -261,6 +261,35 @@ const CONTROLS = [
              "if not app.leads_project(v_pass.project_id) then", "if false then"),
    "AVBOKA.other_leader_refused"],
 
+  // ---- STEP 4b, the arbetsledare placed automatically ---------------------
+
+  ["the leader is placed when a worker takes a slot",
+   "alter table public.tilldelning disable trigger leader_day",
+   "STEP4B.leader_placed"],
+
+  ["the span is the workers' envelope, not one shift's times",
+   // Earliest start becomes latest start: the leader arrives when the last
+   // person does, which is precisely what the envelope exists to deny.
+   perturbIn("app.sync_leader_day(uuid,date)",
+             "min(p.start_time), max(p.end_time)",
+             "max(p.start_time), max(p.end_time)"),
+   "STEP4B.envelope_is_the_workers_span"],
+
+  ["a leader working elsewhere that day is not also placed",
+   // The five-space padding is what keeps this off the envelope query's own
+   // `and t.source <> 'ledare';` a few lines above it.
+   perturbIn("app.sync_leader_day(uuid,date)",
+             "and t.source     <> 'ledare'", "and false"),
+   "STEP4B.busy_leader_not_placed"],
+
+  ["only a deliberate removal keeps the leader off the day",
+   // Any released row becomes a tombstone, so a day that lost its workers and
+   // got them back never gets its leader back.
+   perturbIn("app.sync_leader_day(uuid,date)",
+             "and t.released_reason = 'removed_by_leader'",
+             "and t.released_at is not null"),
+   "STEP4B.comes_back_when_the_day_does"],
+
   ["invariant 7 -- project creation is a gate",
    `alter table public.project drop constraint ` +
    `"${"project_bestallare_orgnr_check"}"`,
