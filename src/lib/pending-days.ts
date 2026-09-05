@@ -38,9 +38,19 @@ export type PendingDay = {
  * 4b's last line, and the database refuses such a confirmation outright; this
  * only keeps the queue from showing a day nobody can answer.
  *
- * Scoping is RLS's, not this function's. The pass policy limits rows to
- * projects the caller leads, so an admin calling it sees every project and an
- * arbetare sees nothing.
+ * A DAY WHOSE ARBETSLEDARE IS SOMEBODY ELSE IS NOT WAITING ON YOU. Invariant
+ * 4b scopes confirmation to the day, not to the project: if the day has an
+ * arbetsledare row, the person on it confirms it. After a swap (Step 5d) the
+ * leader who left is still project_leader of the site and can still SEE its
+ * shifts, so without this they would be offered a day the database would then
+ * refuse them -- a queue that hands out work it knows will bounce.
+ *
+ * That last filter is the only scoping this function does itself, and it is
+ * the queue agreeing with the boundary rather than being one.
+ * app.tg_confirmation_guard() is what actually refuses the write, and the
+ * SWAP.swapped_out_cannot_confirm control is what proves it. Everything else
+ * here is RLS's: the pass policy limits rows to projects the caller leads or
+ * days they hold, so an admin sees every project and an arbetare sees nothing.
  */
 export async function pendingDays(): Promise<PendingDay[]> {
   const sb = getSupabase();
@@ -70,7 +80,8 @@ export async function pendingDays(): Promise<PendingDay[]> {
   );
   const record = new Map((days ?? []).map((d) => [`${d.project_id}|${d.work_date}`, d]));
 
-  const open = ended.filter((p) => !done.has(`${p.project_id}|${p.work_date}`));
+  const unconfirmed = ended.filter((p) => !done.has(`${p.project_id}|${p.work_date}`));
+  const open = await onlyMine(unconfirmed);
 
   // Grouped by project and date: one day is one confirmation, however many
   // shifts ran on it.
@@ -102,4 +113,47 @@ export async function pendingDays(): Promise<PendingDay[]> {
     (a, b) =>
       a.work_date.localeCompare(b.work_date) || a.project_id.localeCompare(b.project_id),
   );
+}
+
+/**
+ * Drop the days somebody else is standing on.
+ *
+ * A day with no arbetsledare row at all stays -- that is invariant 4b's other
+ * branch, where there is nobody to point at and membership is the only claim
+ * available, and it is how a day whose leaders were all committed elsewhere
+ * stays confirmable.
+ */
+async function onlyMine<T extends { project_id: string; work_date: string }>(
+  days: T[],
+): Promise<T[]> {
+  if (days.length === 0) return days;
+  const sb = getSupabase();
+
+  const { data: auth } = await sb.auth.getUser();
+  const { data: me } = await sb
+    .from("account_directory")
+    .select("worker_id")
+    .eq("id", auth.user?.id ?? "")
+    .maybeSingle();
+  const mine = me?.worker_id ?? null;
+
+  const { data: leaders } = await sb
+    .from("tilldelning")
+    .select("project_id, work_date, worker_id")
+    .eq("source", "ledare")
+    .is("released_at", null)
+    .in("work_date", [...new Set(days.map((d) => d.work_date))]);
+
+  const led = new Set<string>();
+  const held = new Set<string>();
+  for (const t of leaders ?? []) {
+    const key = `${t.project_id}|${t.work_date}`;
+    led.add(key);
+    if (mine && t.worker_id === mine) held.add(key);
+  }
+
+  return days.filter((d) => {
+    const key = `${d.project_id}|${d.work_date}`;
+    return !led.has(key) || held.has(key);
+  });
 }

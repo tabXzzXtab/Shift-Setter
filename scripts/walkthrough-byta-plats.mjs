@@ -260,20 +260,34 @@ try {
 
   await signOut(page);
 
-  // ---- STOPS HERE, AND THE REASON IS NOT THE TEST -------------------------
+  // ---- whose day it is now, and whose it is not --------------------------
   //
-  // The next thing to check would be that each leader's Bekräfta Pass now
-  // holds the project they swapped INTO. It does not, and no assertion is
-  // written for it, because the behaviour is not decided yet:
+  // Invariant 4b is scoped to the day, so this is the swap's real consequence:
+  // the leader who swapped IN holds the project they went to, and it is in
+  // their Bekrafta Pass. The leader who swapped OUT no longer holds the one
+  // they left. Membership did not move; the day did.
   //
-  //   app.confirms_project() and app.leads_project() both scope on
-  //   project_leader MEMBERSHIP, which a swap does not touch. So the leader who
-  //   swapped in cannot see or confirm the day they worked, and the leader who
-  //   swapped out still can -- a stage 1 claim about a day they were not on.
-  //
-  // Fixing that means changing what invariant 4b scopes on, which is a
-  // stop-and-ask, not a judgment call. Until it is answered, this walkthrough
-  // asserts what the swap actually does and claims nothing about the queues.
+  // It doubles as the flag check. pending-days drops a flagged day out of
+  // every leader's queue permanently, so a day sitting in one was not flagged.
+  // /granska/ cannot answer that here -- it shows one day at a time, flagged
+  // first, and a flagged day left by another walkthrough on this shared
+  // database would stand in front of it either way.
+  for (const [who, wentTo, cameFrom, tag] of [
+    [L1, P2, P1, "ett"],
+    [L2, P1, P2, "tva"],
+  ]) {
+    await signIn(page, who.email, who.password);
+    await page.goto(`${BASE}/bekrafta/`, { waitUntil: "networkidle" });
+    await mustSee(page, wentTo, `${who.name} should be confirming ${wentTo} now`);
+    const queue = await page.locator("main").innerText();
+    if (queue.includes(cameFrom)) {
+      await shot(page, "FAILED");
+      fail(`${who.name} can still confirm ${cameFrom}, a day they swapped out of`);
+    }
+    await shot(page, `bp4-bekrafta-${tag}`);
+    await signOut(page);
+  }
+  log("each leader confirms the day they went to, and no longer the one they left");
 
   console.log("\nBYTA PLATS COMPLETE.\n");
 } finally {

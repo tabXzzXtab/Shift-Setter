@@ -342,6 +342,31 @@ const CONTROLS = [
              "set released_at = now(), released_reason = 'no_workers_left',"),
    "SWAP.survives_a_roster_edit"],
 
+  // ---- INVARIANT 4b, day-scoped -------------------------------------------
+  //
+  // Two controls because the rule has two halves and they are held up by two
+  // different pieces. Reverting confirms_project() to a membership test breaks
+  // BOTH assertions, so the refusal is asserted first in the suite and this
+  // control lands on it; the permission is left to a control that touches only
+  // the trigger's gate, where the refusal still holds.
+  ["a leader who was not on the day cannot confirm it",
+   // Straight back to the old rule: membership, whoever actually stood there.
+   perturbIn("app.confirms_project(uuid, date)",
+             "then app.holds_the_day(p_project, p_work_date)",
+             "then exists (select 1 from public.project_leader pl2 " +
+             "where pl2.project_id = p_project and pl2.account_id = (select auth.uid()))"),
+   "SWAP.swapped_out_cannot_confirm"],
+
+  ["a leader who WAS on the day can reach it",
+   // The gate before the stage 1 test. Without the day clause it admits only
+   // members, so the swapped-in leader is turned away one step early -- while
+   // the swapped-out leader, who is a member, still reaches confirms_project()
+   // and is still correctly refused there.
+   perturbIn("app.tg_confirmation_guard()",
+             "if not (app.leads_project(new.project_id) or app.holds_the_day(new.project_id, new.work_date)) then",
+             "if not app.leads_project(new.project_id) then"),
+   "SWAP.swapped_in_can_confirm"],
+
   ["invariant 7 -- project creation is a gate",
    `alter table public.project drop constraint ` +
    `"${"project_bestallare_orgnr_check"}"`,

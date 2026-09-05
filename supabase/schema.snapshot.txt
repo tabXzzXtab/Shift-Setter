@@ -339,7 +339,7 @@ policy forval.forval_select [SELECT] USING((app.is_staff() OR (worker_id = app.c
 policy notification.notification_own_select [SELECT] USING((account_id = ( SELECT auth.uid() AS uid))) CHECK(-)
 policy notification.notification_own_update [UPDATE] USING((account_id = ( SELECT auth.uid() AS uid))) CHECK((account_id = ( SELECT auth.uid() AS uid)))
 policy pass.pass_leader_insert [INSERT] USING(-) CHECK(app.leads_project(project_id))
-policy pass.pass_leader_select [SELECT] USING(((deleted_at IS NULL) AND app.leads_project(project_id))) CHECK(-)
+policy pass.pass_leader_select [SELECT] USING(((deleted_at IS NULL) AND (app.leads_project(project_id) OR app.holds_the_day(project_id, work_date)))) CHECK(-)
 policy pass.pass_leader_update [UPDATE] USING(app.leads_project(project_id)) CHECK(app.leads_project(project_id))
 policy pass_batch.pass_batch_leader [ALL] USING(app.leads_project(project_id)) CHECK(app.leads_project(project_id))
 policy pass_batch_handpick.handpick_leader [ALL] USING((EXISTS ( SELECT 1
@@ -356,18 +356,18 @@ policy pass_offer.pass_offer_leader_write [ALL] USING((EXISTS ( SELECT 1
 policy pass_offer.pass_offer_select [SELECT] USING((app.is_staff() OR (worker_id = app.current_worker_id()))) CHECK(-)
 policy profile.profile_self_or_admin [ALL] USING(((account_id = ( SELECT auth.uid() AS uid)) OR app.is_admin())) CHECK(((account_id = ( SELECT auth.uid() AS uid)) OR app.is_admin()))
 policy project.project_admin_write [ALL] USING(app.is_admin()) CHECK(app.is_admin())
-policy project.project_staff_select [SELECT] USING(((deleted_at IS NULL) AND app.leads_project(id))) CHECK(-)
-policy project_day.project_day_leader [ALL] USING(app.leads_project(project_id)) CHECK(app.leads_project(project_id))
+policy project.project_staff_select [SELECT] USING(((deleted_at IS NULL) AND (app.leads_project(id) OR app.holds_a_day(id)))) CHECK(-)
+policy project_day.project_day_leader [ALL] USING((app.leads_project(project_id) OR app.holds_the_day(project_id, work_date))) CHECK((app.leads_project(project_id) OR app.holds_the_day(project_id, work_date)))
 policy project_leader.project_leader_admin_write [ALL] USING(app.is_admin()) CHECK(app.is_admin())
 policy project_leader.project_leader_staff_select [SELECT] USING(app.is_staff()) CHECK(-)
 policy tilldelning.tilldelning_leader_select [SELECT] USING((EXISTS ( SELECT 1
    FROM pass p
-  WHERE ((p.id = tilldelning.pass_id) AND app.leads_project(p.project_id))))) CHECK(-)
+  WHERE ((p.id = tilldelning.pass_id) AND (app.leads_project(p.project_id) OR app.holds_the_day(p.project_id, tilldelning.work_date)))))) CHECK(-)
 policy tilldelning.tilldelning_leader_write [ALL] USING((EXISTS ( SELECT 1
    FROM pass p
-  WHERE ((p.id = tilldelning.pass_id) AND app.leads_project(p.project_id))))) CHECK((EXISTS ( SELECT 1
+  WHERE ((p.id = tilldelning.pass_id) AND (app.leads_project(p.project_id) OR app.holds_the_day(p.project_id, tilldelning.work_date)))))) CHECK((EXISTS ( SELECT 1
    FROM pass p
-  WHERE ((p.id = tilldelning.pass_id) AND app.leads_project(p.project_id)))))
+  WHERE ((p.id = tilldelning.pass_id) AND (app.leads_project(p.project_id) OR app.holds_the_day(p.project_id, tilldelning.work_date))))))
 policy worker.worker_admin_insert [INSERT] USING(-) CHECK(app.is_admin())
 policy worker.worker_self_or_admin_select [SELECT] USING(((account_id = ( SELECT auth.uid() AS uid)) OR app.is_admin())) CHECK(-)
 policy worker.worker_self_profile_update [UPDATE] USING(((account_id = ( SELECT auth.uid() AS uid)) OR app.is_admin())) CHECK(((account_id = ( SELECT auth.uid() AS uid)) OR app.is_admin()))
@@ -409,11 +409,13 @@ trig   sync_work_date on tilldelning -> tg_sync_work_date enabled=O
 trig   tr_check_filters on realtime.subscription -> subscription_check_filters enabled=O
 trig   update_objects_updated_at on storage.objects -> update_updated_at_column enabled=O
 trig   worker_self_edit_guard on worker -> tg_worker_self_edit_guard enabled=O
-func   app.confirms_project(p_project uuid) md5=c3d7d74eefb17d760930c36afc604682
+func   app.confirms_project(p_project uuid, p_work_date date) md5=46099961ff1935ecc58e80568426eb8b
 func   app.current_role() md5=9aac5306319ae740d224ff2203a64880
 func   app.current_worker_id() md5=74dddcd603933dd85350f7d4fd99efdf
 func   app.fill_pass(p_pass uuid) md5=ce17a6d7c777332276fef3842c5de8b8
 func   app.flag_day(p_tilldelning uuid, p_flag confirmation_source, p_worker uuid) md5=0adb6220d986f91660bef798807d598f
+func   app.holds_a_day(p_project uuid) md5=25945fb19cc7aa025b4298ef1be3e393
+func   app.holds_the_day(p_project uuid, p_work_date date) md5=8d2d52c980559183f43acfc52f409b1c
 func   app.is_admin() md5=3d4f4a5b9492b42ec49925b7895a09c5
 func   app.is_staff() md5=2e999136779c7d843714a9924d1dc8fc
 func   app.leads_project(p_project uuid) md5=f1d9360a0c4753413b5ac7fa20a587db
@@ -425,10 +427,10 @@ func   app.take_leader_off(p_tilldelning uuid) md5=a6cec3a6842e253b2c4fa868f68e1
 func   app.tg_account_pause() md5=00172728bd0502a02a550a4a1e0cfdc9
 func   app.tg_account_unpause() md5=5796a885a774351e6d2b1d4f46170343
 func   app.tg_arbetsdagbok_guard() md5=f86304934a0a46e27e5af4b82d47bd24
-func   app.tg_assignment_write_guard() md5=0117e43f64eb760c660b914086baf5dd
+func   app.tg_assignment_write_guard() md5=f881334e120d8c970a332cb2e581f32b
 func   app.tg_block_guard() md5=b26fbbab450281b7deb537ec3212c1bd
 func   app.tg_clock_evidence() md5=6c33ff53dff91ccee095fa5abb4ec25d
-func   app.tg_confirmation_guard() md5=0fb98d4a5280bc9324a621a955acb7fb
+func   app.tg_confirmation_guard() md5=798d3c7463997d9229b95df274639de6
 func   app.tg_headcount_guard() md5=f670cf086f1ab865d3d818b75225c070
 func   app.tg_last_admin_guard() md5=6c4fd5dcb72f8a568c492f7139ed8c2c
 func   app.tg_leader_day() md5=d55ddf7a8227ddd0f73386690ee55145

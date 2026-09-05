@@ -39,6 +39,20 @@ begin
   raise exception 'ASSERT_FAIL:%: statement was accepted but must be rejected', name;
 end $$;
 
+-- The mirror of rejects(). Asserts a statement is ACCEPTED, and names the
+-- assertion when it is not -- otherwise a refusal escapes as a raw error and
+-- the runner reports "(not an assertion)", which tells a negative control
+-- nothing about WHICH protection it just removed.
+create or replace function pg_temp.accepts(stmt text, name text)
+returns void language plpgsql as $$
+begin
+  execute stmt;
+exception when others then
+  if sqlerrm like 'ASSERT_FAIL:%' then raise; end if;
+  raise exception 'ASSERT_FAIL:%: statement was refused but must be accepted: %',
+    name, sqlerrm;
+end $$;
+
 create or replace function pg_temp.act_as(p_account uuid)
 returns void language plpgsql as $$
 begin
@@ -2538,5 +2552,58 @@ select pg_temp.ok(
      and t.project_id = '11111111-aaaa-0000-0000-0000000000c1') = 1,
   'SWAP.survives_a_roster_edit',
   'the swap holds; the original leader is not put back on top of it');
+
+-- ---- AND THE DAY IS NOW THE CONFIRMATION SCOPE -----------------------------
+--
+-- Project C is the interesting one. leaderA is its project_leader and is no
+-- longer on it; leaderB stands on it and is not a member of it. Membership and
+-- presence have come apart, which is the only state in the system where the
+-- two rules give different answers -- so it is the only place either can be
+-- tested.
+--
+-- ORDER MATTERS HERE. Both assertions rest partly on app.confirms_project(),
+-- so a control that reverts it to a membership check breaks both; the refusal
+-- is asserted first so that control fails at the refusal and the permission
+-- keeps a control of its own.
+
+-- The ledare row needs hours like any other, or confirming refuses for a
+-- reason that has nothing to do with who is asking.
+update public.tilldelning set confirmed_hours = 9.00
+where project_id = '11111111-aaaa-0000-0000-0000000000c1'
+  and work_date = app.stockholm_today() - 7
+  and source = 'ledare' and released_at is null;
+
+set local role authenticated;
+
+-- THE LEADER WHO SWAPPED OUT. Still project_leader of C, was not on it, and
+-- may no longer say what happened there. This is the rubber-stamp the two
+-- stages exist to prevent, one level below the admin.
+select pg_temp.act_as((select v from fx where k = 'leaderA'));
+select pg_temp.rejects($$
+  insert into public.project_day (project_id, work_date, vad_vi_gjorde,
+                                  confirmed_at, confirmed_by, confirmed_via)
+  values ('11111111-aaaa-0000-0000-0000000000c1', app.stockholm_today() - 7,
+          'Var inte dar', now(), (select v from fx where k='leaderA'), 'leader')
+$$, 'SWAP.swapped_out_cannot_confirm');
+
+-- THE LEADER WHO SWAPPED IN. Not a member of C at all, and the only person who
+-- can honestly account for the day.
+select pg_temp.act_as((select v from fx where k = 'leaderB'));
+select pg_temp.accepts($$
+  insert into public.project_day (project_id, work_date, vad_vi_gjorde,
+                                  confirmed_at, confirmed_by, confirmed_via)
+  values ('11111111-aaaa-0000-0000-0000000000c1', app.stockholm_today() - 7,
+          'Gravde och gjot', now(), (select v from fx where k='leaderB'), 'leader')
+$$, 'SWAP.swapped_in_can_confirm');
+reset role;
+
+select pg_temp.ok(
+  (select pd.stage = 'leader_confirmed'
+      and pd.confirmed_by = (select v from fx where k = 'leaderB')
+   from public.project_day pd
+   where pd.project_id = '11111111-aaaa-0000-0000-0000000000c1'
+     and pd.work_date  = app.stockholm_today() - 7),
+  'SWAP.swapped_in_can_confirm',
+  'the arbetsledare who stood on the day confirms it, member of it or not');
 
 select pg_temp.ok(true, 'SUITE.complete', 'every assertion passed');

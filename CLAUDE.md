@@ -31,9 +31,16 @@ Full specification: [docs/spec.md](docs/spec.md).
     at stage 1; the admin writes them at stage 2 and on the two routes that
     reach admin_confirmed with no leader behind them. Enforced in the database,
     not the interface. The worker side has not moved.
-4b. An arbetsledare confirms only for projects they are assigned to. This is a
-    per-row scope, not a role check - the database must enforce it row by row.
-    A flagged day is outside every leader's scope: admin and only admin.
+4b. An arbetsledare confirms the DAYS THEY STOOD ON, not the projects they
+    are listed against. If the day has an arbetsledare row, the person on that
+    row confirms it -- standing membership of the project neither grants that
+    nor is required for it, which is what lets two leaders trade a day and
+    still have the right one answer for it. If the day has no arbetsledare row
+    at all, there is nobody to point at and membership is enough; that branch
+    is the one the bristsurvey and a day whose leaders were all busy elsewhere
+    fall into. This is a per-row scope, not a role check - the database must
+    enforce it row by row. A flagged day is outside every leader's scope:
+    admin and only admin.
 5.  Confirmation is final at each stage. A leader cannot edit a day after
     confirming it. Stage 2 may approve, edit and approve, or reject it back to
     the leader — rejection is the only thing that reopens a day. Once

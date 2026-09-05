@@ -104,6 +104,11 @@ async function signIn(page, email, password) {
 }
 async function signOut(page) {
   await page.goto(`${BASE}/`, { waitUntil: "networkidle" });
+  // Since the landing pages were rebuilt, Logga ut lives behind the profile
+  // icon on every role that has one.
+  if (!(await page.getByRole("button", { name: "Logga ut" }).count())) {
+    await page.getByRole("button", { name: "Profil", exact: true }).click();
+  }
   await page.getByRole("button", { name: "Logga ut" }).click();
   await page.waitForURL(/login/, { timeout: 20000 });
 }
