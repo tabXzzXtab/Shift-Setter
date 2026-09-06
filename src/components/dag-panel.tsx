@@ -7,6 +7,7 @@ import { BytaPlats, swapPartners, type SwapOptions } from "./byta-plats";
 import { getSupabase } from "@/lib/supabase/client";
 import { hhmm, longDayHeading } from "@/lib/dates";
 import { useAccount } from "@/lib/account";
+import { useMonthColour } from "@/lib/project-palette";
 
 type Person = {
   tilldelning_id: string; worker_id: string; name: string; source: string;
@@ -43,10 +44,16 @@ type PassRow = {
 /**
  * Everything happening on one day, across every project the viewer can see.
  *
- * Shared by Öppna dag and by the shift calendar, which shows it inline when a
- * day is tapped. One component, so deletion has exactly one implementation --
- * and deletion is admin-only, refuses a shift that has started, notifies the
- * people on it and blocks them from being re-offered it, all in the database.
+ * This is where the shift calendar sends a day. One component, so deletion has
+ * exactly one implementation -- and deletion is admin-only, refuses a shift
+ * that has started, notifies the people on it and blocks them from being
+ * re-offered it, all in the database.
+ *
+ * ONE PROJECT AT A TIME when the day holds several. The tabs carry the colour
+ * that project wears on the calendar, so the stripe someone pressed and the
+ * tab they land on are recognisably the same site. Showing every project at
+ * once would put the delete and Avboka controls of three sites in one scroll,
+ * which is how the wrong day gets edited.
  *
  * Removing a worker is Step 5b: the slot REOPENS and headcount does not drop.
  * If anyone who marked förval is free, Välj Utbyte opens and picking a name
@@ -60,7 +67,10 @@ type PassRow = {
  */
 export function DagPanel({ date }: { date: string }) {
   const { account } = useAccount();
+  const colourOf = useMonthColour(date.slice(0, 7));
   const [passes, setPasses] = useState<PassRow[] | null>(null);
+  /** Which project's tab is open. Null means "whichever sorts first". */
+  const [openProject, setOpenProject] = useState<string | null>(null);
   /** Days whose every shift was deleted. See public.cancelled_day. */
   const [cancelled, setCancelled] = useState<CalledOff[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -280,8 +290,25 @@ export function DagPanel({ date }: { date: string }) {
       (q) => q.project_id !== projectId && q.people.some((x) => x.source === "ledare"),
     );
 
+  /** The projects working this day, named once each, in tab order. */
+  const projectsToday = [
+    ...new Map((passes ?? []).map((p) => [p.project_id, p.project_name])),
+  ]
+    .map(([id, name]) => ({ id, name }))
+    .sort((a, b) => a.name.localeCompare(b.name, "sv"));
+
+  /**
+   * DERIVED, not stored. Deleting the last pass of the open project, or moving
+   * the date picker to a day that project does not run, has to land somewhere
+   * real -- an id held in state would go on pointing at a project that is no
+   * longer on the day and the panel would render nothing at all.
+   */
+  const active =
+    projectsToday.find((p) => p.id === openProject)?.id ?? projectsToday[0]?.id ?? null;
+  const showing = (passes ?? []).filter((p) => p.project_id === active);
+
   return (
-    <div>
+    <div data-day-panel={date}>
       {/*
         VÄLJ UTBYTE -- Step 5b's popup.
         Over a darkened page, because the slot is open right now and the answer
@@ -347,6 +374,50 @@ export function DagPanel({ date }: { date: string }) {
 
       <p className="mb-4 text-xl font-bold">{longDayHeading(date)}</p>
 
+      {/*
+        THE PROJECT TABS. Only when there is a choice to make -- with one
+        project on the day a tab strip of one is a control that does nothing.
+        Scrolls sideways rather than wrapping: a day with six sites on it would
+        otherwise push the shifts off the bottom of a phone.
+      */}
+      {projectsToday.length > 1 && (
+        <>
+          <p className="mb-2 text-base">
+            {projectsToday.length} projekt den här dagen. Välj vilket du vill se.
+          </p>
+          <div className="-mx-4 mb-4 flex gap-2 overflow-x-auto px-4 pb-1">
+            {projectsToday.map((p) => {
+              const colour = colourOf(p.id);
+              const on = p.id === active;
+              return (
+                <button
+                  key={p.id}
+                  type="button"
+                  data-project-tab={p.name}
+                  aria-pressed={on}
+                  onClick={() => setOpenProject(p.id)}
+                  className={`flex min-h-[56px] shrink-0 items-center gap-2 border-2 border-black px-3 text-base font-bold ${
+                    on ? "bg-black text-white" : "bg-white text-black"
+                  }`}
+                >
+                  {/* The same colour the day wore on the calendar. Findable by
+                      attribute rather than by carrying a style, so a tab that
+                      failed to get a colour is something a test can see and
+                      report instead of an element it waits for forever. */}
+                  <span
+                    aria-hidden
+                    data-tab-swatch={p.name}
+                    className="inline-block h-6 w-3 shrink-0 border border-current"
+                    style={colour ? { background: colour } : undefined}
+                  />
+                  <span className="whitespace-nowrap">{p.name}</span>
+                </button>
+              );
+            })}
+          </div>
+        </>
+      )}
+
       {passes === null && <p>Laddar…</p>}
       {/*
         AN EMPTY DAY AND A CANCELLED ONE ARE DIFFERENT FACTS. Nothing was ever
@@ -379,7 +450,7 @@ export function DagPanel({ date }: { date: string }) {
       ))}
 
       <div className="flex flex-col gap-4">
-        {(passes ?? []).map((p) => (
+        {showing.map((p) => (
           <section key={p.id} className="border-2 border-black p-4">
             <p className="text-lg font-bold">{p.project_name}</p>
             <p className="mb-1 text-lg">

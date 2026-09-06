@@ -231,9 +231,12 @@ Plus clocking in and out, and seeing their own confirmed hours.
 
 A single calendar showing every project's shifts.
 
-- Each project has a colour.
-- A shift repeating across consecutive days renders as one continuous bar spanning those days, not as separate marks.
-- **Tapping a day opens Öppna Dag** — everything scheduled that day, across all projects. Öppna Dag has no standalone page and no landing-page button; the calendar is the only way in. A day list reached without first picking a day would be a screen asking a question the calendar has already answered.
+- Each project has a colour, and it is the **same** colour on the day page the calendar opens into. The palette is eight, assigned by a project's position among the projects holding shifts **that month** — so the projects that appear on screen together are the ones competing for it, rather than every project that has ever existed. Past eight the palette wraps, and the names in the legend and on the day's tabs are what tell them apart.
+- **A day cell is a fixed height, whatever the day holds.** Every project working that day is one colour stripe, stacked; past four, the remainder becomes a `+N` counter rather than a taller cell. The stripes carry no names — there is no room for one at a seventh of a phone — so the **legend under the grid names every project in the month**, including any whose stripes were all counted rather than drawn.
+- **Superseded:** a shift repeating across consecutive days used to render as one continuous bar spanning those days. That required every project to hold a reserved line in every cell all month, so a month with twenty sites on it grew cells taller than the screen and the grid stopped reading as a calendar. The bar is gone. Stripes are packed per day, which is what makes the cell a fixed size and what costs a run its continuity.
+- **Tapping a day opens Öppna Dag at `/dag?datum=`** — its own page, navigated to, not a panel unfolding under the grid. The answer is long (every project, every shift, every name on it) and reading it while the calendar scrolls above is reading it twice.
+- **Öppna Dag shows ONE project at a time** when the day holds several, chosen from a strip of coloured tabs carrying the same colours the calendar drew. A stripe that was pressed and the tab it lands on are recognisably the same site. Showing every project at once would put three sites' delete and Avboka controls in a single scroll, which is how the wrong day gets edited.
+- Öppna Dag also stands alone with a date picker, opening on today when reached without `?datum=`. It has no landing-page button: the calendar is the way in that anyone is expected to use.
 - **Only admin can delete a shift**, and this is where it happens.
 
 - **An ongoing shift cannot be deleted.** Once it has started, it is a fact that has to be confirmed, not erased.

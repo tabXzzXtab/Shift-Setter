@@ -1,29 +1,45 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { AuthGate } from "@/components/auth-gate";
 import { Empty, Notice, Screen } from "@/components/ui";
-import { DagPanel } from "@/components/dag-panel";
 import { getSupabase } from "@/lib/supabase/client";
 import { addDays, stockholmToday } from "@/lib/dates";
 import { useAccount } from "@/lib/account";
-import { colourIndex, projectColour, readableInk } from "@/lib/project-colour";
+import { useMonthColour } from "@/lib/project-palette";
 
 type PassRow = { id: string; project_id: string; project_name: string; work_date: string };
 
 /**
+ * How many projects a day cell draws before it stops drawing them.
+ *
+ * A cell is one seventh of a phone. Four stripes and the day number is what
+ * fits at a size a thumb can still aim at; past that they become a count,
+ * because a calendar that grows a row for every project stops being a calendar.
+ */
+const MAX_STRIPES = 4;
+
+/**
  * Skiftkalendern -- every project's shifts on one calendar.
  *
- * A pass repeating across consecutive days reads as ONE continuous bar. That
- * falls out of the layout rather than being drawn: each project keeps the same
- * slot in every day cell, the cells sit flush with no horizontal gap, so
- * adjacent days join into a single band. The project name is written once per
- * run, on its first day, because repeating it every day turns a bar into a
- * wall of text.
+ * A day cell is a FIXED height whatever the day holds. Each project working
+ * that day is one colour stripe, stacked from the top, and past the fourth they
+ * become "+N". The stripes are packed per day rather than each project keeping
+ * a reserved line all month: a reserved line costs every cell in the month
+ * 14px per project, so a month with twenty sites on it grew cells taller than
+ * the screen and the grid stopped reading as a calendar at all.
+ *
+ * The cost of packing is that a run of consecutive days no longer joins into
+ * one bar -- a project sits on a different line as its neighbours come and go.
+ * That was traded away deliberately: the bar was legible only while the month
+ * held two or three projects, which is the case that never needed the help.
  *
  * Colour is the one thing here that is not black and white, because here it
  * carries meaning: it is what makes "Tuesday is two different sites" visible
- * without reading anything.
+ * without reading anything. The stripes carry no names -- there is no room for
+ * one at this size -- so the legend below the grid is what names them, and the
+ * day page a cell opens carries the same colour on each project's tab.
  *
  * Visible to admin and arbetsledare. An arbetare has no business seeing the
  * company's schedule -- they see their own shifts. That is a courtesy here and
@@ -35,7 +51,7 @@ function Skiftkalender() {
   const [month, setMonth] = useState(() => stockholmToday().slice(0, 7));
   const [passes, setPasses] = useState<PassRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [openDay, setOpenDay] = useState<string | null>(null);
+  const colourOf = useMonthColour(month);
 
   const first = `${month}-01`;
   const daysInMonth = new Date(Number(month.slice(0, 4)), Number(month.slice(5, 7)), 0).getDate();
@@ -84,21 +100,21 @@ function Skiftkalender() {
     byDate.get(p.work_date)!.add(p.project_id);
     names.set(p.project_id, p.project_name);
   }
-  const projectIds = [...names.keys()];
-  const slots = [...projectIds].sort((a, b) =>
-    (names.get(a) ?? "").localeCompare(names.get(b) ?? "", "sv"),
-  );
+  const byName = (a: string, b: string) =>
+    (names.get(a) ?? "").localeCompare(names.get(b) ?? "", "sv");
+  const legend = [...names.keys()].sort(byName);
+
+  /** The projects working one day, in the order their stripes stack. */
+  const projectsOn = (date: string) => [...(byDate.get(date) ?? [])].sort(byName);
 
   const monthName = new Intl.DateTimeFormat("sv-SE", { month: "long", year: "numeric" })
     .format(new Date(`${first}T12:00:00Z`));
-
-  const worksOn = (pid: string, date: string) => byDate.get(date)?.has(pid) ?? false;
 
   return (
     <Screen title="Skiftkalender" back="/">
       {error && <Notice kind="error">{error}</Notice>}
 
-      <p className="mb-4 text-base">Tryck på en dag för att se allt som händer då.</p>
+      <p className="mb-4 text-base">Tryck på en dag för att se vilka som jobbar då.</p>
 
       <div className="mb-3 flex items-center justify-between gap-2">
         <button
@@ -124,83 +140,87 @@ function Skiftkalender() {
         {["M", "T", "O", "T", "F", "L", "S"].map((d, i) => <span key={i}>{d}</span>)}
       </div>
 
-      {/* No gap between columns: that is what lets consecutive days join. */}
       <div className="grid grid-cols-7 border-2 border-black">
         {Array.from({ length: leadingBlanks }, (_, i) => (
-          <span key={`b${i}`} className="min-h-[84px] border-b border-r border-neutral-300" />
+          <span key={`b${i}`} className="h-[84px] border-b border-r border-neutral-300" />
         ))}
 
         {Array.from({ length: daysInMonth }, (_, i) => {
           const day = i + 1;
           const date = `${month}-${String(day).padStart(2, "0")}`;
-          const here = byDate.get(date);
+          const here = projectsOn(date);
+          // Exactly MAX_STRIPES fit. A fifth project takes the fourth stripe
+          // away and puts it in the counter, so the count is never off by one.
+          const shown = here.length <= MAX_STRIPES ? here : here.slice(0, MAX_STRIPES - 1);
+          const hidden = here.length - shown.length;
           const isToday = date === today;
 
           return (
-            <button
+            <Link
               key={date}
-              type="button"
+              href={`/dag?datum=${date}`}
               data-date={date}
-              aria-label={`${day}, ${here?.size ?? 0} projekt`}
-              onClick={() => setOpenDay((d) => (d === date ? null : date))}
-              className={`min-h-[84px] border-b border-r border-neutral-300 p-0 text-left align-top ${
+              aria-label={`${day}, ${here.length} projekt`}
+              // A FIXED height, not a minimum. Every measurement below is
+              // spelled out so the cell cannot grow: 20 for the day number, 4
+              // above the stripes, 4 x 10 stripes with 2 between them, 2 under
+              // = 76 of the 84, and the counter takes exactly the room the
+              // fourth stripe gives up. overflow-hidden is the backstop for a
+              // browser that renders any of it a pixel larger.
+              className={`flex h-[84px] flex-col overflow-hidden border-b border-r border-neutral-300 text-left ${
                 isToday ? "ring-2 ring-inset ring-black" : ""
-              } ${openDay === date ? "ring-4 ring-inset ring-black" : ""}`}
+              }`}
             >
-              <span className={`block px-1 pt-1 text-sm font-bold ${date < today ? "opacity-40" : ""}`}>
+              <span
+                className={`block px-1 pt-1 text-sm font-bold leading-[20px] ${
+                  date < today ? "opacity-40" : ""
+                }`}
+              >
                 {day}
               </span>
 
-              <span className="mt-1 block">
-                {slots.map((pid) => {
-                  if (!worksOn(pid, date)) {
-                    // An empty slot, so a project keeps the same line every day
-                    // and its bar stays unbroken across the days it does run.
-                    return <span key={pid} className="block h-[14px]" />;
-                  }
-                  const colour = projectColour(colourIndex(projectIds, pid));
-                  // Labelled at the start of the run, and again wherever the
-                  // run wraps onto a new week row -- a segment with no name on
-                  // it sends the reader back to the legend.
-                  const isMonday = (new Date(`${date}T12:00:00Z`).getUTCDay() + 6) % 7 === 0;
-                  const startsRun = !worksOn(pid, addDays(date, -1)) || isMonday;
+              <span className="mt-1 flex flex-col gap-[2px] px-[2px] pb-[2px]">
+                {shown.map((pid) => {
+                  const colour = colourOf(pid);
+                  if (!colour) return null;
                   return (
                     <span
                       key={pid}
                       title={names.get(pid)}
-                      className="block h-[14px] overflow-hidden whitespace-nowrap text-[10px] font-bold leading-[14px]"
-                      style={{ background: colour, color: readableInk(colour) }}
-                    >
-                      {/* Written once per run, on its first day. */}
-                      {startsRun ? <span className="px-1">{names.get(pid)}</span> : ""}
-                    </span>
+                      className="block h-[10px]"
+                      style={{ background: colour }}
+                    />
                   );
                 })}
+                {hidden > 0 && (
+                  <span className="block px-[2px] text-[10px] font-bold leading-[12px]">
+                    +{hidden}
+                  </span>
+                )}
               </span>
-            </button>
+            </Link>
           );
         })}
       </div>
 
-      {openDay && (
-        <section data-day-panel={openDay} className="mt-6 border-t-4 border-black pt-4">
-          <DagPanel date={openDay} />
-        </section>
-      )}
-
-      {passes !== null && slots.length === 0 && (
+      {passes !== null && legend.length === 0 && (
         <div className="mt-4"><Empty>Inga pass den här månaden.</Empty></div>
       )}
 
-      {slots.length > 0 && (
+      {/*
+        With no name on a stripe this is not decoration, it is the key. It lists
+        every project in the month, including one whose stripes all fell behind
+        a "+N" -- otherwise a busy day could hide a site from the page entirely.
+      */}
+      {legend.length > 0 && (
         <div className="mt-6 flex flex-col gap-2 text-base">
-          {slots.map((pid) => {
-            const colour = projectColour(colourIndex(projectIds, pid));
+          {legend.map((pid) => {
+            const colour = colourOf(pid);
             return (
               <span key={pid} className="flex items-center gap-3">
                 <span
                   className="inline-block h-6 w-10 border-2 border-black"
-                  style={{ background: colour }}
+                  style={colour ? { background: colour } : undefined}
                 />
                 {names.get(pid)}
               </span>
