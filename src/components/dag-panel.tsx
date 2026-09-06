@@ -16,6 +16,9 @@ type Person = {
 };
 type Replacement = { worker_id: string; name: string };
 
+/** A project whose shifts on this date were all deleted. */
+type CalledOff = { project_id: string; project_name: string; cancelled_passes: number };
+
 /** What avboka_pass() hands back: who is free, and whether cards went out. */
 type Vacancy = {
   pass_id: string;
@@ -58,6 +61,8 @@ type PassRow = {
 export function DagPanel({ date }: { date: string }) {
   const { account } = useAccount();
   const [passes, setPasses] = useState<PassRow[] | null>(null);
+  /** Days whose every shift was deleted. See public.cancelled_day. */
+  const [cancelled, setCancelled] = useState<CalledOff[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -114,6 +119,23 @@ export function DagPanel({ date }: { date: string }) {
         .order("start_time");
       if (!active) return;
       if (error) { setError(error.message); setPasses([]); return; }
+
+      // ONLY WHEN THE DAY LOOKS EMPTY. A day with shifts on it is not
+      // cancelled however many were called off, so there is nothing to ask.
+      if ((rows ?? []).length === 0) {
+        const { data: off } = await sb
+          .from("cancelled_day")
+          .select("project_id, project_name, cancelled_passes")
+          .eq("work_date", date);
+        if (!active) return;
+        setCancelled((off ?? []).map((c) => ({
+          project_id: c.project_id ?? "",
+          project_name: c.project_name ?? "Projekt",
+          cancelled_passes: c.cancelled_passes ?? 0,
+        })));
+      } else {
+        setCancelled([]);
+      }
 
       const ids = (rows ?? []).map((r) => r.id);
       const { data: assignments } = ids.length
@@ -326,7 +348,35 @@ export function DagPanel({ date }: { date: string }) {
       <p className="mb-4 text-xl font-bold">{longDayHeading(date)}</p>
 
       {passes === null && <p>Laddar…</p>}
-      {passes?.length === 0 && <Empty>Inga pass den dagen.</Empty>}
+      {/*
+        AN EMPTY DAY AND A CANCELLED ONE ARE DIFFERENT FACTS. Nothing was ever
+        planned here, versus what was planned here was called off -- the second
+        is a decision somebody made, and an admin scrolling for a gap to fill
+        should not have to remember which days he emptied himself.
+      */}
+      {passes?.length === 0 && (cancelled.length > 0 ? (
+        <div className="border-4 border-black p-4">
+          <p className="text-xl font-bold">Inställd dag</p>
+          <p className="mt-2 text-base">
+            Passen är borttagna och ingen jobbar den här dagen. De som stod på
+            dem är meddelade.
+          </p>
+          <ul className="mt-3 flex flex-col gap-2">
+            {cancelled.map((c) => (
+              <li key={c.project_id} className="border-2 border-black p-3">
+                <span className="block text-lg font-bold">{c.project_name}</span>
+                <span className="text-base">
+                  {c.cancelled_passes === 1
+                    ? "1 pass borttaget"
+                    : `${c.cancelled_passes} pass borttagna`}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : (
+        <Empty>Inga pass den dagen.</Empty>
+      ))}
 
       <div className="flex flex-col gap-4">
         {(passes ?? []).map((p) => (

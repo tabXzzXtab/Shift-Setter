@@ -22,6 +22,11 @@ column arbetsdagbok.generated_at timestamp with time zone NOT NULL DEFAULT now()
 column arbetsdagbok.generated_by uuid NOT NULL
 column arbetsdagbok.id uuid NOT NULL DEFAULT gen_random_uuid()
 column arbetsdagbok.project_id uuid NOT NULL
+column cancelled_day.cancelled_at timestamp with time zone
+column cancelled_day.cancelled_passes integer
+column cancelled_day.project_id uuid
+column cancelled_day.project_name text
+column cancelled_day.work_date date
 column clock_edit.edited_at timestamp with time zone NOT NULL DEFAULT now()
 column clock_edit.edited_by uuid NOT NULL
 column clock_edit.field text NOT NULL
@@ -734,6 +739,7 @@ grant  REFERENCES on worker_roster to authenticated
 grant  SELECT on account to authenticated
 grant  SELECT on account_directory to authenticated
 grant  SELECT on arbetsdagbok to authenticated
+grant  SELECT on cancelled_day to authenticated
 grant  SELECT on clock_edit to authenticated
 grant  SELECT on day_history to authenticated
 grant  SELECT on day_review to authenticated

@@ -1164,6 +1164,31 @@ export type Database = {
         }
         Relationships: []
       }
+      cancelled_day: {
+        Row: {
+          cancelled_at: string | null
+          cancelled_passes: number | null
+          project_id: string | null
+          project_name: string | null
+          work_date: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pass_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "project"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pass_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "project_hours"
+            referencedColumns: ["project_id"]
+          },
+        ]
+      }
       day_history: {
         Row: {
           confirmed_at: string | null

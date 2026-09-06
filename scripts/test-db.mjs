@@ -212,6 +212,27 @@ const CONTROLS = [
    "alter table public.tilldelning disable trigger block_guard",
    "DEL.no_reoffer_enforced"],
 
+  ["a shift already under way cannot be erased",
+   // Only the start-time check. The other assertion about a started shift sits
+   // on a pass somebody had clocked in on, so it survives this and the control
+   // lands on the fixture nobody touched -- which is why that fixture exists.
+   perturbIn("app.tg_pass_delete_guard()",
+             "if now() >= app.pass_start_at(old.work_date, old.start_time) then",
+             "if false then"),
+   "DEL.started_shift_with_nobody_clocked_in"],
+
+  ["a cancelled day is cancelled only when nothing survives",
+   // The NOT EXISTS dropped: one shift called off makes the whole day read as
+   // called off, with people still working it.
+   `create or replace view public.cancelled_day with (security_invoker = false) as ` +
+   `select p.project_id, p.work_date, pr.name as project_name, ` +
+   `count(*)::integer as cancelled_passes, max(p.deleted_at) as cancelled_at ` +
+   `from public.pass p ` +
+   `join public.project pr on pr.id = p.project_id and pr.deleted_at is null ` +
+   `where p.deleted_at is not null and app.leads_project(p.project_id) ` +
+   `group by p.project_id, p.work_date, pr.name`,
+   "DEL.a_live_shift_keeps_the_day"],
+
   ["invariant 10 -- hours hidden until FILED",
    // The masking removed: hours leak the moment a day is confirmed, before any
    // Arbetsdagbok covers it.

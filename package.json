@@ -32,7 +32,8 @@
     "walkthrough:minapass": "node scripts/walkthrough-minapass.mjs",
     "walkthrough:bytledare": "node scripts/walkthrough-byt-ledare.mjs",
     "walkthrough:bytaplats": "node scripts/walkthrough-byta-plats.mjs",
-    "walkthrough:pausa": "node scripts/walkthrough-pausa.mjs"
+    "walkthrough:pausa": "node scripts/walkthrough-pausa.mjs",
+    "walkthrough:borttagning": "node scripts/walkthrough-borttagning.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.113.0",

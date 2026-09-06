@@ -978,6 +978,24 @@ select pg_temp.rejects($$
   select public.delete_pass('cccccccc-0000-0000-0000-000000000001')
 $$, 'DEL.started_shift_cannot_be_deleted');
 
+-- AND ONE NOBODY TOUCHED. Pass 0001 has a clocked-in worker on it, so the
+-- assertion above is held up by EITHER guard -- the start time or the clock
+-- stamp -- and a control cannot say which. This shift started and ended with
+-- nobody on it at all, so only the start-time check stands between it and
+-- deletion.
+reset role;
+insert into public.pass (id, project_id, work_date, start_time, end_time,
+                         planned_hours, headcount, created_by)
+values ('cccccccc-0000-0000-0000-000000000032',
+        'aaaaaaaa-0000-0000-0000-00000000000a', app.stockholm_today() - 4,
+        '07:00', '16:00', 8.00, 1, (select v from fx where k = 'leaderA'));
+
+set local role authenticated;
+select pg_temp.act_as((select v from fx where k = 'admin'));
+select pg_temp.rejects($$
+  select public.delete_pass('cccccccc-0000-0000-0000-000000000032')
+$$, 'DEL.started_shift_with_nobody_clocked_in');
+
 -- A future shift can go, and the people on it are told and blocked from re-offer.
 insert into public.tilldelning (pass_id, worker_id, source, work_date)
 select 'cccccccc-0000-0000-0000-000000000003', w.id, 'forval', app.stockholm_today() + 10
@@ -1001,6 +1019,66 @@ select pg_temp.rejects($$
   select 'cccccccc-0000-0000-0000-000000000003', w.id, 'forval', app.stockholm_today() + 10
   from public.worker w join fx on fx.v = w.account_id where fx.k = 'w1'
 $$, 'DEL.no_reoffer_enforced');
+
+-- ---- AND THE DAY SAYS IT WAS CALLED OFF ------------------------------------
+--
+-- Pass 0003 was project A's only shift on today+10, so deleting it left the
+-- day empty. Empty is not the same fact as cancelled, and the view is what
+-- keeps them apart -- the pass itself is soft-deleted and invisible.
+set local role authenticated;
+select pg_temp.act_as((select v from fx where k = 'admin'));
+
+select pg_temp.ok(
+  (select cancelled_passes = 1
+   from public.cancelled_day
+   where project_id = 'aaaaaaaa-0000-0000-0000-00000000000a'
+     and work_date  = app.stockholm_today() + 10),
+  'DEL.day_reads_as_cancelled',
+  'a day whose last shift was deleted is a cancelled day, not an empty one');
+reset role;
+
+-- TWO SHIFTS, ONE CALLED OFF. Somebody is still working that day, so the day
+-- is not cancelled -- and saying it was would be worse than saying nothing.
+insert into public.pass (id, project_id, work_date, start_time, end_time,
+                         planned_hours, headcount, created_by)
+select p.a, 'aaaaaaaa-0000-0000-0000-00000000000a'::uuid, app.stockholm_today() + 11,
+       p.b, p.c, 5.00, 1::smallint, (select v from fx where k = 'leaderA')
+from (values
+  ('cccccccc-0000-0000-0000-000000000030'::uuid, '07:00'::time, '12:00'::time),
+  ('cccccccc-0000-0000-0000-000000000031'::uuid, '13:00'::time, '18:00'::time)
+) as p(a, b, c);
+
+set local role authenticated;
+select pg_temp.act_as((select v from fx where k = 'admin'));
+select public.delete_pass('cccccccc-0000-0000-0000-000000000030');
+
+select pg_temp.ok(
+  not exists (select 1 from public.cancelled_day
+              where project_id = 'aaaaaaaa-0000-0000-0000-00000000000a'
+                and work_date  = app.stockholm_today() + 11),
+  'DEL.a_live_shift_keeps_the_day',
+  'one shift called off with another still running is not a cancelled day');
+
+-- And when the last one goes, it is.
+select public.delete_pass('cccccccc-0000-0000-0000-000000000031');
+
+select pg_temp.ok(
+  (select cancelled_passes = 2
+   from public.cancelled_day
+   where project_id = 'aaaaaaaa-0000-0000-0000-00000000000a'
+     and work_date  = app.stockholm_today() + 11),
+  'DEL.cancelled_counts_them_all',
+  'the day turns cancelled once nothing survives, and counts what went');
+
+-- NOT EVERYONE'S BUSINESS. leaderB does not run project A, and a cancellation
+-- there is scoped exactly the way its shifts are.
+select pg_temp.act_as((select v from fx where k = 'leaderB'));
+select pg_temp.ok(
+  not exists (select 1 from public.cancelled_day
+              where project_id = 'aaaaaaaa-0000-0000-0000-00000000000a'),
+  'DEL.cancellation_is_scoped_to_the_project',
+  'a leader sees cancellations on their own sites, not on everybody''s');
+reset role;
 
 -- Snabb Pass is the deliberate way back.
 insert into public.tilldelning (pass_id, worker_id, source, work_date)

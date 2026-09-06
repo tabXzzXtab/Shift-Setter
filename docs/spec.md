@@ -474,6 +474,16 @@ Pressing **Byta Plats Med Arbetsledare** on a leader in Öppna Dag opens:
 
 **The day moves with them, and so does the right to account for it.** A swap does not touch `project_leader`, so scoping confirmation on membership would have left the leader who swapped out able to make a stage 1 claim about a day somebody else stood on, and the leader who swapped in unable to make one about the day they did. Invariant 4b is therefore scoped to the day: `app.confirms_project()` takes a date, and where the day has an arbetsledare row it asks who is on it rather than who is listed against the project. The same day-scope was added to the reads and writes that reaching a day requires — the shifts of that date, its assignments and its hours — and to nothing else. The swapped-in leader gets that one day, not the site.
 
+**Deleting a pass entirely — admin only**
+
+From the shift calendar, and nowhere else. **Ta bort detta pass** appears on a pass in Öppna Dag for the admin alone; an arbetsledare runs the day but does not un-book it.
+
+**A shift that has started cannot be deleted.** It is a fact to be confirmed, not a plan to be withdrawn — and neither can one somebody has already clocked in on, which is the same rule reached from invariant 3.
+
+**Everyone on it is released, told, and never re-offered it.** The assignments are released as `shift_deleted`, a notification goes to each person, open offers are withdrawn, and a `pass_block` row makes sure the tier walk never hands the shift back to somebody it was taken from. Snabb Pass is the deliberate way back. An auto-assigned arbetsledare is released but NOT blocked: they were never offered the pass, and blocking them would be a lie the next time the day has people on it.
+
+**A cancelled day says so.** The shift is soft-deleted, so an emptied day would otherwise read exactly like a day nobody ever booked — and those are different facts. When a project's shifts on a date are all deleted, Öppna Dag shows **Inställd dag**, naming the project and counting what went. A day with one shift called off and another still running is not a cancelled day: somebody is still working it. The fact reaches the interface through `public.cancelled_day` rather than by loosening the pass policy — invariant 8's rule is that deleted rows count nowhere, and widening the policy would put cancelled shifts back into the month grid, the confirmation queue and the tier walk.
+
 **Step 6 — The day happens**
 Workers clock themselves in and out. The timestamp is the server's, never the phone's — a phone running ten minutes fast writes ten minutes of error into evidence of hours worked and nobody would notice.
 
