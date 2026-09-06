@@ -29,18 +29,6 @@ export function projectColour(index: number): string {
   return PALETTE[index % PALETTE.length]!;
 }
 
-/**
- * Black or white text, whichever the eye can actually read on that colour.
- * Relative luminance per WCAG, so an orange gets black and a blue gets white
- * rather than both getting whatever looked fine on one screen.
- */
-export function readableInk(hex: string): "#000000" | "#ffffff" {
-  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255) as [number, number, number];
-  const lin = (c: number) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
-  const L = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
-  return L > 0.45 ? "#000000" : "#ffffff";
-}
-
 /** Stable index for a project id, given the sorted list of ids on screen. */
 export function colourIndex(projectIds: string[], id: string): number {
   return Math.max(0, [...projectIds].sort().indexOf(id));
