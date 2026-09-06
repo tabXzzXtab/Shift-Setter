@@ -46,3 +46,10 @@ next-env.d.ts
 *.pdf
 *.zip
 artifacts/
+
+# Throwaway logins, one per role, minted with the service-role key. Kept out of
+# the repo on purpose: it is a local convenience, not part of the product, and
+# an accidental `git add -A` should not put a credential-minting script for the
+# admin role into a public repository. scripts/demo-accounts.mjs is the tracked
+# one -- those logins are handed to people and have to survive a demo reset.
+scripts/temp-accounts.mjs
