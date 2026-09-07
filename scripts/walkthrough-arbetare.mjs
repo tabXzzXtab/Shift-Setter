@@ -123,7 +123,11 @@ await db.connect();
 const browser = await chromium.launch();
 const ctx = await browser.newContext({
   ...devices["Pixel 7"], locale: "sv-SE", timezoneId: "Europe/Stockholm",
-  permissions: ["clipboard-read", "clipboard-write"],
+  // On Stortorget in Malmö, the ADDRESS this run's project is created at. The
+  // stamp is geofenced to 4 km, and a browser that will not say where it is
+  // gets refused before clock_in() is ever called.
+  permissions: ["clipboard-read", "clipboard-write", "geolocation"],
+  geolocation: { latitude: 55.60662, longitude: 12.99968 },
 });
 const page = await ctx.newPage();
 page.on("pageerror", (e) => fail(`page error: ${e.message}`));

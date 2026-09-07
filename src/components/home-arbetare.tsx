@@ -8,6 +8,7 @@ import { OfferStack, type Offer } from "./offer-stack";
 import { Landing, Notice } from "./ui";
 import { getSupabase } from "@/lib/supabase/client";
 import { addDays, hhmm, stockholmToday } from "@/lib/dates";
+import { stampGate } from "@/lib/geo";
 
 const MENU: MenuItem[] = [{ href: "/oppna-pass", label: "Öppna Pass" }];
 
@@ -19,6 +20,8 @@ type Shift = {
   project_name: string;
   clock_in: string | null;
   clock_out: string | null;
+  /** Geofenced against this. my_shift already carries it. */
+  site_address: string | null;
 };
 
 type Note = { id: string; kind: string; work_date?: string };
@@ -41,6 +44,8 @@ export function HomeArbetare() {
   const [offers, setOffers] = useState<Offer[] | null>(null);
   const [notes, setNotes] = useState<Note[]>([]);
   const [busy, setBusy] = useState(false);
+  /** Waiting on the phone's position and the site's coordinates. */
+  const [checking, setChecking] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
   const [reload, setReload] = useState(0);
@@ -56,7 +61,7 @@ export function HomeArbetare() {
       // at 06:00 and bad signal on site is normal.
       const [{ data: shifts }, { data: offered }, { data: unread }] = await Promise.all([
         sb.from("my_shift")
-          .select("id, work_date, start_time, end_time, project_name, clock_in, clock_out")
+          .select("id, work_date, start_time, end_time, project_name, site_address, clock_in, clock_out")
           .gte("work_date", addDays(today, -1))
           .lte("work_date", today)
           .order("work_date"),
@@ -85,10 +90,37 @@ export function HomeArbetare() {
     return () => { live = false; };
   }, [reload]);
 
+  /**
+   * THE GEOFENCE, AND WHAT IT IS NOT.
+   *
+   * A 4 km check between the phone's own position and the site's address,
+   * asked before the stamp and never after. It changes nothing about the
+   * stamp itself: clock_in() and clock_out() still write the SERVER's now(),
+   * this screen still sends no time, and a stamp that gets through is the same
+   * stamp it always was.
+   *
+   * It lives in the browser, so it is a courtesy and not a boundary -- anyone
+   * who wants to defeat it can. It is here to catch the honest mistake, the
+   * one where somebody remembers at the kitchen table that they never stamped
+   * out. The check that actually holds is invariant 3: the leader sees the
+   * stamp and has the last word on it.
+   *
+   * `checking` is separate from `busy` so the button can say which of the two
+   * waits it is in -- looking for the phone, or talking to the database.
+   */
   async function stamp(dir: "in" | "out") {
-    if (!shift) return;
-    setBusy(true);
+    if (!shift || busy || checking) return;
+
+    // Set before the first await. Geolocation can take seconds, and a second
+    // tap in that window would ask twice and stamp twice.
+    setChecking(true);
     setError(null);
+
+    const gate = await stampGate(shift.site_address);
+    setChecking(false);
+    if (!gate.ok) { setError(gate.message); return; }
+
+    setBusy(true);
     const { error } = await getSupabase()
       .rpc(dir === "in" ? "clock_in" : "clock_out", { p_tilldelning: shift.id });
     if (error) setError(error.message);
@@ -142,23 +174,40 @@ export function HomeArbetare() {
 
       {shift && (
         <>
+          {/*
+            The label says what it is waiting for. A button that goes grey and
+            silent for eight seconds while a cold GPS fix comes in reads as a
+            broken button, and the second tap that follows is the one the
+            guard in stamp() exists to swallow.
+          */}
           <button
             type="button"
             onClick={() => stamp(clockedIn ? "out" : "in")}
-            disabled={busy}
+            disabled={busy || checking}
+            aria-busy={busy || checking}
             className={`flex min-h-[140px] w-full flex-col items-center justify-center gap-1 border-4 border-black px-4 text-center disabled:opacity-40 ${
               clockedIn ? "bg-white text-black" : "bg-black text-white"
             }`}
           >
             <span className="text-3xl font-bold">
-              {clockedIn ? "Stämpla Ut" : "Stämpla In"}
+              {checking
+                ? "Söker plats…"
+                : busy
+                  ? "Stämplar…"
+                  : clockedIn
+                    ? "Stämpla Ut"
+                    : "Stämpla In"}
             </span>
             <span className="text-base font-normal">
               {shift.project_name} · {hhmm(shift.start_time)}–{hhmm(shift.end_time)}
             </span>
           </button>
           <p className="mb-6 mt-2 text-center text-base text-neutral-700">
-            {clockedIn ? "Du är instämplad." : "Du har inte stämplat in."}
+            {checking
+              ? "Kontrollerar att du är på arbetsplatsen."
+              : clockedIn
+                ? "Du är instämplad."
+                : "Du har inte stämplat in."}
           </p>
         </>
       )}

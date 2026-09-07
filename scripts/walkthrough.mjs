@@ -150,7 +150,11 @@ const context = await browser.newContext({
   ...devices["Pixel 7"],           // mobile first: the design target is a phone
   locale: "sv-SE",
   timezoneId: "Europe/Stockholm",  // invariant 9
-  permissions: ["clipboard-read", "clipboard-write"],
+  // Standing on Storgatan in Hörby, which is the project created below. The
+  // stamp is geofenced to 4 km now, so a browser with no position at all is
+  // refused before it reaches clock_in().
+  permissions: ["clipboard-read", "clipboard-write", "geolocation"],
+  geolocation: { latitude: 55.85127, longitude: 13.66135 },
 });
 const page = await context.newPage();
 page.on("pageerror", (e) => fail(`page error: ${e.message}`));
@@ -262,7 +266,7 @@ try {
   await field(page, "Vad vi gjorde").fill("Rev gammalt tegel, la ny underlagspapp och läkt på södra takfallet.");
   await shot(page, "10-bekrafta");
   await page.getByRole("button", { name: "Bekräfta dagen" }).click();
-  await page.getByText("Inget att bekräfta").waitFor({ timeout: 20000 });
+  await mustSee(page, "Inget att bekräfta", "the day was not confirmed");
   await shot(page, "11-bekraftat");
   log("confirmed the day; the queue is now empty");
 

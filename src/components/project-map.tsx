@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import { geocode, type Point } from "@/lib/geo";
 
 /**
  * A pin on the project's address, drawn with Leaflet over OpenStreetMap.
@@ -13,52 +14,13 @@ import "leaflet/dist/leaflet.css";
  * tomorrow should not be able to accidentally pan himself to Denmark, and a
  * map that swallows the tap makes the card look broken.
  *
- * The address is geocoded through Nominatim, once, and remembered in
- * localStorage: OSM's usage policy is for light, attributed use, and a project
- * address does not move. A failed or empty lookup is cached as a miss too --
- * an address Nominatim cannot place will not become placeable by asking again
- * on every load.
+ * The address is geocoded through lib/geo, which caches in localStorage: OSM's
+ * usage policy is for light, attributed use, and a project address does not
+ * move. That geocoder lives outside this file because the stamp's geofence
+ * needs the same answers, and two caches on one key would eventually disagree.
  *
  * Attribution stays on. It is the condition the tiles are served under.
  */
-
-type Point = { lat: number; lon: number };
-
-const KEY = (address: string) => `geo:${address}`;
-
-async function geocode(address: string): Promise<Point | null> {
-  try {
-    const cached = localStorage.getItem(KEY(address));
-    if (cached !== null) return cached === "" ? null : (JSON.parse(cached) as Point);
-  } catch {
-    // A browser with site data blocked still gets a map; it just asks again.
-  }
-
-  const url =
-    "https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q=" +
-    encodeURIComponent(address);
-
-  let point: Point | null = null;
-  try {
-    const res = await fetch(url, { headers: { Accept: "application/json" } });
-    if (res.ok) {
-      const body = (await res.json()) as { lat: string; lon: string }[];
-      if (body.length > 0) {
-        point = { lat: Number(body[0]!.lat), lon: Number(body[0]!.lon) };
-      }
-    }
-  } catch {
-    // Offline, blocked, or rate-limited. The card still shows the address.
-    return null;
-  }
-
-  try {
-    localStorage.setItem(KEY(address), point ? JSON.stringify(point) : "");
-  } catch {
-    // Nothing to do. The lookup succeeded; only the remembering failed.
-  }
-  return point;
-}
 
 /**
  * The marker, drawn rather than loaded.
