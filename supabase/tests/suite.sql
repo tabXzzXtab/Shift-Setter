@@ -1110,9 +1110,16 @@ select 'ffffffff-0000-0000-0000-00000000000b', 'aaaaaaaa-0000-0000-0000-00000000
 
 -- w1 and w3 are hand-picked. w3 already works that date, so being hand-picked
 -- must not save them: "not rankable, not offered, not a fallback".
-insert into public.pass_batch_handpick (batch_id, worker_id)
-select 'ffffffff-0000-0000-0000-00000000000b', w.id
-from public.worker w join fx on fx.v = w.account_id where fx.k in ('w1', 'w3');
+-- Named rather than bare. This insert is what makes Tier 1 a tier, and it is
+-- also the first hand-pick in the suite -- so if the role guard ever refuses
+-- an arbetare it dies here, several assertions before the one that says so.
+-- Naming it puts the failure where the cause is, and gives the ordinary
+-- hand-pick a negative control of its own.
+select pg_temp.accepts($hp$
+  insert into public.pass_batch_handpick (batch_id, worker_id)
+  select 'ffffffff-0000-0000-0000-00000000000b', w.id
+  from public.worker w join fx on fx.v = w.account_id where fx.k in ('w1', 'w3')
+$hp$, 'HANDPICK.arbetare_can_be_picked');
 
 -- w1, w2, w3 pre-pick the day. leaderA (also a worker) does not.
 insert into public.forval (worker_id, work_date, can_work)

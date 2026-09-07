@@ -275,6 +275,20 @@ const CONTROLS = [
    "alter table public.pass_batch_handpick disable trigger handpick_is_an_arbetare",
    "HANDPICK.leader_refused"],
 
+  ["and an arbetare can still be hand-picked",
+   // The other direction of the same guard, and the reason it needs its own
+   // control: switching the trigger OFF cannot fail HANDPICK.arbetare_accepted,
+   // so nothing above holds up the ordinary case. Refuse everyone instead and
+   // Handplocka becomes a list that names people it will not accept -- which
+   // the refusal control would happily report as a pass.
+   //
+   // The `if` and the `then` are load-bearing: `<> 'arbetare'` appears in the
+   // comment above the test, and a find that matched prose would rewrite the
+   // comment and prove nothing.
+   perturbIn("app.tg_handpick_is_an_arbetare()",
+             "if v_role is distinct from 'arbetare' then", "if true then"),
+   "HANDPICK.arbetare_can_be_picked"],
+
   ["cant-work is not asked again",
    // A small, distinctive fragment rather than the whole clause: reindenting
    // the function must not silently un-target its own control. Flipping the
