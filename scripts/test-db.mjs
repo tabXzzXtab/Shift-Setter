@@ -267,6 +267,14 @@ const CONTROLS = [
    perturb("+ late_marks as rank_in_tier", "+ 0 as rank_in_tier"),
    "TIER.lateness_demotes"],
 
+  ["Handplocka is for arbetare",
+   // Hand-picking fills the slots a pass demanded, and an arbetsledare never
+   // occupies one. Off, and a leader can be picked onto a worker slot -- which
+   // is how Step 4b then skips them and the day loses the person answerable
+   // for it. The list in Skapa Pass is decorative; this is the boundary.
+   "alter table public.pass_batch_handpick disable trigger handpick_is_an_arbetare",
+   "HANDPICK.leader_refused"],
+
   ["cant-work is not asked again",
    // A small, distinctive fragment rather than the whole clause: reindenting
    // the function must not silently un-target its own control. Flipping the
@@ -431,6 +439,23 @@ const CONTROLS = [
    perturbIn("public.make_worker_ansvarig(uuid,uuid)",
              "where a.role = 'arbetsledare'", "where false"),
    "S5C.ansvarig_needs_no_leader_free"],
+
+  // ---- the late mark the confirmation writes -------------------------------
+  // One line, perturbed both ways: it has to let the confirmation through AND
+  // keep everyone out of their own late marks, and breaking either direction
+  // has to be caught by a different assertion.
+
+  ["the confirmation's own late mark gets through",
+   // The `if ` matters: the same expression appears in the comment above the
+   // test, and a bare find would rewrite that instead and prove nothing.
+   perturbIn("app.tg_worker_self_edit_guard()", "if pg_trigger_depth() > 1", "if false"),
+   "LATE.leader_confirms_a_late_day"],
+
+  ["and nobody reaches their own late marks by hand",
+   // The depth test is the only thing separating the confirmation's write from
+   // a person's. Without it a tidy +1 on your own row looks identical.
+   perturbIn("app.tg_worker_self_edit_guard()", "if pg_trigger_depth() > 1", "if true"),
+   "LATE.self_edit_still_refused"],
 
   ["invariant 7 -- project creation is a gate",
    `alter table public.project drop constraint ` +

@@ -210,6 +210,7 @@ column worker.phone text
 column worker_roster.id uuid
 column worker_roster.late_marks integer
 column worker_roster.name text
+column worker_roster.role app_role
 constr account FOREIGN KEY (created_by) REFERENCES account(id)
 constr account FOREIGN KEY (id) REFERENCES auth.users(id) ON DELETE CASCADE
 constr account PRIMARY KEY (id)
@@ -401,6 +402,7 @@ trig   block_guard on tilldelning -> tg_block_guard enabled=O
 trig   clock_evidence on tilldelning -> tg_clock_evidence enabled=O
 trig   confirmation_guard on project_day -> tg_confirmation_guard enabled=O
 trig   enforce_bucket_name_length_trigger on storage.buckets -> enforce_bucket_name_length enabled=O
+trig   handpick_is_an_arbetare on pass_batch_handpick -> tg_handpick_is_an_arbetare enabled=O
 trig   headcount_guard on tilldelning -> tg_headcount_guard enabled=O
 trig   last_admin_guard on account -> tg_last_admin_guard enabled=O
 trig   leader_day on tilldelning -> tg_leader_day enabled=O
@@ -436,6 +438,7 @@ func   app.tg_assignment_write_guard() md5=f881334e120d8c970a332cb2e581f32b
 func   app.tg_block_guard() md5=b26fbbab450281b7deb537ec3212c1bd
 func   app.tg_clock_evidence() md5=6c33ff53dff91ccee095fa5abb4ec25d
 func   app.tg_confirmation_guard() md5=798d3c7463997d9229b95df274639de6
+func   app.tg_handpick_is_an_arbetare() md5=ae1fa4cafeecff7403d574bc1acb9ec7
 func   app.tg_headcount_guard() md5=f670cf086f1ab865d3d818b75225c070
 func   app.tg_last_admin_guard() md5=6c4fd5dcb72f8a568c492f7139ed8c2c
 func   app.tg_leader_day() md5=d55ddf7a8227ddd0f73386690ee55145
@@ -444,7 +447,7 @@ func   app.tg_pass_delete_guard() md5=91f1c76f9afd189463ca8c9f26b04390
 func   app.tg_pass_edit_guard() md5=dda07b7abfaa8f7eb519081febb29535
 func   app.tg_profile_touch() md5=2cd0a5f82ac61406b149da8b7d574ddc
 func   app.tg_sync_work_date() md5=205305b41ade44114ec626dc29b463e5
-func   app.tg_worker_self_edit_guard() md5=1d48b1ab95436213192e2a5329677630
+func   app.tg_worker_self_edit_guard() md5=7e933362e1f8d5f23547d75ed47b6736
 func   app.week_start(d date) md5=4a8f6c192e41cf4a14ebb5f87e671c29
 func   public.accept_offer(p_pass uuid) md5=2f95270ad8439ba89f80c3567c7328db
 func   public.approve_day(p_project uuid, p_work_date date, p_text text, p_rows jsonb) md5=5165a1ac04f26c220246a93943c1882b

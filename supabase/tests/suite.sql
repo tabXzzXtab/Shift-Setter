@@ -1160,6 +1160,47 @@ select pg_temp.ok(
   'TIER.no_forval_no_slot',
   'the forval is the entry ticket; not marking the day means not on the list');
 
+-- ---- Handplocka is for arbetare -------------------------------------------
+--
+-- Hand-picking fills the slots a pass DEMANDED, and an arbetsledare never
+-- occupies one -- Step 4b places them, and that row was never a slot the pass
+-- asked for. Worse than untidy: Step 4b SKIPS a leader who already holds an
+-- ordinary assignment that date, so hand-picking one onto a worker slot is how
+-- a day loses the person answerable for it. A leader picking themselves does
+-- it to their own day.
+--
+-- Asserted as the owner, so RLS is out of the picture and the refusal can only
+-- have come from the trigger -- which is what makes the negative control mean
+-- something.
+insert into public.pass_batch (id, project_id, created_by)
+select 'ffffffff-0000-0000-0000-0000000000a1', 'aaaaaaaa-0000-0000-0000-00000000000a',
+       (select v from fx where k = 'leaderA');
+
+select pg_temp.rejects($$
+  insert into public.pass_batch_handpick (batch_id, worker_id)
+  select 'ffffffff-0000-0000-0000-0000000000a1', id from wid where k = 'leaderA'
+$$, 'HANDPICK.leader_refused');
+
+-- The other half. A guard that refuses everyone protects nothing, and this is
+-- the assertion the whole feature exists to keep true.
+select pg_temp.accepts($$
+  insert into public.pass_batch_handpick (batch_id, worker_id)
+  select 'ffffffff-0000-0000-0000-0000000000a1', id from wid where k = 'w2'
+$$, 'HANDPICK.arbetare_accepted');
+
+-- The list can only leave a leader out if it is told which one they are. Same
+-- roster, so the names and the roles cannot come apart.
+set local role authenticated;
+select pg_temp.act_as((select v from fx where k = 'leaderA'));
+select pg_temp.ok(
+  (select r.role = 'arbetsledare' from public.worker_roster r
+   join wid on wid.id = r.id where wid.k = 'leaderA')
+  and (select r.role = 'arbetare' from public.worker_roster r
+       join wid on wid.id = r.id where wid.k = 'w2'),
+  'HANDPICK.roster_carries_the_role',
+  'worker_roster says who is an arbetsledare, so Handplocka can leave them out');
+reset role;
+
 -- ---- ordering: a lateness mark pushes a worker down ------------------------
 --
 -- Built so that the lateness offset is the ONLY thing deciding the outcome,
@@ -2848,6 +2889,105 @@ select pg_temp.rejects($ans$
        and t.source = 'ledare' and t.released_at is null),
     (select id from wid where k = 'w2'))
 $ans$, 'S5C.ansvarig_needs_no_leader_free');
+reset role;
+
+-- ============================================================================
+-- THE LATE MARK THE CONFIRMATION WRITES
+--
+-- Stage 1 bumps worker.late_marks from inside the confirmation guard, and the
+-- worker table's own guard refuses late_marks to anyone but an admin. So a
+-- leader could not confirm a day ANYBODY was late on -- not merely a day they
+-- were late on themselves, because the confirmation runs SECURITY DEFINER and
+-- its UPDATE reaches every late row on the day.
+--
+-- Both halves are asserted here: the confirmation goes through and the marks
+-- land, and the guard still refuses the thing it was written for.
+-- ============================================================================
+
+insert into public.project (id, name, site_address, bestallare_address,
+                            bestallare_bolag, bestallare_orgnr, services, start_date)
+values ('fefefefe-0000-0000-0000-00000000000e', 'Sena Dagen',
+        'Gata 7', 'Kund 7', 'Bolag AB', '556000-0007', 'Bygg',
+        app.stockholm_today() - 60);
+
+insert into public.project_leader (project_id, account_id)
+values ('fefefefe-0000-0000-0000-00000000000e', (select v from fx where k = 'leaderA'));
+
+insert into public.pass (id, project_id, work_date, start_time, end_time,
+                         planned_hours, headcount, created_by)
+values ('fefefefe-0000-0000-0000-000000000001', 'fefefefe-0000-0000-0000-00000000000e',
+        app.stockholm_today() - 45, '07:00', '16:00', 8.00, 2,
+        (select v from fx where k = 'leaderA'));
+
+insert into public.tilldelning (id, pass_id, worker_id, source)
+values ('fefefefe-0000-0000-0000-000000000011', 'fefefefe-0000-0000-0000-000000000001',
+        (select id from wid where k = 'w1'), 'manuell');
+
+-- Step 4b put leaderA on the day. Both rows get hours, and BOTH are marked
+-- late: the reported case is the leader's own row, the wider one is anybody's.
+set local role authenticated;
+select pg_temp.act_as((select v from fx where k = 'leaderA'));
+
+update public.tilldelning set confirmed_hours = 8, late = true
+where project_id = 'fefefefe-0000-0000-0000-00000000000e'
+  and work_date = app.stockholm_today() - 45
+  and released_at is null;
+
+-- Marks before, so the assertion is on the change and not on a total that some
+-- earlier fixture may already have moved.
+reset role;
+create temporary table late_done(ok boolean, err text);
+grant select, insert on late_done to public;
+
+create temporary table late_before as
+select (select late_marks from public.worker where id = (select id from wid where k = 'leaderA')) as leader,
+       (select late_marks from public.worker where id = (select id from wid where k = 'w1'))      as worker;
+grant select on late_before to public;
+
+set local role authenticated;
+select pg_temp.act_as((select v from fx where k = 'leaderA'));
+
+-- Captured rather than run bare: when this guard is wrong the confirmation
+-- RAISES, and an exception that escapes here would kill the suite somewhere
+-- that is not an assertion -- which is exactly what a negative control must
+-- not be allowed to do.
+do $conf$
+begin
+  insert into public.project_day (project_id, work_date, vad_vi_gjorde,
+                                  confirmed_at, confirmed_via)
+  values ('fefefefe-0000-0000-0000-00000000000e', app.stockholm_today() - 45,
+          'Sent igang, men taket blev klart.', now(), 'leader');
+  insert into late_done values (true, null);
+exception when others then
+  insert into late_done values (false, sqlerrm);
+end $conf$;
+reset role;
+
+select pg_temp.ok(
+  (select ok from late_done)
+  and (select pd.stage = 'leader_confirmed' from public.project_day pd
+       where pd.project_id = 'fefefefe-0000-0000-0000-00000000000e'
+         and pd.work_date = app.stockholm_today() - 45),
+  'LATE.leader_confirms_a_late_day',
+  'the leader closes their own day even though the day carries late marks: '
+    || coalesce((select err from late_done), ''));
+
+select pg_temp.ok(
+  (select late_marks from public.worker where id = (select id from wid where k = 'w1'))
+    = (select worker + 1 from late_before)
+  and (select late_marks from public.worker where id = (select id from wid where k = 'leaderA'))
+    = (select leader + 1 from late_before),
+  'LATE.marks_land_on_both',
+  'the demotion the priority list runs on actually happened, for the leader too');
+
+-- And the guard still does the job it was written for: a person cannot reach
+-- for their own late marks by hand, however tidy the update looks.
+set local role authenticated;
+select pg_temp.act_as((select v from fx where k = 'leaderA'));
+select pg_temp.rejects($late$
+  update public.worker set late_marks = late_marks + 1
+  where account_id = (select v from fx where k = 'leaderA')
+$late$, 'LATE.self_edit_still_refused');
 reset role;
 
 select pg_temp.ok(true, 'SUITE.complete', 'every assertion passed');
