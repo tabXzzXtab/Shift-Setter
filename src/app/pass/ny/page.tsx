@@ -46,6 +46,13 @@ const newRow = (): Row => ({
  * Hours are typed, never derived from the span. 07:00-16:00 with an unpaid
  * lunch is eight hours, not nine, and that is the normal case (invariant 1).
  *
+ * Handplocka lists ARBETARE. An arbetsledare is placed by Step 4b the moment a
+ * worker holds a slot on their project, so a leader in this list would be the
+ * screen offering the wrong thing under the right name -- and Step 4b skips a
+ * leader already holding an ordinary assignment, so picking one is precisely
+ * how a day loses the person answerable for it. The database refuses it; the
+ * list not showing it is the courtesy.
+ *
  * What comes out is twenty-four independent passes, not one repeating thing.
  * Editing or cancelling a Tuesday must leave every other Tuesday alone, so
  * there is no series object to accidentally edit through.
@@ -77,7 +84,13 @@ function NyttPass() {
       const list = (p ?? []).map((x) => ({ id: x.id, name: x.name }));
       setProjects(list);
       if (list.length === 1) setProjectId(list[0]!.id);
-      const { data: w } = await sb.from("worker_roster").select("id, name").order("name");
+      // Handplocka fills the slots the pass DEMANDED, and an arbetsledare never
+      // occupies one -- Step 4b places them the moment a worker holds a slot.
+      // Picking one onto a worker slot is how Step 4b then skips them and the
+      // day loses whoever was answerable for it, so the database refuses it.
+      // This is why the list never offers the refusal.
+      const { data: w } = await sb
+        .from("worker_roster").select("id, name").eq("role", "arbetare").order("name");
       setWorkers((w ?? []).flatMap((x) => (x.id && x.name ? [{ id: x.id, name: x.name }] : [])));
     })();
   }, []);
@@ -359,7 +372,10 @@ function NyttPass() {
         </Notice>
       )}
 
-      <Group label={`Handplocka (${handpicked.length})`} hint="Frivilligt. Ger förtur — men bara till dem som markerat dagen.">
+      <Group
+        label={`Handplocka (${handpicked.length})`}
+        hint="Frivilligt. Ger förtur — men bara till dem som markerat dagen. Arbetsledare står inte i listan, de placeras automatiskt."
+      >
         <div className="flex flex-col gap-2">
           {workers.map((w) => {
             const on = handpicked.includes(w.id);
