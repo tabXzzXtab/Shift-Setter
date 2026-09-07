@@ -1328,16 +1328,7 @@ export type Database = {
           id: string | null
           late_marks: number | null
           name: string | null
-        }
-        Insert: {
-          id?: string | null
-          late_marks?: number | null
-          name?: string | null
-        }
-        Update: {
-          id?: string | null
-          late_marks?: number | null
-          name?: string | null
+          role: Database["public"]["Enums"]["app_role"] | null
         }
         Relationships: []
       }
