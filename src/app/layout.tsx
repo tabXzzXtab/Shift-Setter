@@ -19,9 +19,33 @@ const inter = Inter({
   variable: "--font-inter",
 });
 
+/**
+ * Every icon URL carries the basePath by hand.
+ *
+ * Next does not prefix basePath onto metadata.icons or metadata.manifest -- it
+ * does that for file-based conventions only -- so a bare "/icon-192.png" would
+ * resolve to the domain root and 404 on Pages, which serves this app from
+ * /Shift-Setter. It is spelled out here for the same reason next.config.ts
+ * hardcodes it: a value read from an env var deploys green and renders nothing.
+ */
+const BASE = "/Shift-Setter";
+
 export const metadata: Metadata = {
   title: "Shift Setter",
   description: "Skiftplanering och Arbetsdagbok",
+  applicationName: "ByggKoll",
+  manifest: `${BASE}/manifest.json`,
+  icons: {
+    icon: [
+      { url: `${BASE}/favicon.ico`, sizes: "32x32 16x16", type: "image/x-icon" },
+      { url: `${BASE}/favicon-32.png`, sizes: "32x32", type: "image/png" },
+      { url: `${BASE}/favicon-16.png`, sizes: "16x16", type: "image/png" },
+      { url: `${BASE}/icon-192.png`, sizes: "192x192", type: "image/png" },
+    ],
+    // iOS ignores transparency, so this one is flattened onto the app's ground
+    // rather than left to be painted black behind.
+    apple: [{ url: `${BASE}/apple-touch-icon.png`, sizes: "180x180", type: "image/png" }],
+  },
 };
 
 // Mobile first: the phone is the design target, so the viewport is declared
@@ -30,6 +54,9 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
+  // The colour the phone paints its chrome with when the app is installed.
+  // Next wants this on viewport rather than metadata since 14.
+  themeColor: "#091540",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
