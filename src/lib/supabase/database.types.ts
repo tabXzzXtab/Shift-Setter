@@ -1364,6 +1364,10 @@ export type Database = {
       }
       clock_in: { Args: { p_tilldelning: string }; Returns: string }
       clock_out: { Args: { p_tilldelning: string }; Returns: string }
+      close_pass: {
+        Args: { p_hours: number; p_pass: string }
+        Returns: undefined
+      }
       complete_bristsurvey: {
         Args: { p_project: string; p_text: string; p_work_date: string }
         Returns: undefined
@@ -1475,6 +1479,7 @@ export type Database = {
         | "absent_at_confirmation"
         | "account_paused"
         | "no_workers_left"
+        | "closed_early"
       review_action: "approved" | "rejected"
     }
     CompositeTypes: {
@@ -1634,6 +1639,7 @@ export const Constants = {
         "absent_at_confirmation",
         "account_paused",
         "no_workers_left",
+        "closed_early",
       ],
       review_action: ["approved", "rejected"],
     },

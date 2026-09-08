@@ -124,6 +124,18 @@ export function stockholmWallClock(ymd: string, time: string): Date {
  * night shifts are real here, so 22:00-06:00 ends the next morning.
  * Mirrors app.pass_end_at() exactly; if one changes, so must the other.
  */
+/**
+ * When a shift begins, as an instant.
+ *
+ * The mirror of passEndAt, and the pair of them is what "is this pass running
+ * right now" is made of. app.pass_start_at is the same question in the
+ * database; the two must agree or a control that appears on screen will be
+ * refused when it is pressed.
+ */
+export function passStartAt(ymd: string, start: string): Date {
+  return stockholmWallClock(ymd, hhmm(start));
+}
+
 export function passEndAt(ymd: string, start: string, end: string): Date {
   const s = hhmm(start);
   const e = hhmm(end);

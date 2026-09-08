@@ -549,6 +549,41 @@ const CONTROLS = [
    "using (app.is_admin()) with check (app.is_admin())",
    "PROJEKT.no_direct_soft_delete"],
 
+  // ---- Stäng Pågående Pass ------------------------------------------------
+  ["ending a running pass is the admin's alone",
+   perturbIn("public.close_pass(uuid,numeric)",
+             "if not app.is_admin() then", "if false then"),
+   "CLOSE.leader_cannot_close"],
+
+  ["closing keeps the hours of whoever turned up",
+   // The clock_in split removed from the release, so everyone comes off the
+   // pass -- and the Arbetsdagbok reads released_at is null, so the hours the
+   // first one actually worked would print nowhere. This is the whole reason
+   // closing is not "delete, but for active passes".
+   perturbIn("public.close_pass(uuid,numeric)",
+             "    and t.clock_in is null;", "    and true;"),
+   "CLOSE.clocked_in_keeps_the_hours"],
+
+  ["closing never invents a clock-out",
+   // Invariant 3. Stamping one at closure would read as the worker having
+   // stamped out themselves, in the one place the system treats as evidence.
+   perturbIn("public.close_pass(uuid,numeric)",
+             "  set confirmed_hours = p_hours",
+             "  set confirmed_hours = p_hours, clock_out = v_now"),
+   "CLOSE.no_clock_out_is_invented"],
+
+  // NO CONTROL FOR CLOSE.does_not_confirm_the_day, and not for want of trying.
+  // The assertion guards an ABSENCE: close_pass simply contains no confirmation,
+  // so there is no guard to disable -- the same shape as the flag-freeze and
+  // the swap project filter, both dropped earlier for the same reason.
+  //
+  // The attempt was still worth making. Perturbing close_pass to write the day
+  // to admin_confirmed does not produce a wrong value, it produces a REFUSAL:
+  // "day X is not over yet; its last shift ends ...". Invariant 5 stops a
+  // fourth route to admin_confirmed from existing at all while the pass it
+  // closes is still running, which is a stronger answer than the control would
+  // have been. The assertion stays as a tripwire for the day somebody adds one.
+
   ["invariant 7 -- project creation is a gate",
    `alter table public.project drop constraint ` +
    `"${"project_bestallare_orgnr_check"}"`,

@@ -3376,4 +3376,100 @@ select pg_temp.accepts(
 
 reset role;
 
+-- ============================================================================
+-- STÄNG PÅGÅENDE PASS -- ending a shift that is running
+--
+-- A pass covering right now, on a project whose day is untouched. One worker
+-- clocked in, one never came. Closing has to tell them apart: releasing both
+-- would erase the hours the first one actually worked, because the Arbetsdagbok
+-- and the confirmation guard both read released_at is null.
+-- ============================================================================
+
+insert into public.pass (id, project_id, work_date, start_time, end_time,
+                         planned_hours, headcount, created_by)
+values ('cccccccc-0000-0000-0000-000000000050',
+        '11111111-aaaa-0000-0000-0000000000c1', app.stockholm_today(),
+        '00:00', '23:59', 8.00, 2, (select v from fx where k = 'leaderA'));
+
+-- w1 turned up. w3 did not. NOT w2: the pause section already has them on a
+-- 00:00-23:59 pass today, and invariant 2 now refuses the overlap -- correctly,
+-- which is how this fixture found out.
+insert into public.tilldelning (id, pass_id, worker_id, source, work_date, clock_in)
+values ('dddddddd-0000-0000-0000-000000000050',
+        'cccccccc-0000-0000-0000-000000000050',
+        (select id from wid where k = 'w1'), 'manuell', app.stockholm_today(), now()),
+       ('dddddddd-0000-0000-0000-000000000051',
+        'cccccccc-0000-0000-0000-000000000050',
+        (select id from wid where k = 'w3'), 'manuell', app.stockholm_today(), null);
+
+set local role authenticated;
+
+-- An arbetsledare runs the day; ending it early is not theirs.
+select pg_temp.act_as((select v from fx where k = 'leaderA'));
+select pg_temp.rejects($$
+  select public.close_pass('cccccccc-0000-0000-0000-000000000050', 4.00)
+$$, 'CLOSE.leader_cannot_close');
+
+select pg_temp.act_as((select v from fx where k = 'admin'));
+
+-- A pass that has not started is a plan, and is deleted rather than closed.
+select pg_temp.rejects($$
+  select public.close_pass(
+    (select id from public.pass
+     where project_id = '11111111-aaaa-0000-0000-0000000000c1'
+       and work_date = app.stockholm_today() + 11 limit 1), 4.00)
+$$, 'CLOSE.future_pass_is_not_closed');
+
+select public.close_pass('cccccccc-0000-0000-0000-000000000050', 4.00);
+reset role;
+
+select pg_temp.ok(
+  (select released_at is null and confirmed_hours = 4.00
+   from public.tilldelning where id = 'dddddddd-0000-0000-0000-000000000050'),
+  'CLOSE.clocked_in_keeps_the_hours',
+  'somebody who turned up keeps their row and the hours they worked');
+
+select pg_temp.ok(
+  (select released_at is not null and released_reason = 'closed_early'
+   from public.tilldelning where id = 'dddddddd-0000-0000-0000-000000000051'),
+  'CLOSE.never_came_is_released',
+  'somebody who never clocked in comes off the pass, and it says why');
+
+-- INVARIANT 3. No stamp is invented for a person who did not make one.
+select pg_temp.ok(
+  (select clock_out is null
+   from public.tilldelning where id = 'dddddddd-0000-0000-0000-000000000050'),
+  'CLOSE.no_clock_out_is_invented',
+  'the missing stamp is the truth; the admin''s figure is the claim');
+
+select pg_temp.ok(
+  (select end_time < '23:59'::time from public.pass
+   where id = 'cccccccc-0000-0000-0000-000000000050'),
+  'CLOSE.the_pass_ends_now',
+  'the span on the record is what the day actually ran');
+
+-- STAGE 1 IS UNTOUCHED. The admin closed the pass; he did not confirm the day.
+select pg_temp.ok(
+  not exists (select 1 from public.project_day pd
+              where pd.project_id = '11111111-aaaa-0000-0000-0000000000c1'
+                and pd.work_date = app.stockholm_today()
+                and pd.confirmed_at is not null),
+  'CLOSE.does_not_confirm_the_day',
+  'closing is an administrative act, never a stage 1 claim');
+
+select pg_temp.ok(
+  (select count(*) from public.notification n
+   where n.kind = 'pass_closed'
+     and (n.payload->>'pass_id') = 'cccccccc-0000-0000-0000-000000000050') = 2,
+  'CLOSE.everyone_is_told',
+  'both of them are told, including the one still standing on site');
+
+-- And it cannot be closed twice: it is no longer running.
+set local role authenticated;
+select pg_temp.act_as((select v from fx where k = 'admin'));
+select pg_temp.rejects($$
+  select public.close_pass('cccccccc-0000-0000-0000-000000000050', 4.00)
+$$, 'CLOSE.a_finished_pass_is_confirmed_not_closed');
+reset role;
+
 select pg_temp.ok(true, 'SUITE.complete', 'every assertion passed');

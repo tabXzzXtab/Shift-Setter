@@ -2,9 +2,9 @@ enum   app_role = admin,arbetsledare,arbetare
 enum   assignment_source = handplockad,forval,oppen,manuell,snabb,ledare
 enum   confirmation_source = leader,bristsurvey,worker_ansvarig,ingen_ledare
 enum   day_stage = leader_confirmed,admin_confirmed
-enum   notification_kind = shift_deleted,shift_offered,day_unconfirmed,day_flagged,leader_replaced
+enum   notification_kind = shift_deleted,shift_offered,day_unconfirmed,day_flagged,leader_replaced,pass_closed
 enum   offer_state = offered,accepted,declined,withdrawn
-enum   release_reason = removed_by_leader,replaced_by_snabb,shift_deleted,absent_at_confirmation,account_paused,no_workers_left
+enum   release_reason = removed_by_leader,replaced_by_snabb,shift_deleted,absent_at_confirmation,account_paused,no_workers_left,closed_early
 enum   review_action = approved,rejected
 column account.active boolean NOT NULL DEFAULT true
 column account.created_at timestamp with time zone NOT NULL DEFAULT now()
@@ -459,6 +459,7 @@ func   public.bristsurvey_gaps(p_project uuid, p_from date, p_to date) md5=2966c
 func   public.cash_dist(money, money) md5=1acd79b2b4b9df652d58d90e72f05a29
 func   public.clock_in(p_tilldelning uuid) md5=6c4856b310eb35c37580a0125356847f
 func   public.clock_out(p_tilldelning uuid) md5=0cba39279e3ae3f7f67c95f6f627bfa2
+func   public.close_pass(p_pass uuid, p_hours numeric) md5=41bb50e95057bdb510bc60e731e64db9
 func   public.complete_bristsurvey(p_project uuid, p_work_date date, p_text text) md5=e511adf511d6a1b6fa953d9d1113c1c7
 func   public.confirm_flagged_day(p_project uuid, p_work_date date, p_text text, p_rows jsonb) md5=5af47daac0ae6d9807a1ffe947a807bd
 func   public.create_snabb_pass(p_project uuid, p_worker uuid, p_date date, p_start time without time zone, p_end time without time zone, p_hours numeric) md5=22f01f33b4bc25141f2245dab81e5e41
