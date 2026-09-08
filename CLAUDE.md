@@ -21,10 +21,21 @@ Full specification: [docs/spec.md](docs/spec.md).
     number. One true exception, the bristsurvey — on a day no leader confirmed,
     hours come from the clock span where the worker clocked both ends and the
     planned figure where they did not. Nobody types those. That path, no other.
-2.  No worker holds two assignments on the same date. Ever. One exception,
-    arbetsledare only: a leader auto-assigned to two projects holds a day on
-    each, hours computed per project, a row in each Arbetsdagbok. Nothing but
-    auto-assignment creates it and it never extends to arbetare.
+2.  No worker holds two assignments whose HOURS OVERLAP. A morning shift and
+    an afternoon Snabb Pass are two things that happened and print as two rows;
+    being booked into two places at once is the thing this forbids, and a date
+    was only ever a coarse stand-in for it. Back to back is not an overlap --
+    a shift starting exactly where another ends is allowed. Spans are compared
+    as real timestamps, so a 22:00-06:00 shift is measured against the next
+    morning too. One exception, arbetsledare only: a leader auto-assigned to
+    two projects holds a day on each, hours computed per project, a row in each
+    Arbetsdagbok -- and those envelopes overlap by construction, so ledare rows
+    are exempt from the overlap test entirely. Nothing but auto-assignment
+    creates that, and it never extends to arbetare.
+    AUTOMATIC PLACEMENT IS STILL ONE SHIFT PER PERSON PER DAY. The tier walk
+    and Avboka's replacement list keep their own "not already working that
+    date" filter. Only a manual, admin-made Snabb Pass may put a second
+    non-overlapping shift on a day.
 3.  Clock stamps are append-only evidence. A leader may overwrite the working
     value; the original survives, visible and attributed to whoever changed it.
 4.  An arbetare never writes hours or confirmation state. A leader writes them

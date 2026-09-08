@@ -46,9 +46,45 @@ const perturb = (find, replace) => perturbIn("app.fill_pass(uuid)", find, replac
 
 /** Each control: disable one protection, name the assertion that must then fail. */
 const CONTROLS = [
-  ["invariant 2 -- one assignment per worker per day",
-   "drop index public.tilldelning_one_per_worker_per_day",
+  ["invariant 2 -- no two assignments whose hours overlap",
+   // The index this used to drop is gone: invariant 2 is a no-overlap rule
+   // now, and a trigger is what holds it up.
+   "drop trigger no_overlapping_assignment on public.tilldelning",
    "I2.two_projects_same_day"],
+
+  ["invariant 2 -- back to back is not an overlap",
+   // Half-open made closed. A shift starting exactly where another ends would
+   // then count as a clash, which is the case the whole rule exists to allow.
+   // Only the second comparison is perturbed; the first would break the
+   // refusals above instead and the control would land on the wrong one.
+   perturbIn("app.tg_no_overlapping_assignment()",
+             "and v_start < app.pass_end_at(p.work_date, p.start_time, p.end_time)",
+             "and v_start <= app.pass_end_at(p.work_date, p.start_time, p.end_time)"),
+   "I2.back_to_back_is_allowed"],
+
+  // ---- Snabb Pass replaces what it collides with, and nothing else --------
+  ["a Snabb Pass leaves a shift it does not overlap",
+   // The time predicate removed from the release: back to clearing the day.
+   perturbIn("public.create_snabb_pass(uuid,uuid,date,time,time,numeric)",
+             "and app.pass_start_at(p.work_date, p.start_time) < app.pass_end_at(p_date, p_start, p_end)\n" +
+             "    and app.pass_start_at(p_date, p_start) < app.pass_end_at(p.work_date, p.start_time, p.end_time);",
+             ";"),
+   "SNABB.keeps_what_it_does_not_touch"],
+
+  ["a Snabb Pass never takes the arbetsledare off the day",
+   // The source filter removed from the release. The ledare row is not a slot
+   // and nothing about a Snabb Pass on a worker concerns it.
+   perturbIn("public.create_snabb_pass(uuid,uuid,date,time,time,numeric)",
+             "and t.source     <> 'ledare'          -- never takes a leader off their day",
+             "and true"),
+   "SNABB.never_takes_the_leader_off"],
+
+  ["a locked day is refused in the admin's own language",
+   // The friendly check removed, so invariant 5 raises instead and the admin
+   // gets the database's wording -- which is exactly what was reported.
+   perturbIn("public.create_snabb_pass(uuid,uuid,date,time,time,numeric)",
+             "if v_stuck is not null then", "if false then"),
+   "SNABB.locked_day_refused_plainly"],
 
   ["headcount -- exactly one winner for the last slot",
    "alter table public.tilldelning disable trigger headcount_guard",

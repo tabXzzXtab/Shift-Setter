@@ -218,6 +218,101 @@ select pg_temp.ok(
    where fx.k = 'w1' and t.released_at is null and t.work_date = app.stockholm_today() - 1) = 1,
   'I2.release_frees_day', 'exactly one live assignment on the day after a release');
 
+-- ---- AND THE HALF THE RULE NOW ALLOWS --------------------------------------
+--
+-- Invariant 2 is about being in two places at once, and a date was only ever a
+-- coarse stand-in for that. Two shifts on one day that do NOT overlap are two
+-- things that happened, and the Arbetsdagbok has a row for each.
+--
+-- The refusals above still hold and are the same assertions they always were:
+-- passes 0001 and 0002 both run 07:00-16:00, so they overlap and the second is
+-- still rejected. What changed is only what happens when they do not.
+-- On a date of its own. Putting it on an existing fixture day would have added
+-- an unconfirmed row to a day the suite confirms later, and the failure would
+-- have looked like a bug in this rule rather than in the fixture.
+insert into public.pass (id, project_id, work_date, start_time, end_time,
+                         planned_hours, headcount, created_by)
+values ('cccccccc-0000-0000-0000-000000000039',
+        'aaaaaaaa-0000-0000-0000-00000000000a', app.stockholm_today() + 42,
+        '07:00', '12:00', 5.00, 1, (select v from fx where k = 'leaderA')),
+       ('cccccccc-0000-0000-0000-000000000040',
+        'aaaaaaaa-0000-0000-0000-00000000000a', app.stockholm_today() + 42,
+        '17:00', '21:00', 4.00, 1, (select v from fx where k = 'leaderA'));
+
+insert into public.tilldelning (pass_id, worker_id, source, work_date)
+select 'cccccccc-0000-0000-0000-000000000039', w.id, 'manuell', app.stockholm_today() + 42
+from public.worker w join fx on fx.v = w.account_id where fx.k = 'w1';
+
+-- The Snabb Pass, hours apart from the morning. This is the case the whole
+-- change exists for.
+insert into public.tilldelning (pass_id, worker_id, source, work_date)
+select 'cccccccc-0000-0000-0000-000000000040', w.id, 'snabb', app.stockholm_today() + 42
+from public.worker w join fx on fx.v = w.account_id where fx.k = 'w1';
+
+select pg_temp.ok(
+  (select count(*) from public.tilldelning t
+   join public.worker w on w.id = t.worker_id
+   join fx on fx.v = w.account_id
+   where fx.k = 'w1' and t.released_at is null
+     and t.work_date = app.stockholm_today() + 42) = 2,
+  'I2.evening_after_a_morning',
+  'a shift that does not overlap is a second thing that happened, not a clash');
+
+-- BACK TO BACK IS NOT AN OVERLAP. Half-open intervals: 12:00-17:00 begins
+-- exactly where a 07:00-12:00 shift ends, and nobody is in two places.
+insert into public.pass (id, project_id, work_date, start_time, end_time,
+                         planned_hours, headcount, created_by)
+values ('cccccccc-0000-0000-0000-000000000041',
+        'aaaaaaaa-0000-0000-0000-00000000000a', app.stockholm_today() + 40,
+        '07:00', '12:00', 5.00, 1, (select v from fx where k = 'leaderA')),
+       ('cccccccc-0000-0000-0000-000000000042',
+        'aaaaaaaa-0000-0000-0000-00000000000a', app.stockholm_today() + 40,
+        '12:00', '17:00', 5.00, 1, (select v from fx where k = 'leaderA'));
+
+insert into public.tilldelning (pass_id, worker_id, source, work_date)
+select 'cccccccc-0000-0000-0000-000000000041', w.id, 'manuell', app.stockholm_today() + 40
+from public.worker w join fx on fx.v = w.account_id where fx.k = 'w3';
+
+-- Through accepts(), not bare. A bare insert that the rule wrongly refuses
+-- raises the trigger's own error and kills the run before the count below is
+-- ever read -- so a control on the boundary would land on "not an assertion"
+-- and say nothing about which guard it had removed.
+select pg_temp.accepts($$
+  insert into public.tilldelning (pass_id, worker_id, source, work_date)
+  select 'cccccccc-0000-0000-0000-000000000042', w.id, 'manuell', app.stockholm_today() + 40
+  from public.worker w join fx on fx.v = w.account_id where fx.k = 'w3'
+$$, 'I2.back_to_back_is_allowed');
+
+select pg_temp.ok(
+  (select count(*) from public.tilldelning t
+   join public.worker w on w.id = t.worker_id
+   join fx on fx.v = w.account_id
+   where fx.k = 'w3' and t.released_at is null
+     and t.work_date = app.stockholm_today() + 40) = 2,
+  'I2.back_to_back_is_allowed',
+  'a shift starting exactly where another ends is not an overlap');
+
+-- ONE MINUTE OF OVERLAP IS AN OVERLAP. 11:59 is inside the morning shift.
+select pg_temp.rejects($$
+  insert into public.pass (id, project_id, work_date, start_time, end_time,
+                           planned_hours, headcount, created_by)
+  values ('cccccccc-0000-0000-0000-000000000043',
+          'aaaaaaaa-0000-0000-0000-00000000000a', app.stockholm_today() + 41,
+          '07:00', '12:00', 5.00, 1, (select v from fx where k = 'leaderA'));
+  insert into public.tilldelning (pass_id, worker_id, source, work_date)
+  select 'cccccccc-0000-0000-0000-000000000043', w.id, 'manuell', app.stockholm_today() + 41
+  from public.worker w join fx on fx.v = w.account_id where fx.k = 'w2';
+
+  insert into public.pass (id, project_id, work_date, start_time, end_time,
+                           planned_hours, headcount, created_by)
+  values ('cccccccc-0000-0000-0000-000000000044',
+          'bbbbbbbb-0000-0000-0000-00000000000b', app.stockholm_today() + 41,
+          '11:59', '17:00', 5.00, 1, (select v from fx where k = 'leaderB'));
+  insert into public.tilldelning (pass_id, worker_id, source, work_date)
+  select 'cccccccc-0000-0000-0000-000000000044', w.id, 'manuell', app.stockholm_today() + 41
+  from public.worker w join fx on fx.v = w.account_id where fx.k = 'w2'
+$$, 'I2.one_minute_is_an_overlap');
+
 -- ============================================================================
 -- HEADCOUNT -- Tier 3, exactly one winner for the last slot
 -- ============================================================================
@@ -960,6 +1055,7 @@ select pg_temp.rejects($$
   values ('Utan orgnr', 'A', 'B', 'C', '   ', 'D', current_date)
 $$, 'I7.blank_orgnr_rejected');
 
+-- ============================================================================
 -- ============================================================================
 -- SHIFT DELETION -- Section 2b
 -- ============================================================================
@@ -2564,6 +2660,133 @@ select pg_temp.ok(
      and t.project_id = 'aaaaaaaa-0000-0000-0000-00000000000a'
      and t.work_date = app.stockholm_today() - 6) = 0,
   'S5C.nobody_is_on_the_day', 'and there is genuinely nobody on it');
+
+-- ============================================================================
+-- SNABB PASS REPLACES WHAT IT COLLIDES WITH, AND NOTHING ELSE
+--
+-- It used to clear the whole day: every live assignment the worker held on
+-- that date, whatever the hours, ledare rows included. Three reported bugs,
+-- one statement. An afternoon Snabb Pass cancelled the morning's work, took
+-- the arbetsledare off the day they were leading, and -- when any of those
+-- rows sat on an admin_confirmed day -- died on invariant 5 with the raw
+-- database error in front of the admin.
+-- ============================================================================
+
+insert into public.pass (id, project_id, work_date, start_time, end_time,
+                         planned_hours, headcount, created_by)
+values ('cccccccc-0000-0000-0000-000000000045',
+        'aaaaaaaa-0000-0000-0000-00000000000a', app.stockholm_today() + 46,
+        '07:00', '12:00', 5.00, 1, (select v from fx where k = 'leaderA'));
+
+insert into public.tilldelning (id, pass_id, worker_id, source, work_date)
+select 'dddddddd-0000-0000-0000-000000000045',
+       'cccccccc-0000-0000-0000-000000000045',
+       (select id from wid where k = 'w2'), 'manuell', app.stockholm_today() + 46;
+
+-- Step 4b puts the project's arbetsledare on this day. Deliberately NOT
+-- asserted here: this section runs before STEP4B's own, and an assertion about
+-- the leader being placed would be the first thing to fail when that guard is
+-- disabled -- stealing a control that belongs to STEP4B. The leader's presence
+-- is checked below instead, after the Snabb Pass, where it is this section's
+-- business and the EXISTS fails either way if Step 4b never ran.
+
+set local role authenticated;
+select pg_temp.act_as((select v from fx where k = 'admin'));
+select public.create_snabb_pass(
+  'aaaaaaaa-0000-0000-0000-00000000000a'::uuid,
+  (select id from wid where k = 'w2'),
+  app.stockholm_today() + 46, '14:00'::time, '18:00'::time, 4.00);
+reset role;
+
+select pg_temp.ok(
+  (select released_at is null from public.tilldelning
+   where id = 'dddddddd-0000-0000-0000-000000000045'),
+  'SNABB.keeps_what_it_does_not_touch',
+  'an afternoon Snabb Pass does not cancel that morning''s work');
+
+select pg_temp.ok(
+  (select count(*) from public.tilldelning t
+   where t.worker_id = (select id from wid where k = 'w2')
+     and t.work_date = app.stockholm_today() + 46
+     and t.released_at is null and t.source <> 'ledare') = 2,
+  'SNABB.two_shifts_one_day',
+  'the morning and the Snabb Pass are two things that happened');
+
+-- AND IT STILL REPLACES WHAT IT DOES COLLIDE WITH.
+set local role authenticated;
+select pg_temp.act_as((select v from fx where k = 'admin'));
+select public.create_snabb_pass(
+  'aaaaaaaa-0000-0000-0000-00000000000a'::uuid,
+  (select id from wid where k = 'w2'),
+  app.stockholm_today() + 46, '10:00'::time, '15:00'::time, 5.00);
+reset role;
+
+select pg_temp.ok(
+  (select released_reason = 'replaced_by_snabb' from public.tilldelning
+   where id = 'dddddddd-0000-0000-0000-000000000045'),
+  'SNABB.still_replaces_a_clash',
+  'a Snabb Pass across the morning does replace it, and says why');
+
+-- THE LEADER IS STILL THERE -- and the Snabb Pass has to be given to the
+-- LEADER for this to mean anything.
+--
+-- The release only ever touches rows belonging to the person being given the
+-- pass. A Snabb Pass on a worker cannot reach an arbetsledare's row whatever
+-- the source filter says, so asserting it there was a control that could not
+-- fail. Giving leaderA a Snabb Pass across their own envelope is the one case
+-- where `t.source <> 'ledare'` is the only thing standing between them and
+-- being taken off the day they are leading -- which is Step 5c's decision to
+-- make, never a side effect of booking somebody an afternoon.
+set local role authenticated;
+select pg_temp.act_as((select v from fx where k = 'admin'));
+select public.create_snabb_pass(
+  'aaaaaaaa-0000-0000-0000-00000000000a'::uuid,
+  (select id from wid where k = 'leaderA'),
+  app.stockholm_today() + 46, '09:00'::time, '11:00'::time, 2.00);
+reset role;
+
+select pg_temp.ok(
+  exists (select 1 from public.tilldelning t
+          join public.worker w on w.id = t.worker_id
+          where t.project_id = 'aaaaaaaa-0000-0000-0000-00000000000a'
+            and t.work_date = app.stockholm_today() + 46
+            and t.source = 'ledare' and t.released_at is null
+            and w.account_id = (select v from fx where k = 'leaderA')),
+  'SNABB.never_takes_the_leader_off',
+  'a Snabb Pass given to an arbetsledare does not take them off the day');
+
+-- A LOCKED DAY IS REFUSED IN THE ADMIN'S LANGUAGE, NOT THE DATABASE'S.
+-- Project B on today-1 reached admin_confirmed through stage 2 above, and w1
+-- holds 07:00-16:00 on it. What used to come back was invariant 5's own
+-- "day X is admin_confirmed and final", shown raw on the Snabb Pass screen.
+create temporary table snabb_locked(ok boolean, err text);
+grant select, insert on snabb_locked to public;
+
+set local role authenticated;
+select pg_temp.act_as((select v from fx where k = 'admin'));
+do $locked$
+begin
+  perform public.create_snabb_pass(
+    'aaaaaaaa-0000-0000-0000-00000000000a'::uuid,
+    (select id from wid where k = 'w1'),
+    app.stockholm_today() - 1, '09:00'::time, '13:00'::time, 4.00);
+  insert into snabb_locked values (true, null);
+exception when others then
+  insert into snabb_locked values (false, sqlerrm);
+end $locked$;
+reset role;
+
+select pg_temp.ok(
+  (select not ok and err like '%redan bekräftad och låst%'
+   from snabb_locked),
+  'SNABB.locked_day_refused_plainly',
+  'it says the day is confirmed and locked, in Swedish: '
+    || coalesce((select err from snabb_locked), ''));
+
+select pg_temp.ok(
+  (select err not like '%admin_confirmed%' from snabb_locked),
+  'SNABB.no_raw_database_error',
+  'and not invariant 5''s own wording, which is what the admin used to see');
 
 -- ============================================================================
 -- BYTA PLATS MED ARBETSLEDARE -- two leaders trade the same day

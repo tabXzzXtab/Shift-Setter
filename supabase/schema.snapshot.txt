@@ -327,7 +327,6 @@ index  CREATE UNIQUE INDEX project_day_pkey ON public.project_day USING btree (p
 index  CREATE UNIQUE INDEX project_leader_pkey ON public.project_leader USING btree (project_id, account_id)
 index  CREATE UNIQUE INDEX project_pkey ON public.project USING btree (id)
 index  CREATE UNIQUE INDEX tilldelning_one_leader_row_per_project_day ON public.tilldelning USING btree (worker_id, work_date, project_id) WHERE ((released_at IS NULL) AND (source = 'ledare'::assignment_source))
-index  CREATE UNIQUE INDEX tilldelning_one_per_worker_per_day ON public.tilldelning USING btree (worker_id, work_date) WHERE ((released_at IS NULL) AND (source <> 'ledare'::assignment_source))
 index  CREATE UNIQUE INDEX tilldelning_pkey ON public.tilldelning USING btree (id)
 index  CREATE UNIQUE INDEX worker_account_id_key ON public.worker USING btree (account_id)
 index  CREATE UNIQUE INDEX worker_email_key ON public.worker USING btree (lower(email))
@@ -407,6 +406,7 @@ trig   headcount_guard on tilldelning -> tg_headcount_guard enabled=O
 trig   last_admin_guard on account -> tg_last_admin_guard enabled=O
 trig   leader_day on tilldelning -> tg_leader_day enabled=O
 trig   leader_day_pass on pass -> tg_leader_day_pass enabled=O
+trig   no_overlapping_assignment on tilldelning -> tg_no_overlapping_assignment enabled=O
 trig   pass_delete_guard on pass -> tg_pass_delete_guard enabled=O
 trig   pass_edit_guard on pass -> tg_pass_edit_guard enabled=O
 trig   profile_touch on profile -> tg_profile_touch enabled=O
@@ -443,6 +443,7 @@ func   app.tg_headcount_guard() md5=f670cf086f1ab865d3d818b75225c070
 func   app.tg_last_admin_guard() md5=6c4fd5dcb72f8a568c492f7139ed8c2c
 func   app.tg_leader_day() md5=d55ddf7a8227ddd0f73386690ee55145
 func   app.tg_leader_day_pass() md5=691021ec0d2c47200fc8dd2106b10d59
+func   app.tg_no_overlapping_assignment() md5=a6917b75c0aeecbf8fd19916a862ae79
 func   app.tg_pass_delete_guard() md5=91f1c76f9afd189463ca8c9f26b04390
 func   app.tg_pass_edit_guard() md5=dda07b7abfaa8f7eb519081febb29535
 func   app.tg_profile_touch() md5=2cd0a5f82ac61406b149da8b7d574ddc
@@ -460,7 +461,7 @@ func   public.clock_in(p_tilldelning uuid) md5=6c4856b310eb35c37580a0125356847f
 func   public.clock_out(p_tilldelning uuid) md5=0cba39279e3ae3f7f67c95f6f627bfa2
 func   public.complete_bristsurvey(p_project uuid, p_work_date date, p_text text) md5=e511adf511d6a1b6fa953d9d1113c1c7
 func   public.confirm_flagged_day(p_project uuid, p_work_date date, p_text text, p_rows jsonb) md5=5af47daac0ae6d9807a1ffe947a807bd
-func   public.create_snabb_pass(p_project uuid, p_worker uuid, p_date date, p_start time without time zone, p_end time without time zone, p_hours numeric) md5=8bdb92da55e4c4fe1dbe54ad1d6aa65d
+func   public.create_snabb_pass(p_project uuid, p_worker uuid, p_date date, p_start time without time zone, p_end time without time zone, p_hours numeric) md5=22f01f33b4bc25141f2245dab81e5e41
 func   public.date_dist(date, date) md5=3983f43755ffa80d869985d91ee8e538
 func   public.decline_offer(p_pass uuid) md5=3b77c01816ffe8db5847a74c338cae38
 func   public.delete_pass(p_pass uuid) md5=18c81886a24de59bb3922d1592d90051
