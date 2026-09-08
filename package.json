@@ -35,7 +35,8 @@
     "walkthrough:bytaplats": "node scripts/walkthrough-byta-plats.mjs",
     "walkthrough:pausa": "node scripts/walkthrough-pausa.mjs",
     "walkthrough:borttagning": "node scripts/walkthrough-borttagning.mjs",
-    "walkthrough:geofence": "node scripts/walkthrough-geofence.mjs"
+    "walkthrough:geofence": "node scripts/walkthrough-geofence.mjs",
+    "walkthrough:nastapass": "node scripts/walkthrough-nastapass.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.113.0",

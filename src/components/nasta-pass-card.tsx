@@ -1,16 +1,36 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { PinIcon } from "./icons";
 import { getSupabase } from "@/lib/supabase/client";
-import { addDays, longDayHeading, stockholmToday } from "@/lib/dates";
+import { addDays, longDayHeading, passEndAt, stockholmToday } from "@/lib/dates";
 
 // Leaflet reaches for `window` on import, and this app is prerendered at build
 // time. Loaded only in the browser, and only once there is an address to show.
 const ProjectMap = dynamic(() => import("./project-map"), { ssr: false });
 
-type Next = { project: string; address: string; date: string } | null;
+type Next = {
+  project: string;
+  address: string;
+  date: string;
+  start: string;
+  end: string;
+} | null;
+
+/** One row as the card holds it. */
+type Shift = NonNullable<Next>;
+
+/**
+ * How many upcoming rows to hold, so the card can skip the finished ones.
+ *
+ * The query cannot ask "not finished yet" itself -- that is start_time and
+ * end_time and work_date combined, with a night shift ending on the following
+ * date, and PostgREST has no expression for it. So a short window comes back
+ * and the first row still ahead of now is chosen here. A handful of shifts a
+ * day makes 25 far more than a person can burn through between two renders.
+ */
+const WINDOW = 25;
 
 /**
  * Nästa Pass -- where this person is next, for whichever role is looking.
@@ -26,9 +46,34 @@ type Next = { project: string; address: string; date: string } | null;
  *
  * site_address is the PROJECT's address -- where the work is -- and never the
  * beställare's, which is where the invoice goes.
+ *
+ * start_time and end_time are read because the card has to know when the shift
+ * ENDS. my_shift coalesces own_start / own_end over the pass's times, so on an
+ * arbetsledare's row that is their envelope across the day rather than the
+ * times of whichever pass their row hangs on.
+ *
+ * IT GOES WHEN THE SHIFT ENDS, NOT WHEN THE DAY DOES. The card used to ask for
+ * work_date >= today, so a shift finished at 16:00 sat on the home screen until
+ * midnight and the one after it could not appear until the calendar caught up.
+ * A day is not the unit anybody works in. The row is dropped the moment the
+ * clock passes its end_time, and the next one takes its place on the spot --
+ * on a timer, not on the next page load, because the person holding the phone
+ * is standing still watching it.
+ *
+ * A SHIFT UNDER WAY IS STILL "nästa". The test is the END, so a 07:00-16:00
+ * shift stays on the card all day and leaves at 16:00 -- which is what somebody
+ * glancing at their phone at 11:00 wants to see.
+ *
+ * THE WINDOW STARTS YESTERDAY. A night shift booked 22:00-06:00 belongs to
+ * yesterday's work_date and is still running at 03:00; asking from today would
+ * hide the shift the person is standing on. passEndAt is what knows that, and
+ * it is the same helper pendingDays() uses, so the card and the confirmation
+ * queue cannot disagree about when a day finished.
  */
 export function NastaPassCard() {
-  const [next, setNext] = useState<Next | undefined>(undefined);
+  const [rows, setRows] = useState<Shift[] | undefined>(undefined);
+  /** Bumped when the current shift ends, which is what re-picks the card. */
+  const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
     let live = true;
@@ -36,26 +81,63 @@ export function NastaPassCard() {
       const today = stockholmToday();
       const { data } = await getSupabase()
         .from("my_shift")
-        .select("project_name, site_address, work_date")
-        .gte("work_date", today)
+        .select("project_name, site_address, work_date, start_time, end_time")
+        .gte("work_date", addDays(today, -1))
         .lte("work_date", addDays(today, 365))
+        // Earliest day, then earliest start. The tiebreak matters: an
+        // arbetsledare can hold a day on two projects at once (invariant 2's
+        // one exception), and "nästa" should be the one that starts first
+        // rather than whichever row came back first.
         .order("work_date")
-        .limit(1);
+        .order("start_time")
+        .limit(WINDOW);
 
       if (!live) return;
-      const s = (data ?? [])[0];
-      setNext(
-        s
-          ? {
-              project: s.project_name ?? "Projekt",
-              address: s.site_address ?? "",
-              date: s.work_date!,
-            }
-          : null,
+      setRows(
+        (data ?? []).map((s) => ({
+          project: s.project_name ?? "Projekt",
+          address: s.site_address ?? "",
+          date: s.work_date!,
+          start: s.start_time!,
+          end: s.end_time!,
+        })),
       );
     })();
     return () => { live = false; };
   }, []);
+
+  // undefined while the rows are still coming; null once they are here and
+  // nothing in them is still ahead.
+  const next: Next | undefined = useMemo(
+    () =>
+      rows === undefined
+        ? undefined
+        : rows.find((s) => passEndAt(s.date, s.start, s.end).getTime() > now) ?? null,
+    [rows, now],
+  );
+
+  /**
+   * One timer, armed for the exact moment the shift on screen ends.
+   *
+   * Not an interval: a card showing a shift three weeks out has nothing to
+   * recompute until then, and waking every minute to find that out is a
+   * background drain on a phone in someone's pocket. Re-armed whenever the
+   * card changes, which includes the moment it fires.
+   *
+   * Clamped to the 32-bit setTimeout ceiling. A delay past ~24.8 days silently
+   * fires immediately in every browser, which would spin. Firing early is
+   * harmless -- `now` moves, the same shift is chosen again, and the timer is
+   * simply re-armed for the remainder.
+   */
+  useEffect(() => {
+    if (!next) return;
+    const left = passEndAt(next.date, next.start, next.end).getTime() - Date.now();
+    const t = setTimeout(
+      () => setNow(Date.now()),
+      Math.max(0, Math.min(left + 1000, 2 ** 31 - 1)),
+    );
+    return () => clearTimeout(t);
+  }, [next]);
 
   return (
     <>

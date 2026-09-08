@@ -137,6 +137,17 @@ const today = sv.format(new Date());
 // Five open days, so the stack has more behind it than it is allowed to show
 // and the cap is something the test can actually see.
 const OPEN = [4, 5, 6, 7, 8].map((n) => sv.format(new Date(Date.now() + n * 864e5)));
+
+/**
+ * A second held shift, two days out, and it is not decoration.
+ *
+ * Nästa Pass drops a shift the moment its end_time passes rather than at
+ * midnight. Today's shift here runs 07:00-16:00, so from 16:00 onwards it is
+ * correctly gone -- and with nothing behind it the card reads "Inga kommande
+ * pass" and the assertion below fails for a reason that is the fix working.
+ * A run must not depend on the hour it is started at.
+ */
+const SOON = sv.format(new Date(Date.now() + 2 * 864e5));
 const soon = OPEN[0];
 const ADDRESS = "Stortorget 1, 211 22 Malmö";
 
@@ -166,10 +177,12 @@ try {
   // or the my_offer exclusion filter would hide it.
   await signIn(page, W.email, W.password);
   await markDay(page, today);
+  await markDay(page, SOON);
   await signOut(page);
 
   await signIn(page, L.email, L.password);
   await makePass(page, project, today, "8", W.name);
+  await makePass(page, project, SOON, "8", W.name);
   for (const d of OPEN) await makePass(page, project, d, "6", null);  // Tier 3 offers them
   await signOut(page);
 
@@ -280,6 +293,25 @@ try {
     fail("the Nästa Pass card has no Leaflet map");
   }
   log("Nästa Pass: map, project, address, date, and it opens native navigation");
+
+  // THE SPAN, AND THE FIGURE THAT MUST NOT BE THERE.
+  //
+  // 07:00-16:00 is /pass/ny's default and makePass leaves it alone, so this
+  // is the shift's own span read back off the card.
+  //
+  // No hours figure, and that is the assertion with teeth. INVARIANT 10
+  // masks a day's hours until an Arbetsdagbok covers the date, which a
+  // coming day never has -- and on an auto-assigned leader row the pass's
+  // planned_hours is not the leader's figure at all. Copying the Acceptera
+  // Pass card's "07:00-16:00 · 8 h" wholesale is the mistake this catches.
+  if (!nastaText.includes("07:00\u201316:00")) {
+    fail(`the Nästa Pass card shows no time span: ${JSON.stringify(nastaText)}`);
+  }
+  const figure = nastaText.match(/\d+(?:[,.]\d+)?\s*h\b/);
+  if (figure) {
+    fail(`the Nästa Pass card prints an hours figure (${figure[0]}); invariant 10 masks it`);
+  }
+  log("span 07:00\u201316:00, and no hours figure on a day nothing has been filed for");
 
   // ---- the Acceptera Pass cards -------------------------------------------
   const card = page.locator('[data-offer-card="front"]');
