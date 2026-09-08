@@ -157,7 +157,30 @@ export type GateResult =
  */
 const GEOCODE_FAILURE_BLOCKS = false;
 
+/**
+ * OFF, DELIBERATELY AND TEMPORARILY.
+ *
+ * Turned off after live testing: the project addresses in the database are
+ * placeholder text -- one live project's site_address is literally "Projektets
+ * adress" -- so there is nothing real to measure against, and the fence was
+ * refusing legitimate stamps from people standing on site. A gate that blocks
+ * the honest case and catches nothing is worse than no gate.
+ *
+ * NOT DELETED, and not silently parked either: walkthrough:geofence reads this
+ * flag and asserts the behaviour it actually implies -- that a stamp from 50 km
+ * away now goes through -- so the day somebody flips it back without meaning to,
+ * a test says so.
+ *
+ * Set it back to true once the addresses are real. Confirm first that Nominatim
+ * places each project's site_address as something other than category=boundary,
+ * then run `npm run walkthrough:geofence`, which switches back to driving all
+ * three refusal paths on its own.
+ */
+const GEOFENCE_ENABLED = false;
+
 export async function stampGate(address: string | null): Promise<GateResult> {
+  if (!GEOFENCE_ENABLED) return { ok: true };
+
   const here = await currentPosition();
   if (!here) {
     return {

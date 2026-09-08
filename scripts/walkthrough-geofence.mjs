@@ -15,11 +15,30 @@
  * proving nothing.
  */
 import { chromium, devices } from "playwright";
-import { mkdirSync } from "node:fs";
+import { mkdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { required } from "./env.mjs";
 
 const BASE = process.env.BASE_URL ?? "http://localhost:3000/Shift-Setter";
+
+/**
+ * Is the fence switched on?
+ *
+ * Read from the source rather than assumed, because it is currently OFF -- the
+ * project addresses in the database are placeholder text and it was refusing
+ * legitimate stamps. A test that quietly skipped in that state would be no
+ * test; a test that kept asserting refusals would be red for a reason nobody
+ * would trust. So it asserts whichever behaviour the flag actually implies,
+ * and it fails if the flag says something this script cannot read.
+ */
+const FLAG = /const GEOFENCE_ENABLED = (true|false);/.exec(
+  readFileSync("src/lib/geo.ts", "utf8"),
+);
+if (!FLAG) {
+  console.error("\nFAILED: cannot find GEOFENCE_ENABLED in src/lib/geo.ts");
+  process.exit(1);
+}
+const FENCED = FLAG[1] === "true";
 const ART = "artifacts";
 mkdirSync(ART, { recursive: true });
 
@@ -191,74 +210,102 @@ try {
   await signOut(page);
   log(`${W.name} has a shift today on ${P}, at ${ADDRESS}`);
 
-  // ---- 1. permission refused ---------------------------------------------
-  await ctx.clearPermissions();
-  await signIn(page, W.email, W.password);
-  await stampButton(page).waitFor({ timeout: 20000 });
-  await stampButton(page).click();
-  await mustSee(page, "Du måste tillåta platsdelning för att stämpla in.",
-    "a refused position did not block the stamp");
-  await shot(page, "gf1-nekad-plats");
-  log("with location refused the stamp is blocked, and says why");
+  // ---- THE FENCE IS PARKED ------------------------------------------------
+  //
+  // GEOFENCE_ENABLED is false in src/lib/geo.ts, so what is asserted here is
+  // what that actually means: a stamp from 50 km away goes through. Not a
+  // skip. The day somebody flips the flag back, this fails and says so, which
+  // is the only way a parked feature stays honest.
+  if (!FENCED) {
+    await ctx.grantPermissions(["geolocation"]);
+    await ctx.setGeolocation(FAR);
+    await signIn(page, W.email, W.password);
+    await stampButton(page).waitFor({ timeout: 20000 });
+    await stampButton(page).click();
+    await mustSee(page, "Du är instämplad.",
+      "GEOFENCE_ENABLED is false, so a stamp from 50 km away must go through -- " +
+      "if this is now blocked the flag was turned back on and this walkthrough " +
+      "needs to go back to asserting the three refusal paths");
+    const parked = await page.locator("main").innerText();
+    if (/för långt från arbetsplatsen|tillåta platsdelning/.test(parked)) {
+      await shot(page, "FAILED");
+      fail("the fence refused a stamp while GEOFENCE_ENABLED is false");
+    }
+    await shot(page, "gf0-avstangd");
+    log("the fence is PARKED: 50 km from the site the stamp still goes through");
+    log("re-enable it in src/lib/geo.ts once the project addresses are real");
 
-  // Nothing was written: the button still offers to stamp IN.
-  const afterDenied = await page.locator("main").innerText();
-  if (!afterDenied.includes("Du har inte stämplat in.")) {
-    await shot(page, "FAILED");
-    fail(`a blocked stamp still wrote something: ${JSON.stringify(afterDenied.slice(0, 200))}`);
+    console.log("\nGEOFENCE PARKED -- flag is off, and the behaviour matches.\n");
+  } else {
+    // ---- 1. permission refused ---------------------------------------------
+    await ctx.clearPermissions();
+    await signIn(page, W.email, W.password);
+    await stampButton(page).waitFor({ timeout: 20000 });
+    await stampButton(page).click();
+    await mustSee(page, "Du måste tillåta platsdelning för att stämpla in.",
+      "a refused position did not block the stamp");
+    await shot(page, "gf1-nekad-plats");
+    log("with location refused the stamp is blocked, and says why");
+
+    // Nothing was written: the button still offers to stamp IN.
+    const afterDenied = await page.locator("main").innerText();
+    if (!afterDenied.includes("Du har inte stämplat in.")) {
+      await shot(page, "FAILED");
+      fail(`a blocked stamp still wrote something: ${JSON.stringify(afterDenied.slice(0, 200))}`);
+    }
+    log("and nothing was written -- the shift is still not stamped in");
+
+    // ---- 2. allowed, but far away -------------------------------------------
+    await ctx.grantPermissions(["geolocation"]);
+    await ctx.setGeolocation(FAR);
+    await page.reload({ waitUntil: "networkidle" });
+    await stampButton(page).click();
+    await mustSee(page, "Du är för långt från arbetsplatsen",
+      "a stamp from 50 km away was not blocked");
+    await mustSee(page, "Du måste vara inom 4 km för att stämpla in.",
+      "the refusal does not state the rule");
+
+    const far = await page.locator("main").innerText();
+    const km = /för långt från arbetsplatsen \((\d+[.,]\d) km\)/.exec(far)?.[1];
+    if (!km) fail(`the refusal does not name a distance: ${JSON.stringify(far.slice(0, 300))}`);
+    if (Number(km.replace(",", ".")) < 10) {
+      fail(`the distance reads ${km} km from 50 km away; it is measuring against the wrong point`);
+    }
+    await shot(page, "gf2-for-langt");
+    log(`from 50 km away the stamp is blocked and the message names the distance (${km} km)`);
+
+    if (!far.includes("Du har inte stämplat in.")) {
+      fail("a stamp blocked by distance still wrote something");
+    }
+
+    // ---- 3. on the site -----------------------------------------------------
+    await ctx.setGeolocation(SITE);
+    await page.reload({ waitUntil: "networkidle" });
+    await stampButton(page).click();
+    await mustSee(page, "Du är instämplad.", "a stamp from the site was blocked");
+    await shot(page, "gf3-instamplad");
+    log("standing on the site the stamp goes through, unchanged");
+
+    // ---- 4. and Stämpla Ut is gated the same way ----------------------------
+    await ctx.setGeolocation(FAR);
+    await page.reload({ waitUntil: "networkidle" });
+    await stampButton(page).waitFor({ timeout: 20000 });
+    const outLabel = await stampButton(page).innerText();
+    if (!outLabel.includes("Stämpla Ut")) {
+      fail(`expected the button to offer Stämpla Ut, got ${JSON.stringify(outLabel)}`);
+    }
+    await stampButton(page).click();
+    await mustSee(page, "Du är för långt från arbetsplatsen",
+      "Stämpla Ut is not gated; someone could stamp out from home");
+    const stillIn = await page.locator("main").innerText();
+    if (!stillIn.includes("Du är instämplad.")) {
+      fail("a blocked Stämpla Ut still wrote something");
+    }
+    await shot(page, "gf4-ut-nekad");
+    log("Stämpla Ut is gated too -- the drive home is not the end of the shift");
+
+    console.log("\nGEOFENCE COMPLETE.\n");
   }
-  log("and nothing was written -- the shift is still not stamped in");
-
-  // ---- 2. allowed, but far away -------------------------------------------
-  await ctx.grantPermissions(["geolocation"]);
-  await ctx.setGeolocation(FAR);
-  await page.reload({ waitUntil: "networkidle" });
-  await stampButton(page).click();
-  await mustSee(page, "Du är för långt från arbetsplatsen",
-    "a stamp from 50 km away was not blocked");
-  await mustSee(page, "Du måste vara inom 4 km för att stämpla in.",
-    "the refusal does not state the rule");
-
-  const far = await page.locator("main").innerText();
-  const km = /för långt från arbetsplatsen \((\d+[.,]\d) km\)/.exec(far)?.[1];
-  if (!km) fail(`the refusal does not name a distance: ${JSON.stringify(far.slice(0, 300))}`);
-  if (Number(km.replace(",", ".")) < 10) {
-    fail(`the distance reads ${km} km from 50 km away; it is measuring against the wrong point`);
-  }
-  await shot(page, "gf2-for-langt");
-  log(`from 50 km away the stamp is blocked and the message names the distance (${km} km)`);
-
-  if (!far.includes("Du har inte stämplat in.")) {
-    fail("a stamp blocked by distance still wrote something");
-  }
-
-  // ---- 3. on the site -----------------------------------------------------
-  await ctx.setGeolocation(SITE);
-  await page.reload({ waitUntil: "networkidle" });
-  await stampButton(page).click();
-  await mustSee(page, "Du är instämplad.", "a stamp from the site was blocked");
-  await shot(page, "gf3-instamplad");
-  log("standing on the site the stamp goes through, unchanged");
-
-  // ---- 4. and Stämpla Ut is gated the same way ----------------------------
-  await ctx.setGeolocation(FAR);
-  await page.reload({ waitUntil: "networkidle" });
-  await stampButton(page).waitFor({ timeout: 20000 });
-  const outLabel = await stampButton(page).innerText();
-  if (!outLabel.includes("Stämpla Ut")) {
-    fail(`expected the button to offer Stämpla Ut, got ${JSON.stringify(outLabel)}`);
-  }
-  await stampButton(page).click();
-  await mustSee(page, "Du är för långt från arbetsplatsen",
-    "Stämpla Ut is not gated; someone could stamp out from home");
-  const stillIn = await page.locator("main").innerText();
-  if (!stillIn.includes("Du är instämplad.")) {
-    fail("a blocked Stämpla Ut still wrote something");
-  }
-  await shot(page, "gf4-ut-nekad");
-  log("Stämpla Ut is gated too -- the drive home is not the end of the shift");
-
-  console.log("\nGEOFENCE COMPLETE.\n");
 } finally {
   await browser.close();
 }

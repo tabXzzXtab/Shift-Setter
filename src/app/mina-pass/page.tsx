@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { AuthGate } from "@/components/auth-gate";
-import { Button, Empty, Notice, Screen } from "@/components/ui";
+import { Empty, Notice, Screen } from "@/components/ui";
 import { getSupabase } from "@/lib/supabase/client";
 import { addDays, hhmm, longDayHeading, stampToTime, stockholmToday } from "@/lib/dates";
 import { patternIndex, projectPattern } from "@/lib/project-pattern";
@@ -54,8 +54,6 @@ function MinaPass() {
   const [view, setView] = useState<View>("lista");
   const [shifts, setShifts] = useState<Shift[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState<string | null>(null);
-  const [reload, setReload] = useState(0);
 
   const today = stockholmToday();
 
@@ -75,19 +73,7 @@ function MinaPass() {
       setShifts((data ?? []) as Shift[]);
     })();
     return () => { active = false; };
-  }, [reload]);
-
-  async function stamp(id: string, dir: "in" | "out") {
-    setBusy(id);
-    setError(null);
-    // The server sets the timestamp. A phone running ten minutes fast would
-    // otherwise write ten minutes of error into evidence of hours worked.
-    const { error } = await getSupabase()
-      .rpc(dir === "in" ? "clock_in" : "clock_out", { p_tilldelning: id });
-    if (error) setError(error.message);
-    setReload((r) => r + 1);
-    setBusy(null);
-  }
+  }, []);
 
   if (shifts === null) {
     return <Screen title="Mina pass" back="/"><span>Laddar…</span></Screen>;
@@ -120,7 +106,7 @@ function MinaPass() {
       {shifts.length === 0 && <Empty>Du har inga pass än.</Empty>}
 
       {view === "lista" ? (
-        <Lista shifts={shifts} today={today} busy={busy} onStamp={stamp} />
+        <Lista shifts={shifts} today={today} />
       ) : (
         <Kalender shifts={shifts} today={today} projectIds={projectIds} />
       )}
@@ -133,17 +119,7 @@ function MinaPass() {
  * to the top of the screen on arrival: what is coming is what a worker opens
  * this for, and the past is a scroll back rather than a second screen.
  */
-function Lista({
-  shifts,
-  today,
-  busy,
-  onStamp,
-}: {
-  shifts: Shift[];
-  today: string;
-  busy: string | null;
-  onStamp: (id: string, dir: "in" | "out") => void;
-}) {
+function Lista({ shifts, today }: { shifts: Shift[]; today: string }) {
   const firstFuture = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
@@ -191,29 +167,24 @@ function Lista({
                   </div>
                 </dl>
 
-                {/* Clocking stays reachable here for the soft window -- today
-                    and yesterday -- because the landing page's stamp acts on
-                    one shift and a worker can hold two in that window. */}
+                {/*
+                  READ-ONLY. There is exactly ONE place to stamp and it is the
+                  landing page. This screen carried a second pair of buttons
+                  calling the same two RPCs, and the two never agreed about
+                  which shift they were acting on -- the landing page picks the
+                  running one, this list acted on whichever row the finger
+                  landed on, and neither reloaded the other. Two ways to write
+                  the same evidence is one more than there can be.
+
+                  The times stay. Reading your own stamps was never the half
+                  that could disagree, and a worker checking whether this
+                  morning registered should not have to go looking.
+                */}
                 {(s.work_date === today || s.work_date === addDays(today, -1)) && (
-                  <div className="mt-3">
-                    <p className="mb-2 text-base text-neutral-700">
-                      Stämplade {stampToTime(s.clock_in) || "—"} till{" "}
-                      {stampToTime(s.clock_out) || "—"}
-                    </p>
-                    {!s.clock_in && (
-                      <Button onClick={() => onStamp(s.id, "in")} disabled={busy === s.id}>
-                        Stämpla in
-                      </Button>
-                    )}
-                    {s.clock_in && !s.clock_out && (
-                      <Button onClick={() => onStamp(s.id, "out")} disabled={busy === s.id}>
-                        Stämpla ut
-                      </Button>
-                    )}
-                    {s.clock_in && s.clock_out && (
-                      <p className="text-center text-lg font-bold">Klart för dagen</p>
-                    )}
-                  </div>
+                  <p className="mt-3 text-base text-neutral-700">
+                    Stämplade {stampToTime(s.clock_in) || "—"} till{" "}
+                    {stampToTime(s.clock_out) || "—"}
+                  </p>
                 )}
               </section>
             ))}
