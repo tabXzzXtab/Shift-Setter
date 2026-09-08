@@ -16,8 +16,13 @@ import { SignOut } from "./ui";
  *
  * Tapping the darkened background closes it. So does Escape, for the desktop
  * view -- which is the phone view with air around it, keyboard and all.
+ *
+ * EXPORTED because the arbetare startsida draws its own top bar -- its two icon
+ * buttons are a different shape from this one's -- but the panels behind them
+ * are the same panels, with the same SignOut in them. Reusing this rather than
+ * copying it is what keeps "Logga ut" in one place.
  */
-function DropPanel({
+export function DropPanel({
   onClose,
   label,
   children,

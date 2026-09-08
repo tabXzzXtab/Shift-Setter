@@ -17,6 +17,13 @@ const eslintConfig = defineConfig([
     "docs/**",
     // Generated from the live schema by `npm run types:gen`.
     "src/lib/supabase/database.types.ts",
+    // Design handoffs, dropped in as reference. They ship a bundle from the
+    // design tool -- ReactDOM.render, an assignment to `module` -- which is
+    // not ours, is never built, and turned `npm run verify` red the moment the
+    // folder appeared. The screens are RECREATED from these, never imported.
+    "**/design_handoff*/**",
+    "**/handoff/**",
+    "Swedish construction shift scheduler redesign*/**",
   ]),
 ]);
 

@@ -1,16 +1,19 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { AppBar, type MenuItem } from "./app-bar";
-import { NastaPassCard } from "./nasta-pass-card";
-import { OfferStack, type Offer } from "./offer-stack";
-import { Landing, Notice } from "./ui";
+import { DropPanel } from "./app-bar";
+import { useNextShift } from "./nasta-pass-card";
+import { type Offer } from "./offer-stack";
+import { SignOut } from "./ui";
 import { getSupabase } from "@/lib/supabase/client";
-import { addDays, hhmm, stockholmToday } from "@/lib/dates";
+import { addDays, hhmm, longDayHeading, stockholmToday } from "@/lib/dates";
 import { stampGate } from "@/lib/geo";
 
-const MENU: MenuItem[] = [{ href: "/oppna-pass", label: "Öppna Pass" }];
+// Leaflet reaches for `window` on import and this app is prerendered, so the
+// map is loaded in the browser only -- and only once there is an address.
+const ProjectMap = dynamic(() => import("./project-map"), { ssr: false });
 
 type Shift = {
   id: string;
@@ -18,17 +21,77 @@ type Shift = {
   start_time: string;
   end_time: string;
   project_name: string;
-  clock_in: string | null;
-  clock_out: string | null;
   /** Geofenced against this. my_shift already carries it. */
   site_address: string | null;
+  clock_in: string | null;
+  clock_out: string | null;
 };
 
 type Note = { id: string; kind: string; work_date?: string };
 
+/* ---------------------------------------------------------------------------
+ * The design handoff, as values.
+ *
+ * Named rather than inlined at each use so a colour that appears in six places
+ * is one string, and so a reader can check this block against the handoff
+ * instead of hunting through markup. These are exact: the handoff is marked
+ * high fidelity and the hexes come from it, not from an eyedropper.
+ * ------------------------------------------------------------------------- */
+const INK = "#091540";          // primary text, primary fill, icon strokes
+const INK_HOVER = "#12206b";    // primary fill hover, "Neka" label
+const ACCENT = "#1b2cc1";       // live dot, counts, duration, "Acceptera" fill
+const TEXT_2 = "#4a5578";       // secondary copy, section labels, kickers
+const CHEVRON = "#8b98c4";      // chevrons, inactive dot
+const GROUND = "#f3f6fd";       // app background
+const SURFACE = "#ffffff";      // cards
+const PANEL = "#e7edfb";        // empty states, map ground, "Neka"
+const PANEL_2 = "#eef3fe";      // inset time panel
+const HAIRLINE = "#e3eafb";     // row divider
+
+const SHADOW_FLAT = "0 1px 3px rgba(9,21,64,.08)";
+const SHADOW_GROUP = "0 4px 18px rgba(9,21,64,.07), 0 1px 2px rgba(9,21,64,.05)";
+const SHADOW_HERO = "0 8px 28px rgba(9,21,64,.09), 0 1px 2px rgba(9,21,64,.05)";
+const SHADOW_OFFER = "0 10px 30px rgba(9,21,64,.10), 0 1px 2px rgba(9,21,64,.05)";
+const SHADOW_SLAB = "0 6px 16px rgba(9,21,64,.06)";
+
+/** The section label that sits OUTSIDE each card. 12/700/+1, uppercase. */
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <div
+      className="px-1 pb-[10px] text-[12px] font-bold uppercase"
+      style={{ letterSpacing: "1px", color: TEXT_2 }}
+    >
+      {children}
+    </div>
+  );
+}
+
+/** #e7edfb, radius 14, 22px, centred, 15/500. Used by both empty states. */
+function EmptyPanel({ children }: { children: React.ReactNode }) {
+  return (
+    <div
+      className="rounded-[14px] p-[22px] text-center text-[15px] font-medium"
+      style={{ background: PANEL, color: TEXT_2 }}
+    >
+      {children}
+    </div>
+  );
+}
+
+const Chevron = () => (
+  <svg width="9" height="15" viewBox="0 0 9 15" fill="none" aria-hidden>
+    <path
+      d="M1.5 1.5 7 7.5l-5.5 6"
+      stroke={CHEVRON}
+      strokeWidth="2.2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </svg>
+);
+
 /**
- * The arbetare's landing page: the one thing they do most, then everything
- * else.
+ * The arbetare's startsida.
  *
  * Clocking is the whole top of the screen because it is the only thing anyone
  * does standing in the rain with one glove off. Everything else can be two
@@ -38,6 +101,15 @@ type Note = { id: string; kind: string; work_date?: string };
  * database and this screen sends no time at all -- a phone running ten minutes
  * fast would otherwise write ten minutes of error into evidence of hours
  * worked, and nobody would notice.
+ *
+ * The visual layer is the "Arbetare startsida" handoff, reproduced at the
+ * values it specifies. Everything below the styling -- the query, the geofence
+ * gate, the two RPCs, the offer responses -- is unchanged from before it.
+ *
+ * IT DRAWS ITS OWN TOP BAR rather than using AppBar, because the handoff's icon
+ * buttons are a different shape and AppBar is shared with the admin and
+ * arbetsledare screens, which this redesign does not cover. The panels BEHIND
+ * those buttons are AppBar's, imported, so "Logga ut" still lives in one place.
  */
 export function HomeArbetare() {
   const [shift, setShift] = useState<Shift | null | undefined>(undefined);
@@ -49,6 +121,9 @@ export function HomeArbetare() {
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
   const [reload, setReload] = useState(0);
+  const [open, setOpen] = useState<"menu" | "profile" | null>(null);
+
+  const next = useNextShift();
 
   useEffect(() => {
     let live = true;
@@ -156,115 +231,423 @@ export function HomeArbetare() {
   }
 
   const clockedIn = Boolean(shift?.clock_in && !shift.clock_out);
+  const front = offers?.[0] ?? null;
+  const waiting = busy || checking;
+
+  /** Filled variant. Ink when clocked in, accent when out -- handoff §2. */
+  const primaryFill = clockedIn ? INK : ACCENT;
+  const primaryShadow = clockedIn
+    ? "0 6px 18px rgba(9,21,64,.26)"
+    : "0 6px 18px rgba(27,44,193,.28)";
 
   return (
-    <Landing>
-      <AppBar title="Arbetare" menu={MENU} />
+    <div
+      data-screen="arbetare"
+      className="mx-auto min-h-[844px] w-full max-w-[390px] pb-[40px]"
+      style={{
+        background: GROUND,
+        color: INK,
+        fontFamily: "var(--font-inter), system-ui, sans-serif",
+        fontVariantNumeric: "tabular-nums",
+      }}
+    >
+      {/* ---- 1. top bar, sticky ------------------------------------------ */}
+      <div
+        className="sticky top-0 z-[5] flex items-center justify-between gap-2 px-4 pb-[10px] pt-[14px]"
+        style={{ background: "rgba(243,246,253,.88)", backdropFilter: "blur(12px)" }}
+      >
+        <button
+          type="button"
+          aria-label="Meny"
+          aria-expanded={open === "menu"}
+          onClick={() => setOpen("menu")}
+          className="press-scale flex h-11 w-11 items-center justify-center rounded-[11px] p-0 transition-transform duration-[120ms] hover:bg-[#f0f5ff] active:scale-[.985] active:bg-[#dbe4f9]"
+          style={{ background: SURFACE, boxShadow: SHADOW_FLAT }}
+        >
+          <svg width="20" height="14" viewBox="0 0 20 14" fill="none" aria-hidden>
+            <path d="M1 1.5h18M1 7h18M1 12.5h18" stroke={INK} strokeWidth="2.2" strokeLinecap="round" />
+          </svg>
+        </button>
 
-      {error && <Notice kind="error">{error}</Notice>}
+        <h1 className="text-[17px] font-bold" style={{ letterSpacing: "-.2px" }}>
+          Arbetare
+        </h1>
 
-      {/* ---- the stamp ------------------------------------------------------ */}
-      {shift === undefined && <p className="text-base">Laddar…</p>}
+        <button
+          type="button"
+          aria-label="Profil"
+          aria-expanded={open === "profile"}
+          onClick={() => setOpen("profile")}
+          className="press-scale flex h-11 w-11 items-center justify-center rounded-[11px] p-0 transition-transform duration-[120ms] hover:bg-[#f0f5ff] active:scale-[.985] active:bg-[#dbe4f9]"
+          style={{ background: SURFACE, boxShadow: SHADOW_FLAT }}
+        >
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden>
+            <circle cx="10" cy="6.4" r="3.4" stroke={INK} strokeWidth="2" />
+            <path d="M3.6 17c.9-3.3 3.4-5 6.4-5s5.5 1.7 6.4 5" stroke={INK} strokeWidth="2" strokeLinecap="round" />
+          </svg>
+        </button>
+      </div>
 
-      {shift === null && (
-        <p className="border-2 border-dashed border-black p-8 text-center text-lg">
-          Inget pass att stämpla just nu.
-        </p>
-      )}
-
-      {shift && (
-        <>
-          {/*
-            The label says what it is waiting for. A button that goes grey and
-            silent for eight seconds while a cold GPS fix comes in reads as a
-            broken button, and the second tap that follows is the one the
-            guard in stamp() exists to swallow.
-          */}
-          <button
-            type="button"
-            onClick={() => stamp(clockedIn ? "out" : "in")}
-            disabled={busy || checking}
-            aria-busy={busy || checking}
-            className={`flex min-h-[140px] w-full flex-col items-center justify-center gap-1 border-4 border-black px-4 text-center disabled:opacity-40 ${
-              clockedIn ? "bg-white text-black" : "bg-black text-white"
-            }`}
+      {/* Not in the handoff, which designs the happy path only. Kept in the
+          same language: a panel, not a shout, because a stamp refused by the
+          geofence is an ordinary answer and not a fault. */}
+      {(error || note) && (
+        <div className="px-4 pt-[6px]">
+          <div
+            className="rounded-[14px] p-[18px] text-[15px] font-medium"
+            style={{ background: PANEL, color: error ? INK_HOVER : TEXT_2 }}
+            role={error ? "alert" : "status"}
           >
-            <span className="text-3xl font-bold">
-              {checking
-                ? "Söker plats…"
-                : busy
-                  ? "Stämplar…"
-                  : clockedIn
-                    ? "Stämpla Ut"
-                    : "Stämpla In"}
-            </span>
-            <span className="text-base font-normal">
-              {shift.project_name} · {hhmm(shift.start_time)}–{hhmm(shift.end_time)}
-            </span>
-          </button>
-          <p className="mb-6 mt-2 text-center text-base text-neutral-700">
-            {checking
-              ? "Kontrollerar att du är på arbetsplatsen."
-              : clockedIn
-                ? "Du är instämplad."
-                : "Du har inte stämplat in."}
-          </p>
-        </>
+            {error ?? note}
+          </div>
+        </div>
       )}
 
-      {/* ---- the badge, directly below the stamp ---------------------------- */}
+      {/* ---- 2. hero, the clock ------------------------------------------ */}
+      <div className="px-4 pt-[6px]">
+        <div
+          className="relative rounded-[16px] px-5 pb-[18px] pt-5"
+          style={{ background: SURFACE, boxShadow: SHADOW_HERO }}
+        >
+          {shift === undefined && (
+            <p className="text-[15px] font-medium" style={{ color: TEXT_2 }}>Laddar…</p>
+          )}
+
+          {shift === null && (
+            <p className="text-[15px] font-medium" style={{ color: TEXT_2 }}>
+              Inget pass att stämpla just nu.
+            </p>
+          )}
+
+          {shift && (
+            <>
+              {/*
+                The dot is the ONLY status indicator -- the handoff removed the
+                text on purpose. So it carries the label instead, or the one
+                piece of state on this card would be invisible to a screen
+                reader (handoff, Accessibility).
+              */}
+              <span
+                role="status"
+                aria-label={clockedIn ? "Instämplad" : "Inte instämplad"}
+                className={`absolute right-5 top-5 block h-[9px] w-[9px] rounded-full ${
+                  clockedIn ? "animate-livedot" : ""
+                }`}
+                style={
+                  clockedIn
+                    ? {
+                        background: ACCENT,
+                        boxShadow: "0 0 0 5px rgba(118,146,255,.20)",
+                        animation: "livedot 2s ease-in-out infinite",
+                      }
+                    : { background: CHEVRON }
+                }
+              />
+
+              <div
+                className="mb-[2px] text-[15px] font-semibold"
+                style={{ color: TEXT_2 }}
+              >
+                {shift.project_name}
+              </div>
+              <div
+                className="mb-[18px] text-[34px] font-extrabold leading-[1.05]"
+                style={{ letterSpacing: "-1.4px" }}
+              >
+                {hhmm(shift.start_time)}–{hhmm(shift.end_time)}
+              </div>
+
+              <button
+                type="button"
+                onClick={() => stamp(clockedIn ? "out" : "in")}
+                disabled={waiting}
+                aria-busy={waiting}
+                className="press-scale flex h-[66px] w-full items-center justify-center rounded-[12px] text-[23px] font-extrabold text-white transition-[transform,background] duration-150 active:scale-[.985] disabled:opacity-60"
+                style={{
+                  letterSpacing: "-.5px",
+                  background: primaryFill,
+                  boxShadow: primaryShadow,
+                }}
+              >
+                {checking
+                  ? "Söker plats…"
+                  : busy
+                    ? "Stämplar…"
+                    : clockedIn
+                      ? "Stämpla Ut"
+                      : "Stämpla In"}
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Notices the handoff does not draw, in its language rather than the
+          old black-and-white one. */}
       {notes.map((n) => (
-        <div key={n.id} className="mb-3 border-2 border-black bg-black p-3 text-white">
-          <p className="mb-3 text-base">
-            {n.kind === "shift_deleted"
-              ? `Ditt pass ${n.work_date ?? ""} är borttaget.`
-              : "Du har en ny notis."}
-          </p>
-          <button
-            type="button"
-            onClick={() => dismiss(n.id)}
-            className="min-h-[44px] w-full border-2 border-white px-3 text-base font-bold"
+        <div key={n.id} className="px-4 pt-[14px]">
+          <div
+            className="rounded-[14px] p-[18px]"
+            style={{ background: SURFACE, boxShadow: SHADOW_GROUP }}
           >
-            Okej
-          </button>
+            <p className="mb-3 text-[15px] font-medium" style={{ color: TEXT_2 }}>
+              {n.kind === "shift_deleted"
+                ? `Ditt pass ${n.work_date ?? ""} är borttaget.`
+                : n.kind === "pass_closed"
+                  ? `Passet ${n.work_date ?? ""} är stängt.`
+                  : "Du har en ny notis."}
+            </p>
+            <button
+              type="button"
+              onClick={() => dismiss(n.id)}
+              className="press-scale h-[44px] w-full rounded-[10px] text-[15px] font-bold transition-transform duration-[120ms] active:scale-[.985]"
+              style={{ background: PANEL, color: INK_HOVER }}
+            >
+              Okej
+            </button>
+          </div>
         </div>
       ))}
 
-      {/* ---- the two buttons ------------------------------------------------ */}
-      <div className="mb-8 mt-6 flex flex-col gap-3">
-        <Link
-          href="/mina-pass"
-          className="flex min-h-[64px] w-full items-center justify-between border-2 border-black px-4 text-lg font-bold"
+      {/* ---- 3. grouped nav ---------------------------------------------- */}
+      <div className="px-4 pt-[14px]">
+        <div
+          className="overflow-hidden rounded-[14px]"
+          style={{ background: SURFACE, boxShadow: SHADOW_GROUP }}
         >
-          <span>Mina Pass</span>
-          <span aria-hidden className="text-2xl">→</span>
-        </Link>
-        {/* Arbetsdagar is Min Kalender under the name the people using it use:
-            same page, same gesture, and the days they can work is what they
-            think they are answering. */}
-        <Link
-          href="/min-kalender"
-          className="flex min-h-[64px] w-full items-center justify-between border-2 border-black px-4 text-lg font-bold"
-        >
-          <span>Arbetsdagar</span>
-          <span aria-hidden className="text-2xl">→</span>
-        </Link>
+          {[
+            { href: "/mina-pass", label: "Mina Pass" },
+            { href: "/min-kalender", label: "Arbetsdagar" },
+          ].map((row, i) => (
+            <div key={row.href}>
+              {i > 0 && <div className="ml-[18px] h-px" style={{ background: HAIRLINE }} />}
+              <Link
+                href={row.href}
+                className="flex h-[60px] items-center justify-between px-[18px] hover:bg-[#f6f9ff]"
+                style={{ color: INK }}
+              >
+                <span className="text-[17px] font-bold" style={{ letterSpacing: "-.2px" }}>
+                  {row.label}
+                </span>
+                <Chevron />
+              </Link>
+            </div>
+          ))}
+        </div>
       </div>
 
-      {/* ---- Nästa Pass ---------------------------------------------------- */}
-      <div className="mb-8">
-        <NastaPassCard />
+      {/* ---- 4. nästa pass ------------------------------------------------ */}
+      <div className="px-4 pt-[26px]">
+        <SectionLabel>Nästa pass</SectionLabel>
+
+        {next === undefined && <EmptyPanel>Laddar…</EmptyPanel>}
+        {next === null && <EmptyPanel>Inga kommande pass.</EmptyPanel>}
+
+        {next && (
+          /*
+            The handoff designs this block's EMPTY state only -- its sample data
+            had no upcoming shift. Rather than invent a look, the populated card
+            is built from the vocabulary the handoff already defines for "a
+            shift with a map": the offer card's surface, radius, map panel and
+            title row, minus the time panel and the two actions, because there
+            is nothing here to accept. The whole card is the link, as before, so
+            a tap hands the address to the phone's own navigation.
+          */
+          <a
+            href={`https://maps.google.com/maps?q=${encodeURIComponent(next.address)}`}
+            target="_blank"
+            rel="noreferrer"
+            className="block overflow-hidden rounded-[15px]"
+            style={{ background: SURFACE, boxShadow: SHADOW_OFFER }}
+          >
+            {next.address && (
+              <div
+                className="mx-4 mt-4 h-[150px] overflow-hidden rounded-[9px]"
+                style={{ background: PANEL, boxShadow: "inset 0 0 0 1px rgba(9,21,64,.06)" }}
+              >
+                <ProjectMap address={next.address} />
+              </div>
+            )}
+            <div className="px-5 pb-5 pt-4">
+              <div className="mb-4 flex items-baseline justify-between gap-3">
+                <div className="text-[21px] font-bold" style={{ letterSpacing: "-.5px" }}>
+                  {next.project}
+                </div>
+                <span
+                  className="text-right text-[15px] font-medium"
+                  style={{ color: TEXT_2 }}
+                >
+                  {next.address}
+                </span>
+              </div>
+              <div
+                className="flex items-baseline justify-between gap-3 rounded-[10px] px-4 py-[14px]"
+                style={{ background: PANEL_2 }}
+              >
+                <div>
+                  <div
+                    className="mb-[3px] text-[12px] font-bold uppercase"
+                    style={{ letterSpacing: ".9px", color: TEXT_2 }}
+                  >
+                    {longDayHeading(next.date)}
+                  </div>
+                  <div className="text-[20px] font-extrabold" style={{ letterSpacing: "-.5px" }}>
+                    {hhmm(next.start)}–{hhmm(next.end)}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </a>
+        )}
       </div>
 
-      {/* ---- Acceptera Pass, as a stack ------------------------------------- */}
-      <h2 className="mb-3 text-sm font-bold uppercase tracking-wide">Acceptera Pass</h2>
-      {note && <Notice kind="info">{note}</Notice>}
+      {/* ---- 5. acceptera pass -------------------------------------------- */}
+      <div className="px-4 pt-[26px]">
+        <div className="flex items-baseline justify-between px-1 pb-[10px]">
+          <div
+            className="text-[12px] font-bold uppercase"
+            style={{ letterSpacing: "1px", color: TEXT_2 }}
+          >
+            Acceptera pass
+          </div>
+          {offers && offers.length > 0 && (
+            <div className="text-[12px] font-bold" style={{ color: ACCENT }}>
+              {offers.length} till
+            </div>
+          )}
+        </div>
 
-      {offers === null ? (
-        <p className="text-base">Laddar…</p>
-      ) : (
-        <OfferStack offers={offers} busy={busy} onRespond={respond} />
+        {offers === null && <EmptyPanel>Laddar…</EmptyPanel>}
+        {offers !== null && !front && <EmptyPanel>Inga pass att svara på.</EmptyPanel>}
+
+        {front && (
+          <div className="relative">
+            {/* The stack illusion: two slabs behind the card, nothing more. */}
+            <div
+              data-stack-slab="deep"
+              className="absolute bottom-[-7px] left-[14px] right-[14px] h-6 rounded-[14px] opacity-55"
+              style={{ background: SURFACE, boxShadow: SHADOW_SLAB }}
+              aria-hidden
+            />
+            <div
+              data-stack-slab="near"
+              className="absolute bottom-[-4px] left-[7px] right-[7px] h-6 rounded-[14px] opacity-80"
+              style={{ background: SURFACE, boxShadow: SHADOW_SLAB }}
+              aria-hidden
+            />
+
+            <div
+              data-offer-card="front"
+              className="relative overflow-hidden rounded-[15px]"
+              style={{ background: SURFACE, boxShadow: SHADOW_OFFER }}
+            >
+              {front.site_address && (
+                <div
+                  className="mx-4 mt-4 h-[150px] overflow-hidden rounded-[9px]"
+                  style={{ background: PANEL, boxShadow: "inset 0 0 0 1px rgba(9,21,64,.06)" }}
+                >
+                  <ProjectMap address={front.site_address} />
+                </div>
+              )}
+
+              <div className="px-5 pb-5 pt-4">
+                <div className="mb-4 flex items-baseline justify-between gap-3">
+                  <div className="text-[21px] font-bold" style={{ letterSpacing: "-.5px" }}>
+                    {front.project_name}
+                  </div>
+                  <span className="text-right text-[15px] font-medium" style={{ color: TEXT_2 }}>
+                    {front.site_address}
+                  </span>
+                </div>
+
+                <div
+                  className="mb-4 flex items-baseline justify-between gap-3 rounded-[10px] px-4 py-[14px]"
+                  style={{ background: PANEL_2 }}
+                >
+                  <div>
+                    <div
+                      className="mb-[3px] text-[12px] font-bold uppercase"
+                      style={{ letterSpacing: ".9px", color: TEXT_2 }}
+                    >
+                      {longDayHeading(front.work_date)}
+                    </div>
+                    <div className="text-[20px] font-extrabold" style={{ letterSpacing: "-.5px" }}>
+                      {hhmm(front.start_time)}–{hhmm(front.end_time)}
+                    </div>
+                  </div>
+                  {/*
+                    Typed by a human and never derived from the span -- invariant
+                    1, and the handoff says the same thing in its own words.
+                  */}
+                  <div
+                    className="whitespace-nowrap text-[15px] font-bold"
+                    style={{ color: ACCENT }}
+                  >
+                    {String(front.planned_hours).replace(".", ",")} h
+                  </div>
+                </div>
+
+                <div className="flex gap-[10px]">
+                  <button
+                    type="button"
+                    onClick={() => respond(front.pass_id, true)}
+                    disabled={waiting}
+                    className="press-scale h-[54px] flex-[2] rounded-[10px] text-[17px] font-bold text-white transition-transform duration-[120ms] hover:bg-[#12206b] active:scale-[.985] disabled:opacity-60"
+                    style={{ letterSpacing: "-.2px", background: ACCENT }}
+                  >
+                    Acceptera
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => respond(front.pass_id, false)}
+                    disabled={waiting}
+                    className="press-scale h-[54px] flex-1 rounded-[10px] text-[17px] font-semibold transition-transform duration-[120ms] hover:bg-[#dbe4f9] active:scale-[.985] disabled:opacity-60"
+                    style={{ letterSpacing: "-.2px", background: PANEL, color: INK_HOVER }}
+                  >
+                    Neka
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* The panels behind the two icon buttons. AppBar's, not a second copy --
+          SignOut has to live in exactly one place. */}
+      {open === "menu" && (
+        <DropPanel onClose={() => setOpen(null)} label="Meny">
+          <nav className="flex flex-col gap-3">
+            <Link
+              href="/oppna-pass"
+              className="flex min-h-[56px] w-full items-center justify-between border-2 border-black px-4 text-lg font-bold"
+            >
+              <span>Öppna Pass</span>
+              <span aria-hidden className="text-2xl">→</span>
+            </Link>
+          </nav>
+        </DropPanel>
       )}
-    </Landing>
+
+      {open === "profile" && (
+        <DropPanel onClose={() => setOpen(null)} label="Profil">
+          <div className="flex flex-col gap-3">
+            <Link
+              href="/konto"
+              className="flex min-h-[56px] w-full items-center justify-center border-2 border-black bg-black px-4 text-lg font-bold text-white"
+            >
+              Konto
+            </Link>
+            <Link
+              href="/profil"
+              className="flex min-h-[56px] w-full items-center justify-center border-2 border-black px-4 text-lg font-bold"
+            >
+              Profil
+            </Link>
+            <SignOut />
+          </div>
+        </DropPanel>
+      )}
+    </div>
   );
 }

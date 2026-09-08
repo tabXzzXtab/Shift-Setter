@@ -1,1 +1,20 @@
 @import "tailwindcss";
+
+/*
+ * The live dot on the arbetare startsida's clock card.
+ *
+ * A keyframe cannot be expressed as a utility class, so it lives here -- the
+ * one animation in the app, named for the one thing it animates. The design
+ * asks for the pulse to be dropped under reduced motion, and so is the press
+ * scale everything else uses: both are decoration on a screen whose controls
+ * are already unambiguous without them.
+ */
+@keyframes livedot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: .35; transform: scale(.82); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-livedot { animation: none; }
+  .press-scale:active { transform: none; }
+}

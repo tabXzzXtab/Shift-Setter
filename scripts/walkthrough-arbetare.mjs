@@ -208,6 +208,46 @@ try {
   }
   log("top bar: hamburger left, profile icon right");
 
+  // ---- the handoff's own numbers ------------------------------------------
+  //
+  // The design is marked HIGH FIDELITY, which is a claim that can be checked
+  // rather than admired. These are read back out of the browser as computed
+  // values, so a Tailwind arbitrary class that silently failed to compile --
+  // the usual way an exact shadow turns into no shadow at all -- fails here
+  // instead of shipping.
+  const px = (sel, prop) =>
+    page.locator(sel).first().evaluate((el, p) => getComputedStyle(el)[p], prop);
+
+  const ground = await px('[data-screen="arbetare"]', "backgroundColor");
+  if (ground !== "rgb(243, 246, 253)") {
+    fail(`the ground is ${ground}, the handoff says #f3f6fd`);
+  }
+
+  // On the SCREEN, not on body: Inter is loaded as a variable and applied by
+  // the one screen that asked for it, so re-fonting the whole app is not a
+  // side effect of redesigning this one.
+  const font = await px('[data-screen="arbetare"]', "fontFamily");
+  if (!/Inter/i.test(font)) {
+    fail(`the screen is not set in Inter: ${font}`);
+  }
+
+  const primary = page.getByRole("button", { name: /Stämpla/ }).first();
+  const [h, radius, bg, shadow] = await Promise.all(
+    ["height", "borderRadius", "backgroundColor", "boxShadow"].map((prop) =>
+      primary.evaluate((el, p) => getComputedStyle(el)[p], prop)),
+  );
+  if (h !== "66px") fail(`the primary action is ${h} tall, the handoff says 66`);
+  if (radius !== "12px") fail(`the primary action radius is ${radius}, the handoff says 12`);
+  // Clocked OUT at this point, so the accent fill, not ink.
+  if (bg !== "rgb(27, 44, 193)") {
+    fail(`the primary action is ${bg} while clocked out, the handoff says #1b2cc1`);
+  }
+  if (!shadow.includes("rgba(27, 44, 193, 0.28)")) {
+    fail(`the primary action has no accent shadow: ${shadow}`);
+  }
+  log("ground #f3f6fd, Inter, action 66px / radius 12 / #1b2cc1 with its shadow");
+
+
   // ---- the badge sits directly below the stamp -----------------------------
   const stampBtn = () => page.getByRole("button", { name: /Stämpla/ });
   await stampBtn().waitFor({ timeout: 20000 });
@@ -338,37 +378,44 @@ try {
     await shot(page, "FAILED");
     fail("the card has no Leaflet map (Nominatim may have refused the lookup)");
   }
-  // The stack: at most three slivers, each lower and smaller than the one in
-  // front, and no rotation anywhere. A matrix(a,b,c,d,e,f) with b or c set is
-  // a rotation or a skew, which is exactly what this layout must not have.
-  const slivers = page.locator('[aria-hidden="true"].absolute.border-2');
-  const count = await slivers.count();
-  if (count !== 3) fail(`expected 3 slivers behind the front card, saw ${count}`);
+  // THE STACK, as the redesign draws it: two slabs behind the card rather than
+  // three scaled slivers. They are inset from the card's edges and sit below
+  // it, so the card reads as the front of a pile without anything being
+  // rotated -- a matrix(a,b,c,d,e,f) with b or c set is a rotation or a skew,
+  // and there must be none.
+  const slabs = page.locator("[data-stack-slab]");
+  const count = await slabs.count();
+  if (count !== 2) fail(`expected 2 slabs behind the front card, saw ${count}`);
 
-  let lastBottom = 0, lastScale = 1;
-  for (let i = 0; i < count; i++) {
-    const m = await slivers.nth(i).evaluate((el) => getComputedStyle(el).transform);
-    const [a, b, c, d, , f] = m.replace(/matrix\(|\)/g, "").split(",").map(Number);
-    if (b !== 0 || c !== 0) fail(`sliver ${i} is rotated or skewed: ${m}`);
-    if (a !== d) fail(`sliver ${i} is scaled unevenly: ${m}`);
-    if (!(a < 1 && a >= 0.8)) fail(`sliver ${i} scale ${a} is outside one step per layer`);
-    if (!(f > 0)) fail(`sliver ${i} is not offset downward: ${m}`);
+  const deep = await page.locator('[data-stack-slab="deep"]').boundingBox();
+  const near = await page.locator('[data-stack-slab="near"]').boundingBox();
 
-    const box = await slivers.nth(i).boundingBox();
-    if (Math.abs((box.x + box.width / 2) - (cBox.x + cBox.width / 2)) > 1) {
-      fail(`sliver ${i} is not centred under the front card`);
+  for (const [name, sel] of [["deep", "deep"], ["near", "near"]]) {
+    const m = await page.locator(`[data-stack-slab="${sel}"]`)
+      .evaluate((el) => getComputedStyle(el).transform);
+    if (m !== "none") {
+      const [a, b, c, d] = m.replace(/matrix\(|\)/g, "").split(",").map(Number);
+      if (b !== 0 || c !== 0) fail(`the ${name} slab is rotated or skewed: ${m}`);
+      if (a !== d) fail(`the ${name} slab is scaled unevenly: ${m}`);
     }
-    // Deepest is drawn first, so walking the DOM walks FORWARD through the
-    // stack: each one sits a step higher and a step larger than the last,
-    // which is the same rule as "each card behind is lower and smaller".
-    if (i > 0) {
-      if (!(box.y + box.height < lastBottom)) fail("the slivers do not step downward");
-      if (!(a > lastScale)) fail("the slivers do not grow toward the front");
-    }
-    lastBottom = box.y + box.height;
-    lastScale = a;
   }
-  log(`${count} slivers behind, stepped down and centred, none rotated`);
+
+  // Each is narrower than the card and centred under it, the deeper one more
+  // inset than the near one -- 14px against 7px in the handoff.
+  for (const [name, box] of [["deep", deep], ["near", near]]) {
+    if (!(box.width < cBox.width)) fail(`the ${name} slab is not inset from the card`);
+    if (Math.abs((box.x + box.width / 2) - (cBox.x + cBox.width / 2)) > 1) {
+      fail(`the ${name} slab is not centred under the front card`);
+    }
+    if (!(box.y + box.height > cBox.y + cBox.height)) {
+      fail(`the ${name} slab does not sit below the card`);
+    }
+  }
+  if (!(deep.width < near.width)) fail("the deeper slab is not the narrower one");
+  if (!(deep.y + deep.height > near.y + near.height)) {
+    fail("the deeper slab does not sit lower than the near one");
+  }
+  log("2 slabs behind, inset and centred, the deeper one lower and narrower");
 
   await shot(page, "w2-acceptera-kort");
   log(`card reads ${JSON.stringify(text.replace(/\n+/g, " | "))}, with a map`);

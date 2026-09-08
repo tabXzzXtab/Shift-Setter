@@ -47,17 +47,6 @@ const WINDOW = 25;
  * site_address is the PROJECT's address -- where the work is -- and never the
  * beställare's, which is where the invoice goes.
  *
- * THE SPAN IS SHOWN AND NO HOURS FIGURE IS. Same body as the Acceptera Pass
- * card, minus its "· 8 h" -- an offer prints planned_hours because that is the
- * figure being offered, while this is a day already held and invariant 10
- * masks its hours until an Arbetsdagbok covering the date exists, which for a
- * coming day it never does. Mina Pass reads these same rows and prints no
- * planned figure either. On an arbetsledare's row the number would be wrong on
- * top of being early: their row carries the ENVELOPE across the day's passes,
- * so planned_hours belongs to whichever pass it hangs on and not to them.
- * start_time and end_time are safe because my_shift coalesces own_start /
- * own_end over the pass's times -- the leader's card shows the leader's span.
- *
  * IT GOES WHEN THE SHIFT ENDS, NOT WHEN THE DAY DOES. The card used to ask for
  * work_date >= today, so a shift finished at 16:00 sat on the home screen until
  * midnight and the one after it could not appear until the calendar caught up.
@@ -75,8 +64,14 @@ const WINDOW = 25;
  * hide the shift the person is standing on. passEndAt is what knows that, and
  * it is the same helper pendingDays() uses, so the card and the confirmation
  * queue cannot disagree about when a day finished.
+ *
+ * EXPORTED AS A HOOK because the arbetare startsida renders this answer in its
+ * own design language while the arbetsledare's landing page keeps the card
+ * below. Two presentations, ONE answer to "where am I next" -- the alternative
+ * was a second copy of the end_time filter and the timer, which is exactly how
+ * the two Stämpla In implementations came to disagree.
  */
-export function NastaPassCard() {
+export function useNextShift(): Next | undefined {
   const [rows, setRows] = useState<Shift[] | undefined>(undefined);
   /** Bumped when the current shift ends, which is what re-picks the card. */
   const [now, setNow] = useState(() => Date.now());
@@ -144,6 +139,26 @@ export function NastaPassCard() {
     );
     return () => clearTimeout(t);
   }, [next]);
+
+  return next;
+}
+
+/**
+ * The card itself, as the arbetsledare's landing page draws it.
+ *
+ * THE SPAN IS SHOWN AND NO HOURS FIGURE IS. Same body as the Acceptera Pass
+ * card, minus its "· 8 h" -- an offer prints planned_hours because that is the
+ * figure being offered, while this is a day already held and invariant 10
+ * masks its hours until an Arbetsdagbok covering the date exists, which for a
+ * coming day it never does. Mina Pass reads these same rows and prints no
+ * planned figure either. On an arbetsledare's row the number would be wrong on
+ * top of being early: their row carries the ENVELOPE across the day's passes,
+ * so planned_hours belongs to whichever pass it hangs on and not to them.
+ * start_time and end_time are safe because my_shift coalesces own_start /
+ * own_end over the pass's times -- the leader's card shows the leader's span.
+ */
+export function NastaPassCard() {
+  const next = useNextShift();
 
   return (
     <>
