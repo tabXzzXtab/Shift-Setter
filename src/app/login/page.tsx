@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { getSupabase } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/supabase/auth";
@@ -66,6 +67,19 @@ export default function LoginPage() {
           <Button type="submit" disabled={submitting}>
             {submitting ? "Loggar in…" : "Logga in"}
           </Button>
+        </div>
+
+        {/* Quiet on purpose: the way in is the button above, and this is for
+            the one person in a hundred who cannot use it. Still a 44px target,
+            because "small" is about weight on the page, not about the size of
+            the thing a thumb has to hit. */}
+        <div className="mt-4 flex justify-center">
+          <Link
+            href="/glomt-losenord"
+            className="flex min-h-[44px] items-center px-2 text-sm text-black/40 underline"
+          >
+            Glömt lösenord?
+          </Link>
         </div>
       </form>
 
