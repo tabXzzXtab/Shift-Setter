@@ -4,7 +4,7 @@ import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState } from "react";
 import { PinIcon } from "./icons";
 import { getSupabase } from "@/lib/supabase/client";
-import { addDays, longDayHeading, passEndAt, stockholmToday } from "@/lib/dates";
+import { addDays, hhmm, longDayHeading, passEndAt, stockholmToday } from "@/lib/dates";
 
 // Leaflet reaches for `window` on import, and this app is prerendered at build
 // time. Loaded only in the browser, and only once there is an address to show.
@@ -47,10 +47,16 @@ const WINDOW = 25;
  * site_address is the PROJECT's address -- where the work is -- and never the
  * beställare's, which is where the invoice goes.
  *
- * start_time and end_time are read because the card has to know when the shift
- * ENDS. my_shift coalesces own_start / own_end over the pass's times, so on an
- * arbetsledare's row that is their envelope across the day rather than the
- * times of whichever pass their row hangs on.
+ * THE SPAN IS SHOWN AND NO HOURS FIGURE IS. Same body as the Acceptera Pass
+ * card, minus its "· 8 h" -- an offer prints planned_hours because that is the
+ * figure being offered, while this is a day already held and invariant 10
+ * masks its hours until an Arbetsdagbok covering the date exists, which for a
+ * coming day it never does. Mina Pass reads these same rows and prints no
+ * planned figure either. On an arbetsledare's row the number would be wrong on
+ * top of being early: their row carries the ENVELOPE across the day's passes,
+ * so planned_hours belongs to whichever pass it hangs on and not to them.
+ * start_time and end_time are safe because my_shift coalesces own_start /
+ * own_end over the pass's times -- the leader's card shows the leader's span.
  *
  * IT GOES WHEN THE SHIFT ENDS, NOT WHEN THE DAY DOES. The card used to ask for
  * work_date >= today, so a shift finished at 16:00 sat on the home screen until
@@ -84,10 +90,10 @@ export function NastaPassCard() {
         .select("project_name, site_address, work_date, start_time, end_time")
         .gte("work_date", addDays(today, -1))
         .lte("work_date", addDays(today, 365))
-        // Earliest day, then earliest start. The tiebreak matters: an
-        // arbetsledare can hold a day on two projects at once (invariant 2's
-        // one exception), and "nästa" should be the one that starts first
-        // rather than whichever row came back first.
+        // Earliest day, then earliest start. The tiebreak matters now that the
+        // card prints the span: an arbetsledare can hold a day on two projects
+        // at once (invariant 2's one exception), and "nästa" should be the one
+        // that starts first rather than whichever row came back first.
         .order("work_date")
         .order("start_time")
         .limit(WINDOW);
@@ -167,6 +173,9 @@ export function NastaPassCard() {
               <span>{next.address}</span>
             </p>
             <p className="mt-2 text-base font-bold">{longDayHeading(next.date)}</p>
+            <p className="text-base text-neutral-700">
+              {hhmm(next.start)}–{hhmm(next.end)}
+            </p>
           </div>
         </a>
       )}
