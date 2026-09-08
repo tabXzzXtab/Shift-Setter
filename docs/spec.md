@@ -628,6 +628,14 @@ Each role lands on what it does most, and nothing important is more than one pre
 
 The list is the work. Those three buttons sit above it because creating is the only thing an owner does that a list cannot show him.
 
+**Redigera Projekt.** Every card in Alla Projekt carries a **Redigera** button, opening an edit page on all seven of the project's business fields — name, site address, start date, services, and the three bestallare fields. Admin only; anyone else is sent to their own landing page. The route is `/projekt/redigera?id=<uuid>` and **not** `/projekt/<id>/redigera`, because there is no server (Section 6): a static export writes one file per route at build time, and a project id does not exist until long after the build. Next refuses a dynamic route without `generateStaticParams` under `output: "export"`, and no build could enumerate a uuid minted later.
+
+**Ta bort projekt** sits at the bottom of that page, behind a confirmation step — *Är du säker? Detta går inte att ångra.* It is refused while anybody is still booked onto a day that has not happened yet: *Projektet har aktiva pass och kan inte tas bort.* Today and future only. Work already done is what a finished project is made of, and blocking on it would make every completed project permanent — while a live assignment on a future day is a person whose booking the deletion would take away.
+
+The deletion is **soft**, and that is not a detail. `deleted_at` is set and the row stays, because a hard delete cascades the arbetsdagbok rows, the confirmed days, the passes and the leader memberships away with it, and invariant 5 does not lose a filed document because a project was tidied up. What makes it a deletion instead is invariant 8: every derived view already joins `project ... and deleted_at is null`, and `project_admin_write` now carries the same test — so the one role that can delete a project is no longer the one role that would still see it afterwards, in Alla Projekt and in the project pickers on Arbetsdagbok, Nytt Pass, Snabb Pass and Alla Pass.
+
+Adding that filter is also what makes `public.delete_project()` necessary rather than merely tidy. RLS is re-applied to the row an UPDATE produces, so a policy carrying `deleted_at is null` refuses the write the instant the column is set — the same wall `public.delete_pass()` was built against. Setting `deleted_at` from a client is therefore closed to everybody, admin included, and the function is the only route in. It is where the refusal above lives, which is why the confirmation step in front of it is a courtesy and not the rule.
+
 **Hamburger menu**, top left:
 
 - Kalender

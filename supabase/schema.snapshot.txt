@@ -360,7 +360,7 @@ policy pass_offer.pass_offer_leader_write [ALL] USING((EXISTS ( SELECT 1
   WHERE ((p.id = pass_offer.pass_id) AND app.leads_project(p.project_id)))))
 policy pass_offer.pass_offer_select [SELECT] USING((app.is_staff() OR (worker_id = app.current_worker_id()))) CHECK(-)
 policy profile.profile_self_or_admin [ALL] USING(((account_id = ( SELECT auth.uid() AS uid)) OR app.is_admin())) CHECK(((account_id = ( SELECT auth.uid() AS uid)) OR app.is_admin()))
-policy project.project_admin_write [ALL] USING(app.is_admin()) CHECK(app.is_admin())
+policy project.project_admin_write [ALL] USING((app.is_admin() AND (deleted_at IS NULL))) CHECK((app.is_admin() AND (deleted_at IS NULL)))
 policy project.project_staff_select [SELECT] USING(((deleted_at IS NULL) AND (app.leads_project(id) OR app.holds_a_day(id)))) CHECK(-)
 policy project_day.project_day_leader [ALL] USING((app.leads_project(project_id) OR app.holds_the_day(project_id, work_date))) CHECK((app.leads_project(project_id) OR app.holds_the_day(project_id, work_date)))
 policy project_leader.project_leader_admin_write [ALL] USING(app.is_admin()) CHECK(app.is_admin())
@@ -465,6 +465,7 @@ func   public.create_snabb_pass(p_project uuid, p_worker uuid, p_date date, p_st
 func   public.date_dist(date, date) md5=3983f43755ffa80d869985d91ee8e538
 func   public.decline_offer(p_pass uuid) md5=3b77c01816ffe8db5847a74c338cae38
 func   public.delete_pass(p_pass uuid) md5=18c81886a24de59bb3922d1592d90051
+func   public.delete_project(p_project uuid) md5=d030116d7361ca4ca9f0313b20a6d04d
 func   public.fill_passes(p_batch uuid) md5=330aaf6a5229939f92d52a5049213561
 func   public.float4_dist(real, real) md5=1491a162a165d9bd567fbac3c9d1dd2d
 func   public.float8_dist(double precision, double precision) md5=1c6ca5056a910a22941735008e6a75c1

@@ -1390,6 +1390,7 @@ export type Database = {
       }
       decline_offer: { Args: { p_pass: string }; Returns: undefined }
       delete_pass: { Args: { p_pass: string }; Returns: undefined }
+      delete_project: { Args: { p_project: string }; Returns: undefined }
       fill_passes: {
         Args: { p_batch: string }
         Returns: {

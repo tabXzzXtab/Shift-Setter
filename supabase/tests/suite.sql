@@ -3220,4 +3220,160 @@ select pg_temp.rejects($late$
 $late$, 'LATE.self_edit_still_refused');
 reset role;
 
+-- ============================================================================
+-- REDIGERA OCH TA BORT PROJEKT
+--
+-- Two protections, and they hold each other up.
+--
+-- The policy filter is what makes a deleted project leave the admin's sight --
+-- invariant 8's "every read", for the one role whose reads were not filtered.
+-- The function is what makes deletion possible AT ALL once that filter exists,
+-- because RLS is re-applied to the row a BEFORE UPDATE produces and the new
+-- row fails its own policy the instant deleted_at is set.
+--
+-- Its own project, so nothing above decides these assertions.
+-- ============================================================================
+
+insert into public.project (id, name, site_address, bestallare_address,
+                            bestallare_bolag, bestallare_orgnr, services, start_date)
+values
+  ('d0d0d0d0-0000-0000-0000-00000000000d', 'Projekt D', 'Sitegatan 9',
+   'Kundgatan 9', 'Kund D AB', '556788-1111', 'Bygg', app.stockholm_today() - 60),
+  ('e0e0e0e0-0000-0000-0000-00000000000e', 'Projekt E', 'Sitegatan 11',
+   'Kundgatan 11', 'Kund E AB', '556788-2222', 'Service', app.stockholm_today() - 90);
+
+-- leaderB leads BOTH. D's future day therefore carries an auto-assigned ledare
+-- row, and E's past day does too -- which is the point of giving E one: a live
+-- ledare row on a day behind us must not block a deletion either.
+insert into public.project_leader (project_id, account_id)
+select p, v from fx, (values
+  ('d0d0d0d0-0000-0000-0000-00000000000d'::uuid),
+  ('e0e0e0e0-0000-0000-0000-00000000000e'::uuid)
+) as x(p) where k = 'leaderB';
+
+-- D: a pass 55 days out. E: a pass 80 days back. Far from every other fixture
+-- date above, so invariant 2 never decides these.
+insert into public.pass (id, project_id, work_date, start_time, end_time,
+                         planned_hours, headcount, created_by)
+select p.a, p.b, p.c, '07:00'::time, '16:00'::time, 8.00::numeric, 1::smallint,
+       (select f.v from fx f where f.k = 'admin')
+from (values
+  ('c0c0c0c0-0000-0000-0000-00000000000d'::uuid,
+   'd0d0d0d0-0000-0000-0000-00000000000d'::uuid, app.stockholm_today() + 55),
+  ('c0c0c0c0-0000-0000-0000-00000000000e',
+   'e0e0e0e0-0000-0000-0000-00000000000e', app.stockholm_today() - 80)
+) as p(a, b, c);
+
+insert into public.tilldelning (id, pass_id, worker_id, source, work_date)
+select 'd0d0d0d0-0000-0000-0000-000000000001',
+       'c0c0c0c0-0000-0000-0000-00000000000d',
+       w.id, 'manuell', app.stockholm_today() + 55
+from public.worker w join fx on fx.v = w.account_id where fx.k = 'w3';
+
+-- E's worker is never released. Past work stays on the record; what it must
+-- not do is make a finished project undeletable.
+insert into public.tilldelning (id, pass_id, worker_id, source, work_date)
+select 'e0e0e0e0-0000-0000-0000-000000000001',
+       'c0c0c0c0-0000-0000-0000-00000000000e',
+       w.id, 'manuell', app.stockholm_today() - 80
+from public.worker w join fx on fx.v = w.account_id where fx.k = 'w3';
+
+set local role authenticated;
+select pg_temp.act_as((select v from fx where k = 'admin'));
+
+-- Somebody is booked onto a day that has not happened yet.
+select pg_temp.rejects(
+  $pd$select public.delete_project('d0d0d0d0-0000-0000-0000-00000000000d')$pd$,
+  'PROJEKT.active_passes_block');
+
+reset role;
+set local role authenticated;
+select pg_temp.act_as((select v from fx where k = 'leaderB'));
+
+-- leaderB LEADS project E. Leading it is not deleting it.
+--
+-- Aimed at E and not at D on purpose. D is refused by the active-pass rule
+-- whoever asks, so a refusal there would have proved nothing about who was
+-- asking -- which is exactly what the negative control caught. E is deletable
+-- on every other ground, so the admin gate is the only thing left to refuse it.
+select pg_temp.rejects(
+  $pd$select public.delete_project('e0e0e0e0-0000-0000-0000-00000000000e')$pd$,
+  'PROJEKT.admin_only');
+
+reset role;
+set local role authenticated;
+select pg_temp.act_as((select v from fx where k = 'admin'));
+
+-- Setting deleted_at by hand is closed to everyone, admin included: the
+-- function is the only route in. Asserted on STATE and not on an exception,
+-- because which of the two happens depends on whether PostgREST asked for the
+-- row back -- USING filters silently, WITH CHECK raises.
+do $direct$
+begin
+  update public.project set deleted_at = now()
+  where id = 'd0d0d0d0-0000-0000-0000-00000000000d';
+exception when others then
+  null;
+end $direct$;
+
+reset role;
+
+select pg_temp.ok(
+  (select deleted_at is null from public.project
+   where id = 'd0d0d0d0-0000-0000-0000-00000000000d'),
+  'PROJEKT.no_direct_soft_delete',
+  'a client UPDATE must never set project.deleted_at -- delete_project() is the route');
+
+set local role authenticated;
+select pg_temp.act_as((select v from fx where k = 'admin'));
+
+-- All seven business fields, which is what the edit page writes.
+select pg_temp.accepts($pd$
+  update public.project set
+    name               = 'Projekt D omdopt',
+    site_address       = 'Sitegatan 99',
+    start_date         = app.stockholm_today() - 59,
+    services           = 'Bygg och rivning',
+    bestallare_address = 'Kundgatan 99',
+    bestallare_bolag   = 'Kund D Holding AB',
+    bestallare_orgnr   = '556788-3333'
+  where id = 'd0d0d0d0-0000-0000-0000-00000000000d'
+$pd$, 'PROJEKT.admin_edits');
+
+-- E's only work is 80 days behind us, and its worker was never released.
+-- A finished project deletes.
+select pg_temp.accepts(
+  $pd$select public.delete_project('e0e0e0e0-0000-0000-0000-00000000000e')$pd$,
+  'PROJEKT.past_does_not_block');
+
+select pg_temp.ok(
+  (select count(*) from public.project
+   where id = 'e0e0e0e0-0000-0000-0000-00000000000e') = 0,
+  'PROJEKT.invisible_after_delete',
+  'invariant 8: the admin who deleted it must not still be reading it');
+
+reset role;
+
+-- It really is soft: the row is there, out of every read.
+select pg_temp.ok(
+  (select deleted_at is not null from public.project
+   where id = 'e0e0e0e0-0000-0000-0000-00000000000e'),
+  'PROJEKT.delete_is_soft',
+  'a hard delete would cascade the arbetsdagbok and the confirmed days away');
+
+-- Take the one person off D's future day and the refusal lifts. The ledare row
+-- goes with them -- sync_leader_day releases it as no_workers_left -- so the
+-- leader can never be the reason a project with nobody on it stays undeletable.
+update public.tilldelning set released_at = now(), released_reason = 'removed_by_leader'
+where id = 'd0d0d0d0-0000-0000-0000-000000000001';
+
+set local role authenticated;
+select pg_temp.act_as((select v from fx where k = 'admin'));
+
+select pg_temp.accepts(
+  $pd$select public.delete_project('d0d0d0d0-0000-0000-0000-00000000000d')$pd$,
+  'PROJEKT.delete_after_release');
+
+reset role;
+
 select pg_temp.ok(true, 'SUITE.complete', 'every assertion passed');

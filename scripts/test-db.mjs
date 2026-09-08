@@ -507,6 +507,48 @@ const CONTROLS = [
    perturbIn("app.tg_worker_self_edit_guard()", "if pg_trigger_depth() > 1", "if true"),
    "LATE.self_edit_still_refused"],
 
+  // ---- redigera och ta bort projekt ---------------------------------------
+  // Four controls, because the feature rests on four separate things: two
+  // rules inside the function, and both halves of the policy.
+
+  ["a project with somebody on a future day cannot be deleted",
+   // The refusal short-circuited. Past work still would not block -- that is
+   // the assertion below this one, and it must keep passing.
+   perturbIn("public.delete_project(uuid)", "if exists (", "if false and exists ("),
+   "PROJEKT.active_passes_block"],
+
+  ["deleting a project is an admin act",
+   // Without the gate the leader of the project deletes it, which is exactly
+   // the confusion app.leads_project() would have introduced here.
+   perturbIn("public.delete_project(uuid)", "if not app.is_admin() then", "if false then"),
+   "PROJEKT.admin_only"],
+
+  ["invariant 8 -- a deleted project leaves the admin's reads",
+   // USING widened back to what it was before this migration. WITH CHECK is
+   // left strict, so the direct-update assertion still passes and this control
+   // can only land on the read.
+   "drop policy if exists project_admin_write on public.project; " +
+   "create policy project_admin_write on public.project for all to authenticated " +
+   "using (app.is_admin()) with check (app.is_admin() and deleted_at is null)",
+   "PROJEKT.invisible_after_delete"],
+
+  ["deleted_at is never set by a client UPDATE",
+   // The policy exactly as it stood BEFORE this migration, both halves widened.
+   //
+   // Widening one half proves nothing, and this control failed until it was
+   // measured: on an ALL policy the USING expression is applied to the row an
+   // UPDATE produces as well as to the row it reads, so USING alone refuses
+   // the write and WITH CHECK alone refuses it too. Either half is sufficient
+   // and neither is necessary, which makes the pair the guard and the whole
+   // pre-migration policy the only honest thing to remove.
+   //
+   // Hand-checked against the live database, all four ways round: shipped,
+   // USING-widened and CHECK-widened all raise; both-widened sets deleted_at.
+   "drop policy if exists project_admin_write on public.project; " +
+   "create policy project_admin_write on public.project for all to authenticated " +
+   "using (app.is_admin()) with check (app.is_admin())",
+   "PROJEKT.no_direct_soft_delete"],
+
   ["invariant 7 -- project creation is a gate",
    `alter table public.project drop constraint ` +
    `"${"project_bestallare_orgnr_check"}"`,
