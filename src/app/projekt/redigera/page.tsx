@@ -245,7 +245,7 @@ function RedigeraProjekt({ id }: { id: string | null }) {
                 on its own line reads as more of the form than it is. */}
             <div className="flex gap-[10px]">
               {PROJEKTET_PAIR.map((f) => (
-                <div key={f.key} className="flex-1">{field(f)}</div>
+                <div key={f.key} className="min-w-0 flex-1">{field(f)}</div>
               ))}
             </div>
           </Card>

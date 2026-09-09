@@ -368,7 +368,7 @@ export function SoftInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
   return (
     <input
       {...rest}
-      className={`h-[52px] w-full rounded-[10px] border-0 px-[14px] text-[16px] font-semibold outline-none focus:bg-white focus:outline-2 focus:outline-[#1b2cc1] ${className}`}
+      className={`h-[52px] w-full min-w-0 rounded-[10px] border-0 px-[14px] text-[16px] font-semibold outline-none focus:bg-white focus:outline-2 focus:outline-[#1b2cc1] ${className}`}
       style={{ background: C.panel2, color: C.ink, ...style }}
     />
   );
@@ -405,7 +405,7 @@ export function SoftSelect(props: React.SelectHTMLAttributes<HTMLSelectElement>)
   return (
     <select
       {...rest}
-      className={`h-[52px] w-full cursor-pointer appearance-none rounded-[10px] border-0 py-0 pl-[14px] pr-[38px] text-[16px] font-semibold outline-none focus:bg-white focus:outline-2 focus:outline-[#1b2cc1] ${className}`}
+      className={`h-[52px] w-full min-w-0 cursor-pointer appearance-none rounded-[10px] border-0 py-0 pl-[14px] pr-[38px] text-[16px] font-semibold outline-none focus:bg-white focus:outline-2 focus:outline-[#1b2cc1] ${className}`}
       style={{
         background: `${C.panel2} url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='13' height='8' viewBox='0 0 13 8' fill='none'%3E%3Cpath d='M1.5 1.5 6.5 6.5l5-5' stroke='%238b98c4' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 14px center`,
         color: C.ink,

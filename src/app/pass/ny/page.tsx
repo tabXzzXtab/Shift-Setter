@@ -392,7 +392,7 @@ function NyttPass() {
               </div>
 
               <div className="flex gap-[10px]">
-                <div className="flex-1">
+                <div className="min-w-0 flex-1">
                   <SoftField label="Börjar">
                     <SoftInput
                       type="time" value={r.start}
@@ -400,7 +400,7 @@ function NyttPass() {
                     />
                   </SoftField>
                 </div>
-                <div className="flex-1">
+                <div className="min-w-0 flex-1">
                   <SoftField label="Slutar">
                     <SoftInput
                       type="time" value={r.end}
@@ -408,7 +408,7 @@ function NyttPass() {
                     />
                   </SoftField>
                 </div>
-                <div className="flex-1">
+                <div className="min-w-0 flex-1">
                   <SoftField label="Timmar">
                     <SoftInput
                       inputMode="decimal" value={r.hours}

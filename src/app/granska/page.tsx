@@ -5,13 +5,15 @@ import { useSearchParams } from "next/navigation";
 import { AuthGate } from "@/components/auth-gate";
 import {
   C, Card, EmptyState, PrimaryButton, SecondaryButton, SoftField, SoftInput,
-  SoftNotice, SoftScreen, SoftTextarea,
+  SoftNotice, SoftScreen, SoftTextarea, Tag,
 } from "@/components/soft";
 import { getSupabase } from "@/lib/supabase/client";
 import { hhmm, longDayHeading, stampToTime } from "@/lib/dates";
 import { reviewDays } from "@/lib/review-days";
 
 type Row = {
+  /** Step 4b: an auto-assigned arbetsledare, whose span lives on their row. */
+  is_leader: boolean;
   tilldelning_id: string;
   pass_id: string;
   worker_name: string;
@@ -105,7 +107,7 @@ function Granska({ askedProject, askedDate }: { askedProject: string | null; ask
 
       const { data: assignments, error: aErr } = await sb
         .from("tilldelning")
-        .select("id, pass_id, worker_id, clock_in, clock_out, confirmed_hours")
+        .select("id, pass_id, worker_id, clock_in, clock_out, confirmed_hours, source, own_start, own_end")
         .in("pass_id", (passes ?? []).map((p) => p.id))
         .is("released_at", null);
 
@@ -118,15 +120,21 @@ function Granska({ askedProject, askedDate }: { askedProject: string | null; ask
 
       const rows: Row[] = (assignments ?? []).map((a) => {
         const p = (passes ?? []).find((x) => x.id === a.pass_id)!;
+        // Step 4b: an auto-assigned arbetsledare's span is the workers'
+        // envelope carried on their OWN row, not the times of whichever pass
+        // the row hangs on. Reading the pass here would show the admin a span
+        // the leader never claimed, and correcting it would move everybody.
+        const leader = a.source === "ledare";
         return {
           tilldelning_id: a.id,
           pass_id: a.pass_id,
           worker_name: names.get(a.worker_id) ?? "Okänd",
-          start: hhmm(p.start_time),
-          end: hhmm(p.end_time),
+          start: hhmm(leader && a.own_start ? a.own_start : p.start_time),
+          end: hhmm(leader && a.own_end ? a.own_end : p.end_time),
           hours: a.confirmed_hours === null ? null : Number(a.confirmed_hours),
           clock_in: a.clock_in,
           clock_out: a.clock_out,
+          is_leader: leader,
         };
       });
 
@@ -177,8 +185,14 @@ function Granska({ askedProject, askedDate }: { askedProject: string | null; ask
       };
       // Only when they moved: two people can share a pass, and writing an
       // untouched row's times would put the stale copy back.
+      //
+      // A LEADER'S ROW CARRIES NO `pass` KEY, because its times are not the
+      // pass's. approve_day() decides the destination from the row's own
+      // source rather than from anything sent here -- so this omission is a
+      // courtesy to a reader of the payload, not the thing that makes it
+      // safe. Sending the key would change nothing.
       if (e.start !== r.start || e.end !== r.end) {
-        row.pass = r.pass_id;
+        if (!r.is_leader) row.pass = r.pass_id;
         row.start = e.start;
         row.end = e.end;
       }
@@ -305,15 +319,31 @@ function Granska({ askedProject, askedDate }: { askedProject: string | null; ask
                 {r.worker_name}
               </div>
 
+              {/* THIS IS THE ONLY SCREEN THAT EDITS A LEADER'S SPAN. It is
+                  read-only on Bekräfta Pass, because a person stating when
+                  they were personally on site, on the row that pays them, is
+                  the conflict of interest the two stages exist to hold. The
+                  tag says whose row this is, and the line under it says which
+                  span is being corrected -- their own envelope, not the pass,
+                  so moving it moves nobody else. */}
+              {r.is_leader && (
+                <div className="pt-[6px]"><Tag tone="quiet">Arbetsledare</Tag></div>
+              )}
+
               {/* The stamps are CONTEXT, not the figure. They are read-only
                   copy here and typed hours sit below them, because nothing in
                   this app derives an hour from a clock (invariant 1). */}
               <div className="mb-[14px] mt-[2px] text-[14px] font-medium" style={{ color: C.text2 }}>
                 Stämplade {stampToTime(r.clock_in) || "—"} till {stampToTime(r.clock_out) || "—"}
+                {r.is_leader && (
+                  <span className="mt-[2px] block">
+                    Arbetsledarens egna tider. Ändras här och flyttar inte passet.
+                  </span>
+                )}
               </div>
 
               <div className="mb-[14px] flex gap-[10px]">
-                <div className="flex-1">
+                <div className="min-w-0 flex-1">
                   <SoftField label="Börjar">
                     <SoftInput
                       type="time"
@@ -324,7 +354,7 @@ function Granska({ askedProject, askedDate }: { askedProject: string | null; ask
                     />
                   </SoftField>
                 </div>
-                <div className="flex-1">
+                <div className="min-w-0 flex-1">
                   <SoftField label="Slutar">
                     <SoftInput
                       type="time"

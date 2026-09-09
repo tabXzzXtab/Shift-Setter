@@ -3,7 +3,9 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { AuthGate } from "@/components/auth-gate";
-import { Button, Field, Input, Notice, Screen, Select } from "@/components/ui";
+import {
+  C, Card, PrimaryButton, SoftField, SoftInput, SoftNotice, SoftScreen, SoftSelect,
+} from "@/components/soft";
 import { getSupabase } from "@/lib/supabase/client";
 import { stockholmToday } from "@/lib/dates";
 
@@ -80,67 +82,119 @@ function NyttProjekt() {
   }
 
   return (
-    <Screen title="Nytt projekt" back="/">
-      {error && <Notice kind="error">{error}</Notice>}
-
-      <p className="mb-6 text-base">
-        Alla fält krävs. De skrivs ut i Arbetsdagboken och kan inte fyllas i
-        efteråt.
-      </p>
+    <SoftScreen
+      title="Nytt projekt"
+      back="/"
+      subtitle="Alla fält krävs. De skrivs ut i Arbetsdagboken och kan inte fyllas i efteråt."
+    >
+      {error && <div className="px-4 pb-[4px] pt-[10px]"><SoftNotice tone="stop">{error}</SoftNotice></div>}
 
       <form onSubmit={onSubmit}>
-        <Field label="Projektnamn">
-          <Input name="name" required autoComplete="off" />
-        </Field>
+        {/* The same two cards Redigera Projekt wears, in the same order: what
+            the project is, then who is being billed. Creating and correcting a
+            project must not be two different forms. */}
+        <div className="px-4 pt-[14px]">
+          <Card radius={16} pad="p-[18px]">
+            <div
+              className="mb-[14px] text-[12px] font-bold uppercase"
+              style={{ letterSpacing: "1px", color: C.text2 }}
+            >
+              Projektet
+            </div>
 
-        <Field label="Projektets adress" hint="Dit arbetaren åker.">
-          <Input name="site_address" required autoComplete="off" />
-        </Field>
+            <div className="mb-[14px]">
+              <SoftField label="Projektnamn">
+                <SoftInput name="name" required autoComplete="off" />
+              </SoftField>
+            </div>
 
-        <Field label="Beställarens adress" hint="Kundens adress. Skrivs ut på dokumentet.">
-          <Input name="bestallare_address" required autoComplete="off" />
-        </Field>
+            <div className="mb-[14px]">
+              <SoftField label="Projektets adress" help="Dit arbetaren åker.">
+                <SoftInput name="site_address" required autoComplete="off" />
+              </SoftField>
+            </div>
 
-        <Field label="Beställarens bolag">
-          <Input name="bestallare_bolag" required autoComplete="off" />
-        </Field>
+            <div className="mb-[14px] flex gap-[10px]">
+              <div className="min-w-0 flex-1">
+                <SoftField label="Startdatum">
+                  <SoftInput
+                    type="date" name="start_date" required defaultValue={stockholmToday()}
+                  />
+                </SoftField>
+              </div>
+              <div className="min-w-0 flex-1">
+                <SoftField label="Tjänster">
+                  <SoftInput name="services" required autoComplete="off" />
+                </SoftField>
+              </div>
+            </div>
 
-        <Field label="Beställarens org nummer">
-          <Input name="bestallare_orgnr" required autoComplete="off" placeholder="556788-2369" />
-        </Field>
+            {/* Part of creation, not an afterthought: this is the per-row scope
+                for invariant 4b, and a project with no leader can never have a
+                day confirmed, so it could never produce a document. */}
+            <SoftField
+              label="Arbetsledare"
+              help="Endast denna person kan bekräfta projektets dagar."
+            >
+              <SoftSelect required value={leaderId} onChange={(e) => setLeaderId(e.target.value)}>
+                <option value="">Välj…</option>
+                {leaders.map((l) => (
+                  <option key={l.id} value={l.id}>
+                    {l.name ?? l.id.slice(0, 8)}
+                  </option>
+                ))}
+              </SoftSelect>
+            </SoftField>
+          </Card>
+        </div>
 
-        <Field label="Tjänster">
-          <Input name="services" required autoComplete="off" />
-        </Field>
+        <div className="px-4 pt-[14px]">
+          <Card radius={16} pad="p-[18px]">
+            <div
+              className="mb-1 text-[12px] font-bold uppercase"
+              style={{ letterSpacing: "1px", color: C.text2 }}
+            >
+              Beställaren
+            </div>
+            <div className="mb-[14px] text-[14px] font-medium" style={{ color: C.text2 }}>
+              Skrivs ut på arbetsdagboken.
+            </div>
 
-        <Field label="Startdatum">
-          <Input type="date" name="start_date" required defaultValue={stockholmToday()} />
-        </Field>
+            <div className="mb-[14px]">
+              <SoftField label="Beställarens bolag">
+                <SoftInput name="bestallare_bolag" required autoComplete="off" />
+              </SoftField>
+            </div>
 
-        <Field label="Arbetsledare" hint="Endast denna person kan bekräfta projektets dagar.">
-          <Select required value={leaderId} onChange={(e) => setLeaderId(e.target.value)}>
-            <option value="">Välj…</option>
-            {leaders.map((l) => (
-              <option key={l.id} value={l.id}>
-                {l.name ?? l.id.slice(0, 8)}
-              </option>
-            ))}
-          </Select>
-        </Field>
+            <div className="mb-[14px]">
+              <SoftField label="Beställarens adress" help="Kundens adress.">
+                <SoftInput name="bestallare_address" required autoComplete="off" />
+              </SoftField>
+            </div>
+
+            <SoftField label="Beställarens org nummer">
+              <SoftInput
+                name="bestallare_orgnr" required autoComplete="off" placeholder="556788-2369"
+              />
+            </SoftField>
+          </Card>
+        </div>
 
         {leaders.length === 0 && (
-          <Notice kind="info">
-            Det finns ingen arbetsledare än. Skapa en under “Ny arbetare” först.
-          </Notice>
+          <div className="px-4 pt-[14px]">
+            <SoftNotice tone="quiet">
+              Det finns ingen arbetsledare än. Skapa en under “Ny arbetare” först.
+            </SoftNotice>
+          </div>
         )}
 
-        <div className="mt-6">
-          <Button type="submit" disabled={saving || !leaderId}>
+        <div className="px-4 pt-[22px]">
+          <PrimaryButton type="submit" disabled={saving || !leaderId}>
             {saving ? "Sparar…" : "Skapa projekt"}
-          </Button>
+          </PrimaryButton>
         </div>
       </form>
-    </Screen>
+    </SoftScreen>
   );
 }
 

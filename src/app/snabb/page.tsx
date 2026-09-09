@@ -240,12 +240,12 @@ function SnabbPass() {
           </div>
 
           <div className="mb-[14px] flex gap-[10px]">
-            <div className="flex-1">
+            <div className="min-w-0 flex-1">
               <SoftField label="Börjar">
                 <SoftInput type="time" value={start} onChange={(e) => setTime("start", e.target.value)} />
               </SoftField>
             </div>
-            <div className="flex-1">
+            <div className="min-w-0 flex-1">
               <SoftField label="Slutar">
                 <SoftInput type="time" value={end} onChange={(e) => setTime("end", e.target.value)} />
               </SoftField>

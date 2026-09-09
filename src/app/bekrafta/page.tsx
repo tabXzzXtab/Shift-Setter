@@ -39,6 +39,30 @@ type Day = {
 };
 
 /**
+ * A field that is not a field: the label in the same place, the value as text.
+ *
+ * NOT a disabled input. A greyed-out box invites the reader to try it and then
+ * refuses them, and it looks like something that is broken rather than
+ * something that belongs to somebody else. Plain text says "this is a fact you
+ * are being shown", which is what it is.
+ */
+function LockedField({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <span
+        className="mb-[6px] block text-[12px] font-bold uppercase"
+        style={{ letterSpacing: ".9px", color: C.text2 }}
+      >
+        {label}
+      </span>
+      <span className="block py-[6px] text-[16px] font-semibold" style={{ color: C.ink }}>
+        {value}
+      </span>
+    </div>
+  );
+}
+
+/**
  * Bekräfta Pass -- the mechanism the whole system depends on.
  *
  * A day appears here only once its last shift has ENDED by the clock, not at
@@ -47,9 +71,14 @@ type Day = {
  * one leader may run several sites and each needs its own account of what
  * happened.
  *
- * Every field on a row is editable. If any of the three is changed, that row is
- * marked late ONCE -- three corrections to one person's shift is one deviation,
- * not three, and the demotion moves them one position, not three.
+ * Every field on a WORKER's row is editable. If any of the three is changed,
+ * that row is marked late ONCE -- three corrections to one person's shift is
+ * one deviation, not three, and the demotion moves them one position, not
+ * three.
+ *
+ * A LEADER'S OWN ROW IS DIFFERENT: their times are shown and not typed, and
+ * only their hours are theirs to set. Stage 2 corrects the span. See the row
+ * itself for why.
  *
  * Confirmation is final for the leader. The one thing that puts a day back in
  * their hands is the admin rejecting it at stage 2 -- and such a day returns
@@ -181,26 +210,25 @@ function Bekrafta({ askedProject, askedDate }: { askedProject: string | null; as
       const timesChanged = e.start !== row.start || e.end !== row.end;
       const hoursChanged = hours !== (row.confirmed_hours ?? row.planned_hours);
 
-      if (timesChanged) {
-        // A leader's span belongs to their row. Writing it to the pass would
-        // move every worker on that shift, and the leader was correcting when
-        // THEY were there, not when the job ran.
-        const { error: tErr } = row.is_leader
-          ? await sb
-              .from("tilldelning")
-              .update({ own_start: e.start, own_end: e.end })
-              .eq("id", row.tilldelning_id)
-          : await sb
-              .from("pass")
-              .update({ start_time: e.start, end_time: e.end })
-              .eq("id", row.pass_id);
+      // A leader's span is read-only on this screen, so it cannot have moved --
+      // and this says so rather than relying on two strings still being equal.
+      // Stage 2 is where own_start/own_end are corrected, through approve_day,
+      // which routes them by the row's source rather than trusting a caller.
+      if (timesChanged && !row.is_leader) {
+        const { error: tErr } = await sb
+          .from("pass")
+          .update({ start_time: e.start, end_time: e.end })
+          .eq("id", row.pass_id);
         if (tErr) { setError(tErr.message); setSaving(false); return; }
       }
 
       // One row, one late mark, however many fields were edited.
       const { error: aErr } = await sb
         .from("tilldelning")
-        .update({ confirmed_hours: hours, late: timesChanged || hoursChanged })
+        .update({
+          confirmed_hours: hours,
+          late: (timesChanged && !row.is_leader) || hoursChanged,
+        })
         .eq("id", row.tilldelning_id);
       if (aErr) { setError(aErr.message); setSaving(false); return; }
     }
@@ -323,30 +351,59 @@ function Bekrafta({ askedProject, askedDate }: { askedProject: string | null; as
                 Stämplade {stampToTime(r.clock_in) || "—"} till {stampToTime(r.clock_out) || "—"}
               </div>
 
+              {/*
+                A LEADER'S OWN TIMES ARE NOT THEIRS TO SET HERE, and their
+                hours still are. Stating when you personally were on site, on
+                the row that pays you, is the one conflict of interest the two
+                stages exist to hold -- so the span is shown and the admin
+                corrects it at stage 2. The HOURS stay editable, because lunch
+                comes off the envelope and nobody else knows how long it was
+                (invariant 1). Times are the claim somebody else checks; hours
+                are the claim they make.
+
+                Worker rows are untouched: their times are the pass's, the
+                leader is the one who was there, and correcting them is the
+                whole job of this screen.
+              */}
               <div className="mb-[14px] flex gap-[10px]">
-                <div className="flex-1">
-                  <SoftField label="Börjar">
-                    <SoftInput
-                      type="time"
-                      value={e.start}
-                      onChange={(ev) =>
-                        setEdits((p) => ({ ...p, [r.tilldelning_id]: { ...e, start: ev.target.value } }))
-                      }
-                    />
-                  </SoftField>
-                </div>
-                <div className="flex-1">
-                  <SoftField label="Slutar">
-                    <SoftInput
-                      type="time"
-                      value={e.end}
-                      onChange={(ev) =>
-                        setEdits((p) => ({ ...p, [r.tilldelning_id]: { ...e, end: ev.target.value } }))
-                      }
-                    />
-                  </SoftField>
-                </div>
+                {r.is_leader ? (
+                  <>
+                    <div className="min-w-0 flex-1"><LockedField label="Börjar" value={e.start} /></div>
+                    <div className="min-w-0 flex-1"><LockedField label="Slutar" value={e.end} /></div>
+                  </>
+                ) : (
+                  <>
+                    <div className="min-w-0 flex-1">
+                      <SoftField label="Börjar">
+                        <SoftInput
+                          type="time"
+                          value={e.start}
+                          onChange={(ev) =>
+                            setEdits((p) => ({ ...p, [r.tilldelning_id]: { ...e, start: ev.target.value } }))
+                          }
+                        />
+                      </SoftField>
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <SoftField label="Slutar">
+                        <SoftInput
+                          type="time"
+                          value={e.end}
+                          onChange={(ev) =>
+                            setEdits((p) => ({ ...p, [r.tilldelning_id]: { ...e, end: ev.target.value } }))
+                          }
+                        />
+                      </SoftField>
+                    </div>
+                  </>
+                )}
               </div>
+
+              {r.is_leader && (
+                <div className="mb-[14px] mt-[-6px] text-[14px] font-medium" style={{ color: C.text2 }}>
+                  Dina tider ändras av admin när dagen godkänns.
+                </div>
+              )}
 
               <SoftField label="Timmar" help="0 om personen inte kom." big>
                 <SoftInput

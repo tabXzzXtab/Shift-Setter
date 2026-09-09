@@ -3,7 +3,10 @@
 import { useEffect, useState } from "react";
 import { AuthGate } from "@/components/auth-gate";
 import { ArbetsdagbokDocument } from "@/components/arbetsdagbok-document";
-import { Button, Field, Input, Notice, Screen, Select } from "@/components/ui";
+import {
+  C, Card, PrimaryButton, SecondaryButton, SoftField, SoftInput, SoftNotice,
+  SoftScreen, SoftSelect,
+} from "@/components/soft";
 import { getSupabase } from "@/lib/supabase/client";
 import { addDays, hhmm, stampToTime, stockholmToday } from "@/lib/dates";
 import { Bristsurvey, fetchGaps, hasGaps, type Gaps } from "@/components/bristsurvey";
@@ -232,19 +235,30 @@ function Arbetsdagbok() {
   if (payload) {
     return (
       <>
-        <div className="no-print mx-auto w-full max-w-md p-4">
-          {error && <Notice kind="error">{error}</Notice>}
-          {saved && <Notice kind="ok">Nedladdad: {saved}</Notice>}
-          <Button onClick={download} disabled={downloading}>
+        {/* The toolbar is the app; the sheet below it is the document. Only
+            the toolbar gets the design language -- the preview must not drift
+            from the PDF, which is the thing that actually leaves the building
+            (CLAUDE.md, "The Arbetsdagbok has two renderers"). */}
+        <div
+          className="no-print mx-auto w-full max-w-[390px] px-4 py-4"
+          style={{
+            background: C.ground,
+            color: C.ink,
+            fontFamily: "var(--font-inter), system-ui, sans-serif",
+            fontVariantNumeric: "tabular-nums",
+          }}
+        >
+          {error && <div className="pb-[10px]"><SoftNotice tone="stop">{error}</SoftNotice></div>}
+          {saved && !error && (
+            <div className="pb-[10px]"><SoftNotice tone="live">Nedladdad: {saved}</SoftNotice></div>
+          )}
+          <PrimaryButton onClick={download} disabled={downloading}>
             {downloading ? "Skapar PDF…" : "Ladda ner PDF"}
-          </Button>
-          <div className="mt-3">
-            <Button
-              variant="outline"
-              onClick={() => { setPayload(null); setSaved(null); }}
-            >
+          </PrimaryButton>
+          <div className="pt-[10px]">
+            <SecondaryButton onClick={() => { setPayload(null); setSaved(null); }}>
               Tillbaka
-            </Button>
+            </SecondaryButton>
           </div>
         </div>
         <div className="ad-doc mx-auto w-full max-w-[210mm]">
@@ -255,7 +269,11 @@ function Arbetsdagbok() {
   }
 
   return (
-    <Screen title="Arbetsdagbok" back="/">
+    <SoftScreen
+      title="Arbetsdagbok"
+      back="/"
+      subtitle="En period i taget. Perioden skrivs på dokumentets försättsblad."
+    >
       {gaps && (
         <Bristsurvey
           gaps={gaps}
@@ -266,37 +284,52 @@ function Arbetsdagbok() {
         />
       )}
 
-      {error && <Notice kind="error">{error}</Notice>}
+      {error && <div className="px-4 pb-[4px] pt-[10px]"><SoftNotice tone="stop">{error}</SoftNotice></div>}
 
-      <Field label="Projekt">
-        <Select value={projectId} onChange={(e) => setProjectId(e.target.value)}>
-          <option value="">Välj…</option>
-          {projects.map((p) => (
-            <option key={p.id} value={p.id}>{p.name}</option>
-          ))}
-        </Select>
-      </Field>
+      <div className="px-4 pt-[14px]">
+        <Card radius={16} pad="p-[18px]">
+          <div className="mb-[14px]">
+            <SoftField label="Projekt">
+              <SoftSelect value={projectId} onChange={(e) => setProjectId(e.target.value)}>
+                <option value="">Välj…</option>
+                {projects.map((p) => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </SoftSelect>
+            </SoftField>
+          </div>
 
-      <Field label="Från och med">
-        <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
-      </Field>
+          <div className="flex gap-[10px]">
+            <div className="min-w-0 flex-1">
+              <SoftField label="Från och med">
+                <SoftInput type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
+              </SoftField>
+            </div>
+            <div className="min-w-0 flex-1">
+              <SoftField label="Till och med">
+                <SoftInput type="date" value={to} onChange={(e) => setTo(e.target.value)} />
+              </SoftField>
+            </div>
+          </div>
+        </Card>
+      </div>
 
-      <Field label="Till och med">
-        <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
-      </Field>
-
+      {/* A warning, not a block. Re-issuing a document is legitimate -- it just
+          must never happen unknowingly. */}
       {overlap && (
-        <Notice kind="info">
-          Du har redan gjort en arbetsdagbok som dokumenterar {overlap}. Vill du gå vidare?
-        </Notice>
+        <div className="px-4 pt-[14px]">
+          <SoftNotice tone="warn">
+            Du har redan gjort en arbetsdagbok som dokumenterar {overlap}. Vill du gå vidare?
+          </SoftNotice>
+        </div>
       )}
 
-      <div className="mt-6">
-        <Button onClick={generate} disabled={busy || !projectId || to < from}>
+      <div className="px-4 pt-[22px]">
+        <PrimaryButton onClick={generate} disabled={busy || !projectId || to < from}>
           {busy ? "Genererar…" : "Generera Arbetsdagbok"}
-        </Button>
+        </PrimaryButton>
       </div>
-    </Screen>
+    </SoftScreen>
   );
 }
 
