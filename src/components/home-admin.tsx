@@ -30,7 +30,7 @@ const MENU: MenuItem[] = [
   // Stage 2 and its log. In the menu rather than above the list: the three
   // buttons are the things an owner creates, and a review queue is not one.
   { href: "/granska", label: "Granska Pass" },
-  { href: "/historik", label: "Bekräftelse Historik" },
+  { href: "/historik", label: "Bekräftelser" },
   { href: "/installningar", label: "Inställningar" },
 ];
 

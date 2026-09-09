@@ -115,6 +115,63 @@ export async function pendingDays(): Promise<PendingDay[]> {
   );
 }
 
+export type PendingSummary = {
+  /** project|date, the same key the rest of the app groups a day under. */
+  key: string;
+  project_id: string;
+  project_name: string;
+  work_date: string;
+  /** Everyone still assigned that day, in Swedish collation. */
+  workers: string[];
+  /** Planned hours over the whole day, before anybody confirms a figure. */
+  hours: number;
+};
+
+/**
+ * The waiting days with the crew named, for anything that only PREVIEWS them.
+ *
+ * Two screens show this list -- the landing widget and Bekräftelser' "Att
+ * bekräfta" tab -- and they must not be able to disagree about it, which is
+ * the same reason pendingDays() itself exists. `limit` trims the list after it
+ * is built, so the widget's three are the first three of the page's list and
+ * never a differently-ordered three.
+ *
+ * The names are read here rather than in the caller because they are the only
+ * reason a preview needs a second round trip at all.
+ */
+export async function pendingSummaries(limit?: number): Promise<PendingSummary[]> {
+  const days = await pendingDays();
+  const shown = limit === undefined ? days : days.slice(0, limit);
+  if (shown.length === 0) return [];
+
+  const sb = getSupabase();
+  const passIds = shown.flatMap((d) => d.passes.map((p) => p.id));
+
+  const [{ data: assignments }, { data: roster }] = await Promise.all([
+    sb.from("tilldelning")
+      .select("pass_id, worker_id")
+      .in("pass_id", passIds)
+      .is("released_at", null),
+    sb.from("worker_roster").select("id, name"),
+  ]);
+
+  const names = new Map((roster ?? []).map((w) => [w.id, w.name ?? ""]));
+
+  return shown.map((d) => {
+    const ids = new Set(d.passes.map((p) => p.id));
+    const here = (assignments ?? []).filter((a) => ids.has(a.pass_id));
+    return {
+      key: `${d.project_id}|${d.work_date}`,
+      project_id: d.project_id,
+      project_name: d.project_name,
+      work_date: d.work_date,
+      workers: [...new Set(here.map((a) => names.get(a.worker_id) ?? "Okänd"))]
+        .sort((a, b) => a.localeCompare(b, "sv")),
+      hours: d.passes.reduce((s, p) => s + p.planned_hours, 0),
+    };
+  });
+}
+
 /**
  * Drop the days somebody else is standing on.
  *

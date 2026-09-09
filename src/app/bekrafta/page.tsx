@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { AuthGate } from "@/components/auth-gate";
 import { Button, Empty, Field, Input, Notice, Screen, Textarea } from "@/components/ui";
 import { getSupabase } from "@/lib/supabase/client";
@@ -53,8 +54,14 @@ type Day = {
  * they were left so the correction is a correction and not a re-typing.
  *
  * The database enforces the finality; this screen says so.
+ *
+ * A day may be ASKED FOR by name -- Bekräftelser' "Att bekräfta" list points at
+ * one. The ask is a preference, never a permission: the day still has to be in
+ * the queue pendingDays() returns, so naming a day that is confirmed, flagged,
+ * or somebody else's falls back to the oldest waiting one rather than opening
+ * it. Nothing here decides who may write; the guard does that.
  */
-function Bekrafta() {
+function Bekrafta({ askedProject, askedDate }: { askedProject: string | null; askedDate: string | null }) {
   const [day, setDay] = useState<Day | null | undefined>(undefined);
   const [edits, setEdits] = useState<Record<string, { start: string; end: string; hours: string }>>({});
   const [gjorde, setGjorde] = useState("");
@@ -87,7 +94,11 @@ function Bekrafta() {
       if (!active) return;
       if (open.length === 0) { setDay(null); return; }
 
-      const first = open[0];
+      // Oldest first unless a specific day was asked for and is still waiting.
+      const first =
+        (askedProject !== null && askedDate !== null
+          ? open.find((d) => d.project_id === askedProject && d.work_date === askedDate)
+          : undefined) ?? open[0];
       const samePasses = first.passes;
 
       const { data: assignments, error: aErr } = await sb
@@ -152,7 +163,7 @@ function Bekrafta() {
     })();
 
     return () => { active = false; };
-  }, [reload]);
+  }, [reload, askedProject, askedDate]);
 
   async function confirm() {
     if (!day) return;
@@ -309,10 +320,31 @@ function Bekrafta() {
   );
 }
 
+/**
+ * The day arrives as ?projekt=&datum=. useSearchParams needs a Suspense
+ * boundary in a statically exported app -- the query string is not known when
+ * the page is prerendered, only when a browser opens it.
+ *
+ * Shape-checked before it is used: a uuid and a date, or nothing.
+ */
+function BekraftaFromUrl() {
+  const q = useSearchParams();
+  const projekt = q.get("projekt");
+  const datum = q.get("datum");
+  const ok =
+    projekt !== null &&
+    datum !== null &&
+    /^[0-9a-f-]{36}$/i.test(projekt) &&
+    /^\d{4}-\d{2}-\d{2}$/.test(datum);
+  return <Bekrafta askedProject={ok ? projekt : null} askedDate={ok ? datum : null} />;
+}
+
 export default function Page() {
   return (
     <AuthGate>
-      <Bekrafta />
+      <Suspense fallback={<Screen title="Bekräfta pass" back="/"><span>Laddar…</span></Screen>}>
+        <BekraftaFromUrl />
+      </Suspense>
     </AuthGate>
   );
 }

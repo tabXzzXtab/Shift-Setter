@@ -1,10 +1,13 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { AuthGate } from "@/components/auth-gate";
 import { Empty, Notice, Screen } from "@/components/ui";
 import { getSupabase } from "@/lib/supabase/client";
 import { hhmm, longDayHeading } from "@/lib/dates";
+import { pendingSummaries, type PendingSummary } from "@/lib/pending-days";
+import { useAccount } from "@/lib/account";
 
 type Act = { action: string; note: string | null; acted_at: string };
 
@@ -25,6 +28,14 @@ type Day = {
   log: Act[];
 };
 
+type View = "att" | "historik";
+
+/** Swedish decimal comma, and no trailing ",0" on a whole number. */
+const hh = (n: number) => {
+  const r = Math.round(n * 100) / 100;
+  return Number.isInteger(r) ? String(r) : String(r).replace(".", ",");
+};
+
 /** How a day was closed, in the words the record actually distinguishes. */
 function routeLabel(route: string | null, reviewer: string | null): string {
   if (route === "bristsurvey") return "Bristsurvey — admin rekonstruerade dagen";
@@ -33,7 +44,118 @@ function routeLabel(route: string | null, reviewer: string | null): string {
 }
 
 /**
- * Bekräftelse Historik -- the readable log of days that are finished with.
+ * Bekräftelser -- one day's confirmation, before and after, on one screen.
+ *
+ * "Att bekräfta" is what is still owed and "Historik" is what is settled. They
+ * were two menu entries pointing at two screens, and the leader had to know
+ * which of them a given day had already reached in order to look for it. One
+ * switch says the same thing without asking.
+ *
+ * THE SWITCH IS THE ARBETSLEDARE'S. Stage 1 is theirs alone -- CLAUDE.md's
+ * "the admin cannot make a stage 1 confirmation", invariant 4b -- so an admin
+ * opening this page has no "att bekräfta" to be shown. His outstanding work is
+ * stage 2 and it lives on Granska Pass. A queue of days the database would
+ * refuse him is not a queue.
+ */
+function Bekraftelser() {
+  const { account, loading } = useAccount();
+  const queue = account?.role === "arbetsledare";
+  const [view, setView] = useState<View>("att");
+
+  if (loading) {
+    return <Screen title="Bekräftelser" back="/"><span>Laddar…</span></Screen>;
+  }
+
+  const showing: View = queue ? view : "historik";
+
+  return (
+    <Screen title="Bekräftelser" back="/">
+      {/* Two states, both always visible, the current one filled -- the same
+          switch Mina Pass uses. A control that hides the thing it switches to
+          makes people press it to find out. */}
+      {queue && (
+        <div role="group" aria-label="Visa" className="mb-6 flex">
+          {(["att", "historik"] as View[]).map((v) => (
+            <button
+              key={v}
+              type="button"
+              aria-pressed={view === v}
+              onClick={() => setView(v)}
+              className={`flex min-h-[56px] flex-1 items-center justify-center border-2 border-black text-lg font-bold ${
+                view === v ? "bg-black text-white" : "bg-white text-black"
+              } ${v === "historik" ? "border-l-0" : ""}`}
+            >
+              {v === "att" ? "Att bekräfta" : "Historik"}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {showing === "att" ? <AttBekrafta /> : <Historik forLeader={queue} />}
+    </Screen>
+  );
+}
+
+/**
+ * The days still waiting on this leader, oldest first.
+ *
+ * WHICH days is lib/pending-days' answer and nobody else's, so this list, the
+ * landing page's widget and Bekräfta Pass itself cannot disagree. Every row
+ * opens that day by name rather than dropping the leader at the top of the
+ * queue: a list you can point at and a page that ignores where you pointed
+ * would be a worse lie than no list.
+ */
+function AttBekrafta() {
+  const [waiting, setWaiting] = useState<PendingSummary[] | undefined>(undefined);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    void (async () => {
+      try {
+        const days = await pendingSummaries();
+        if (active) setWaiting(days);
+      } catch (e) {
+        if (!active) return;
+        setError(e instanceof Error ? e.message : "Kunde inte läsa passen.");
+        setWaiting([]);
+      }
+    })();
+    return () => { active = false; };
+  }, []);
+
+  if (waiting === undefined) return <span>Laddar…</span>;
+
+  return (
+    <>
+      {error && <Notice kind="error">{error}</Notice>}
+
+      {waiting.length === 0 ? (
+        <Empty>Inget väntar på dig.</Empty>
+      ) : (
+        <div className="flex flex-col gap-4">
+          {waiting.map((d) => (
+            <Link
+              key={d.key}
+              href={`/bekrafta?projekt=${d.project_id}&datum=${d.work_date}`}
+              className="block border-2 border-black p-4"
+            >
+              <p className="text-xl font-bold">{longDayHeading(d.work_date)}</p>
+              <p className="mb-3 text-lg">{d.project_name}</p>
+              <p className="text-base">
+                {d.workers.length > 0 ? d.workers.join(", ") : "Ingen tilldelad"}
+              </p>
+              <p className="text-base text-neutral-700">{hh(d.hours)} h</p>
+            </Link>
+          ))}
+        </div>
+      )}
+    </>
+  );
+}
+
+/**
+ * The readable log of days that are finished with.
  *
  * A day arrives here by either of two routes and can arrive by both: the admin
  * approved it at stage 2, or an Arbetsdagbok was generated over it, which
@@ -48,8 +170,14 @@ function routeLabel(route: string | null, reviewer: string | null): string {
  * Admin and arbetsledare both read it. The scoping is the database's:
  * public.day_history answers the same question for both, so a leader and the
  * owner can never be looking at two different versions of the same log.
+ *
+ * A DAY THE LEADER HAS JUST CONFIRMED IS IN NEITHER VIEW. day_history takes a
+ * day once it is finished with -- approved at stage 2 or consumed by a
+ * document -- so between the leader's claim and the admin's sign-off the day
+ * is out of the leader's queue and not yet in the log. The note says so rather
+ * than letting the day appear to have been lost.
  */
-function Historik() {
+function Historik({ forLeader }: { forLeader: boolean }) {
   const [days, setDays] = useState<Day[] | undefined>(undefined);
   const [error, setError] = useState<string | null>(null);
 
@@ -142,13 +270,17 @@ function Historik() {
     return () => { active = false; };
   }, []);
 
-  if (days === undefined) {
-    return <Screen title="Bekräftelse historik" back="/"><span>Laddar…</span></Screen>;
-  }
+  if (days === undefined) return <span>Laddar…</span>;
 
   return (
-    <Screen title="Bekräftelse historik" back="/">
+    <>
       {error && <Notice kind="error">{error}</Notice>}
+
+      {forLeader && (
+        <p className="mb-4 text-base text-neutral-700">
+          Dagar du bekräftat visas här när admin har godkänt dem.
+        </p>
+      )}
 
       {days.length === 0 ? (
         <Empty>Inga avslutade dagar än.</Empty>
@@ -197,14 +329,14 @@ function Historik() {
           ))}
         </div>
       )}
-    </Screen>
+    </>
   );
 }
 
 export default function Page() {
   return (
     <AuthGate>
-      <Historik />
+      <Bekraftelser />
     </AuthGate>
   );
 }

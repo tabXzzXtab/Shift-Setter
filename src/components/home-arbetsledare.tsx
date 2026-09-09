@@ -5,20 +5,21 @@ import { useEffect, useState } from "react";
 import { AppBar, type MenuItem } from "./app-bar";
 import { NastaPassCard } from "./nasta-pass-card";
 import { ActionLink, Landing, Notice } from "./ui";
-import { getSupabase } from "@/lib/supabase/client";
-import { pendingDays } from "@/lib/pending-days";
+import { pendingSummaries, type PendingSummary } from "@/lib/pending-days";
 import { longDayHeading } from "@/lib/dates";
 
 const MENU: MenuItem[] = [
-  { href: "/min-kalender", label: "Min Pass Kalender" },
+  // "Arbetsdagar", not "Min Pass Kalender". The page sets AVAILABILITY -- it
+  // writes forval -- and Mina Pass's Kalender tab shows the days already held.
+  // Two calendars whose names both said "pass" read as the same screen twice,
+  // and this is the name the arbetare already opens the very same route under.
+  { href: "/min-kalender", label: "Arbetsdagar" },
   { href: "/mina-pass", label: "Mina Pass" },
   // Both roles read the log, scoped to the projects they are on -- day_history
   // answers the same question for the leader and the owner, so this is the
   // same page the admin opens and not a second version of it.
-  { href: "/historik", label: "Bekräftelse Historik" },
+  { href: "/historik", label: "Bekräftelser" },
 ];
-
-type Waiting = { key: string; date: string; workers: string[]; hours: number };
 
 /** Swedish decimal comma, and no trailing ",0" on a whole number. */
 const hh = (n: number) => {
@@ -43,7 +44,7 @@ const hh = (n: number) => {
  * the project rows, and neither is a leader's daily work.
  */
 export function HomeArbetsledare() {
-  const [waiting, setWaiting] = useState<Waiting[] | null>(null);
+  const [waiting, setWaiting] = useState<PendingSummary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -51,40 +52,11 @@ export function HomeArbetsledare() {
 
     void (async () => {
       try {
-        // The same definition the Bekräfta Pass page uses, so the preview and
-        // the page it opens can never disagree about what is waiting.
-        const days = await pendingDays();
-        const shown = days.slice(0, 3);
-
-        const sb = getSupabase();
-        const passIds = shown.flatMap((d) => d.passes.map((p) => p.id));
-
-        const [{ data: assignments }, { data: roster }] = await Promise.all([
-          passIds.length
-            ? sb.from("tilldelning")
-                .select("pass_id, worker_id")
-                .in("pass_id", passIds)
-                .is("released_at", null)
-            : Promise.resolve({ data: [] as { pass_id: string; worker_id: string }[] }),
-          sb.from("worker_roster").select("id, name"),
-        ]);
-
+        // The same definition the Bekräfta Pass page and the "Att bekräfta"
+        // tab use, so a preview and the page it opens can never disagree.
+        const shown = await pendingSummaries(3);
         if (!live) return;
-
-        const names = new Map((roster ?? []).map((w) => [w.id, w.name ?? ""]));
-        setWaiting(
-          shown.map((d) => {
-            const ids = new Set(d.passes.map((p) => p.id));
-            const here = (assignments ?? []).filter((a) => ids.has(a.pass_id));
-            return {
-              key: `${d.project_id}|${d.work_date}`,
-              date: d.work_date,
-              workers: [...new Set(here.map((a) => names.get(a.worker_id) ?? "Okänd"))]
-                .sort((a, b) => a.localeCompare(b, "sv")),
-              hours: d.passes.reduce((s, p) => s + p.planned_hours, 0),
-            };
-          }),
-        );
+        setWaiting(shown);
       } catch (e) {
         if (live) { setError(e instanceof Error ? e.message : "Kunde inte läsa passen."); setWaiting([]); }
       }
@@ -128,7 +100,7 @@ export function HomeArbetsledare() {
 
         {(waiting ?? []).map((d) => (
           <div key={d.key} className="border-b border-neutral-300 p-4 last:border-b-0">
-            <p className="text-base font-bold">{longDayHeading(d.date)}</p>
+            <p className="text-base font-bold">{longDayHeading(d.work_date)}</p>
             <p className="text-base">
               {d.workers.length > 0 ? d.workers.join(", ") : "Ingen tilldelad"}
             </p>

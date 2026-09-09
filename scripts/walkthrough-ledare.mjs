@@ -272,7 +272,7 @@ try {
   const items = await panel.getByRole("link").allInnerTexts();
   // Each entry carries a trailing arrow glyph; strip it to get the label.
   const got = items.map((t) => t.replace("→", "").trim()).sort();
-  const expect = ["Min Pass Kalender", "Mina Pass", "Bekräftelse Historik"].sort();
+  const expect = ["Arbetsdagar", "Mina Pass", "Bekräftelser"].sort();
   if (JSON.stringify(got) !== JSON.stringify(expect)) {
     fail(`menu holds ${JSON.stringify(got)}, expected ${JSON.stringify(expect)}`);
   }

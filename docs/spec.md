@@ -562,6 +562,10 @@ Every `leader_confirmed` day arrives in the admin's review queue. Three outcomes
 
 **A day is in the historik once it is finished with.** Two routes in, and a day can arrive by both: the admin approved it at stage 2, or an Arbetsdagbok was generated over it, which consumes a day whatever stage it had reached. **Admin and arbetsledare both read it**, scoped to the projects they are on, and both read the same definition — a leader and the owner looking at two different versions of the same log would be worse than no log.
 
+**The screen is Bekräftelser, and it holds a day before and after.** One switch, two views: **Att bekräfta** is what is still owed and **Historik** is what is settled. They were two menu entries pointing at two screens, which meant the leader had to already know which of them a day had reached in order to look for it. "Att bekräfta" is `pendingDays()` and nothing else, so this list, the landing page's widget and Bekräfta Pass cannot disagree about what is waiting; each row opens the day it names, and Bekräfta Pass takes that as a preference rather than a permission — a day not in the queue falls back to the oldest one that is.
+
+**The switch is the arbetsledare's.** Stage 1 is theirs alone, so an admin opening Bekräftelser sees the log and no switch: his outstanding work is stage 2 and it lives on Granska Pass. A queue of days the database would refuse him is not a queue.
+
 **Once `admin_confirmed`, nothing edits it.** Not the text, not the hours, not the times, and it cannot be sent back either. PASS TIDER lives on the pass rather than on the assignment, so that wall is two guards and not one; without the second it would protect half a row.
 
 ---
@@ -659,8 +663,9 @@ The Arbetsdagbok is not in either place. It lives inside the project (Section 1)
 
 **Hamburger menu**, top left:
 
-- Min Pass Kalender
-- Mina Pass
+- **Arbetsdagar** — the availability calendar (`forval`), the same route and the same name the arbetare opens it under. It is not a second view of Mina Pass: Mina Pass shows the days already held, this sets the days they can be given. It was called "Min Pass Kalender", and two entries whose names both said "pass" read as the same screen twice.
+- **Mina Pass**
+- **Bekräftelser** — see Section 6.
 
 **Top right:** the profile icon.
 
@@ -708,6 +713,7 @@ Nothing here is open. Anything discovered later that is not covered is a stop-an
 - A rejection needs a note. The day returns to the leader flagged, keeping its text and its figures, and the rejection stays on the record after it is re-confirmed.
 - The approval is `reviewed_at` / `reviewed_by`, separate from the leader's claim, which stage 2 can never rewrite.
 - Bekräftelse Historik holds every day that is finished with — approved at stage 2 or consumed by a document — and appends every stage 2 act as its own row. Admin and arbetsledare both read it, scoped to their projects.
+- The screen is **Bekräftelser**: one switch between Att bekräfta and Historik. The leader gets both, the admin only the log.
 - The Arbetsdagbok generates from `leader_confirmed`. Stage 2 is not a gate.
 - Generating moves the days to Bekräftelse Historik whatever their stage.
 - A stage 2 edit after generation shows in Historik. The PDF is a snapshot and does not change.
