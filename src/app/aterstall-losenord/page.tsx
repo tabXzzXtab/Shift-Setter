@@ -4,7 +4,10 @@ import { useState, type FormEvent } from "react";
 import Link from "next/link";
 import { getSupabase } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/supabase/auth";
-import { Button, Field, Input, Notice, Screen } from "@/components/ui";
+import {
+  C, Card, PrimaryButton, SecondaryButton, SHADOW, SoftField, SoftInput,
+  SoftNotice, SoftScreen,
+} from "@/components/soft";
 
 /**
  * Where the reset mail's link lands -- choosing the new password.
@@ -62,77 +65,95 @@ export default function AterstallLosenordPage() {
 
   if (done) {
     return (
-      <Screen title="Nytt lösenord">
-        <Notice kind="ok">Lösenordet är ändrat.</Notice>
-        <div className="mt-8">
+      // No back button on any of these: a recovery link was not opened from
+      // anywhere inside this app, so there is nowhere behind it to return to.
+      <SoftScreen title="Nytt lösenord">
+        <div className="px-4 pt-[2px]">
+          <SoftNotice tone="live">Lösenordet är ändrat.</SoftNotice>
+        </div>
+        <div className="px-4 pt-[22px]">
           <Link
             href="/login"
-            className="flex min-h-[56px] w-full items-center justify-center border-2 border-black bg-black px-4 text-lg font-bold text-white"
+            className="press-scale flex h-16 w-full items-center justify-center rounded-[12px] text-[20px] font-extrabold transition-[transform,background] duration-150 hover:bg-[#12206b] active:scale-[.985]"
+            style={{
+              letterSpacing: "-.4px",
+              background: C.accent,
+              color: C.surface,
+              boxShadow: SHADOW.action,
+            }}
           >
             Logga in
           </Link>
         </div>
-      </Screen>
+      </SoftScreen>
     );
   }
 
   if (loading) {
     return (
-      <div className="flex min-h-dvh items-center justify-center">
-        <p className="text-sm text-neutral-500">Laddar…</p>
+      <div
+        className="flex min-h-dvh items-center justify-center"
+        style={{ background: C.ground, fontFamily: "var(--font-inter), system-ui, sans-serif" }}
+      >
+        <p className="text-[15px] font-medium" style={{ color: C.text2 }}>Laddar…</p>
       </div>
     );
   }
 
   if (!session) {
     return (
-      <Screen title="Nytt lösenord" back="/login">
-        <Notice kind="error">
-          Länken gäller inte längre. Den kan ha använts redan eller hunnit gå ut.
-        </Notice>
-        <div className="mt-8">
-          <Link
-            href="/glomt-losenord"
-            className="flex min-h-[56px] w-full items-center justify-center border-2 border-black px-4 text-lg font-bold"
-          >
-            Begär en ny länk
-          </Link>
+      <SoftScreen title="Nytt lösenord" back="/login">
+        <div className="px-4 pt-[2px]">
+          <SoftNotice tone="stop">
+            Länken gäller inte längre. Den kan ha använts redan eller hunnit gå ut.
+          </SoftNotice>
         </div>
-      </Screen>
+        <div className="px-4 pt-[22px]">
+          <SecondaryButton href="/glomt-losenord">Begär en ny länk</SecondaryButton>
+        </div>
+      </SoftScreen>
     );
   }
 
   return (
-    <Screen title="Nytt lösenord">
-      {error && <Notice kind="error">{error}</Notice>}
+    <SoftScreen title="Nytt lösenord">
+      {error && <div className="px-4 pb-[4px] pt-[10px]"><SoftNotice tone="stop">{error}</SoftNotice></div>}
 
       <form onSubmit={onSubmit}>
-        <Field label="Nytt lösenord" hint={`${MIN}-${MAX} tecken.`}>
-          <Input
-            type="password"
-            required
-            autoComplete="new-password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
-        </Field>
+        <div className="px-4 pt-[14px]">
+          <Card radius={16} pad="p-[18px]">
+            <div className="mb-[14px]">
+              <SoftField label="Nytt lösenord" help={`${MIN}-${MAX} tecken.`}>
+                <SoftInput
+                  type="password"
+                  required
+                  autoComplete="new-password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  style={{ letterSpacing: "2px" }}
+                />
+              </SoftField>
+            </div>
 
-        <Field label="Upprepa lösenordet">
-          <Input
-            type="password"
-            required
-            autoComplete="new-password"
-            value={repeat}
-            onChange={(e) => setRepeat(e.target.value)}
-          />
-        </Field>
+            <SoftField label="Upprepa lösenordet">
+              <SoftInput
+                type="password"
+                required
+                autoComplete="new-password"
+                value={repeat}
+                onChange={(e) => setRepeat(e.target.value)}
+                style={{ letterSpacing: "2px" }}
+              />
+            </SoftField>
+          </Card>
+        </div>
 
-        <div className="mt-6">
-          <Button type="submit" disabled={saving}>
+        <div className="px-4 pt-[22px]">
+          <PrimaryButton type="submit" disabled={saving}>
             {saving ? "Sparar…" : "Spara lösenord"}
-          </Button>
+          </PrimaryButton>
         </div>
       </form>
-    </Screen>
+    </SoftScreen>
   );
 }

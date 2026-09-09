@@ -1,8 +1,10 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import Link from "next/link";
-import { Button, Field, Input, Notice, Screen } from "@/components/ui";
+import {
+  C, Card, PrimaryButton, SecondaryButton, SoftField, SoftInput, SoftNotice,
+  SoftScreen,
+} from "@/components/soft";
 
 /**
  * Glömt lösenord -- ask for a reset link.
@@ -68,52 +70,60 @@ export default function GlomtLosenordPage() {
 
   if (sent) {
     return (
-      <Screen title="Glömt lösenord" back="/login">
-        <Notice kind="info">
-          Om e-postadressen finns i systemet har ett återställningsmail skickats.
-        </Notice>
-        <p className="mt-6 text-sm text-neutral-600">
+      <SoftScreen title="Glömt lösenord" back="/login">
+        {/* The same sentence whatever the address was. There is no "no such
+            user" branch to draw, because there is no such answer to give. */}
+        <div className="px-4 pt-[2px]">
+          <SoftNotice tone="live">
+            Om e-postadressen finns i systemet har ett återställningsmail skickats.
+          </SoftNotice>
+        </div>
+
+        <p
+          className="px-5 pt-[14px] text-[15px] font-medium"
+          style={{ color: C.text2, textWrap: "pretty" }}
+        >
           Kolla skräpposten om det inte dyker upp. Länken går ut efter en stund —
           begär en ny om den hunnit bli gammal.
         </p>
-        <div className="mt-8">
-          <Link
-            href="/login"
-            className="flex min-h-[56px] w-full items-center justify-center border-2 border-black px-4 text-lg font-bold"
-          >
-            Till inloggningen
-          </Link>
+
+        <div className="px-4 pt-[22px]">
+          <SecondaryButton href="/login">Till inloggningen</SecondaryButton>
         </div>
-      </Screen>
+      </SoftScreen>
     );
   }
 
   return (
-    <Screen title="Glömt lösenord" back="/login">
-      {error && <Notice kind="error">{error}</Notice>}
-
-      <p className="mb-6 text-base text-neutral-700">
-        Skriv din e-postadress så skickar vi en länk för att välja ett nytt
-        lösenord.
-      </p>
+    <SoftScreen
+      title="Glömt lösenord"
+      back="/login"
+      subtitle="Skriv din e-postadress så skickar vi en länk för att välja ett nytt lösenord."
+    >
+      {error && <div className="px-4 pb-[4px] pt-[10px]"><SoftNotice tone="stop">{error}</SoftNotice></div>}
 
       <form onSubmit={onSubmit}>
-        <Field label="E-post">
-          <Input
-            type="email"
-            required
-            autoComplete="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
-        </Field>
+        <div className="px-4 pt-[14px]">
+          <Card radius={16} pad="p-[18px]">
+            <SoftField label="E-post">
+              <SoftInput
+                type="email"
+                required
+                autoComplete="email"
+                placeholder="namn@bolaget.se"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+            </SoftField>
+          </Card>
+        </div>
 
-        <div className="mt-6">
-          <Button type="submit" disabled={submitting}>
+        <div className="px-4 pt-[22px]">
+          <PrimaryButton type="submit" disabled={submitting}>
             {submitting ? "Skickar…" : "Skicka återställningslänk"}
-          </Button>
+          </PrimaryButton>
         </div>
       </form>
-    </Screen>
+    </SoftScreen>
   );
 }

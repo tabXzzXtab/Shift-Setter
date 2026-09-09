@@ -100,7 +100,9 @@ export function SoftScreen({
   title, back, subtitle, children,
 }: {
   title: string;
-  back: string;
+  /** Omitted where there is nowhere to go back TO -- the screen a recovery
+   *  link lands on was not opened from anywhere in this app. */
+  back?: string;
   subtitle?: ReactNode;
   children: ReactNode;
 }) {
@@ -116,7 +118,7 @@ export function SoftScreen({
       }}
     >
       <div className={`flex items-center gap-3 px-4 pt-[14px] ${subtitle ? "pb-[6px]" : "pb-3"}`}>
-        <IconButton label="Tillbaka" href={back}><BackArrow /></IconButton>
+        {back && <IconButton label="Tillbaka" href={back}><BackArrow /></IconButton>}
         <h1 className="text-[22px] font-extrabold" style={{ letterSpacing: "-.7px" }}>
           {title}
         </h1>
@@ -124,7 +126,7 @@ export function SoftScreen({
 
       {subtitle && (
         <p
-          className="pb-1 pl-[72px] pr-4 text-[15px] font-medium"
+          className={`pb-1 pr-4 text-[15px] font-medium ${back ? "pl-[72px]" : "pl-4"}`}
           style={{ color: C.text2, textWrap: "pretty" }}
         >
           {subtitle}
