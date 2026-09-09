@@ -97,7 +97,7 @@ try {
   const panel = page.getByRole("dialog", { name: "Meny" });
   await panel.waitFor({ timeout: 20000 });
 
-  const ITEMS = ["Kalender", "Alla Projekt", "Alla Pass", "Bekräftelser"];
+  const ITEMS = ["Kalender", "Alla Projekt", "Bekräftelser"];
   for (const label of ITEMS) {
     if (!(await panel.getByRole("link", { name: label, exact: true }).count())) {
       await shot(page, "FAILED");
@@ -109,14 +109,14 @@ try {
   // it, and it lives behind the profile icon now -- asserted absent here and
   // present there, because "moved" is two facts and only checking one of them
   // would pass on a version that simply deleted it.
-  for (const gone of ["Inställningar", "Granska Pass", "Bekräftelse Historik"]) {
+  for (const gone of ["Inställningar", "Alla Pass", "Granska Pass", "Bekräftelse Historik"]) {
     if (await panel.getByRole("link", { name: gone, exact: true }).count()) {
       await shot(page, "FAILED");
       fail(`"${gone}" is still in the hamburger menu`);
     }
   }
   await shot(page, "a2-meny");
-  log(`menu holds ${ITEMS.join(", ")} -- and no Inställningar`);
+  log(`menu holds ${ITEMS.join(", ")} -- and no Alla Pass, no Inställningar`);
 
   // Tapping outside closes it.
   await page.getByRole("button", { name: "Stäng", exact: true }).click();
@@ -166,6 +166,93 @@ try {
     }
   }
   log("each account offers role, pause, Ändra konto and Ändra profil");
+
+  // ---- Alla Projekt: the card IS the control -------------------------------
+  //
+  // Nothing on a card until it is tapped. Redigera used to sit there
+  // permanently, which made one of three equal errands look like what a
+  // project is for.
+  await page.goto(`${BASE}/projekt/`, { waitUntil: "networkidle" });
+  const cards = page.locator("section.border-2");
+  await cards.first().waitFor({ timeout: 20000 });
+  if (await page.getByRole("link", { name: "Redigera Projekt", exact: true }).count()) {
+    await shot(page, "FAILED");
+    fail("a project's actions are on the page before any card is tapped");
+  }
+
+  const cardName = (await cards.first().locator("span").first().innerText()).trim();
+  await cards.first().getByRole("button").click();
+
+  const CARD_ACTIONS = [
+    ["Generera Arbetsdagbok", "arbetsdagbok"],
+    ["Redigera Projekt", "projekt/redigera"],
+    ["Kolla Pass", "pass"],
+  ];
+  for (const [label, href] of CARD_ACTIONS) {
+    const link = cards.first().getByRole("link", { name: label, exact: true });
+    if (!(await link.count())) {
+      await shot(page, "FAILED");
+      fail(`tapping a project card does not offer "${label}"`);
+    }
+    const got = await link.getAttribute("href");
+    if (!got?.includes(href)) fail(`"${label}" points at ${got}, expected something under ${href}`);
+  }
+  await shot(page, "a6-projekt-actions");
+  log(`tapping "${cardName}" opens ${CARD_ACTIONS.map(([l]) => l).join(", ")}`);
+
+  // Only one card open at a time: three buttons under every row would be a
+  // wall of identical controls on a screen with three projects.
+  if ((await cards.count()) > 1) {
+    await cards.nth(1).getByRole("button").click();
+    if (await cards.first().getByRole("link", { name: "Kolla Pass", exact: true }).count()) {
+      fail("opening a second project left the first one open");
+    }
+    log("opening another card closes the one before it");
+  }
+
+  // ---- Kolla Pass is scoped to that project --------------------------------
+  //
+  // THE FILTER, ON REAL ROWS. The unfiltered list is read first to find a
+  // project that actually has shifts in the window, and a second project to
+  // prove the filter EXCLUDES as well as includes. Asserting only that our own
+  // rows are present would pass on a filter that does nothing at all.
+  await page.goto(`${BASE}/pass/`, { waitUntil: "networkidle" });
+  await page.waitForTimeout(2500);
+  const allNames = await page.locator("a[href*='/dag'] p.text-lg").allInnerTexts();
+  const distinct = [...new Set(allNames.map((t) => t.trim()))];
+
+  if (distinct.length === 0) {
+    log("no shifts in the next 30 days: the Kolla Pass filter has nothing to be checked against");
+  } else {
+    const mine = distinct[0];
+    const other = distinct.find((n) => n !== mine) ?? null;
+
+    await page.goto(`${BASE}/projekt/`, { waitUntil: "networkidle" });
+    const card = cards.filter({ hasText: mine }).first();
+    await card.waitFor({ timeout: 20000 });
+    await card.getByRole("button").click();
+    await card.getByRole("link", { name: "Kolla Pass", exact: true }).click();
+    await page.waitForURL((u) => u.pathname.includes("/pass"), { timeout: 20000 });
+
+    const asked = new URL(page.url()).searchParams.get("projekt");
+    if (!asked) fail(`Kolla Pass did not name the project: ${page.url()}`);
+    await page.waitForTimeout(2500);
+
+    const shownNames = [...new Set(
+      (await page.locator("a[href*='/dag'] p.text-lg").allInnerTexts()).map((t) => t.trim()))];
+    if (!shownNames.includes(mine)) {
+      await shot(page, "FAILED");
+      fail(`Kolla Pass on "${mine}" shows ${JSON.stringify(shownNames)} -- not its own shifts`);
+    }
+    if (shownNames.length !== 1) {
+      await shot(page, "FAILED");
+      fail(`Kolla Pass on "${mine}" also shows ${JSON.stringify(shownNames.filter((n) => n !== mine))}`);
+    }
+    await shot(page, "a7-kolla-pass");
+    log(other
+      ? `Kolla Pass shows only "${mine}" -- "${other}" is on the unfiltered list and not on this one`
+      : `Kolla Pass shows only "${mine}" (it is the only project with shifts in the window)`);
+  }
 
   // ---- the profile icon -----------------------------------------------------
   await page.goto(`${BASE}/`, { waitUntil: "networkidle" });

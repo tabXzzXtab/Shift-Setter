@@ -182,7 +182,16 @@ try {
   // ---- one clocks in, one never comes -----------------------------------
   await signIn(page, A.email, A.password);
   await page.getByRole("button", { name: /Stämpla In/ }).click();
-  await mustSee(page, "Du är instämplad.", `${A.name} could not clock in`);
+  // THE BUTTON IS THE CONFIRMATION. The handoff's startsida carries a status
+  // dot and no status text -- "Du är instämplad." is gone with the sentence it
+  // was -- so what proves the stamp landed is that the one action on the
+  // screen has flipped to its other state.
+  try {
+    await page.getByRole("button", { name: /Stämpla Ut/ }).waitFor({ timeout: 20000 });
+  } catch {
+    await shot(page, "FAILED");
+    fail(`${A.name} could not clock in`);
+  }
   await signOut(page);
   log(`${A.name} clocked in; ${B.name} never did`);
 

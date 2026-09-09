@@ -632,7 +632,16 @@ Each role lands on what it does most, and nothing important is more than one pre
 
 The list is the work. Those three buttons sit above it because creating is the only thing an owner does that a list cannot show him.
 
-**Redigera Projekt.** Every card in Alla Projekt carries a **Redigera** button, opening an edit page on all seven of the project's business fields — name, site address, start date, services, and the three bestallare fields. Admin only; anyone else is sent to their own landing page. The route is `/projekt/redigera?id=<uuid>` and **not** `/projekt/<id>/redigera`, because there is no server (Section 6): a static export writes one file per route at build time, and a project id does not exist until long after the build. Next refuses a dynamic route without `generateStaticParams` under `output: "export"`, and no build could enumerate a uuid minted later.
+**The card is the control.** A project in Alla Projekt shows nothing but its
+name, address and start date until it is tapped; tapping it opens the three
+things done to a project — **Generera Arbetsdagbok**, **Redigera Projekt**,
+**Kolla Pass** — and closes whichever card was open before. A project is not a
+page you read, it is a thing you do one of three errands to, and leaving one
+of them on the card permanently made that one look like what a project is for.
+One open at a time, because three buttons under every row is a wall of
+identical controls on a screen with three projects.
+
+**Redigera Projekt** opens an edit page on all seven of the project's business fields — name, site address, start date, services, and the three bestallare fields. Admin only; anyone else is sent to their own landing page. The route is `/projekt/redigera?id=<uuid>` and **not** `/projekt/<id>/redigera`, because there is no server (Section 6): a static export writes one file per route at build time, and a project id does not exist until long after the build. Next refuses a dynamic route without `generateStaticParams` under `output: "export"`, and no build could enumerate a uuid minted later.
 
 **Ta bort projekt** sits at the bottom of that page, behind a confirmation step — *Är du säker? Detta går inte att ångra.* It is refused while anybody is still booked onto a day that has not happened yet: *Projektet har aktiva pass och kan inte tas bort.* Today and future only. Work already done is what a finished project is made of, and blocking on it would make every completed project permanent — while a live assignment on a future day is a person whose booking the deletion would take away.
 
@@ -644,8 +653,15 @@ Adding that filter is also what makes `public.delete_project()` necessary rather
 
 - Kalender
 - Alla Projekt
-- Alla Pass
 - **Bekräftelser** — stage 2 and its log, one entry (Section 6)
+
+Alla Pass is not in it. A company-wide list of every shift the firm runs
+answered a question nobody asks: the calendar is where shape is read, and a
+shift belongs to the project it runs on. The screen still exists and is still
+one screen — it takes `?projekt=` and Alla Projekt opens it per project as
+**Kolla Pass**. That is a filter and not a boundary: RLS has already decided
+which shifts exist for the caller, and narrowing a list the database narrowed
+cannot widen it.
 
 **Top right:** the profile icon, and behind it **Konto**, **Profil**,
 **Inställningar** and Logga ut. Inställningar was in the hamburger and is not

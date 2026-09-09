@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { AuthGate } from "@/components/auth-gate";
 import { Button, Empty, Input, Notice, Screen } from "@/components/ui";
 import { getSupabase } from "@/lib/supabase/client";
@@ -36,8 +37,15 @@ type Pass = {
  * that has finished is a fact and is confirmed. Three different acts, and
  * keeping them on three different screens is what stops the wrong one being
  * reached for.
+ *
+ * SCOPED TO ONE PROJECT by ?projekt=, which is how Alla Projekt's "Kolla pass"
+ * opens it. That is a filter and not a boundary: RLS already decides which
+ * shifts exist for the caller, and narrowing a list the database has already
+ * narrowed cannot widen it. Without the parameter it is every project, as
+ * before -- the screen is the same screen either way, which is why it is not
+ * a second page.
  */
-function AllaPass() {
+function AllaPass({ askedProject }: { askedProject: string | null }) {
   const { account } = useAccount();
   const [from, setFrom] = useState(() => stockholmToday());
   const [rows, setRows] = useState<Pass[] | null>(null);
@@ -56,21 +64,23 @@ function AllaPass() {
   useEffect(() => {
     let live = true;
     void (async () => {
-      const { data, error } = await getSupabase()
+      let q = getSupabase()
         .from("pass")
         .select("id, work_date, start_time, end_time, headcount, project_id, project(name)")
         .is("deleted_at", null)
         .gte("work_date", from)
-        .lte("work_date", to)
-        .order("work_date")
-        .order("start_time");
+        .lte("work_date", to);
+
+      if (askedProject) q = q.eq("project_id", askedProject);
+
+      const { data, error } = await q.order("work_date").order("start_time");
 
       if (!live) return;
       if (error) { setError(error.message); setRows([]); return; }
       setRows((data ?? []) as unknown as Pass[]);
     })();
     return () => { live = false; };
-  }, [from, to, reload]);
+  }, [from, to, reload, askedProject]);
 
   // A minute is fine here. Unlike Nästa Pass this is a control appearing and
   // disappearing rather than the answer to "where am I next", and close_pass
@@ -118,8 +128,14 @@ function AllaPass() {
   }
 
   return (
-    <Screen title="Alla Pass" back="/">
+    <Screen
+      title={askedProject ? (rows?.[0]?.project?.name ?? "Pass") : "Alla Pass"}
+      back={askedProject ? "/projekt" : "/"}
+    >
       {error && <Notice kind="error">{error}</Notice>}
+      {askedProject && (
+        <p className="mb-4 text-base text-neutral-700">Pass i det här projektet.</p>
+      )}
       {note && <Notice kind="ok">{note}</Notice>}
 
       {/*
@@ -239,10 +255,24 @@ function AllaPass() {
   );
 }
 
+/**
+ * The project arrives as ?projekt=. useSearchParams needs a Suspense boundary
+ * in a statically exported app -- the query string is not known when the page
+ * is prerendered, only when a browser opens it.
+ *
+ * Shape-checked before it is used: a uuid, or nothing.
+ */
+function AllaPassFromUrl() {
+  const asked = useSearchParams().get("projekt");
+  return <AllaPass askedProject={asked && /^[0-9a-f-]{36}$/i.test(asked) ? asked : null} />;
+}
+
 export default function Page() {
   return (
     <AuthGate>
-      <AllaPass />
+      <Suspense fallback={<Screen title="Alla Pass" back="/"><span>Laddar…</span></Screen>}>
+        <AllaPassFromUrl />
+      </Suspense>
     </AuthGate>
   );
 }

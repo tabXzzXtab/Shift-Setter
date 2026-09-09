@@ -25,8 +25,10 @@ type Row = {
  */
 const MENU: MenuItem[] = [
   { href: "/kalender", label: "Kalender" },
+  // Alla Pass is not here. A company-wide list of every shift answered a
+  // question nobody asks; shifts belong to the project they run on, and Alla
+  // Projekt opens them per project as "Kolla pass".
   { href: "/projekt", label: "Alla Projekt" },
-  { href: "/pass", label: "Alla Pass" },
   // Stage 2 AND its log, one entry. In the menu rather than above the list:
   // the three buttons are the things an owner creates, and a review queue is
   // not one. Granska Pass is still a page -- it is where a day is reviewed --
