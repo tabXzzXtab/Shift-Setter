@@ -72,7 +72,22 @@ export function DropPanel({
 
 export type MenuItem = { href: string; label: string };
 
-export function AppBar({ title, menu }: { title: string; menu: MenuItem[] }) {
+/**
+ * `profileMenu` is for what belongs to the ACCOUNT rather than to the work.
+ *
+ * Inställningar is the admin's settings and the account list, and it sat in
+ * the hamburger next to Kalender and Alla Projekt -- which are the work. It
+ * lives behind the profile icon now, with Konto and Profil, because that is
+ * where a person looks for "things about me and this installation" rather
+ * than "things I do today".
+ */
+export function AppBar({
+  title, menu, profileMenu = [],
+}: {
+  title: string;
+  menu: MenuItem[];
+  profileMenu?: MenuItem[];
+}) {
   const [open, setOpen] = useState<"menu" | "profile" | null>(null);
 
   return (
@@ -133,6 +148,15 @@ export function AppBar({ title, menu }: { title: string; menu: MenuItem[] }) {
           >
             Profil
           </Link>
+          {profileMenu.map((m) => (
+            <Link
+              key={m.href}
+              href={m.href}
+              className="flex min-h-[56px] w-full items-center justify-center border-2 border-black px-4 text-lg font-bold"
+            >
+              {m.label}
+            </Link>
+          ))}
           <SignOut />
         </div>
       </DropPanel>

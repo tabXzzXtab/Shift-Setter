@@ -97,15 +97,26 @@ try {
   const panel = page.getByRole("dialog", { name: "Meny" });
   await panel.waitFor({ timeout: 20000 });
 
-  const ITEMS = ["Kalender", "Alla Projekt", "Alla Pass", "Inställningar"];
+  const ITEMS = ["Kalender", "Alla Projekt", "Alla Pass", "Bekräftelser"];
   for (const label of ITEMS) {
     if (!(await panel.getByRole("link", { name: label, exact: true }).count())) {
       await shot(page, "FAILED");
       fail(`the menu has no "${label}"`);
     }
   }
+
+  // The menu is the WORK. Inställningar is this installation and the people in
+  // it, and it lives behind the profile icon now -- asserted absent here and
+  // present there, because "moved" is two facts and only checking one of them
+  // would pass on a version that simply deleted it.
+  for (const gone of ["Inställningar", "Granska Pass", "Bekräftelse Historik"]) {
+    if (await panel.getByRole("link", { name: gone, exact: true }).count()) {
+      await shot(page, "FAILED");
+      fail(`"${gone}" is still in the hamburger menu`);
+    }
+  }
   await shot(page, "a2-meny");
-  log(`menu holds ${ITEMS.join(", ")}`);
+  log(`menu holds ${ITEMS.join(", ")} -- and no Inställningar`);
 
   // Tapping outside closes it.
   await page.getByRole("button", { name: "Stäng", exact: true }).click();
@@ -126,9 +137,11 @@ try {
   }
   log(`Alla Projekt: ${n} rows, first reads ${JSON.stringify(first.replace(/\n/g, " | "))}`);
 
-  // ---- Inställningar and the Konton -----------------------------------------
-  await page.getByRole("button", { name: "Meny", exact: true }).click();
-  await page.getByRole("link", { name: "Inställningar", exact: true }).click();
+  // ---- Inställningar, reached from the profile icon -------------------------
+  await page.getByRole("button", { name: "Profil", exact: true }).click();
+  const ipop = page.getByRole("dialog", { name: "Profil" });
+  await ipop.waitFor({ timeout: 20000 });
+  await ipop.getByRole("link", { name: "Inställningar", exact: true }).click();
   await page.waitForURL((u) => u.pathname.includes("/installningar"), { timeout: 20000 });
   await mustSee(page, "Konton", "Inställningar has no Konton list");
 
@@ -160,14 +173,14 @@ try {
   await page.getByRole("button", { name: "Profil", exact: true }).click();
   const pop = page.getByRole("dialog", { name: "Profil" });
   await pop.waitFor({ timeout: 20000 });
-  for (const label of ["Konto", "Profil"]) {
+  for (const label of ["Konto", "Profil", "Inställningar"]) {
     if (!(await pop.getByRole("link", { name: label, exact: true }).count())) {
       await shot(page, "FAILED");
       fail(`the profile popup has no "${label}" button`);
     }
   }
   await shot(page, "a4-profil-popup");
-  log("profile icon opens Konto and Profil");
+  log("profile icon opens Konto, Profil and Inställningar");
 
   await pop.getByRole("link", { name: "Profil", exact: true }).click();
   await page.waitForURL((u) => u.pathname.includes("/profil"), { timeout: 20000 });

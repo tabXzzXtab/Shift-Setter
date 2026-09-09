@@ -640,14 +640,20 @@ The deletion is **soft**, and that is not a detail. `deleted_at` is set and the 
 
 Adding that filter is also what makes `public.delete_project()` necessary rather than merely tidy. RLS is re-applied to the row an UPDATE produces, so a policy carrying `deleted_at is null` refuses the write the instant the column is set — the same wall `public.delete_pass()` was built against. Setting `deleted_at` from a client is therefore closed to everybody, admin included, and the function is the only route in. It is where the refusal above lives, which is why the confirmation step in front of it is a courtesy and not the rule.
 
-**Hamburger menu**, top left:
+**Hamburger menu**, top left — the WORK:
 
 - Kalender
 - Alla Projekt
 - Alla Pass
-- Alla Arbetare — **+ Ny Arbetare** lives inside it, not on the landing page
+- **Bekräftelser** — stage 2 and its log, one entry (Section 6)
 
-**Top right:** the profile icon.
+**Top right:** the profile icon, and behind it **Konto**, **Profil**,
+**Inställningar** and Logga ut. Inställningar was in the hamburger and is not
+any more: the menu is what an owner *does* — the calendar, the projects, the
+days waiting — and Inställningar is this installation and the people in it,
+which is what someone opens their own icon looking for. Alla Arbetare is
+reached the same way, inside Inställningar, and **+ Ny Arbetare** lives there
+rather than on the landing page.
 
 The Arbetsdagbok is not in either place. It lives inside the project (Section 1).
 

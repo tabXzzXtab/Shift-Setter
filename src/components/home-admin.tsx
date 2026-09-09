@@ -32,6 +32,12 @@ const MENU: MenuItem[] = [
   // not one. Granska Pass is still a page -- it is where a day is reviewed --
   // but it is reached from the queue that names the day, not from here.
   { href: "/historik", label: "Bekräftelser" },
+];
+
+// Behind the profile icon, not in the hamburger. The menu is the work --
+// Kalender, the projects, the days waiting. Inställningar is this installation
+// and the people in it, which is what someone opens their own icon looking for.
+const PROFILE_MENU: MenuItem[] = [
   { href: "/installningar", label: "Inställningar" },
 ];
 
@@ -64,7 +70,7 @@ export function HomeAdmin() {
 
   return (
     <Landing>
-      <AppBar title="Admin" menu={MENU} />
+      <AppBar title="Admin" menu={MENU} profileMenu={PROFILE_MENU} />
 
       <div className="mb-8 flex flex-col gap-3">
         <ActionLink href="/projekt/ny">Nytt Projekt</ActionLink>
