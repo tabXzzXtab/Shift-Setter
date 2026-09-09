@@ -3,9 +3,8 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { SoftNastaPass } from "./nasta-pass-card";
-import { SignOut } from "./ui";
 import {
-  C, Card, GroupedList, SHADOW, SoftNotice, SoftSheet,
+  C, Card, GroupedList, SHADOW, SignOut, SoftNotice, SoftSheet,
 } from "./soft";
 import { pendingDays } from "@/lib/pending-days";
 
@@ -222,9 +221,8 @@ export function HomeArbetsledare() {
       {open === "profile" && (
         <SoftSheet onClose={() => setOpen(null)} label="Profil">
           <GroupedList rows={[{ href: "/konto", label: "Konto" }, { href: "/profil", label: "Profil" }]} />
-          {/* SignOut is ui.tsx's, and stays there: one place signs out, whatever
-              the screen around it looks like. */}
-          <SignOut soft />
+          {/* One place signs out, whatever the screen around it looks like. */}
+          <SignOut />
         </SoftSheet>
       )}
     </div>

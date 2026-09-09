@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Button, Notice } from "./ui";
+import { C, ChoiceList, EmptyState, SecondaryButton, SoftDialog, SoftNotice } from "./soft";
 import { getSupabase } from "@/lib/supabase/client";
 import { longDayHeading } from "@/lib/dates";
 
@@ -70,52 +70,35 @@ export function BytaPlats({
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50 overflow-y-auto bg-black/70 p-4"
-      role="dialog"
-      aria-modal="true"
-      aria-label="Byta plats med arbetsledare"
-    >
-      <div className="mx-auto w-full max-w-md border-2 border-black bg-white p-4">
-        {error && <Notice kind="error">{error}</Notice>}
+    <SoftDialog label="Byta plats med arbetsledare">
+      {error && <div className="pb-[14px]"><SoftNotice tone="stop">{error}</SoftNotice></div>}
 
-        <h2 className="mb-1 text-xl font-bold">
-          Vem ska {options.leader_name} byta plats med?
-        </h2>
-        <p className="mb-4 text-base">
-          {options.project_name} · {longDayHeading(options.work_date)}
-        </p>
+      <h2 className="text-[19px] font-extrabold" style={{ letterSpacing: "-.5px" }}>
+        Vem ska {options.leader_name} byta plats med?
+      </h2>
+      <p className="mb-[14px] mt-1 text-[15px] font-medium" style={{ color: C.text2 }}>
+        {options.project_name} · {longDayHeading(options.work_date)}
+      </p>
 
+      <div className="mb-[14px]">
         {options.partners.length === 0 ? (
-          <p className="mb-4 border-2 border-dashed border-black p-4 text-center text-base">
-            Ingen annan arbetsledare har ett pass att byta den dagen.
-          </p>
+          <EmptyState>Ingen annan arbetsledare har ett pass att byta den dagen.</EmptyState>
         ) : (
-          <div className="mb-4 flex flex-col gap-2">
-            {options.partners.map((p) => (
-              <button
-                key={p.tilldelning}
-                type="button"
-                onClick={() => swap(p)}
-                disabled={busy}
-                className="flex min-h-[64px] w-full items-center justify-between gap-3 border-2 border-black px-4 text-left disabled:opacity-30"
-              >
-                <span>
-                  <span className="block text-lg font-bold">{p.name}</span>
-                  <span className="block text-base">
-                    {p.project_name} · {p.start_time}–{p.end_time}
-                  </span>
-                </span>
-                <span aria-hidden className="shrink-0 text-2xl">⇄</span>
-              </button>
-            ))}
-          </div>
+          <ChoiceList
+            disabled={busy}
+            choices={options.partners.map((p) => ({
+              key: p.tilldelning,
+              label: p.name,
+              sub: `${p.project_name} · ${p.start_time}–${p.end_time}`,
+              onClick: () => swap(p),
+            }))}
+          />
         )}
-
-        <Button variant="outline" onClick={onClose} disabled={busy}>
-          Avbryt
-        </Button>
       </div>
-    </div>
+
+      <SecondaryButton onClick={onClose} disabled={busy}>
+        Avbryt
+      </SecondaryButton>
+    </SoftDialog>
   );
 }

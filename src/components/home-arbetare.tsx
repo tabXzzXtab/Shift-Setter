@@ -4,8 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { SoftNastaPass } from "./nasta-pass-card";
 import { OfferStack, type Offer } from "./offer-stack";
-import { GroupedList, SoftSheet } from "./soft";
-import { SignOut } from "./ui";
+import { GroupedList, SignOut, SoftSheet } from "./soft";
 import { getSupabase } from "@/lib/supabase/client";
 import { addDays, hhmm, stockholmToday } from "@/lib/dates";
 import { stampGate } from "@/lib/geo";
@@ -90,7 +89,7 @@ const Chevron = () => (
  * buttons are a different shape and AppBar is shared with the admin screens,
  * which this redesign does not cover. Behind those buttons are soft.tsx's
  * bottom sheets, the same two the arbetsledare's startsida opens, and the
- * "Logga ut" inside one of them is still ui.tsx's single SignOut.
+ * "Logga ut" inside one of them is the app's single SignOut.
  */
 export function HomeArbetare() {
   const [shift, setShift] = useState<Shift | null | undefined>(undefined);
@@ -467,9 +466,8 @@ export function HomeArbetare() {
       {open === "profile" && (
         <SoftSheet onClose={() => setOpen(null)} label="Profil">
           <GroupedList rows={[{ href: "/konto", label: "Konto" }, { href: "/profil", label: "Profil" }]} />
-          {/* SignOut is ui.tsx's, and stays there: one place signs out, whatever
-              the screen around it looks like. */}
-          <SignOut soft />
+          {/* One place signs out, whatever the screen around it looks like. */}
+          <SignOut />
         </SoftSheet>
       )}
     </div>

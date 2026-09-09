@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 import {
-  C, Card, ChevronRight, EmptyState, SecondaryButton, SHADOW, SoftField,
-  SoftInput, SoftNotice, Tag,
+  C, Card, ChoiceList, EmptyState, SecondaryButton, SHADOW, SoftDialog,
+  SoftField, SoftInput, SoftNotice, Tag,
 } from "@/components/soft";
 import { BytArbetsledare, replacementOptions, type Options } from "./byt-arbetsledare";
 import { BytaPlats, swapPartners, type SwapOptions } from "./byta-plats";
@@ -321,56 +321,33 @@ export function DagPanel({ date }: { date: string }) {
         back after they decided to handle it themselves.
       */}
       {vacancy && (
-        <div
-          className="fixed inset-0 z-50 overflow-y-auto p-4"
-          style={{ background: "rgba(9,21,64,.42)" }}
-          role="dialog"
-          aria-modal="true"
-          aria-label="Välj Utbyte"
-        >
-          <div
-            className="mx-auto mt-[60px] w-full max-w-[358px]"
-            style={{ fontFamily: "var(--font-inter), system-ui, sans-serif" }}
+        <SoftDialog label="Välj Utbyte">
+          <h2 className="text-[19px] font-extrabold" style={{ letterSpacing: "-.5px" }}>
+            Välj Utbyte
+          </h2>
+          <p
+            className="mb-[14px] mt-1 text-[15px] font-medium"
+            style={{ color: C.text2, textWrap: "pretty" }}
           >
-            <Card radius={16} shadow={SHADOW.hero} pad="p-[18px]">
-              <h2 className="text-[19px] font-extrabold" style={{ letterSpacing: "-.5px" }}>
-                Välj Utbyte
-              </h2>
-              <p
-                className="mb-[14px] mt-1 text-[15px] font-medium"
-                style={{ color: C.text2, textWrap: "pretty" }}
-              >
-                {vacancy.removed} är borttagen. De här har förvalt {vacancy.work_date} och
-                är lediga.
-              </p>
+            {vacancy.removed} är borttagen. De här har förvalt {vacancy.work_date} och
+            är lediga.
+          </p>
 
-              <div
-                className="mb-3 overflow-hidden rounded-[14px]"
-                style={{ background: C.surface, boxShadow: SHADOW.group }}
-              >
-                {vacancy.replacements.map((r, i) => (
-                  <div key={r.worker_id}>
-                    {i > 0 && <div className="ml-[18px] h-px" style={{ background: C.hairline }} />}
-                    <button
-                      type="button"
-                      onClick={() => place(r.worker_id, r.name)}
-                      disabled={busy === r.worker_id}
-                      className="flex h-[60px] w-full items-center justify-between px-[18px] text-[17px] font-bold hover:bg-[#f6f9ff] disabled:opacity-40"
-                      style={{ letterSpacing: "-.2px" }}
-                    >
-                      <span>{r.name}</span>
-                      <ChevronRight />
-                    </button>
-                  </div>
-                ))}
-              </div>
-
-              <SecondaryButton onClick={() => setVacancy(null)}>
-                Ingen av dem
-              </SecondaryButton>
-            </Card>
+          <div className="mb-3">
+            <ChoiceList
+              disabled={busy !== null}
+              choices={vacancy.replacements.map((r) => ({
+                key: r.worker_id,
+                label: r.name,
+                onClick: () => place(r.worker_id, r.name),
+              }))}
+            />
           </div>
-        </div>
+
+          <SecondaryButton onClick={() => setVacancy(null)}>
+            Ingen av dem
+          </SecondaryButton>
+        </SoftDialog>
       )}
 
       {trade && (

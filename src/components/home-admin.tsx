@@ -2,9 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { SignOut } from "./ui";
 import {
-  C, Card, EmptyState, GroupedList, SHADOW, SoftNotice, SoftSheet,
+  C, Card, EmptyState, GroupedList, SHADOW, SignOut, SoftNotice, SoftSheet,
 } from "./soft";
 import { getSupabase } from "@/lib/supabase/client";
 
@@ -255,9 +254,8 @@ export function HomeAdmin() {
       {open === "profile" && (
         <SoftSheet onClose={() => setOpen(null)} label="Profil">
           <GroupedList rows={PROFILE_MENU} />
-          {/* SignOut is ui.tsx's, and stays there: one place signs out, whatever
-              the screen around it looks like. */}
-          <SignOut soft />
+          {/* One place signs out, whatever the screen around it looks like. */}
+          <SignOut />
         </SoftSheet>
       )}
     </main>

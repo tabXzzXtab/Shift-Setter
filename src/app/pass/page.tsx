@@ -5,7 +5,7 @@ import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { AuthGate } from "@/components/auth-gate";
 import {
-  C, Card, EmptyState, PrimaryButton, SecondaryButton, SHADOW, SoftField,
+  C, EmptyState, PrimaryButton, SecondaryButton, SHADOW, SoftDialog, SoftField,
   SoftInput, SoftNotice, SoftScreen, Tag,
 } from "@/components/soft";
 import { getSupabase } from "@/lib/supabase/client";
@@ -171,52 +171,39 @@ function AllaPass({ askedProject }: { askedProject: string | null }) {
         language instead: the sheet's scrim, a white card, the 64px primary.
       */}
       {closing && (
-        <div
-          className="fixed inset-0 z-50 overflow-y-auto p-4"
-          style={{ background: "rgba(9,21,64,.42)" }}
-          role="dialog"
-          aria-modal="true"
-          aria-label="Stäng pass"
-        >
-          <div
-            className="mx-auto mt-[60px] w-full max-w-[358px]"
-            style={{ fontFamily: "var(--font-inter), system-ui, sans-serif" }}
-          >
-            <Card radius={16} shadow={SHADOW.hero} pad="p-[18px]">
-              <h2 className="text-[19px] font-extrabold" style={{ letterSpacing: "-.5px" }}>
-                Vill du logga tiden detta passet har jobbat?
-              </h2>
-              <p className="mb-[14px] mt-1 text-[15px] font-medium" style={{ color: C.text2 }}>
-                {closing.project?.name ?? "Projekt"} ·{" "}
-                {hhmm(closing.start_time)}–{hhmm(closing.end_time)}
-              </p>
+        <SoftDialog label="Stäng pass">
+          <h2 className="text-[19px] font-extrabold" style={{ letterSpacing: "-.5px" }}>
+            Vill du logga tiden detta passet har jobbat?
+          </h2>
+          <p className="mb-[14px] mt-1 text-[15px] font-medium" style={{ color: C.text2 }}>
+            {closing.project?.name ?? "Projekt"} ·{" "}
+            {hhmm(closing.start_time)}–{hhmm(closing.end_time)}
+          </p>
 
-              <div className="mb-[18px]">
-                <SoftField
-                  label="Timmar"
-                  help="Loggas på alla som stämplade in. De som aldrig kom tas bort från passet."
-                  big
-                >
-                  <SoftInput
-                    inputMode="decimal"
-                    value={hours}
-                    aria-label="Timmar passet har jobbat"
-                    onChange={(e) => setHours(e.target.value)}
-                  />
-                </SoftField>
-              </div>
-
-              <div className="mb-[10px]">
-                <PrimaryButton onClick={close} disabled={busy}>
-                  {busy ? "Stänger…" : "Stäng passet"}
-                </PrimaryButton>
-              </div>
-              <SecondaryButton onClick={() => setClosing(null)} disabled={busy}>
-                Avbryt
-              </SecondaryButton>
-            </Card>
+          <div className="mb-[18px]">
+            <SoftField
+              label="Timmar"
+              help="Loggas på alla som stämplade in. De som aldrig kom tas bort från passet."
+              big
+            >
+              <SoftInput
+                inputMode="decimal"
+                value={hours}
+                aria-label="Timmar passet har jobbat"
+                onChange={(e) => setHours(e.target.value)}
+              />
+            </SoftField>
           </div>
-        </div>
+
+          <div className="mb-[10px]">
+            <PrimaryButton onClick={close} disabled={busy}>
+              {busy ? "Stänger…" : "Stäng passet"}
+            </PrimaryButton>
+          </div>
+          <SecondaryButton onClick={() => setClosing(null)} disabled={busy}>
+            Avbryt
+          </SecondaryButton>
+        </SoftDialog>
       )}
 
       {/* ---- the period pager ---------------------------------------------- */}

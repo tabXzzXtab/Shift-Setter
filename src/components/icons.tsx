@@ -1,39 +1,15 @@
 /**
  * Drawn, not imported.
  *
- * Three lines and a head and shoulders need no icon font, and a font would be
- * one more thing to load before a phone on a building site can see its
- * buttons. `currentColor` throughout, so an icon inside a black button is
- * white without anything being told twice.
+ * A pin needs no icon font, and a font would be one more thing to load before
+ * a phone on a building site can see its buttons. `currentColor`, so it takes
+ * the colour of whatever it sits in.
+ *
+ * The hamburger, the profile head and the plus used to live here too. They are
+ * drawn inline now, at the exact sizes and stroke widths the handoff gives
+ * them -- 20x14 at 2.2, 20x20 at 2, 15x15 at 2.4 -- which a shared 24x24 icon
+ * could only approximate.
  */
-
-export const Hamburger = () => (
-  <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden focusable="false">
-    <g stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-      <line x1="3" y1="6" x2="21" y2="6" />
-      <line x1="3" y1="12" x2="21" y2="12" />
-      <line x1="3" y1="18" x2="21" y2="18" />
-    </g>
-  </svg>
-);
-
-export const ProfileIcon = () => (
-  <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden focusable="false">
-    <g stroke="currentColor" strokeWidth="2.2" fill="none" strokeLinecap="round">
-      <circle cx="12" cy="8" r="4" />
-      <path d="M4 20c0-4 3.6-6 8-6s8 2 8 6" />
-    </g>
-  </svg>
-);
-
-export const PlusIcon = () => (
-  <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden focusable="false">
-    <g stroke="currentColor" strokeWidth="2.8" strokeLinecap="round">
-      <line x1="12" y1="5" x2="12" y2="19" />
-      <line x1="5" y1="12" x2="19" y2="12" />
-    </g>
-  </svg>
-);
 
 export const PinIcon = () => (
   <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden focusable="false">

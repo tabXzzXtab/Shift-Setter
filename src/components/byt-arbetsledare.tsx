@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { Button, Notice } from "./ui";
+import {
+  C, ChoiceList, EmptyState, SecondaryButton, SoftDialog, SoftNotice,
+} from "./soft";
 import { getSupabase } from "@/lib/supabase/client";
 import { useAccount } from "@/lib/account";
 import { longDayHeading } from "@/lib/dates";
@@ -95,105 +97,92 @@ export function BytArbetsledare({
     );
 
   return (
-    <div
-      className="fixed inset-0 z-50 overflow-y-auto bg-black/70 p-4"
-      role="dialog"
-      aria-modal="true"
-      aria-label="Byt arbetsledare"
-    >
-      <div className="mx-auto w-full max-w-md border-2 border-black bg-white p-4">
-        {error && <Notice kind="error">{error}</Notice>}
+    <SoftDialog label="Byt arbetsledare">
+      {error && <div className="pb-[14px]"><SoftNotice tone="stop">{error}</SoftNotice></div>}
 
-        <h2 className="mb-1 text-xl font-bold">
-          Vem ska byta ut {options.leader_name}?
-        </h2>
-        <p className="mb-4 text-base">
-          {options.project_name} · {longDayHeading(options.work_date)}
-        </p>
+      <h2 className="text-[19px] font-extrabold" style={{ letterSpacing: "-.5px" }}>
+        Vem ska byta ut {options.leader_name}?
+      </h2>
+      <p className="mb-[14px] mt-1 text-[15px] font-medium" style={{ color: C.text2 }}>
+        {options.project_name} · {longDayHeading(options.work_date)}
+      </p>
 
-        {options.leaders.length > 0 ? (
-          <div className="mb-4 flex flex-col gap-2">
-            {options.leaders.map((l) => (
-              <button
-                key={l.worker_id}
-                type="button"
-                onClick={() => swap(l.worker_id, l.name)}
-                disabled={busy}
-                className="flex min-h-[56px] w-full items-center justify-between border-2 border-black px-4 text-lg font-bold disabled:opacity-30"
-              >
-                <span>{l.name}</span>
-                <span aria-hidden className="text-2xl">→</span>
-              </button>
-            ))}
-          </div>
-        ) : (
-          <>
-            <p className="mb-4 text-base">
-              Ingen annan arbetsledare är ledig den dagen.
-            </p>
+      {options.leaders.length > 0 ? (
+        <div className="mb-[14px]">
+          <ChoiceList
+            disabled={busy}
+            choices={options.leaders.map((l) => ({
+              key: l.worker_id,
+              label: l.name,
+              onClick: () => swap(l.worker_id, l.name),
+            }))}
+          />
+        </div>
+      ) : (
+        <>
+          <p className="mb-[14px] text-[15px] font-medium" style={{ color: C.text2 }}>
+            Ingen annan arbetsledare är ledig den dagen.
+          </p>
 
-            {!isAdmin && (
-              <p className="mb-4 border-2 border-black p-3 text-base">
+          {!isAdmin && (
+            <div className="mb-[14px]">
+              <SoftNotice tone="quiet">
                 Kontakta administratören. Bara han kan låta dagen köras utan
                 arbetsledare.
+              </SoftNotice>
+            </div>
+          )}
+
+          {/* Offered only when there is no leader to offer, and only to the
+              person who may make that call. */}
+          {isAdmin && !roster ? (
+            <div className="mb-[14px]">
+              <SecondaryButton onClick={() => setRoster(true)} disabled={busy}>
+                Gör Arbetare Ansvarig
+              </SecondaryButton>
+            </div>
+          ) : isAdmin ? (
+            <div className="mb-[14px]">
+              <p className="mb-[10px] text-[15px] font-medium" style={{ color: C.text2, textWrap: "pretty" }}>
+                Vem på passet höll ihop dagen? Dagen går då direkt till
+                administratören.
               </p>
-            )}
+              {options.roster.length > 0 ? (
+                <ChoiceList
+                  disabled={busy}
+                  choices={options.roster.map((r) => ({
+                    key: r.worker_id,
+                    label: r.name,
+                    onClick: () => ansvarig(r.worker_id, r.name),
+                  }))}
+                />
+              ) : (
+                <EmptyState>Ingen är tilldelad passet.</EmptyState>
+              )}
+            </div>
+          ) : null}
+        </>
+      )}
 
-            {/* Offered only when there is no leader to offer, and only to the
-                person who may make that call. */}
-            {isAdmin && !roster ? (
-              <div className="mb-4">
-                <Button variant="outline" onClick={() => setRoster(true)} disabled={busy}>
-                  Gör Arbetare Ansvarig
-                </Button>
-              </div>
-            ) : isAdmin ? (
-              <div className="mb-4 flex flex-col gap-2">
-                <p className="text-base">
-                  Vem på passet höll ihop dagen? Dagen går då direkt till
-                  administratören.
-                </p>
-                {options.roster.map((r) => (
-                  <button
-                    key={r.worker_id}
-                    type="button"
-                    onClick={() => ansvarig(r.worker_id, r.name)}
-                    disabled={busy}
-                    className="flex min-h-[56px] w-full items-center justify-between border-2 border-black px-4 text-lg font-bold disabled:opacity-30"
-                  >
-                    <span>{r.name}</span>
-                    <span aria-hidden className="text-2xl">→</span>
-                  </button>
-                ))}
-                {options.roster.length === 0 && (
-                  <p className="border-2 border-dashed border-black p-4 text-center text-base">
-                    Ingen är tilldelad passet.
-                  </p>
-                )}
-              </div>
-            ) : null}
-          </>
-        )}
+      <SecondaryButton onClick={onClose} disabled={busy}>
+        Avbryt
+      </SecondaryButton>
 
-        <Button variant="outline" onClick={onClose} disabled={busy}>
-          Avbryt
-        </Button>
-
-        {/* The least prominent control on the popup, deliberately. It is the
-            worst of the three outcomes and must never be the easy press. */}
-        {isAdmin && (
-          <div className="mt-6 text-center">
-            <button
-              type="button"
-              onClick={unsupervised}
-              disabled={busy}
-              className="text-sm underline underline-offset-2 disabled:opacity-30"
-            >
-              Ingen Arbetsledare
-            </button>
-          </div>
-        )}
-      </div>
-    </div>
+      {/* The least prominent control on the popup, deliberately. It is the
+          worst of the three outcomes and must never be the easy press. */}
+      {isAdmin && (
+        <div className="pt-[18px] text-center">
+          <button
+            type="button"
+            onClick={unsupervised}
+            disabled={busy}
+            className="text-[14px] font-medium underline underline-offset-2 disabled:opacity-40"
+            style={{ color: C.text2 }}
+          >
+            Ingen Arbetsledare
+          </button>
+        </div>
+      )}
+    </SoftDialog>
   );
 }

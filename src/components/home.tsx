@@ -4,7 +4,7 @@ import { useAccount } from "@/lib/account";
 import { HomeAdmin } from "./home-admin";
 import { HomeArbetsledare } from "./home-arbetsledare";
 import { HomeArbetare } from "./home-arbetare";
-import { Empty, Screen, SignOut } from "./ui";
+import { EmptyState, SignOut, SoftScreen } from "./soft";
 
 /**
  * One landing page per role, showing only what that role actually does.
@@ -20,16 +20,20 @@ import { Empty, Screen, SignOut } from "./ui";
 export function Home() {
   const { account, loading } = useAccount();
 
-  if (loading) return <Screen title="Laddar…"><span /></Screen>;
+  if (loading) return <SoftScreen title="Laddar…"><span /></SoftScreen>;
 
   // No account row, or a paused one: app.current_role() is NULL and every
   // guard in the database denies. There is nothing to draw but the way out.
   if (!account) {
     return (
-      <Screen title="Shift Setter">
-        <Empty>Ditt konto är inte aktivt. Kontakta administratören.</Empty>
-        <SignOut />
-      </Screen>
+      <SoftScreen title="Shift Setter">
+        <div className="px-4 pt-[2px]">
+          <EmptyState headline="Kontot är inte aktivt">
+            Kontakta administratören.
+          </EmptyState>
+          <SignOut />
+        </div>
+      </SoftScreen>
     );
   }
 

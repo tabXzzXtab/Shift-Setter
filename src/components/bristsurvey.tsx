@@ -3,7 +3,7 @@
 import { useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import {
-  C, Card, PrimaryButton, SecondaryButton, SHADOW, SoftField, SoftInput,
+  C, PrimaryButton, SecondaryButton, SoftDialog, SoftField, SoftInput,
   SoftNotice, SoftTextarea,
 } from "@/components/soft";
 import { getSupabase } from "@/lib/supabase/client";
@@ -64,23 +64,10 @@ const FIELD_LABELS: Record<ProjectField, string> = {
  */
 function Panel({ error, children }: { error: string | null; children: ReactNode }) {
   return (
-    <div
-      className="fixed inset-0 z-50 overflow-y-auto p-4"
-      style={{ background: "rgba(9,21,64,.42)" }}
-      role="dialog"
-      aria-modal="true"
-      aria-label="Bristsurvey"
-    >
-      <div
-        className="mx-auto mt-[40px] w-full max-w-[358px] pb-[40px]"
-        style={{ color: C.ink, fontFamily: "var(--font-inter), system-ui, sans-serif", fontVariantNumeric: "tabular-nums" }}
-      >
-        <Card radius={16} shadow={SHADOW.hero} pad="p-[18px]">
-          {error && <div className="pb-[14px]"><SoftNotice tone="stop">{error}</SoftNotice></div>}
-          {children}
-        </Card>
-      </div>
-    </div>
+    <SoftDialog label="Bristsurvey">
+      {error && <div className="pb-[14px]"><SoftNotice tone="stop">{error}</SoftNotice></div>}
+      {children}
+    </SoftDialog>
   );
 }
 

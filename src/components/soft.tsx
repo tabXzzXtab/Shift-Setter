@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 
 /**
@@ -11,14 +12,13 @@ import { useEffect, useState, type ReactNode } from "react";
  * single wrong one is invisible in review. Everything below is the handoff's
  * own numbers; screens compose these rather than restating them.
  *
- * WHY A SECOND SET rather than restyling components/ui.tsx in place: ui.tsx is
- * shared by every screen in the app, so changing it would redesign all three
- * roles at once and leave every un-migrated screen half-converted. These live
- * alongside it while the roles are migrated one at a time, and ui.tsx retires
- * when the last screen has moved.
+ * IT BEGAN AS A SECOND SET, alongside the black-and-white components/ui.tsx,
+ * so the three roles could be migrated one at a time without leaving every
+ * un-migrated screen half-converted. Every screen has moved now and ui.tsx is
+ * gone; this is simply the app's components.
  *
- * Inter is applied HERE rather than on <body> for the same reason: a screen
- * gets the font when it gets the design, not before.
+ * Inter is still applied HERE rather than on <body>, because a fixed dialog is
+ * outside whatever screen opened it and has to say so for itself.
  */
 
 /* ---- colour, straight from the handoff's table --------------------------- */
@@ -601,6 +601,126 @@ export function SoftNotice({
         </div>
       )}
       {children}
+    </div>
+  );
+}
+
+/**
+ * Logga ut. ONE PLACE SIGNS OUT, whatever the screen around it looks like.
+ *
+ * It lived in ui.tsx behind a `soft` flag while the app was migrating; the flag
+ * retired with the last black-and-white screen and the button came here. In the
+ * stop ink on white rather than a stop-tint fill: it ends a session, it does
+ * not destroy anything, and the sheet it sits in is already quiet.
+ */
+export function SignOut() {
+  const router = useRouter();
+  return (
+    <button
+      type="button"
+      onClick={async () => {
+        const { getSupabase } = await import("@/lib/supabase/client");
+        await getSupabase().auth.signOut();
+        router.replace("/login");
+      }}
+      className="press-scale mt-3 flex h-14 w-full items-center justify-center rounded-[12px] text-[17px] font-bold transition-transform duration-[110ms] hover:bg-[#f6f9ff] active:scale-[.985]"
+      style={{ letterSpacing: "-.2px", background: C.surface, color: C.stopInk, boxShadow: SHADOW.group }}
+    >
+      Logga ut
+    </button>
+  );
+}
+
+/**
+ * A dialog over the scrim: the sheet's own rgba(9,21,64,.42), a hero-shadowed
+ * card, and the app's font, since a fixed element is outside the screen that
+ * set it.
+ *
+ * The handoff draws no dialog anywhere -- it designs the happy path in a
+ * straight line. So this is its language applied to the thing the app actually
+ * needs: five screens ask a question over the page they are on, and five
+ * hand-rolled scrims is five chances for one of them to be a different grey.
+ */
+export function SoftDialog({
+  label, onDismiss, children,
+}: {
+  label: string;
+  /** Escape closes when given. The scrim does not: these dialogs sit in front
+   *  of decisions -- who covers a day, whether to book unconfirmed hours -- and
+   *  a stray tap outside is not an answer to any of them. */
+  onDismiss?: () => void;
+  children: ReactNode;
+}) {
+  useEffect(() => {
+    if (!onDismiss) return;
+    const esc = (e: KeyboardEvent) => { if (e.key === "Escape") onDismiss(); };
+    window.addEventListener("keydown", esc);
+    return () => window.removeEventListener("keydown", esc);
+  }, [onDismiss]);
+
+  return (
+    <div
+      className="fixed inset-0 z-50 overflow-y-auto p-4"
+      style={{ background: "rgba(9,21,64,.42)" }}
+      role="dialog"
+      aria-modal="true"
+      aria-label={label}
+    >
+      <div
+        className="mx-auto mt-[40px] w-full max-w-[358px] pb-[40px]"
+        style={{
+          color: C.ink,
+          fontFamily: "var(--font-inter), system-ui, sans-serif",
+          fontVariantNumeric: "tabular-nums",
+        }}
+      >
+        <Card radius={16} shadow={SHADOW.hero} pad="p-[18px]">{children}</Card>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * A grouped card of things to pick between -- 60px rows, a chevron, dividers
+ * inset 18px. The same object as GroupedList, except these do something here
+ * rather than going somewhere, so they are buttons and carry an onClick.
+ */
+export function ChoiceList({
+  choices, disabled,
+}: {
+  choices: { key: string; label: ReactNode; sub?: ReactNode; onClick: () => void }[];
+  disabled?: boolean;
+}) {
+  return (
+    <div
+      className="overflow-hidden rounded-[14px]"
+      style={{ background: C.surface, boxShadow: SHADOW.group }}
+    >
+      {choices.map((c, i) => (
+        <div key={c.key}>
+          {i > 0 && <div className="ml-[18px] h-px" style={{ background: C.hairline }} />}
+          <button
+            type="button"
+            onClick={c.onClick}
+            disabled={disabled}
+            className={`flex w-full items-center justify-between gap-3 px-[18px] text-left hover:bg-[#f6f9ff] disabled:opacity-40 ${
+              c.sub ? "py-[13px]" : "h-[60px]"
+            }`}
+          >
+            <span className="min-w-0">
+              <span className="block text-[17px] font-bold" style={{ letterSpacing: "-.2px" }}>
+                {c.label}
+              </span>
+              {c.sub && (
+                <span className="block text-[15px] font-medium" style={{ color: C.text2 }}>
+                  {c.sub}
+                </span>
+              )}
+            </span>
+            <ChevronRight />
+          </button>
+        </div>
+      ))}
     </div>
   );
 }
