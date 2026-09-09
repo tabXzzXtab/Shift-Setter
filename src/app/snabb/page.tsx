@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { AuthGate } from "@/components/auth-gate";
-import { Button, Field, Input, Notice, Screen, Select } from "@/components/ui";
+import {
+  C, Card, PrimaryButton, SoftField, SoftInput, SoftNotice, SoftScreen, SoftSelect,
+} from "@/components/soft";
 import { NyArbetareForm, type CreatedWorker } from "@/components/ny-arbetare";
 import { getSupabase } from "@/lib/supabase/client";
 import { stockholmToday } from "@/lib/dates";
@@ -35,7 +37,9 @@ const NEW = "__ny__";
  *
  * If they already hold an assignment that day, the Snabb Pass wins and the
  * earlier one is released -- in one transaction, so invariant 2 is never
- * momentarily false.
+ * momentarily false. The amber panel says so BEFORE the button, which is the
+ * handoff's rule for it: an override is explained where the decision is made,
+ * not reported once it has happened.
  */
 function SnabbPass() {
   const { account } = useAccount();
@@ -98,45 +102,73 @@ function SnabbPass() {
   // ---- Ny Arbetare, from inside the dropdown --------------------------------
   if (creatingWorker) {
     return (
-      <Screen title="Ny arbetare" back="/snabb">
-        <p className="mb-4 text-base">
-          Skapas och läggs sedan direkt på passet.
-        </p>
-        <NyArbetareForm
-          allowRoleChoice={false}
-          onCancel={() => { setCreatingWorker(false); setWorkerId(""); }}
-          onCreated={(w: CreatedWorker, block) => {
-            // Straight back to the shift, with them selected.
-            setWorkers((list) => [...list, { id: w.worker_id, name: w.name }]);
-            setWorkerId(w.worker_id);
-            setCredentials(block);
-            setCreatingWorker(false);
-            setReload((n) => n + 1);
-          }}
-        />
-      </Screen>
+      <SoftScreen
+        title="Ny arbetare"
+        back="/snabb"
+        subtitle="Skapas och läggs sedan direkt på passet."
+      >
+        <div className="px-4 pt-[14px]">
+          <NyArbetareForm
+            allowRoleChoice={false}
+            onCancel={() => { setCreatingWorker(false); setWorkerId(""); }}
+            onCreated={(w: CreatedWorker, block) => {
+              // Straight back to the shift, with them selected.
+              setWorkers((list) => [...list, { id: w.worker_id, name: w.name }]);
+              setWorkerId(w.worker_id);
+              setCredentials(block);
+              setCreatingWorker(false);
+              setReload((n) => n + 1);
+            }}
+          />
+        </div>
+      </SoftScreen>
     );
   }
 
   if (done) {
     return (
-      <Screen title="Snabb Pass skapat" back="/">
-        <Notice kind="ok">{done} är inlagd på {date}.</Notice>
-        <p className="mb-6 text-base">
+      <SoftScreen title="Snabb Pass skapat" back="/">
+        <div className="px-4 pt-[2px]">
+          <SoftNotice tone="live">{done} är inlagd på {date}.</SoftNotice>
+        </div>
+
+        <p
+          className="px-5 pt-[14px] text-[15px] font-medium"
+          style={{ color: C.text2, textWrap: "pretty" }}
+        >
           Passet syns som vilket pass som helst och ska bekräftas som vanligt.
         </p>
+
         {credentials && (
-          <>
-            <p className="mb-2 text-base font-bold">Inloggning att lämna över:</p>
-            <pre className="mb-6 whitespace-pre-wrap border-2 border-black p-3 text-base">
-              {credentials}
-            </pre>
-          </>
+          <div className="px-4 pt-[22px]">
+            <Card radius={16} pad="p-[18px]">
+              <div
+                className="mb-3 text-[12px] font-bold uppercase"
+                style={{ letterSpacing: "1px", color: C.text2 }}
+              >
+                Inloggning att lämna över
+              </div>
+              {/* A <pre>, because these are credentials: the line breaks are
+                  the format, and a proportional wrap turns a password into a
+                  guess. */}
+              <pre
+                className="whitespace-pre-wrap rounded-[10px] p-[14px] text-[15px] font-semibold"
+                style={{ background: C.panel2, fontFamily: "inherit" }}
+              >
+                {credentials}
+              </pre>
+            </Card>
+          </div>
         )}
-        <Button onClick={() => { setDone(null); setCredentials(null); setWorkerId(""); }}>
-          Skapa ett till
-        </Button>
-      </Screen>
+
+        <div className="px-4 pt-[22px]">
+          <PrimaryButton
+            onClick={() => { setDone(null); setCredentials(null); setWorkerId(""); }}
+          >
+            Skapa ett till
+          </PrimaryButton>
+        </div>
+      </SoftScreen>
     );
   }
 
@@ -145,84 +177,112 @@ function SnabbPass() {
   // whose every button fails.
   if (account && account.role !== "admin") {
     return (
-      <Screen title="Snabb Pass" back="/">
-        <Notice kind="info">
-          Endast administratören kan skapa Snabb Pass.
-        </Notice>
-      </Screen>
+      <SoftScreen title="Snabb Pass" back="/">
+        <div className="px-4 pt-[2px]">
+          <SoftNotice tone="quiet">
+            Endast administratören kan skapa Snabb Pass.
+          </SoftNotice>
+        </div>
+      </SoftScreen>
     );
   }
 
   return (
-    <Screen title="Snabb Pass" back="/">
-      {error && <Notice kind="error">{error}</Notice>}
-
-      <p className="mb-4 text-base">
-        Går förbi hela turordningen. Används när någon hoppar av i sista stund.
-      </p>
-
-      {projects.length === 0 && (
-        <Notice kind="info">Du är inte tilldelad något projekt.</Notice>
+    <SoftScreen
+      title="Snabb Pass"
+      back="/"
+      subtitle="Går förbi hela turordningen. Används när någon hoppar av i sista stund."
+    >
+      {(error || projects.length === 0) && (
+        <div className="px-4 pb-[4px] pt-[10px]">
+          {error && <SoftNotice tone="stop">{error}</SoftNotice>}
+          {!error && projects.length === 0 && (
+            <SoftNotice tone="quiet">Du är inte tilldelad något projekt.</SoftNotice>
+          )}
+        </div>
       )}
 
-      <Field label="Projekt">
-        <Select value={projectId} onChange={(e) => setProjectId(e.target.value)}>
-          <option value="">Välj…</option>
-          {projects.map((p) => (
-            <option key={p.id} value={p.id}>{p.name}</option>
-          ))}
-        </Select>
-      </Field>
+      <div className="px-4 pt-[14px]">
+        <Card radius={16} pad="p-[18px]">
+          <div className="mb-[14px]">
+            <SoftField label="Projekt">
+              <SoftSelect value={projectId} onChange={(e) => setProjectId(e.target.value)}>
+                <option value="">Välj…</option>
+                {projects.map((p) => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </SoftSelect>
+            </SoftField>
+          </div>
 
-      <Field label="Vem?" hint="Finns personen inte i listan — välj Ny arbetare.">
-        <Select
-          value={workerId}
-          onChange={(e) => {
-            if (e.target.value === NEW) { setCreatingWorker(true); return; }
-            setWorkerId(e.target.value);
-          }}
-        >
-          <option value="">Välj…</option>
-          {workers.map((w) => (
-            <option key={w.id} value={w.id}>{w.name}</option>
-          ))}
-          <option value={NEW}>+ Ny arbetare…</option>
-        </Select>
-      </Field>
+          <div className="mb-[14px]">
+            <SoftField label="Vem?" help="Finns personen inte i listan — välj Ny arbetare.">
+              <SoftSelect
+                value={workerId}
+                onChange={(e) => {
+                  if (e.target.value === NEW) { setCreatingWorker(true); return; }
+                  setWorkerId(e.target.value);
+                }}
+              >
+                <option value="">Välj…</option>
+                {workers.map((w) => (
+                  <option key={w.id} value={w.id}>{w.name}</option>
+                ))}
+                <option value={NEW}>+ Ny arbetare…</option>
+              </SoftSelect>
+            </SoftField>
+          </div>
 
-      <Field label="Datum">
-        <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
-      </Field>
+          <div className="mb-[14px]">
+            <SoftField label="Datum">
+              <SoftInput type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+            </SoftField>
+          </div>
 
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="Börjar">
-          <Input type="time" value={start} onChange={(e) => setTime("start", e.target.value)} />
-        </Field>
-        <Field label="Slutar">
-          <Input type="time" value={end} onChange={(e) => setTime("end", e.target.value)} />
-        </Field>
+          <div className="mb-[14px] flex gap-[10px]">
+            <div className="flex-1">
+              <SoftField label="Börjar">
+                <SoftInput type="time" value={start} onChange={(e) => setTime("start", e.target.value)} />
+              </SoftField>
+            </div>
+            <div className="flex-1">
+              <SoftField label="Slutar">
+                <SoftInput type="time" value={end} onChange={(e) => setTime("end", e.target.value)} />
+              </SoftField>
+            </div>
+          </div>
+
+          {/* The biggest thing in the card, because it is the one figure a
+              human is answerable for. Prefilled, never derived (invariant 1). */}
+          <SoftField
+            label="Timmar"
+            help="Förifylls som tiden minus 30 min. Ändra om rasten var längre."
+            big
+          >
+            <SoftInput
+              inputMode="decimal"
+              value={hours}
+              onChange={(e) => { setHours(e.target.value); setHoursTouched(true); }}
+            />
+          </SoftField>
+        </Card>
       </div>
 
-      <Field label="Timmar" hint="Förifylls som tiden minus 30 min. Ändra om rasten var längre.">
-        <Input
-          center
-          inputMode="decimal"
-          value={hours}
-          onChange={(e) => { setHours(e.target.value); setHoursTouched(true); }}
-        />
-      </Field>
+      <div className="px-4 pt-[14px]">
+        <SoftNotice tone="warn">
+          Har personen redan ett pass den dagen tas det bort och detta gäller i stället.
+        </SoftNotice>
+      </div>
 
-      <Notice kind="info">
-        Har personen redan ett pass den dagen tas det bort och detta gäller i stället.
-      </Notice>
-
-      <Button
-        onClick={save}
-        disabled={saving || !projectId || !workerId || !(Number(hours.replace(",", ".")) > 0)}
-      >
-        {saving ? "Skapar…" : "Skapa Snabb Pass"}
-      </Button>
-    </Screen>
+      <div className="px-4 pt-[14px]">
+        <PrimaryButton
+          onClick={save}
+          disabled={saving || !projectId || !workerId || !(Number(hours.replace(",", ".")) > 0)}
+        >
+          {saving ? "Skapar…" : "Skapa Snabb Pass"}
+        </PrimaryButton>
+      </div>
+    </SoftScreen>
   );
 }
 

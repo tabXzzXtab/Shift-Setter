@@ -3,7 +3,10 @@
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { AuthGate } from "@/components/auth-gate";
-import { Button, Empty, Field, Input, Notice, Screen, Textarea } from "@/components/ui";
+import {
+  C, Card, EmptyState, PrimaryButton, SecondaryButton, SoftField, SoftInput,
+  SoftNotice, SoftScreen, SoftTextarea,
+} from "@/components/soft";
 import { getSupabase } from "@/lib/supabase/client";
 import { hhmm, longDayHeading, stampToTime } from "@/lib/dates";
 import { reviewDays } from "@/lib/review-days";
@@ -220,132 +223,209 @@ function Granska({ askedProject, askedDate }: { askedProject: string | null; ask
   }
 
   if (day === undefined) {
-    return <Screen title="Granska pass" back="/"><span>Laddar…</span></Screen>;
+    return (
+      <SoftScreen title="Granska pass" back="/">
+        <p className="px-5 text-[15px] font-medium" style={{ color: C.text2 }}>Laddar…</p>
+      </SoftScreen>
+    );
   }
 
   if (day === null) {
     return (
-      <Screen title="Granska pass" back="/">
-        {error && <Notice kind="error">{error}</Notice>}
-        <Empty>Inget att granska.</Empty>
-      </Screen>
+      <SoftScreen title="Granska pass" back="/">
+        <div className="px-4 pt-[2px]">
+          {error && <div className="pb-[10px]"><SoftNotice tone="stop">{error}</SoftNotice></div>}
+          <EmptyState headline="Inget att granska">
+            Dagar arbetsledaren har bekräftat hamnar här.
+          </EmptyState>
+        </div>
+      </SoftScreen>
     );
   }
 
   return (
-    <Screen title="Granska pass" back="/">
-      {error && <Notice kind="error">{error}</Notice>}
+    <SoftScreen title="Granska pass" back="/">
+      {error && <div className="px-4 pb-[10px] pt-[2px]"><SoftNotice tone="stop">{error}</SoftNotice></div>}
 
-      <p className="mb-1 text-2xl font-bold">{longDayHeading(day.work_date)}</p>
-      <p className="mb-4 text-lg">{day.project_name}</p>
+      {/* Day kicker, project at 26/800 -- the same head the leader's screen
+          wears, because it is the same day seen from the other side. */}
+      <div className="px-4 pt-[2px]">
+        <div
+          className="px-1 pb-[2px] text-[12px] font-bold uppercase"
+          style={{ letterSpacing: "1px", color: C.text2 }}
+        >
+          {longDayHeading(day.work_date)}
+        </div>
+        <div className="px-1 pb-[14px] text-[26px] font-extrabold" style={{ letterSpacing: "-.9px" }}>
+          {day.project_name}
+        </div>
 
-      {day.flagged_as ? (
-        <div className="mb-6 border-4 border-black bg-black p-4 text-white">
-          <p className="text-lg font-bold">
-            {day.flagged_as === "ingen_ledare"
-              ? "Dagen kördes utan arbetsledare."
-              : "Dagen kördes med en arbetare som ansvarig."}
-          </p>
-          <p className="mt-2 text-base">
+        {/*
+          The amber panel is why this screen exists for a flagged day: there is
+          no arbetsledare behind it and there cannot be, so admin is not
+          reviewing a claim -- he is making the only one there will ever be.
+          flagged_as keeps the two admissions apart, because a day covered by a
+          worker and a day nobody stood on are different things to write down.
+        */}
+        {day.flagged_as ? (
+          <SoftNotice
+            tone="warn"
+            headline={
+              day.flagged_as === "ingen_ledare"
+                ? "Dagen kördes utan arbetsledare."
+                : "Dagen kördes med en arbetare som ansvarig."
+            }
+          >
             Ingen arbetsledare har bekräftat den och ingen kan. Du skriver
             dagens redogörelse och timmarna, och bara du kan bekräfta den.
+          </SoftNotice>
+        ) : (
+          <p
+            className="px-1 text-[15px] font-medium"
+            style={{ color: C.text2, textWrap: "pretty" }}
+          >
+            Arbetsledaren har bekräftat dagen. Du godkänner, rättar och godkänner,
+            eller skickar tillbaka.
           </p>
-        </div>
-      ) : (
-        <p className="mb-6 text-base text-neutral-700">
-          Arbetsledaren har bekräftat dagen. Du godkänner, rättar och godkänner,
-          eller skickar tillbaka.
-        </p>
-      )}
+        )}
+      </div>
 
       {day.came_back && (
-        <Notice kind="info">Den här dagen har varit återsänd en gång tidigare.</Notice>
+        <div className="px-4 pt-[14px]">
+          <SoftNotice tone="quiet">Den här dagen har varit återsänd en gång tidigare.</SoftNotice>
+        </div>
       )}
 
-      <div className="flex flex-col gap-4">
-        {day.rows.map((r) => {
-          const e = edits[r.tilldelning_id]!;
-          return (
-            <section key={r.tilldelning_id} className="border-2 border-black p-4">
-              <p className="mb-3 text-xl font-bold">{r.worker_name}</p>
-
-              <p className="mb-3 text-base text-neutral-700">
-                Stämplade {stampToTime(r.clock_in) || "—"} till {stampToTime(r.clock_out) || "—"}
-              </p>
-
-              <div className="grid grid-cols-2 gap-3">
-                <Field label="Börjar">
-                  <Input
-                    type="time"
-                    value={e.start}
-                    onChange={(ev) =>
-                      setEdits((p) => ({ ...p, [r.tilldelning_id]: { ...e, start: ev.target.value } }))
-                    }
-                  />
-                </Field>
-                <Field label="Slutar">
-                  <Input
-                    type="time"
-                    value={e.end}
-                    onChange={(ev) =>
-                      setEdits((p) => ({ ...p, [r.tilldelning_id]: { ...e, end: ev.target.value } }))
-                    }
-                  />
-                </Field>
+      {day.rows.map((r) => {
+        const e = edits[r.tilldelning_id]!;
+        return (
+          <div key={r.tilldelning_id} className="px-4 pt-[14px]">
+            <Card>
+              <div className="text-[18px] font-bold" style={{ letterSpacing: "-.4px" }}>
+                {r.worker_name}
               </div>
 
-              <Field label="Timmar" hint="0 om personen inte kom.">
-                <Input
+              {/* The stamps are CONTEXT, not the figure. They are read-only
+                  copy here and typed hours sit below them, because nothing in
+                  this app derives an hour from a clock (invariant 1). */}
+              <div className="mb-[14px] mt-[2px] text-[14px] font-medium" style={{ color: C.text2 }}>
+                Stämplade {stampToTime(r.clock_in) || "—"} till {stampToTime(r.clock_out) || "—"}
+              </div>
+
+              <div className="mb-[14px] flex gap-[10px]">
+                <div className="flex-1">
+                  <SoftField label="Börjar">
+                    <SoftInput
+                      type="time"
+                      value={e.start}
+                      onChange={(ev) =>
+                        setEdits((p) => ({ ...p, [r.tilldelning_id]: { ...e, start: ev.target.value } }))
+                      }
+                    />
+                  </SoftField>
+                </div>
+                <div className="flex-1">
+                  <SoftField label="Slutar">
+                    <SoftInput
+                      type="time"
+                      value={e.end}
+                      onChange={(ev) =>
+                        setEdits((p) => ({ ...p, [r.tilldelning_id]: { ...e, end: ev.target.value } }))
+                      }
+                    />
+                  </SoftField>
+                </div>
+              </div>
+
+              <SoftField label="Timmar" help="0 om personen inte kom." big>
+                <SoftInput
                   inputMode="decimal"
                   value={e.hours}
                   onChange={(ev) =>
                     setEdits((p) => ({ ...p, [r.tilldelning_id]: { ...e, hours: ev.target.value } }))
                   }
+                  style={{ letterSpacing: "-.6px" }}
                 />
-              </Field>
-            </section>
-          );
-        })}
-      </div>
+              </SoftField>
+            </Card>
+          </div>
+        );
+      })}
 
-      <div className="mt-6">
-        <Field label="Vad vi gjorde" hint="Arbetsledarens text. Rätta den om den inte stämmer.">
-          <Textarea value={gjorde} onChange={(e) => setGjorde(e.target.value)} />
-        </Field>
-      </div>
-
-      <Notice kind="info">
-        {day.flagged_as
-          ? "Bekräftat är slutgiltigt. Efter det ändras ingenting."
-          : "Godkänt är slutgiltigt. Efter det ändras ingenting."}
-      </Notice>
-
-      <div className="flex flex-col gap-3">
-        <Button onClick={approve} disabled={busy || gjorde.trim() === ""}>
-          {busy ? "Sparar…" : day.flagged_as ? "Bekräfta dagen" : "Godkänn"}
-        </Button>
-
-        {/* Nothing to send back: a flagged day has no claim in it, and there is
-            no arbetsledare it could be returned to. */}
-        {day.flagged_as ? null : !rejecting ? (
-          <Button variant="outline" onClick={() => setRejecting(true)} disabled={busy}>
-            Underkänn
-          </Button>
-        ) : (
-          <section className="border-2 border-black p-4">
-            <Field
-              label="Varför skickas dagen tillbaka?"
-              hint="Krävs. Arbetsledaren ser den här texten."
+      <div className="px-4 pt-[14px]">
+        <Card>
+          <div className="flex items-baseline justify-between gap-[10px]">
+            {/* htmlFor, not a wrapping <label>: the handoff puts the marker on
+                the same baseline as the label, and a <label> containing both
+                would make it part of the field's accessible name. */}
+            <label
+              htmlFor="vad-vi-gjorde"
+              className="text-[12px] font-bold uppercase"
+              style={{ letterSpacing: ".9px", color: C.text2 }}
             >
-              <Textarea value={note} onChange={(e) => setNote(e.target.value)} />
-            </Field>
-            <Button variant="outline" onClick={reject} disabled={busy || note.trim() === ""}>
-              Skicka tillbaka till arbetsledaren
-            </Button>
-          </section>
-        )}
+              Vad vi gjorde
+            </label>
+            <div className="text-[12px] font-bold" style={{ letterSpacing: ".4px", color: C.stopInk }}>
+              Krävs
+            </div>
+          </div>
+          <div className="mb-2 mt-[2px] text-[14px] font-medium" style={{ color: C.text2 }}>
+            {day.flagged_as
+              ? "Din redogörelse. Skrivs ut på varje rad i arbetsdagboken."
+              : "Arbetsledarens text. Rätta den om den inte stämmer."}
+          </div>
+          <SoftTextarea
+            id="vad-vi-gjorde"
+            rows={4}
+            value={gjorde}
+            onChange={(e) => setGjorde(e.target.value)}
+          />
+        </Card>
       </div>
-    </Screen>
+
+      <div className="px-4 pt-[14px]">
+        <SoftNotice tone="quiet">
+          {day.flagged_as
+            ? "Bekräftat är slutgiltigt. Efter det ändras ingenting."
+            : "Godkänt är slutgiltigt. Efter det ändras ingenting."}
+        </SoftNotice>
+      </div>
+
+      <div className="px-4 pt-[14px]">
+        <PrimaryButton onClick={approve} disabled={busy || gjorde.trim() === ""}>
+          {busy ? "Sparar…" : day.flagged_as ? "Bekräfta dagen" : "Godkänn"}
+        </PrimaryButton>
+      </div>
+
+      {/* Nothing to send back: a flagged day has no claim in it, and there is
+          no arbetsledare it could be returned to. */}
+      {day.flagged_as ? null : (
+        <div className="px-4 pt-[14px]">
+          {!rejecting ? (
+            <SecondaryButton onClick={() => setRejecting(true)} disabled={busy}>
+              Underkänn
+            </SecondaryButton>
+          ) : (
+            <Card>
+              {/* An ordinary wrapping field, unlike "Vad vi gjorde" above:
+                  there is no marker to put on the label's baseline here, so
+                  the label owns its control directly. */}
+              <SoftField
+                label="Varför skickas dagen tillbaka?"
+                help="Krävs. Arbetsledaren ser den här texten."
+              >
+                <SoftTextarea rows={3} value={note} onChange={(e) => setNote(e.target.value)} />
+              </SoftField>
+              <div className="pt-[14px]">
+                <SecondaryButton onClick={reject} disabled={busy || note.trim() === ""}>
+                  Skicka tillbaka till arbetsledaren
+                </SecondaryButton>
+              </div>
+            </Card>
+          )}
+        </div>
+      )}
+    </SoftScreen>
   );
 }
 
@@ -371,7 +451,7 @@ function GranskaFromUrl() {
 export default function Page() {
   return (
     <AuthGate>
-      <Suspense fallback={<Screen title="Granska pass" back="/"><span>Laddar…</span></Screen>}>
+      <Suspense fallback={<SoftScreen title="Granska pass" back="/"><span /></SoftScreen>}>
         <GranskaFromUrl />
       </Suspense>
     </AuthGate>

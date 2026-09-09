@@ -386,7 +386,7 @@ export function SoftTextarea(props: React.TextareaHTMLAttributes<HTMLTextAreaEle
   return (
     <textarea
       {...rest}
-      className={`min-h-[76px] w-full resize-y rounded-[10px] border-0 px-[14px] py-[13px] text-[16px] font-semibold outline-none focus:bg-white focus:outline-2 focus:outline-[#1b2cc1] ${className}`}
+      className={`min-h-[76px] w-full resize-y rounded-[10px] border-0 p-[14px] text-[16px] font-medium leading-[1.45] outline-none focus:bg-white focus:outline-2 focus:outline-[#1b2cc1] ${className}`}
       style={{ background: C.panel2, color: C.ink, ...style }}
     />
   );
@@ -543,7 +543,7 @@ export function Tag({ tone, children }: { tone: "live" | "warn" | "stop" | "quie
   }[tone];
   return (
     <span
-      className="inline-block whitespace-nowrap rounded-full px-[10px] py-[5px] text-[12px] font-bold"
+      className="inline-flex items-center gap-[6px] whitespace-nowrap rounded-full px-[10px] py-[5px] text-[12px] font-bold"
       style={{ letterSpacing: ".4px", color: pair[0], background: pair[1] }}
     >
       {children}

@@ -438,15 +438,24 @@ function Historik({ forLeader }: { forLeader: boolean }) {
       ) : (
         days.map((d) => (
           <div key={d.key} className="px-4 pt-[14px]">
-            <Card radius={14}>
-              <Kicker>{longDayHeading(d.work_date)}</Kicker>
-              <div className="flex items-baseline justify-between gap-[10px]">
-                <div className="text-[18px] font-bold" style={{ letterSpacing: "-.4px" }}>
-                  {d.project_name}
-                </div>
+            <Card radius={16}>
+              <div className="flex items-center justify-between gap-[10px]">
+                <Kicker>{longDayHeading(d.work_date)}</Kicker>
                 <Tag tone={d.stage === "admin_confirmed" ? "live" : "quiet"}>
+                  {/* The handoff pairs the word with a check on an approved
+                      day. Colour is never the only carrier, and neither is a
+                      glyph -- the word is still there. */}
+                  {d.stage === "admin_confirmed" && (
+                    <svg width="11" height="9" viewBox="0 0 11 9" fill="none" aria-hidden>
+                      <path d="M1 4.6 4 7.6 10 1.4" stroke={C.liveInk} strokeWidth="2.2"
+                        strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  )}
                   {d.stage === "admin_confirmed" ? "Godkänd" : "Bekräftad"}
                 </Tag>
+              </div>
+              <div className="text-[22px] font-extrabold" style={{ letterSpacing: "-.7px" }}>
+                {d.project_name}
               </div>
 
               <div className="mt-[6px] text-[15px] font-medium" style={{ color: C.text2 }}>
@@ -463,10 +472,10 @@ function Historik({ forLeader }: { forLeader: boolean }) {
                   <div
                     key={i}
                     className="flex items-baseline justify-between gap-3 py-[8px]"
-                    style={i > 0 ? { boxShadow: `inset 0 1px 0 ${C.hairline}` } : undefined}
+                    style={i > 0 ? { boxShadow: "inset 0 1px 0 #dbe4f9" } : undefined}
                   >
                     <span className="text-[15px] font-semibold">{r.worker_name}</span>
-                    <span className="shrink-0 text-[15px] font-medium" style={{ color: C.text2 }}>
+                    <span className="shrink-0 text-[15px] font-bold">
                       {r.tider} · {r.hours === null ? "—" : String(r.hours).replace(".", ",")} h
                     </span>
                   </div>
