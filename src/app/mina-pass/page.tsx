@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { AuthGate } from "@/components/auth-gate";
-import { Empty, Notice, Screen } from "@/components/ui";
+import {
+  C, Card, EmptyState, SHADOW, Segmented, SoftNotice, SoftScreen,
+} from "@/components/soft";
 import { getSupabase } from "@/lib/supabase/client";
 import { addDays, hhmm, longDayHeading, stampToTime, stockholmToday } from "@/lib/dates";
-import { patternIndex, projectPattern } from "@/lib/project-pattern";
 
 type Shift = {
   id: string;
@@ -76,41 +77,37 @@ function MinaPass() {
   }, []);
 
   if (shifts === null) {
-    return <Screen title="Mina pass" back="/"><span>Laddar…</span></Screen>;
+    return (
+      <SoftScreen title="Mina pass" back="/">
+        <div className="px-4 text-[15px] font-medium" style={{ color: C.text2 }}>Laddar…</div>
+      </SoftScreen>
+    );
   }
 
-  const projectIds = [...new Set(shifts.map((s) => s.project_id))];
-
   return (
-    <Screen title="Mina pass" back="/">
-      {/* Two states, both always visible, the current one filled. A switch that
-          hides the thing it switches to makes people press it to find out. */}
-      <div role="group" aria-label="Visa som" className="mb-6 flex">
-        {(["lista", "kalender"] as View[]).map((v) => (
-          <button
-            key={v}
-            type="button"
-            aria-pressed={view === v}
-            onClick={() => setView(v)}
-            className={`flex min-h-[56px] flex-1 items-center justify-center border-2 border-black text-lg font-bold ${
-              view === v ? "bg-black text-white" : "bg-white text-black"
-            } ${v === "kalender" ? "border-l-0" : ""}`}
-          >
-            {v === "lista" ? "Lista" : "Kalender"}
-          </button>
-        ))}
+    <SoftScreen title="Mina pass" back="/">
+      {/* Both states always visible, the current one on a white thumb. A switch
+          that hides the thing it switches to makes people press it to find out. */}
+      <div className="px-4 pt-[2px]">
+        <Segmented
+          label="Visa som"
+          value={view}
+          onChange={setView}
+          options={[
+            { value: "lista" as View, label: "Lista" },
+            { value: "kalender" as View, label: "Kalender" },
+          ]}
+        />
       </div>
 
-      {error && <Notice kind="error">{error}</Notice>}
-
-      {shifts.length === 0 && <Empty>Du har inga pass än.</Empty>}
+      {error && <div className="px-4 pt-[14px]"><SoftNotice tone="stop">{error}</SoftNotice></div>}
 
       {view === "lista" ? (
         <Lista shifts={shifts} today={today} />
       ) : (
-        <Kalender shifts={shifts} today={today} projectIds={projectIds} />
+        <Kalender shifts={shifts} today={today} />
       )}
-    </Screen>
+    </SoftScreen>
   );
 }
 
@@ -135,58 +132,77 @@ function Lista({ shifts, today }: { shifts: Shift[]; today: string }) {
   const days = [...byDay.keys()];
   const nextUp = days.find((d) => d >= today);
 
+  if (days.length === 0) {
+    return (
+      <div className="px-4 pt-[26px]">
+        <SectionKicker>Kommande</SectionKicker>
+        <EmptyState headline="Inga pass ännu">
+          Pass du accepterar hamnar här.
+        </EmptyState>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col">
       {days.map((date) => (
         <section
           key={date}
           ref={date === nextUp ? firstFuture : undefined}
-          className="scroll-mt-4"
+          className="scroll-mt-4 px-4 pt-[26px]"
         >
-          <h2 className={`mb-2 text-sm font-bold uppercase tracking-wide ${
-            date < today ? "text-neutral-500" : ""
-          }`}>
-            {longDayHeading(date)}
-          </h2>
+          <SectionKicker faded={date < today}>{longDayHeading(date)}</SectionKicker>
 
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-[10px]">
             {byDay.get(date)!.map((s) => (
-              <section key={s.id} className={`border-2 border-black p-4 ${
-                date < today ? "opacity-70" : ""
-              }`}>
-                <p className="text-xl font-bold">{s.project_name}</p>
-                <p className="mb-2 text-base">{s.site_address}</p>
-                <p className="text-lg font-bold">
-                  {hhmm(s.start_time)}–{hhmm(s.end_time)}
-                </p>
-
-                <dl className="mt-3 text-base">
-                  <div className="flex justify-between border-t-2 border-black py-2">
-                    <dt>Timmar</dt>
-                    <dd className="text-right font-bold">{hoursLine(s)}</dd>
+              <div
+                key={s.id}
+                className="rounded-[14px] px-4 pb-[14px] pt-[15px]"
+                style={{
+                  background: C.surface,
+                  boxShadow: SHADOW.group,
+                  opacity: date < today ? 0.75 : 1,
+                }}
+              >
+                <div className="mb-[3px] flex items-baseline justify-between gap-[10px]">
+                  <div className="text-[18px] font-bold" style={{ letterSpacing: "-.4px" }}>
+                    {s.project_name}
                   </div>
-                </dl>
+                  {/*
+                    INVARIANT 10. The figure appears only once an Arbetsdagbok
+                    covering the day has been generated; until then this says
+                    which of the two silences applies, because a blank with no
+                    reason reads as a fault.
+                  */}
+                  <div
+                    className="whitespace-nowrap text-[15px] font-bold"
+                    style={{ color: s.filed && s.confirmed_hours !== null ? C.accent : C.text2 }}
+                  >
+                    {hoursLine(s)}
+                  </div>
+                </div>
 
-                {/*
-                  READ-ONLY. There is exactly ONE place to stamp and it is the
-                  landing page. This screen carried a second pair of buttons
-                  calling the same two RPCs, and the two never agreed about
-                  which shift they were acting on -- the landing page picks the
-                  running one, this list acted on whichever row the finger
-                  landed on, and neither reloaded the other. Two ways to write
-                  the same evidence is one more than there can be.
+                <div className="mb-3 text-[15px] font-medium" style={{ color: C.text2 }}>
+                  {s.site_address}
+                </div>
 
-                  The times stay. Reading your own stamps was never the half
-                  that could disagree, and a worker checking whether this
-                  morning registered should not have to go looking.
-                */}
-                {(s.work_date === today || s.work_date === addDays(today, -1)) && (
-                  <p className="mt-3 text-base text-neutral-700">
-                    Stämplade {stampToTime(s.clock_in) || "—"} till{" "}
-                    {stampToTime(s.clock_out) || "—"}
-                  </p>
-                )}
-              </section>
+                <div className="flex items-center justify-between gap-[10px]">
+                  <div className="text-[16px] font-bold" style={{ letterSpacing: "-.2px" }}>
+                    {hhmm(s.start_time)}–{hhmm(s.end_time)}
+                  </div>
+                  {/*
+                    READ-ONLY. There is exactly one place to stamp and it is the
+                    landing page; reading your own stamps was never the half that
+                    could disagree.
+                  */}
+                  {(s.work_date === today || s.work_date === addDays(today, -1)) && (
+                    <div className="text-[14px] font-medium" style={{ color: C.text2 }}>
+                      Stämplade {stampToTime(s.clock_in) || "—"} till{" "}
+                      {stampToTime(s.clock_out) || "—"}
+                    </div>
+                  )}
+                </div>
+              </div>
             ))}
           </div>
         </section>
@@ -195,29 +211,35 @@ function Lista({ shifts, today }: { shifts: Shift[]; today: string }) {
   );
 }
 
+/** The kicker above each day group. Faded once the day is behind you. */
+function SectionKicker({ children, faded }: { children: ReactNode; faded?: boolean }) {
+  return (
+    <div
+      className="px-1 pb-[10px] text-[12px] font-bold uppercase"
+      style={{ letterSpacing: "1px", color: C.text2, opacity: faded ? 0.7 : 1 }}
+    >
+      {children}
+    </div>
+  );
+}
+
 /**
- * The calendar. Days worked are filled; which project is which is told by the
- * fill, never by colour -- this is not the shift calendar, and the rule outside
- * that one screen is black and white.
+ * The calendar. A month grid, then the selected day underneath it.
  *
- * The day number sits in a white pill so it stays readable over a solid fill
- * and over a hatch alike.
+ * NO PER-PROJECT MARK, which is a change the handoff makes deliberately: every
+ * day holding a shift gets the same pale fill and the same accent dot, and
+ * WHICH project it was is answered by the day section below rather than by a
+ * legend. Two sites on one calendar used to be told apart by fill pattern; they
+ * are now told apart by being read. Colour still carries nothing here -- the
+ * shift calendar remains the one screen where it does.
  */
-function Kalender({
-  shifts,
-  today,
-  projectIds,
-}: {
-  shifts: Shift[];
-  today: string;
-  projectIds: string[];
-}) {
+function Kalender({ shifts, today }: { shifts: Shift[]; today: string }) {
   const [month, setMonth] = useState(() => today.slice(0, 7));
   const [open, setOpen] = useState<string | null>(null);
 
   const first = `${month}-01`;
   const daysInMonth = new Date(Number(month.slice(0, 4)), Number(month.slice(5, 7)), 0).getDate();
-  const leadingBlanks = (new Date(`${first}T12:00:00Z`).getUTCDay() + 6) % 7;   // Monday-based
+  const leadingBlanks = (new Date(`${first}T12:00:00Z`).getUTCDay() + 6) % 7;
 
   const byDate = new Map<string, Shift[]>();
   for (const s of shifts) {
@@ -226,110 +248,146 @@ function Kalender({
     byDate.get(s.work_date)!.push(s);
   }
 
-  const monthName = new Intl.DateTimeFormat("sv-SE", { month: "long", year: "numeric" })
+  const monthName = new Intl.DateTimeFormat("sv-SE", { month: "long" })
     .format(new Date(`${first}T12:00:00Z`));
-
-  // Only the projects actually on screen get a line in the legend.
-  const here = [...new Set([...byDate.values()].flat().map((s) => s.project_id))];
-  const nameOf = new Map(shifts.map((s) => [s.project_id, s.project_name]));
 
   return (
     <div>
-      <div className="mb-3 flex items-center justify-between gap-2">
-        <button
-          type="button"
-          aria-label="Föregående månad"
-          onClick={() => { setMonth(addDays(first, -1).slice(0, 7)); setOpen(null); }}
-          className="h-14 w-14 border-2 border-black text-2xl font-bold"
-        >
-          ‹
-        </button>
-        <span className="text-lg font-bold capitalize">{monthName}</span>
-        <button
-          type="button"
-          aria-label="Nästa månad"
-          onClick={() => { setMonth(addDays(first, daysInMonth).slice(0, 7)); setOpen(null); }}
-          className="h-14 w-14 border-2 border-black text-2xl font-bold"
-        >
-          ›
-        </button>
-      </div>
-
-      <div className="mb-1 grid grid-cols-7 text-center text-xs font-bold">
-        {["M", "T", "O", "T", "F", "L", "S"].map((d, i) => <span key={i}>{d}</span>)}
-      </div>
-
-      <div className="grid grid-cols-7 gap-[2px]">
-        {Array.from({ length: leadingBlanks }, (_, i) => (
-          <span key={`b${i}`} className="aspect-square" />
-        ))}
-
-        {Array.from({ length: daysInMonth }, (_, i) => {
-          const day = i + 1;
-          const date = `${month}-${String(day).padStart(2, "0")}`;
-          const worked = byDate.get(date);
-          const fill = worked
-            ? projectPattern(patternIndex(projectIds, worked[0]!.project_id))
-            : undefined;
-
-          return (
+      <div className="px-4 pt-5">
+        <Card radius={16} pad="px-[14px] pb-[18px] pt-4">
+          <div className="mb-4 flex items-center justify-between">
             <button
-              key={date}
               type="button"
-              data-date={date}
-              aria-label={`${day}${worked ? `, ${worked.length} pass` : ", inget pass"}`}
-              aria-pressed={open === date}
-              onClick={() => setOpen((d) => (d === date ? null : date))}
-              className={`flex aspect-square items-center justify-center border-2 text-base font-bold ${
-                open === date ? "border-black ring-4 ring-inset ring-black" : "border-black"
-              } ${date === today ? "ring-2 ring-inset ring-black" : ""}`}
-              style={fill ? { background: fill } : undefined}
+              aria-label="Föregående månad"
+              onClick={() => { setMonth(addDays(first, -1).slice(0, 7)); setOpen(null); }}
+              className="press-scale flex h-10 w-10 items-center justify-center rounded-[11px] transition-transform duration-[110ms] hover:bg-[#dbe4f9] active:scale-[.985]"
+              style={{ background: C.panel2 }}
             >
-              <span className={worked ? "bg-white px-1 leading-tight" : ""}>{day}</span>
+              <svg width="8" height="14" viewBox="0 0 9 15" fill="none" aria-hidden>
+                <path d="M7.5 1.5 2 7.5l5.5 6" stroke={C.ink} strokeWidth="2.2"
+                  strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
             </button>
-          );
-        })}
-      </div>
 
-      {here.length > 0 && (
-        <div className="mt-4 flex flex-col gap-2 text-base">
-          {here.map((pid) => (
-            <span key={pid} className="flex items-center gap-3">
-              <span
-                className="inline-block h-6 w-10 shrink-0 border-2 border-black"
-                style={{ background: projectPattern(patternIndex(projectIds, pid)) }}
-              />
-              {nameOf.get(pid)}
-            </span>
-          ))}
-        </div>
-      )}
+            <div className="text-center">
+              <div className="text-[19px] font-extrabold capitalize" style={{ letterSpacing: "-.5px" }}>
+                {monthName}
+              </div>
+              <div className="text-[12px] font-bold" style={{ letterSpacing: "1px", color: C.text2 }}>
+                {month.slice(0, 4)}
+              </div>
+            </div>
+
+            <button
+              type="button"
+              aria-label="Nästa månad"
+              onClick={() => { setMonth(addDays(first, daysInMonth).slice(0, 7)); setOpen(null); }}
+              className="press-scale flex h-10 w-10 items-center justify-center rounded-[11px] transition-transform duration-[110ms] hover:bg-[#dbe4f9] active:scale-[.985]"
+              style={{ background: C.panel2 }}
+            >
+              <svg width="8" height="14" viewBox="0 0 9 15" fill="none" aria-hidden>
+                <path d="M1.5 1.5 7 7.5l-5.5 6" stroke={C.ink} strokeWidth="2.2"
+                  strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+          </div>
+
+          <div className="mb-[6px] grid grid-cols-7 gap-[2px]">
+            {["M", "T", "O", "T", "F", "L", "S"].map((d, i) => (
+              <div
+                key={i}
+                className={`text-center text-[11px] ${i > 4 ? "font-semibold" : "font-bold"}`}
+                style={{ letterSpacing: ".8px", color: C.text2 }}
+              >
+                {d}
+              </div>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-7 gap-[2px]">
+            {Array.from({ length: leadingBlanks }, (_, i) => (
+              <span key={`b${i}`} className="h-11" />
+            ))}
+
+            {Array.from({ length: daysInMonth }, (_, i) => {
+              const day = i + 1;
+              const date = `${month}-${String(day).padStart(2, "0")}`;
+              const worked = byDate.get(date);
+              const isToday = date === today;
+              const chosen = open === date;
+
+              return (
+                <button
+                  key={date}
+                  type="button"
+                  data-date={date}
+                  aria-label={`${day}${worked ? `, ${worked.length} pass` : ", inget pass"}`}
+                  aria-pressed={chosen}
+                  onClick={() => setOpen((d) => (d === date ? null : date))}
+                  className="flex h-11 flex-col items-center justify-center gap-[3px] rounded-[10px]"
+                  style={{
+                    background: chosen ? C.accent : worked ? C.panel2 : "transparent",
+                    boxShadow: isToday && !chosen ? `inset 0 0 0 2px ${C.ink}` : undefined,
+                  }}
+                >
+                  <span
+                    className="text-[16px]"
+                    style={{
+                      letterSpacing: "-.2px",
+                      fontWeight: chosen || isToday ? 800 : worked ? 700 : 600,
+                      color: chosen ? C.surface : worked || isToday ? C.ink : C.text2,
+                    }}
+                  >
+                    {day}
+                  </span>
+                  <span
+                    className="block h-1 w-1 rounded-full"
+                    style={{
+                      background: worked ? (chosen ? C.surface : C.accent) : "transparent",
+                    }}
+                  />
+                </button>
+              );
+            })}
+          </div>
+        </Card>
+      </div>
 
       {open && (
-        <section className="mt-6 border-t-4 border-black pt-4">
-          <h2 className="mb-3 text-lg font-bold">{longDayHeading(open)}</h2>
+        <div className="px-4 pt-[22px]">
+          <SectionKicker>{longDayHeading(open)}</SectionKicker>
           {(byDate.get(open) ?? []).length === 0 ? (
-            <Empty>Inget pass den dagen.</Empty>
+            <EmptyState>Inga pass denna dag.</EmptyState>
           ) : (
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-[10px]">
               {(byDate.get(open) ?? []).map((s) => (
-                <section key={s.id} className="border-2 border-black p-4">
-                  <p className="text-xl font-bold">{s.project_name}</p>
-                  <p className="mb-2 text-base">{s.site_address}</p>
-                  <p className="text-lg font-bold">
-                    {hhmm(s.start_time)}–{hhmm(s.end_time)}
-                  </p>
-                  <dl className="mt-3 text-base">
-                    <div className="flex justify-between border-t-2 border-black py-2">
-                      <dt>Timmar</dt>
-                      <dd className="text-right font-bold">{hoursLine(s)}</dd>
+                <div
+                  key={s.id}
+                  className="rounded-[14px] px-4 pb-[14px] pt-[15px]"
+                  style={{ background: C.surface, boxShadow: SHADOW.group }}
+                >
+                  <div className="mb-[3px] flex items-baseline justify-between gap-[10px]">
+                    <div className="text-[18px] font-bold" style={{ letterSpacing: "-.4px" }}>
+                      {s.project_name}
                     </div>
-                  </dl>
-                </section>
+                    <div
+                      className="whitespace-nowrap text-[15px] font-bold"
+                      style={{ color: s.filed && s.confirmed_hours !== null ? C.accent : C.text2 }}
+                    >
+                      {hoursLine(s)}
+                    </div>
+                  </div>
+                  <div className="mb-3 text-[15px] font-medium" style={{ color: C.text2 }}>
+                    {s.site_address}
+                  </div>
+                  <div className="text-[16px] font-bold" style={{ letterSpacing: "-.2px" }}>
+                    {hhmm(s.start_time)}–{hhmm(s.end_time)}
+                  </div>
+                </div>
               ))}
             </div>
           )}
-        </section>
+        </div>
       )}
     </div>
   );

@@ -31,7 +31,7 @@ const inter = Inter({
 const BASE = "/Shift-Setter";
 
 export const metadata: Metadata = {
-  title: "Shift Setter",
+  title: "ByggKoll",
   description: "Skiftplanering och Arbetsdagbok",
   applicationName: "ByggKoll",
   manifest: `${BASE}/manifest.json`,

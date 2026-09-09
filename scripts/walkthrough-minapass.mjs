@@ -242,29 +242,33 @@ try {
   const worked = page.locator(`[data-date="${PAST}"]`);
   await worked.waitFor({ timeout: 20000 });
 
-  // Filled by pattern, not by colour: assert the computed background carries
-  // no hue at all -- every rgb triple in it must be a grey.
-  const bg = await worked.evaluate((el) => getComputedStyle(el).background);
-  const hues = [...bg.matchAll(/rgba?\((\d+),\s*(\d+),\s*(\d+)/g)]
-    .filter(([, r, g, b]) => !(r === g && g === b));
-  if (hues.length > 0) fail(`the calendar uses colour: ${hues[0][0]} in ${bg}`);
-  if (!/gradient|rgb\(0, 0, 0\)/.test(bg)) {
-    fail(`a worked day has no fill at all: ${bg}`);
+  // MARKED, and no longer told apart by fill. The handoff gives every day
+  // holding a shift the same pale panel and the same accent dot, and answers
+  // WHICH project it was in the day section below rather than in a legend --
+  // so the old "two projects, two patterns" assertions are gone with the thing
+  // they described, not quietly loosened.
+  //
+  // Colour carries nothing here even so: the mark is the same on every day,
+  // whichever site it was. What it distinguishes is worked from not worked,
+  // and that is also carried by the dot and by the aria-label.
+  const bg = await worked.evaluate((el) => getComputedStyle(el).backgroundColor);
+  if (bg !== "rgb(238, 243, 254)") {
+    fail(`a worked day is not on the handoff's #eef3fe panel: ${bg}`);
   }
-  log("worked days are filled, and every fill is a grey or a black-and-white pattern");
-
-  // Two projects, two different fills.
-  const other = page.locator(`[data-date="${FUTURE}"]`);
-  const bg2 = await other.evaluate((el) => getComputedStyle(el).background);
-  if (bg === bg2) fail("two different projects share a fill");
-  log("two projects, two fills -- told apart without colour");
-
-  for (const p of [P1, P2]) {
-    if (!(await page.getByText(p, { exact: false }).count())) {
-      fail(`the legend does not name ${p}`);
-    }
+  const label = await worked.getAttribute("aria-label");
+  if (!/\d+ pass/.test(label ?? "")) {
+    fail(`a worked day does not say so without colour: ${JSON.stringify(label)}`);
   }
-  log("the legend names both projects");
+  log("worked days carry the pale panel, and the count is in the label too");
+
+  // A day with nothing on it carries no mark -- otherwise the mark says
+  // nothing. day(1) is tomorrow, which this run deliberately leaves empty.
+  const emptyDay = await page.locator(`[data-date="${day(1)}"]`).evaluate(
+    (el) => getComputedStyle(el).backgroundColor);
+  if (emptyDay === "rgb(238, 243, 254)") {
+    fail("a day with no shift is marked the same as a day with one");
+  }
+  log("a day with nothing on it carries no mark at all");
 
   // Tapping a day opens it.
   await worked.click();

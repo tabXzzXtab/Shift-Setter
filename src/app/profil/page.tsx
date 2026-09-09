@@ -3,11 +3,23 @@
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { AuthGate } from "@/components/auth-gate";
-import { Button, Check, Field, Input, Notice, Screen } from "@/components/ui";
+import {
+  C, Card, PrimaryButton, SectionLabel, SHADOW, SoftField, SoftInput, SoftNotice,
+  SoftScreen, Tag,
+} from "@/components/soft";
 import { getSupabase } from "@/lib/supabase/client";
 import { useAccount } from "@/lib/account";
 
-/** Every text field on the form, in the order it is asked for. */
+/**
+ * Every text field on the form, in the order it is asked for, and now grouped
+ * into the handoff's three titled cards -- Kontakt, Utbetalning, Närmast
+ * anhörig. The grouping is presentational: the row written to `profile` is the
+ * same flat row it always was.
+ *
+ * `flex` is how wide the field sits when two share a line. The handoff pairs
+ * Postnr with Stad and Clearing with Kontonummer at 1 : 1.6, because the second
+ * of each pair holds the longer value.
+ */
 const ALWAYS = [
   ["telefon", "Telefonnummer", "tel"],
   ["adress", "Adress", "text"],
@@ -17,6 +29,22 @@ const ALWAYS = [
   ["kontonummer", "Kontonummer", "text"],
   ["anhorig_namn", "Närmast anhörig namn", "text"],
   ["anhorig_telefon", "Närmast anhörig telefonnummer", "tel"],
+] as const;
+
+/** The handoff's cards, as the fields they hold. */
+const CARDS = [
+  { title: "Kontakt", rows: [
+      [["telefon", "Telefonnummer", "tel", 1]],
+      [["adress", "Adress", "text", 1]],
+      [["postnummer", "Postnr", "text", 1], ["stad", "Stad", "text", 1.6]],
+  ] },
+  { title: "Utbetalning", rows: [
+      [["clearingnummer", "Clearing", "text", 1], ["kontonummer", "Kontonummer", "text", 1.6]],
+  ] },
+  { title: "Närmast anhörig", rows: [
+      [["anhorig_namn", "Namn", "text", 1]],
+      [["anhorig_telefon", "Telefonnummer", "tel", 1]],
+  ] },
 ] as const;
 
 const COMPANY = [
@@ -107,65 +135,167 @@ function Profil({ askedId }: { askedId: string | null }) {
 
   const set = (k: TextKey, v: string) => setForm((f) => (f ? { ...f, [k]: v } : f));
 
-  if (!form) return <Screen title="Profil" back="/"><span>Laddar…</span></Screen>;
+  if (!form) {
+    return (
+      <SoftScreen title="Profil" back="/">
+        <div className="px-4 pt-2 text-[15px] font-medium" style={{ color: C.text2 }}>
+          Laddar…
+        </div>
+      </SoftScreen>
+    );
+  }
 
   return (
-    <Screen title="Profil" back={forSomeoneElse ? "/installningar" : "/"}>
-      {error && <Notice kind="error">{error}</Notice>}
-      {note && <Notice kind="ok">{note}</Notice>}
-
-      {forSomeoneElse && who && (
-        <Notice kind="info">Du ändrar profilen för <strong>{who}</strong>.</Notice>
+    <SoftScreen title="Profil" back={forSomeoneElse ? "/installningar" : "/"}>
+      {(error || note || (forSomeoneElse && who)) && (
+        <div className="flex flex-col gap-[10px] px-4 pb-1 pt-1">
+          {error && <SoftNotice tone="stop">{error}</SoftNotice>}
+          {note && <SoftNotice tone="live">{note}</SoftNotice>}
+          {forSomeoneElse && who && (
+            <SoftNotice tone="warn">
+              Du ändrar profilen för <strong>{who}</strong>.
+            </SoftNotice>
+          )}
+        </div>
       )}
 
-      {ALWAYS.map(([k, label, type]) => (
-        <Field key={k} label={label}>
-          <Input
-            type={type}
-            inputMode={type === "tel" ? "tel" : undefined}
-            value={form[k] ?? ""}
-            onChange={(e) => set(k, e.target.value)}
-          />
-        </Field>
+      {/* The role tag the handoff puts on this screen for a foreman. It is read
+          from the account rather than assumed, so an admin editing somebody
+          else's profile still sees whose it is. */}
+      {account?.role === "arbetsledare" && (
+        <div className="px-4 pt-1"><Tag tone="warn">Arbetsledare</Tag></div>
+      )}
+
+      {CARDS.map((card, i) => (
+        // data-card so a test can ask which card a field is in. The handoff
+        // shortens "Närmast anhörig namn" to "Namn" under a card that already
+        // says whose name it is, which means the label alone no longer tells
+        // the worker's own name from their next of kin's -- and "the worker
+        // cannot edit their own namn" is an assertion worth keeping.
+        <div key={card.title} data-card={card.title} className={`px-4 ${i === 0 ? "pt-[2px]" : "pt-[14px]"}`}>
+          <Card>
+            <div
+              className="mb-[14px] text-[12px] font-bold uppercase"
+              style={{ letterSpacing: "1px", color: C.text2 }}
+            >
+              {card.title}
+            </div>
+            <div className="flex flex-col gap-[14px]">
+              {card.rows.map((row, r) => (
+                <div key={r} className="flex gap-[10px]">
+                  {row.map(([k, label, type, flex]) => (
+                    <div key={k} style={{ flex }}>
+                      <SoftField label={label}>
+                        <SoftInput
+                          type={type}
+                          inputMode={type === "tel" ? "tel" : undefined}
+                          value={form[k] ?? ""}
+                          onChange={(e) => set(k, e.target.value)}
+                        />
+                      </SoftField>
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          </Card>
+        </div>
       ))}
 
-      <div className="mt-6">
-        <Check
-          label="Har du företag?"
-          checked={form.har_foretag}
-          onChange={(v) => setForm((f) => (f ? { ...f, har_foretag: v } : f))}
-        />
+      {/* 60px row, 26px box, radius 7, accent when checked.
+          role="checkbox", not aria-pressed: the handoff draws a checkbox and
+          this behaves like one, so a screen reader should say "checkbox,
+          checked" rather than "button, pressed". A native <input> cannot carry
+          the drawn box, and a button that lies about what it is would be a
+          worse trade than drawing the role by hand. */}
+      <div className="px-4 pt-[14px]">
+        <button
+          type="button"
+          role="checkbox"
+          onClick={() => setForm((f) => (f ? { ...f, har_foretag: !f.har_foretag } : f))}
+          aria-checked={form.har_foretag}
+          className="flex h-[60px] w-full items-center justify-between rounded-[14px] px-[18px] hover:bg-[#f6f9ff]"
+          style={{ background: C.surface, boxShadow: SHADOW.group }}
+        >
+          <span className="text-[17px] font-bold" style={{ letterSpacing: "-.2px" }}>
+            Har du företag?
+          </span>
+          <span
+            className="flex h-[26px] w-[26px] items-center justify-center rounded-[7px]"
+            style={{
+              background: form.har_foretag ? C.accent : C.panel2,
+              boxShadow: form.har_foretag ? undefined : `inset 0 0 0 1.5px ${C.hairline}`,
+            }}
+          >
+            {form.har_foretag && (
+              <svg width="14" height="11" viewBox="0 0 14 11" fill="none" aria-hidden>
+                <path d="M1.5 5.6 5 9.2 12.5 1.6" stroke="#ffffff" strokeWidth="2.4"
+                  strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            )}
+          </span>
+        </button>
       </div>
 
       {/* Hidden until the toggle is on. Nine boxes that do not apply to most
           people are nine chances to give up on the form. */}
       {form.har_foretag && (
-        <>
-          {COMPANY.map(([k, label, type]) => (
-            <Field key={k} label={label}>
-              <Input
-                type={type}
-                value={form[k] ?? ""}
-                onChange={(e) => set(k, e.target.value)}
-              />
-            </Field>
-          ))}
-          <Check
-            label="F-skatt"
-            checked={form.f_skatt}
-            onChange={(v) => setForm((f) => (f ? { ...f, f_skatt: v } : f))}
-          />
-        </>
+        <div className="px-4 pt-[14px]">
+          <Card>
+            <SectionLabel>Företag</SectionLabel>
+            <div className="flex flex-col gap-[14px]">
+              {COMPANY.map(([k, label, type]) => (
+                <SoftField key={k} label={label}>
+                  <SoftInput
+                    type={type}
+                    value={form[k] ?? ""}
+                    onChange={(e) => set(k, e.target.value)}
+                  />
+                </SoftField>
+              ))}
+              <button
+                type="button"
+                role="checkbox"
+                onClick={() => setForm((f) => (f ? { ...f, f_skatt: !f.f_skatt } : f))}
+                aria-checked={form.f_skatt}
+                className="flex h-[52px] w-full items-center justify-between rounded-[10px] px-[14px]"
+                style={{ background: C.panel2 }}
+              >
+                <span className="text-[16px] font-semibold">F-skatt</span>
+                <span
+                  className="flex h-[26px] w-[26px] items-center justify-center rounded-[7px]"
+                  style={{
+                    background: form.f_skatt ? C.accent : C.surface,
+                    boxShadow: form.f_skatt ? undefined : `inset 0 0 0 1.5px ${C.hairline}`,
+                  }}
+                >
+                  {form.f_skatt && (
+                    <svg width="14" height="11" viewBox="0 0 14 11" fill="none" aria-hidden>
+                      <path d="M1.5 5.6 5 9.2 12.5 1.6" stroke="#ffffff" strokeWidth="2.4"
+                        strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  )}
+                </span>
+              </button>
+            </div>
+          </Card>
+        </div>
       )}
 
-      <Button onClick={save} disabled={busy}>{busy ? "Sparar…" : "Spara"}</Button>
-
-      {!isAdmin && (
-        <p className="mt-4 text-base text-neutral-600">
-          Namn och e-post ändras av administratören.
-        </p>
-      )}
-    </Screen>
+      <div className="px-4 pt-6">
+        <PrimaryButton onClick={save} disabled={busy}>
+          {busy ? "Sparar…" : "Spara"}
+        </PrimaryButton>
+        {!isAdmin && (
+          <p
+            className="px-2 pt-3 text-center text-[15px] font-medium"
+            style={{ color: C.text2, textWrap: "pretty" }}
+          >
+            Namn och e-post ändras av administratören.
+          </p>
+        )}
+      </div>
+    </SoftScreen>
   );
 }
 
@@ -181,7 +311,7 @@ function ProfilFromUrl() {
 export default function Page() {
   return (
     <AuthGate>
-      <Suspense fallback={<Screen title="Profil" back="/"><span>Laddar…</span></Screen>}>
+      <Suspense fallback={<SoftScreen title="Profil" back="/"><span /></SoftScreen>}>
         <ProfilFromUrl />
       </Suspense>
     </AuthGate>

@@ -33,8 +33,11 @@ const shot = (page, n) => page.screenshot({ path: path.join(ART, `${n}.png`), fu
 const boxes = (page, label) =>
   page.locator(`label:has(> span:text-is("${label}"))`).locator("input, textarea");
 const field = (page, label, i = 0) => boxes(page, label).nth(i);
-const check = (page, label) =>
-  page.locator(`label:has(span:text-is("${label}"))`).locator('input[type="checkbox"]').first();
+// The handoff draws its own 26px box, so these are role="checkbox" buttons
+// rather than native inputs. Asked for by ROLE, which is the thing that has to
+// be right: a drawn control that does not announce itself as a checkbox is the
+// failure, and getByRole is the only locator that would notice.
+const check = (page, label) => page.getByRole("checkbox", { name: label, exact: true });
 
 async function mustSee(page, text, why) {
   try {
@@ -64,24 +67,31 @@ async function signIn(ctx, email, password) {
 const stamp = String(Date.now()).slice(-6);
 
 // The eight that are always asked for, and the value each must come back as.
+//
+// READ BY POSITION, like the company block below. The handoff puts these in
+// three titled cards and shortens the labels to suit -- "Närmast anhörig
+// telefonnummer" is "Telefonnummer" under a card that already says whose --
+// so a label is no longer unique on the page and the index says which card.
 const ALWAYS = [
-  ["Telefonnummer", `070-000 ${stamp}`],
-  ["Adress", `Provgatan ${stamp}`],
-  ["Postnummer", `24${stamp.slice(0, 3)}`],
-  ["Stad", `Hörby ${stamp}`],
-  ["Clearingnummer", `8${stamp.slice(0, 3)}`],
-  ["Kontonummer", `${stamp}0001`],
-  ["Närmast anhörig namn", `Anhörig ${stamp}`],
-  ["Närmast anhörig telefonnummer", `073-111 ${stamp}`],
+  ["Telefonnummer", 0, `070-000 ${stamp}`],
+  ["Adress", 0, `Provgatan ${stamp}`],
+  ["Postnr", 0, `24${stamp.slice(0, 3)}`],
+  ["Stad", 0, `Hörby ${stamp}`],
+  ["Clearing", 0, `8${stamp.slice(0, 3)}`],
+  ["Kontonummer", 0, `${stamp}0001`],
+  ["Namn", 0, `Anhörig ${stamp}`],
+  ["Telefonnummer", 1, `073-111 ${stamp}`],
 ];
 
-// The nine behind the toggle. Postnummer and Stad repeat, so they are read by
-// position: the personal pair is first on the page, the company pair second.
+// The nine behind the toggle. Stad still repeats, so it is read by position:
+// the personal one is first on the page, the company one second. Postnummer no
+// longer repeats -- the handoff calls the personal one "Postnr" -- so the
+// company field is the only one under that name and sits at 0.
 const COMPANY = [
   ["Företagsnamn", 0, `Bolaget ${stamp} AB`],
   ["Organisationsnummer", 0, `5567-${stamp}`],
   ["Fakturaadress", 0, `Fakturagatan ${stamp}`],
-  ["Postnummer", 1, `39${stamp.slice(0, 3)}`],
+  ["Postnummer", 0, `39${stamp.slice(0, 3)}`],
   ["Stad", 1, `Eslöv ${stamp}`],
   ["Län", 0, `Skåne ${stamp}`],
   ["Bankgiro/Plusgiro", 0, `443-${stamp}`],
@@ -110,11 +120,25 @@ try {
   log("reached Profil from the profile icon");
 
   // Namn and e-post are locked: not shown as fields at all, and said so.
+  //
+  // SCOPED TO THE KONTAKT CARD. "Namn" is a legitimate field further down --
+  // the next of kin's, under a card that says so -- so an unscoped check would
+  // now fail on a screen that is correct, and dropping it would stop testing
+  // the thing it exists for. The worker's own name would live in Kontakt.
+  const kontakt = w.locator('[data-card="Kontakt"]');
+  await kontakt.waitFor({ timeout: 20000 });
   for (const locked of ["Namn", "E-post"]) {
-    if (await boxes(w, locked).count()) {
+    if (await kontakt.locator(`label:has(> span:text-is("${locked}"))`).count()) {
       await shot(w, "FAILED");
       fail(`"${locked}" is editable on the arbetare's own Profil; it must be locked`);
     }
+  }
+  if (await boxes(w, "E-post").count()) {
+    await shot(w, "FAILED");
+    fail("an E-post field exists somewhere on the arbetare's own Profil");
+  }
+  if (await w.locator('[data-card="Närmast anhörig"] label:has(> span:text-is("Namn"))').count() !== 1) {
+    fail("the one Namn field on the page is not the next of kin's");
   }
   await mustSee(w, "Namn och e-post ändras av administratören",
                 "nothing tells the arbetare why namn and e-post are absent");
@@ -126,9 +150,9 @@ try {
   }
   log("the company fields are hidden until the toggle is on");
 
-  for (const [label, value] of ALWAYS) {
-    const box = field(w, label);
-    if (!(await box.count())) fail(`the form has no "${label}" field`);
+  for (const [label, i, value] of ALWAYS) {
+    const box = field(w, label, i);
+    if (!(await box.count())) fail(`the form has no "${label}" field (position ${i})`);
     await box.fill(value);
   }
   log(`filled all ${ALWAYS.length} always-visible fields`);
@@ -152,9 +176,9 @@ try {
   // The real test of a save: come back and find it there.
   await w.reload({ waitUntil: "networkidle" });
   await mustSee(w, "Har du företag?", "the form did not come back after a reload");
-  for (const [label, value] of ALWAYS) {
-    const got = await field(w, label).inputValue();
-    if (got !== value) fail(`after reload "${label}" reads ${JSON.stringify(got)}, wanted ${JSON.stringify(value)}`);
+  for (const [label, i, value] of ALWAYS) {
+    const got = await field(w, label, i).inputValue();
+    if (got !== value) fail(`after reload "${label}" (position ${i}) reads ${JSON.stringify(got)}, wanted ${JSON.stringify(value)}`);
   }
   if (!(await check(w, "Har du företag?").isChecked())) {
     fail("the company toggle did not survive the reload");
