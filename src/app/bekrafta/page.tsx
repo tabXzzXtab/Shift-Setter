@@ -325,7 +325,11 @@ function Bekrafta({ askedProject, askedDate }: { askedProject: string | null; as
       {day.rows.map((r) => {
         const e = edits[r.tilldelning_id]!;
         return (
-          <div key={r.tilldelning_id} className="px-4 pt-[14px]">
+          <div
+            key={r.tilldelning_id}
+            data-row={r.is_leader ? "ledare" : "arbetare"}
+            className="px-4 pt-[14px]"
+          >
             <Card>
               <div className="flex items-baseline justify-between gap-[10px]">
                 <div className="text-[18px] font-bold" style={{ letterSpacing: "-.4px" }}>

@@ -46,6 +46,27 @@ const perturb = (find, replace) => perturbIn("app.fill_pass(uuid)", find, replac
 
 /** Each control: disable one protection, name the assertion that must then fail. */
 const CONTROLS = [
+  ["stage 2 -- a leader's times go to the leader's row",
+   // The routing forced down the OLD path: every corrected span written to the
+   // pass. The leader's own_start then never moves, which is the gap this
+   // change closed -- an admin could not correct a leader's span at all
+   // without moving every worker on the shift to do it.
+   perturbIn("public.approve_day(uuid,date,text,jsonb)",
+             "if coalesce(v_ledare, false) then", "if false then"),
+   "LEDARE.stage2_writes_the_leaders_own_span"],
+
+  // THERE IS NO MIRROR CONTROL FOR "a worker's times still go to the pass",
+  // and that is a better answer than a control. Forcing the routing the other
+  // way does not silently misfile a worker's span: the check constraint
+  // tilldelning_own_span_is_the_leaders refuses the row outright, so the
+  // perturbed run dies on the constraint instead of reaching an assertion.
+  // The guarantee is stronger than the test would have been, and
+  // LEDARE.a_workers_row_has_no_own_span is what states it.
+
+  ["stage 2 -- only a leader's row may carry its own span",
+   "alter table public.tilldelning drop constraint tilldelning_own_span_is_the_leaders",
+   "LEDARE.a_workers_row_has_no_own_span"],
+
   ["personlig kalender -- an event is private to its owner and whoever they named",
    // The read policy made permissive. Everything else about the feature still
    // works, which is the point: a calendar that showed everybody everything

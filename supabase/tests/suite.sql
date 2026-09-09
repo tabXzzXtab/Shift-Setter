@@ -3597,4 +3597,128 @@ select pg_temp.ok(
   'PERSONAL.touches_no_shift_table',
   'a personal event references nothing the shift logic or the document reads');
 
+-- ============================================================================
+-- LEDARENS TIDER -- stage 2 corrects the arbetsledare's own span
+--
+-- ITS OWN FIXTURE, ON A DAY THAT IS OVER AND THAT NOTHING ELSE USES. The Step
+-- 4b fixture runs 120 days out and the confirmation guard rightly refuses to
+-- confirm a day whose last shift has not ended; day -37 is past, and no other
+-- assertion in this file touches it, so the worker below cannot collide with
+-- somebody else's booking (invariant 2 refused the first attempt at this, on a
+-- date where the worker was already out).
+--
+-- WHY STAGE 2 IS WHERE THE SPAN IS CORRECTED. On Bekräfta Pass the leader's
+-- times are read-only: a person stating when they personally were on site, on
+-- the row that pays them, is the conflict of interest the two stages exist to
+-- hold. Their HOURS stay theirs to type at stage 1 -- lunch comes off the
+-- envelope and nobody else knows how long it was (invariant 1). Times are the
+-- claim somebody else checks; hours are the claim they make.
+-- ============================================================================
+
+insert into public.pass (id, project_id, work_date, start_time, end_time,
+                         planned_hours, headcount, created_by)
+values ('fcfcfcfc-0000-0000-0000-000000000001', 'aaaaaaaa-0000-0000-0000-00000000000a',
+        app.stockholm_today() - 37, '07:00', '16:00', 8.00, 1,
+        (select v from fx where k = 'leaderA'));
+
+-- A worker on the day is what puts the project's arbetsledare on it. The
+-- leader's row is Step 4b's, not this fixture's -- inserting one by hand would
+-- test the routing against a row the system would never have made.
+insert into public.tilldelning (id, pass_id, worker_id, source)
+values ('fdfdfdfd-0000-0000-0000-000000000001',
+        'fcfcfcfc-0000-0000-0000-000000000001',
+        (select id from wid where k = 'w3'), 'manuell');
+
+select pg_temp.ok(
+  exists (select 1 from public.tilldelning t
+          where t.pass_id = 'fcfcfcfc-0000-0000-0000-000000000001'
+            and t.released_at is null and t.source = 'ledare'),
+  'LEDARE.step4b_placed_the_leader',
+  'Step 4b put the arbetsledare on the day, which is what the rest is about');
+
+-- THE MIS-ROUTING IS IMPOSSIBLE, not merely wrong: a worker's row cannot carry
+-- an own span at all. So a bug that sent every correction down the leader's
+-- branch would stop the approval dead rather than quietly filing a worker's
+-- times where no calendar reads them -- which is why there is no mirror
+-- negative control for the other direction, only this.
+--
+-- ASSERTED WHILE THE DAY IS STILL OPEN. After stage 2 the day is
+-- admin_confirmed and invariant 5 refuses every write to it, so this would
+-- have been passing on the finality guard rather than on the constraint it
+-- names -- which is exactly what it did on the first attempt.
+set local role authenticated;
+select pg_temp.act_as((select v from fx where k = 'admin'));
+select pg_temp.rejects($$
+  update public.tilldelning set own_start = '06:00', own_end = '15:00'
+  where id = 'fdfdfdfd-0000-0000-0000-000000000001'
+$$, 'LEDARE.a_workers_row_has_no_own_span');
+reset role;
+
+-- Stage 1: the leader types every figure, including their own, and confirms.
+set local role authenticated;
+select pg_temp.act_as((select v from fx where k = 'leaderA'));
+
+update public.tilldelning t set confirmed_hours = 8.00
+where t.pass_id = 'fcfcfcfc-0000-0000-0000-000000000001'
+  and t.released_at is null;
+
+insert into public.project_day (project_id, work_date, vad_vi_gjorde,
+                                confirmed_at, confirmed_by, confirmed_via)
+values ('aaaaaaaa-0000-0000-0000-00000000000a', app.stockholm_today() - 37,
+        'Grävde för dagvatten och la rör.', now(),
+        (select v from fx where k = 'leaderA'), 'leader');
+reset role;
+
+select pg_temp.ok(
+  (select stage = 'leader_confirmed' from public.project_day
+   where project_id = 'aaaaaaaa-0000-0000-0000-00000000000a'
+     and work_date = app.stockholm_today() - 37),
+  'LEDARE.day_reached_stage_one',
+  'the fixture is at stage 1, which is where stage 2 picks it up');
+
+-- ONLY THE LEADER'S ROW IS SENT, and it carries no 'pass' key: these times are
+-- not the pass's. approve_day decides the destination by reading the row's own
+-- source, so a payload that named a pass would be routed the same way -- the
+-- omission is a courtesy to a reader, not the thing that makes it safe.
+set local role authenticated;
+select pg_temp.act_as((select v from fx where k = 'admin'));
+select public.approve_day(
+  'aaaaaaaa-0000-0000-0000-00000000000a', app.stockholm_today() - 37,
+  'Grävde för dagvatten och la rör.',
+  jsonb_build_array(jsonb_build_object(
+    'tilldelning', (select t.id from public.tilldelning t
+                    where t.pass_id = 'fcfcfcfc-0000-0000-0000-000000000001'
+                      and t.released_at is null and t.source = 'ledare'),
+    'hours',  8.5,
+    'start',  '06:45',
+    'end',    '16:20')));
+reset role;
+
+select pg_temp.ok(
+  (select t.own_start = '06:45'::time and t.own_end = '16:20'::time
+   from public.tilldelning t
+   where t.pass_id = 'fcfcfcfc-0000-0000-0000-000000000001'
+     and t.released_at is null and t.source = 'ledare'),
+  'LEDARE.stage2_writes_the_leaders_own_span',
+  'the admin corrected the arbetsledare''s envelope, on the arbetsledare''s row');
+
+-- AND IT MOVED NOBODY ELSE. The assertion above would pass just as well if the
+-- times had ALSO gone to the pass, so this is the half that matters: the pass
+-- still carries 07:00-16:00, which is what the document prints for everybody
+-- standing on that shift.
+select pg_temp.ok(
+  (select start_time = '07:00'::time and end_time = '16:00'::time
+   from public.pass where id = 'fcfcfcfc-0000-0000-0000-000000000001'),
+  'LEDARE.stage2_moves_nobody_else',
+  'correcting the leader''s span left the pass, and everyone on it, where it was');
+
+-- Hours are hours wherever the row came from: a human typed 8,5 and 8,5 stands.
+select pg_temp.ok(
+  (select t.confirmed_hours = 8.5
+   from public.tilldelning t
+   where t.pass_id = 'fcfcfcfc-0000-0000-0000-000000000001'
+     and t.released_at is null and t.source = 'ledare'),
+  'LEDARE.stage2_hours_stand',
+  'the arbetsledare''s hours take the admin''s figure like any other row');
+
 select pg_temp.ok(true, 'SUITE.complete', 'every assertion passed');

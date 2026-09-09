@@ -17,10 +17,20 @@ Full specification: [docs/spec.md](docs/spec.md).
     nothing recomputes it afterwards. A number a human must accept or correct is
     not a derived number.
     An auto-assigned arbetsledare's hours are prefilled from the workers' span
-    and stay editable: a number a human must accept or correct is not a derived
-    number. One true exception, the bristsurvey — on a day no leader confirmed,
-    hours come from the clock span where the worker clocked both ends and the
-    planned figure where they did not. Nobody types those. That path, no other.
+    and stay editable AT EVERY STAGE: a number a human must accept or correct is
+    not a derived number, and lunch comes off the envelope like anyone else's.
+    Their TIMES are the exception, and only theirs: a leader's own span is
+    read-only on Bekräfta Pass and the admin corrects it at stage 2. A person
+    stating when they personally were on site, on the row that pays them, is the
+    one claim the two stages exist to check — so times are the claim somebody
+    else verifies and hours stay the claim they make. The span moves on
+    own_start/own_end and never on the pass, so correcting one leader moves
+    nobody else; approve_day decides that from the row's own source rather than
+    from anything a caller sends. A worker's row cannot carry an own span at
+    all. One true exception to the whole invariant, the bristsurvey — on a day
+    no leader confirmed, hours come from the clock span where the worker clocked
+    both ends and the planned figure where they did not. Nobody types those.
+    That path, no other.
 2.  No worker holds two assignments whose HOURS OVERLAP. A morning shift and
     an afternoon Snabb Pass are two things that happened and print as two rows;
     being booked into two places at once is the thing this forbids, and a date

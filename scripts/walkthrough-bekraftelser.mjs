@@ -261,6 +261,42 @@ try {
   await shot(page, "b4-bekrafta-ifylld");
   log(`tapping the second row opens ${newer}, not the oldest day in the queue`);
 
+  // ---- the leader's own row is not theirs to time -------------------------
+  //
+  // BOTH HALVES, because either alone would pass on a broken screen: one that
+  // locked every row would satisfy the first, and one that locked nothing
+  // would satisfy the second. Step 4b put the leader on this day, so both
+  // kinds of row are on screen at once and the difference between them is
+  // what is being asserted.
+  const ledareRow = page.locator('[data-row="ledare"]');
+  const arbetareRow = page.locator('[data-row="arbetare"]').first();
+  await ledareRow.waitFor({ timeout: 20000 });
+
+  if (await ledareRow.locator('input[type="time"]').count()) {
+    await shot(page, "FAILED");
+    fail("the arbetsledare can type their own times at stage 1");
+  }
+  const ledareText = await ledareRow.innerText();
+  if (!/\d{2}:\d{2}/.test(ledareText)) {
+    fail(`the leader's span is not shown at all: ${JSON.stringify(ledareText)}`);
+  }
+
+  // Their HOURS are still theirs: lunch comes off the envelope and nobody else
+  // knows how long it was (invariant 1).
+  if (!(await ledareRow.locator('input[inputmode="decimal"]').count())) {
+    await shot(page, "FAILED");
+    fail("the arbetsledare cannot type their own hours -- invariant 1");
+  }
+
+  // A worker's row is untouched: two time fields, as before.
+  if ((await arbetareRow.locator('input[type="time"]').count()) !== 2) {
+    await shot(page, "FAILED");
+    fail("a worker's row lost its time fields; only the leader's own row is locked");
+  }
+  await mustSee(page, "Dina tider ändras av admin när dagen godkänns.",
+                "nothing tells the leader who can change their times");
+  log("the leader's span is read-only and their hours are not; worker rows are untouched");
+
   // ---- confirming moves a day off one view without putting it on the other -
   await page.getByLabel("Vad vi gjorde").fill("Stenläggning, norra sidan.");
   await page.getByRole("button", { name: "Bekräfta dagen" }).click();
@@ -337,6 +373,24 @@ try {
     await shot(page, "FAILED");
     fail(`Granska Pass opened ${JSON.stringify(head.slice(0, 140))} instead of the row's own day`);
   }
+  // ---- stage 2 is where the leader's span IS editable ---------------------
+  //
+  // The mirror of the stage 1 assertion above, and the reason that one is not
+  // simply "the row is locked everywhere": somebody has to be able to correct
+  // it, and this is who.
+  const adminLedareRow = page.locator('[data-row="ledare"]');
+  if (await adminLedareRow.count()) {
+    if ((await adminLedareRow.locator('input[type="time"]').count()) !== 2) {
+      await shot(page, "FAILED");
+      fail("the admin cannot correct the arbetsledare's span at stage 2");
+    }
+    await mustSee(page, "Arbetsledarens egna tider",
+                  "nothing says whose span the admin is editing");
+    log("at stage 2 the admin can type the leader's span, and is told whose it is");
+  } else {
+    fail("Granska Pass shows no arbetsledare row on a day Step 4b placed one on");
+  }
+
   await godkann.click();
   await page.waitForTimeout(3000);
   log("the row opens that day in Granska Pass, and the admin approves it");
