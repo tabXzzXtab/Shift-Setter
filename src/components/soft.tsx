@@ -426,26 +426,36 @@ export function SoftSelect(props: React.SelectHTMLAttributes<HTMLSelectElement>)
  * reachable, not offered.
  */
 export function DangerButton({
-  children, onClick, disabled, full = true,
+  children, onClick, disabled, full = true, solid = false,
 }: {
   children: ReactNode;
   onClick?: () => void;
   disabled?: boolean;
   /** false for the 48px square icon variant on the Konton rows. */
   full?: boolean;
+  /**
+   * The stop pair, inverted: #8e1d15 filled, white label.
+   *
+   * A DEPARTURE FROM THE HANDOFF, which draws every destructive control as
+   * #8e1d15 on #fbe9ec -- see its Redigera projekt screen and its Konton rows.
+   * It is opt-in for that reason: the pale treatment stays the default, so the
+   * delete icon on a Konton row and anything added later keep the drawn look,
+   * and only the screens told to shout do.
+   */
+  solid?: boolean;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className={`press-scale flex items-center justify-center rounded-[12px] text-[17px] font-bold transition-transform duration-[110ms] hover:bg-[#f6d8dd] active:scale-[.985] ${
-        full ? "h-14 w-full" : "h-12 w-12 rounded-[10px]"
-      }`}
+      className={`press-scale flex items-center justify-center rounded-[12px] text-[17px] font-bold transition-transform duration-[110ms] active:scale-[.985] ${
+        solid ? "hover:bg-[#71170f]" : "hover:bg-[#f6d8dd]"
+      } ${full ? "h-14 w-full" : "h-12 w-12 rounded-[10px]"}`}
       style={{
         letterSpacing: "-.2px",
-        background: C.stopBg,
-        color: C.stopInk,
+        background: solid ? C.stopInk : C.stopBg,
+        color: solid ? C.surface : C.stopInk,
         opacity: disabled ? 0.5 : undefined,
         cursor: disabled ? "not-allowed" : undefined,
       }}

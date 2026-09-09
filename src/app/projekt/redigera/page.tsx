@@ -292,6 +292,7 @@ function RedigeraProjekt({ id }: { id: string | null }) {
         {!confirming ? (
           <>
             <DangerButton
+              solid
               onClick={() => {
                 setError(null);
                 setConfirming(true);
@@ -315,7 +316,7 @@ function RedigeraProjekt({ id }: { id: string | null }) {
               Är du säker? Detta går inte att ångra.
             </p>
             <div className="mb-[10px]">
-              <DangerButton onClick={onDelete} disabled={deleting}>
+              <DangerButton solid onClick={onDelete} disabled={deleting}>
                 {deleting ? "Tar bort…" : "Ja, ta bort projektet"}
               </DangerButton>
             </div>
