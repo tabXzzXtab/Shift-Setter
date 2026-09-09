@@ -1,0 +1,8 @@
+:root {
+  --radius-xs: 8px;
+  --radius-s: 12px;
+  --radius-m: 16px;   /* inset panels inside cards */
+  --radius-l: 22px;   /* grouped list cards */
+  --radius-xl: 26px;  /* the hero card */
+  --radius-pill: 999px;
+}

@@ -125,15 +125,15 @@ reason to relax it.
 
 ---
 
-## Design, until it works
+## Design
 
-- **Black and white.** No styling before function.
-- **The shift calendar is the one place colour is allowed**, because there it
-  carries meaning: a project's colour is what makes "Tuesday is two different
-  sites" visible without reading. A fixed palette, not a hashed hue -- hashing
-  produces neighbouring greens eventually, and two sites that look alike is the
-  failure the colour exists to prevent.
-- **The calendar is the exception** -- drag-to-paint needs real layout from the start.
+- **Visual system follows the ByggKoll handoff spec (`handoff/README.md`).** The
+  light-blue palette, shadows and typography there are the source of truth. The
+  old black-and-white rule no longer applies.
+- **Project colours on the shift calendar are a fixed palette, not a hashed
+  hue** -- hashing produces neighbouring greens eventually, and two sites that
+  look alike is the failure the colour exists to prevent. A project's colour is
+  what makes "Tuesday is two different sites" visible without reading.
 - **Mobile first, always.** Every screen designed for a phone, then adapted upward.
 - Built so a child could use it: large targets, obvious affordances, minimal per screen.
 

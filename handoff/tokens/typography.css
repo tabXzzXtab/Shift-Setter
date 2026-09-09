@@ -1,0 +1,27 @@
+:root {
+  /* Display — heavy, tight, tabular. Reserved for the one number or verb that
+     matters on a screen. Weight 800; never below 700 at display sizes. */
+  --type-display-xl: 800 40px/1.02 var(--font-display);
+  --type-display-l: 800 34px/1.05 var(--font-display);
+  --type-display-m: 800 26px/1.1 var(--font-display);
+  --type-display-s: 800 22px/1.15 var(--font-display);
+  --tracking-display: -0.028em;
+
+  /* Titles — row labels and card headings. 700. */
+  --type-title-l: 700 19px/1.25 var(--font-display);
+  --type-title-m: 700 17px/1.3 var(--font-display);
+  --type-title-s: 700 15px/1.3 var(--font-display);
+  --tracking-title: -0.014em;
+
+  /* Body — 16px floor on mobile. Secondary copy never below 15px. */
+  --type-body-l: 500 17px/1.45 var(--font-body);
+  --type-body-m: 500 16px/1.45 var(--font-body);
+  --type-body-s: 500 15px/1.4 var(--font-body);
+
+  /* Kicker — the system's signature: tiny, uppercase, widely tracked, 700.
+     Sits above every display number and above every card group. */
+  --type-kicker: 700 12px/1.1 var(--font-display);
+  --tracking-kicker: 0.11em;
+
+  --numeric-figures: tabular-nums;
+}

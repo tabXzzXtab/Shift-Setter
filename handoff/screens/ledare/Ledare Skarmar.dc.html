@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  html, body { margin:0; padding:0; background:#e8eefb; color:#091540; font-family:'Inter', system-ui, sans-serif; -webkit-font-smoothing:antialiased; }
+  a { color:#1b2cc1; text-decoration:none; }
+  a:hover { color:#12206b; }
+</style>
+</helmet>
+<div style="display:flex; gap:30px; align-items:flex-start; flex-wrap:wrap; padding:30px; font-family:'Inter', system-ui, sans-serif; color:#091540;">
+
+  <div style="display:flex; flex-direction:column; gap:10px;">
+    <div style="font-size:12px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:#4a5578; padding-left:4px;">Startsida</div>
+    <div style="width:390px; min-height:844px; background:#f3f6fd; border-radius:22px; overflow:hidden; box-shadow:0 18px 50px rgba(9,21,64,.13); padding:0 0 40px; box-sizing:border-box;">
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; padding:14px 16px 10px;">
+        <button style="width:44px; height:44px; display:flex; align-items:center; justify-content:center; border:0; border-radius:11px; background:#ffffff; box-shadow:0 1px 3px rgba(9,21,64,.08); cursor:pointer; padding:0;" style-hover="background:#f0f5ff;" style-active="background:#dbe4f9;" aria-label="Meny">
+          <svg width="20" height="14" viewBox="0 0 20 14" fill="none"><path d="M1 1.5h18M1 7h18M1 12.5h18" stroke="#091540" stroke-width="2.2" stroke-linecap="round"></path></svg>
+        </button>
+        <div style="font-size:17px; font-weight:700; letter-spacing:-.2px;">Arbetsledare</div>
+        <button style="width:44px; height:44px; display:flex; align-items:center; justify-content:center; border:0; border-radius:11px; background:#ffffff; box-shadow:0 1px 3px rgba(9,21,64,.08); cursor:pointer; padding:0;" style-hover="background:#f0f5ff;" style-active="background:#dbe4f9;" aria-label="Profil">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="6.4" r="3.4" stroke="#091540" stroke-width="2"></circle><path d="M3.6 17c.9-3.3 3.4-5 6.4-5s5.5 1.7 6.4 5" stroke="#091540" stroke-width="2" stroke-linecap="round"></path></svg>
+        </button>
+      </div>
+
+      <div style="padding:6px 16px 0;">
+        <div style="background:#ffffff; border-radius:16px; box-shadow:0 8px 28px rgba(9,21,64,.09), 0 1px 2px rgba(9,21,64,.05); padding:20px 20px 18px;">
+          <div style="font-size:12px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:#4a5578; margin-bottom:2px;">Väntar på dig</div>
+          <div style="font-size:34px; font-weight:800; letter-spacing:-1.4px; line-height:1.05; margin-bottom:4px;">2 dagar</div>
+          <div style="font-size:15px; font-weight:500; color:#4a5578; margin-bottom:18px;">Bekräfta dem innan admin kan godkänna.</div>
+          <button style="width:100%; height:66px; border:0; border-radius:12px; background:#1b2cc1; color:#ffffff; box-shadow:0 6px 18px rgba(27,44,193,.28); font-family:inherit; font-size:23px; font-weight:800; letter-spacing:-.5px; cursor:pointer; transition:transform .12s ease, background .15s ease;" style-hover="background:#12206b;" style-active="transform:scale(.985);">Bekräfta pass</button>
+        </div>
+      </div>
+
+      <div style="padding:14px 16px 0;">
+        <button style="width:100%; height:60px; border:0; border-radius:12px; background:#eef3fe; color:#12206b; font-family:inherit; font-size:18px; font-weight:700; letter-spacing:-.3px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:10px;" style-hover="background:#dbe4f9;" style-active="transform:scale(.985);">
+          <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><path d="M7.5 1v13M1 7.5h13" stroke="#12206b" stroke-width="2.4" stroke-linecap="round"></path></svg>Skapa pass</button>
+      </div>
+
+      <div style="padding:14px 16px 0;">
+        <div style="background:#ffffff; border-radius:14px; box-shadow:0 4px 18px rgba(9,21,64,.07), 0 1px 2px rgba(9,21,64,.04); overflow:hidden;">
+          <a href="#" style="display:flex; align-items:center; justify-content:space-between; height:60px; padding:0 18px; color:#091540; box-shadow:inset 0 -1px 0 #e3eafb;" style-hover="background:#f6f9ff;">
+            <span style="font-size:17px; font-weight:700; letter-spacing:-.2px;">Min passkalender</span>
+            <svg width="9" height="15" viewBox="0 0 9 15" fill="none"><path d="M1.5 1.5 7 7.5l-5.5 6" stroke="#8b98c4" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+          </a>
+          <a href="#" style="display:flex; align-items:center; justify-content:space-between; height:60px; padding:0 18px; color:#091540; box-shadow:inset 0 -1px 0 #e3eafb;" style-hover="background:#f6f9ff;">
+            <span style="font-size:17px; font-weight:700; letter-spacing:-.2px;">Mina pass</span>
+            <svg width="9" height="15" viewBox="0 0 9 15" fill="none"><path d="M1.5 1.5 7 7.5l-5.5 6" stroke="#8b98c4" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+          </a>
+          <a href="#" style="display:flex; align-items:center; justify-content:space-between; height:60px; padding:0 18px; color:#091540;" style-hover="background:#f6f9ff;">
+            <span style="font-size:17px; font-weight:700; letter-spacing:-.2px;">Bekräftelse historik</span>
+            <svg width="9" height="15" viewBox="0 0 9 15" fill="none"><path d="M1.5 1.5 7 7.5l-5.5 6" stroke="#8b98c4" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+          </a>
+        </div>
+      </div>
+
+      <div style="padding:26px 16px 0;">
+        <div style="font-size:12px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:#4a5578; padding:0 4px 10px;">Nästa pass</div>
+        <div style="background:#e7edfb; border-radius:14px; padding:22px; text-align:center; font-size:15px; font-weight:500; color:#4a5578;">Inga kommande pass.</div>
+      </div>
+    </div>
+  </div>
+
+  <div style="display:flex; flex-direction:column; gap:10px;">
+    <div style="font-size:12px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:#4a5578; padding-left:4px;">Meny öppen</div>
+    <div style="width:390px; min-height:844px; background:#f3f6fd; border-radius:22px; overflow:hidden; box-shadow:0 18px 50px rgba(9,21,64,.13); box-sizing:border-box; position:relative;">
+      <div style="filter:blur(2px); opacity:.5; padding:0 0 40px;">
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; padding:14px 16px 10px;">
+          <div style="width:44px; height:44px; border-radius:11px; background:#ffffff; box-shadow:0 1px 3px rgba(9,21,64,.08);"></div>
+          <div style="font-size:17px; font-weight:700; letter-spacing:-.2px;">Arbetsledare</div>
+          <div style="width:44px; height:44px; border-radius:11px; background:#ffffff; box-shadow:0 1px 3px rgba(9,21,64,.08);"></div>
+        </div>
+        <div style="padding:6px 16px 0;"><div style="background:#ffffff; border-radius:16px; box-shadow:0 8px 28px rgba(9,21,64,.09); height:210px;"></div></div>
+        <div style="padding:14px 16px 0;"><div style="background:#eef3fe; border-radius:12px; height:60px;"></div></div>
+        <div style="padding:14px 16px 0;"><div style="background:#ffffff; border-radius:14px; box-shadow:0 4px 18px rgba(9,21,64,.07); height:180px;"></div></div>
+      </div>
+      <div style="position:absolute; inset:0; background:rgba(9,21,64,.42);"></div>
+      <div style="position:absolute; left:0; right:0; bottom:0; background:#f3f6fd; border-radius:22px 22px 0 0; box-shadow:0 -12px 40px rgba(9,21,64,.22); padding:10px 16px 22px;">
+        <div style="width:38px; height:4px; border-radius:999px; background:#dbe4f9; margin:0 auto 14px;"></div>
+        <div style="background:#ffffff; border-radius:14px; box-shadow:0 4px 18px rgba(9,21,64,.07), 0 1px 2px rgba(9,21,64,.04); overflow:hidden;">
+          <sc-for list="{{ menu }}" as="m" hint-placeholder-count="4">
+            <a href="#" style="display:flex; align-items:center; justify-content:space-between; height:60px; padding:0 18px; color:#091540; box-shadow:inset 0 -1px 0 #e3eafb;" style-hover="background:#f6f9ff;">
+              <span style="font-size:17px; font-weight:700; letter-spacing:-.2px;">{{ m }}</span>
+              <svg width="9" height="15" viewBox="0 0 9 15" fill="none"><path d="M1.5 1.5 7 7.5l-5.5 6" stroke="#8b98c4" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+            </a>
+          </sc-for>
+        </div>
+        <button style="width:100%; height:56px; margin-top:12px; border:0; border-radius:12px; background:#eef3fe; color:#12206b; font-family:inherit; font-size:17px; font-weight:700; letter-spacing:-.2px; cursor:pointer;" style-hover="background:#dbe4f9;" style-active="transform:scale(.985);">Stäng</button>
+      </div>
+    </div>
+  </div>
+
+  <div style="display:flex; flex-direction:column; gap:10px;">
+    <div style="font-size:12px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:#4a5578; padding-left:4px;">Mina pass · lista</div>
+    <div style="width:390px; min-height:844px; background:#f3f6fd; border-radius:22px; overflow:hidden; box-shadow:0 18px 50px rgba(9,21,64,.13); padding:0 0 40px; box-sizing:border-box;">
+      <div style="display:flex; align-items:center; gap:12px; padding:14px 16px 12px;">
+        <button style="width:44px; height:44px; display:flex; align-items:center; justify-content:center; border:0; border-radius:11px; background:#ffffff; box-shadow:0 1px 3px rgba(9,21,64,.08); cursor:pointer; padding:0;" style-hover="background:#f0f5ff;" style-active="background:#dbe4f9;" aria-label="Tillbaka">
+          <svg width="18" height="15" viewBox="0 0 18 15" fill="none"><path d="M7.5 1.5 1.5 7.5l6 6M1.5 7.5H17" stroke="#091540" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+        </button>
+        <div style="font-size:22px; font-weight:800; letter-spacing:-.7px;">Mina pass</div>
+      </div>
+      <div style="padding:2px 16px 0;">
+        <div style="display:flex; gap:4px; padding:4px; background:#e7edfb; border-radius:13px;">
+          <div aria-current="page" style="flex:1; height:44px; border-radius:9px; background:#ffffff; color:#091540; box-shadow:0 1px 3px rgba(9,21,64,.10); font-size:15px; font-weight:700; letter-spacing:-.1px; display:flex; align-items:center; justify-content:center;">Lista</div>
+          <div style="flex:1; height:44px; border-radius:9px; background:transparent; color:#4a5578; font-size:15px; font-weight:600; letter-spacing:-.1px; display:flex; align-items:center; justify-content:center;">Kalender</div>
+        </div>
+      </div>
+      <div style="padding:26px 16px 0;">
+        <div style="font-size:12px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:#4a5578; padding:0 4px 10px;">Kommande</div>
+        <div style="background:#e7edfb; border-radius:14px; padding:34px 22px; text-align:center;">
+          <div style="font-size:17px; font-weight:700; letter-spacing:-.2px; margin-bottom:4px;">Inga pass ännu</div>
+          <div style="font-size:15px; font-weight:500; color:#4a5578;">Pass du tar hamnar här.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="display:flex; flex-direction:column; gap:10px;">
+    <div style="font-size:12px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:#4a5578; padding-left:4px;">Min kalender · tillgänglighet</div>
+    <div style="width:390px; min-height:844px; background:#f3f6fd; border-radius:22px; overflow:hidden; box-shadow:0 18px 50px rgba(9,21,64,.13); padding:0 0 40px; box-sizing:border-box;">
+      <div style="display:flex; align-items:center; gap:12px; padding:14px 16px 6px;">
+        <button style="width:44px; height:44px; display:flex; align-items:center; justify-content:center; border:0; border-radius:11px; background:#ffffff; box-shadow:0 1px 3px rgba(9,21,64,.08); cursor:pointer; padding:0;" style-hover="background:#f0f5ff;" style-active="background:#dbe4f9;" aria-label="Tillbaka">
+          <svg width="18" height="15" viewBox="0 0 18 15" fill="none"><path d="M7.5 1.5 1.5 7.5l6 6M1.5 7.5H17" stroke="#091540" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+        </button>
+        <div style="font-size:22px; font-weight:800; letter-spacing:-.7px;">Min kalender</div>
+      </div>
+      <div style="padding:0 16px 4px 72px; font-size:15px; font-weight:500; color:#4a5578;">Tryck på en dag, eller dra över flera.</div>
+
+      <div style="padding:14px 16px 0;">
+        <div style="display:flex; gap:4px; padding:4px; background:#e7edfb; border-radius:13px;">
+          <button onClick="{{ setYes }}" style="{{ yesTabStyle }}" style-active="transform:scale(.99);">Kan jobba</button>
+          <button onClick="{{ setNo }}" style="{{ noTabStyle }}" style-active="transform:scale(.99);">Kan inte</button>
+        </div>
+      </div>
+
+      <div style="padding:14px 16px 0;">
+        <div style="background:#ffffff; border-radius:16px; box-shadow:0 4px 18px rgba(9,21,64,.07), 0 1px 2px rgba(9,21,64,.04); padding:16px 14px 18px;">
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
+            <button style="width:40px; height:40px; display:flex; align-items:center; justify-content:center; border:0; border-radius:11px; background:#eef3fe; cursor:pointer; padding:0;" style-hover="background:#dbe4f9;" aria-label="Föregående månad">
+              <svg width="8" height="14" viewBox="0 0 9 15" fill="none"><path d="M7.5 1.5 2 7.5l5.5 6" stroke="#091540" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+            </button>
+            <div style="text-align:center;">
+              <div style="font-size:19px; font-weight:800; letter-spacing:-.5px;">September</div>
+              <div style="font-size:12px; font-weight:700; letter-spacing:1px; color:#4a5578;">2026</div>
+            </div>
+            <button style="width:40px; height:40px; display:flex; align-items:center; justify-content:center; border:0; border-radius:11px; background:#eef3fe; cursor:pointer; padding:0;" style-hover="background:#dbe4f9;" aria-label="Nästa månad">
+              <svg width="8" height="14" viewBox="0 0 9 15" fill="none"><path d="M1.5 1.5 7 7.5l-5.5 6" stroke="#091540" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+            </button>
+          </div>
+          <div style="display:grid; grid-template-columns:repeat(7, 1fr); gap:2px; margin-bottom:6px;">
+            <div style="text-align:center; font-size:11px; font-weight:700; letter-spacing:.8px; color:#4a5578;">M</div>
+            <div style="text-align:center; font-size:11px; font-weight:700; letter-spacing:.8px; color:#4a5578;">T</div>
+            <div style="text-align:center; font-size:11px; font-weight:700; letter-spacing:.8px; color:#4a5578;">O</div>
+            <div style="text-align:center; font-size:11px; font-weight:700; letter-spacing:.8px; color:#4a5578;">T</div>
+            <div style="text-align:center; font-size:11px; font-weight:700; letter-spacing:.8px; color:#4a5578;">F</div>
+            <div style="text-align:center; font-size:11px; font-weight:600; letter-spacing:.8px; color:#4a5578;">L</div>
+            <div style="text-align:center; font-size:11px; font-weight:600; letter-spacing:.8px; color:#4a5578;">S</div>
+          </div>
+          <div style="display:grid; grid-template-columns:repeat(7, 1fr); gap:2px;">
+            <sc-for list="{{ availDays }}" as="d" hint-placeholder-count="35">
+              <div onClick="{{ d.toggle }}" style="{{ d.cell }}"><span style="{{ d.num }}">{{ d.label }}</span></div>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+
+      <div style="padding:14px 16px 0;">
+        <div style="display:flex; align-items:center; gap:8px; background:#e4f0e8; border-radius:12px; padding:12px 16px;">
+          <svg width="13" height="10" viewBox="0 0 11 9" fill="none"><path d="M1 4.6 4 7.6 10 1.4" stroke="#146b41" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+          <span style="font-size:15px; font-weight:600; color:#146b41;">Sparas automatiskt</span>
+        </div>
+      </div>
+
+      <div style="padding:14px 16px 0;">
+        <div style="background:#ffffff; border-radius:14px; box-shadow:0 4px 18px rgba(9,21,64,.07), 0 1px 2px rgba(9,21,64,.04); padding:14px 16px; display:flex; flex-direction:column; gap:12px;">
+          <div style="display:flex; align-items:center; gap:10px;">
+            <span style="width:22px; height:22px; border-radius:7px; background:#1b2cc1; flex:none;"></span>
+            <span style="font-size:15px; font-weight:600;">Kan jobba</span>
+            <span style="margin-left:auto; font-size:15px; font-weight:700; color:#4a5578; font-variant-numeric:tabular-nums;">{{ yesCount }}</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:10px;">
+            <span style="width:22px; height:22px; border-radius:7px; background:#fbe9ec; box-shadow:inset 0 0 0 1.5px #f0cdd2; flex:none; display:flex; align-items:center; justify-content:center;">
+              <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M1.6 1.6l6.8 6.8M8.4 1.6l-6.8 6.8" stroke="#8e1d15" stroke-width="1.8" stroke-linecap="round"></path></svg>
+            </span>
+            <span style="font-size:15px; font-weight:600;">Kan inte</span>
+            <span style="margin-left:auto; font-size:15px; font-weight:700; color:#4a5578; font-variant-numeric:tabular-nums;">{{ noCount }}</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:10px;">
+            <span style="width:22px; height:22px; border-radius:7px; background:#eef3fe; flex:none;"></span>
+            <span style="font-size:15px; font-weight:600; color:#4a5578;">Inte sagt</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="display:flex; flex-direction:column; gap:10px;">
+    <div style="font-size:12px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:#4a5578; padding-left:4px;">Bekräfta pass · tomt</div>
+    <div style="width:390px; min-height:844px; background:#f3f6fd; border-radius:22px; overflow:hidden; box-shadow:0 18px 50px rgba(9,21,64,.13); padding:0 0 40px; box-sizing:border-box;">
+      <div style="display:flex; align-items:center; gap:12px; padding:14px 16px 12px;">
+        <button style="width:44px; height:44px; display:flex; align-items:center; justify-content:center; border:0; border-radius:11px; background:#ffffff; box-shadow:0 1px 3px rgba(9,21,64,.08); cursor:pointer; padding:0;" style-hover="background:#f0f5ff;" style-active="background:#dbe4f9;" aria-label="Tillbaka">
+          <svg width="18" height="15" viewBox="0 0 18 15" fill="none"><path d="M7.5 1.5 1.5 7.5l6 6M1.5 7.5H17" stroke="#091540" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+        </button>
+        <div style="font-size:22px; font-weight:800; letter-spacing:-.7px;">Bekräfta pass</div>
+      </div>
+      <div style="padding:2px 16px 0;">
+        <div style="background:#e7edfb; border-radius:14px; padding:34px 22px; text-align:center;">
+          <div style="width:46px; height:46px; border-radius:14px; background:#ffffff; margin:0 auto 14px; display:flex; align-items:center; justify-content:center; box-shadow:0 1px 3px rgba(9,21,64,.08);">
+            <svg width="20" height="16" viewBox="0 0 11 9" fill="none"><path d="M1 4.6 4 7.6 10 1.4" stroke="#146b41" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+          </div>
+          <div style="font-size:17px; font-weight:700; letter-spacing:-.2px; margin-bottom:4px;">Inget att bekräfta</div>
+          <div style="font-size:15px; font-weight:500; color:#4a5578;">Dagar som behöver dig hamnar här.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="display:flex; flex-direction:column; gap:10px;">
+    <div style="font-size:12px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:#4a5578; padding-left:4px;">Bekräfta pass · ifylld</div>
+    <div style="width:390px; min-height:844px; background:#f3f6fd; border-radius:22px; overflow:hidden; box-shadow:0 18px 50px rgba(9,21,64,.13); padding:0 0 40px; box-sizing:border-box;">
+      <div style="display:flex; align-items:center; gap:12px; padding:14px 16px 12px;">
+        <button style="width:44px; height:44px; display:flex; align-items:center; justify-content:center; border:0; border-radius:11px; background:#ffffff; box-shadow:0 1px 3px rgba(9,21,64,.08); cursor:pointer; padding:0;" style-hover="background:#f0f5ff;" style-active="background:#dbe4f9;" aria-label="Tillbaka">
+          <svg width="18" height="15" viewBox="0 0 18 15" fill="none"><path d="M7.5 1.5 1.5 7.5l6 6M1.5 7.5H17" stroke="#091540" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+        </button>
+        <div style="font-size:22px; font-weight:800; letter-spacing:-.7px;">Bekräfta pass</div>
+      </div>
+
+      <div style="padding:2px 16px 0;">
+        <div style="font-size:12px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:#4a5578; padding:0 4px 2px;">Måndag 7 sep</div>
+        <div style="font-size:26px; font-weight:800; letter-spacing:-.9px; padding:0 4px 0;">Torget 131962</div>
+        <div style="font-size:15px; font-weight:500; color:#4a5578; padding:2px 4px 0;">Stortorget 1, 211 22 Malmö</div>
+      </div>
+
+      <sc-for list="{{ crew }}" as="c" hint-placeholder-count="2">
+        <div style="padding:14px 16px 0;">
+          <div style="background:#ffffff; border-radius:16px; box-shadow:0 4px 18px rgba(9,21,64,.07), 0 1px 2px rgba(9,21,64,.04); padding:18px;">
+            <div style="display:flex; align-items:baseline; justify-content:space-between; gap:10px;">
+              <div style="font-size:18px; font-weight:700; letter-spacing:-.4px;">{{ c.name }}</div>
+              <div style="{{ c.tagStyle }}">{{ c.tag }}</div>
+            </div>
+            <div style="font-size:14px; font-weight:500; color:#4a5578; margin:2px 0 14px; font-variant-numeric:tabular-nums;">{{ c.stamped }}</div>
+            <div style="display:flex; gap:10px; margin-bottom:14px;">
+              <label style="flex:1; display:block;">
+                <span style="display:block; font-size:12px; font-weight:700; letter-spacing:.9px; text-transform:uppercase; color:#4a5578; margin-bottom:6px;">Börjar</span>
+                <input type="time" value="{{ c.start }}" style="width:100%; height:52px; box-sizing:border-box; border:0; border-radius:10px; background:#eef3fe; padding:0 14px; font-family:inherit; font-size:16px; font-weight:600; color:#091540; font-variant-numeric:tabular-nums;" style-focus="outline:2px solid #1b2cc1; background:#ffffff;">
+              </label>
+              <label style="flex:1; display:block;">
+                <span style="display:block; font-size:12px; font-weight:700; letter-spacing:.9px; text-transform:uppercase; color:#4a5578; margin-bottom:6px;">Slutar</span>
+                <input type="time" value="{{ c.end }}" style="width:100%; height:52px; box-sizing:border-box; border:0; border-radius:10px; background:#eef3fe; padding:0 14px; font-family:inherit; font-size:16px; font-weight:600; color:#091540; font-variant-numeric:tabular-nums;" style-focus="outline:2px solid #1b2cc1; background:#ffffff;">
+              </label>
+            </div>
+            <label style="display:block;">
+              <span style="display:block; font-size:12px; font-weight:700; letter-spacing:.9px; text-transform:uppercase; color:#4a5578; margin-bottom:2px;">Timmar</span>
+              <span style="display:block; font-size:14px; font-weight:500; color:#4a5578; margin-bottom:6px;">0 om personen inte kom.</span>
+              <input type="text" value="{{ c.hours }}" style="width:100%; height:60px; box-sizing:border-box; border:0; border-radius:10px; background:#eef3fe; padding:0 14px; font-family:inherit; font-size:26px; font-weight:800; letter-spacing:-.6px; color:#091540; font-variant-numeric:tabular-nums;" style-focus="outline:2px solid #1b2cc1; background:#ffffff;">
+            </label>
+          </div>
+        </div>
+      </sc-for>
+
+      <div style="padding:14px 16px 0;">
+        <div style="background:#ffffff; border-radius:16px; box-shadow:0 4px 18px rgba(9,21,64,.07), 0 1px 2px rgba(9,21,64,.04); padding:18px;">
+          <div style="display:flex; align-items:baseline; justify-content:space-between; gap:10px;">
+            <div style="font-size:12px; font-weight:700; letter-spacing:.9px; text-transform:uppercase; color:#4a5578;">Vad vi gjorde</div>
+            <div style="font-size:12px; font-weight:700; letter-spacing:.4px; color:#8e1d15;">Krävs</div>
+          </div>
+          <div style="font-size:14px; font-weight:500; color:#4a5578; margin:2px 0 8px;">Skrivs ut på varje rad i arbetsdagboken.</div>
+          <textarea rows="4" style="width:100%; box-sizing:border-box; border:0; border-radius:10px; background:#eef3fe; padding:14px; font-family:inherit; font-size:16px; font-weight:500; line-height:1.45; color:#091540; resize:vertical;" style-focus="outline:2px solid #1b2cc1; background:#ffffff;">Rev resten av innertaket i plan 2 och körde bort spillet. Gjuten platta avjämnad, torkar över helgen. Bo gick hem 14:00, tandläkare.</textarea>
+        </div>
+      </div>
+
+      <div style="padding:14px 16px 0;">
+        <div style="background:#eef3fe; border-radius:12px; padding:14px 16px; font-size:15px; font-weight:600; color:#12206b; text-wrap:pretty;">Bekräftat är slutgiltigt. Det går inte att ändra efteråt.</div>
+      </div>
+      <div style="padding:14px 16px 0;">
+        <button style="width:100%; height:64px; border:0; border-radius:12px; background:#1b2cc1; color:#ffffff; box-shadow:0 6px 18px rgba(27,44,193,.28); font-family:inherit; font-size:20px; font-weight:800; letter-spacing:-.4px; cursor:pointer;" style-hover="background:#12206b;" style-active="transform:scale(.985);">Bekräfta dagen</button>
+      </div>
+    </div>
+  </div>
+
+  <div style="display:flex; flex-direction:column; gap:10px;">
+    <div style="font-size:12px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:#4a5578; padding-left:4px;">Skapa pass · vilka dagar</div>
+    <div style="width:390px; min-height:844px; background:#f3f6fd; border-radius:22px; overflow:hidden; box-shadow:0 18px 50px rgba(9,21,64,.13); padding:0 0 40px; box-sizing:border-box;">
+      <div style="display:flex; align-items:center; gap:12px; padding:14px 16px 6px;">
+        <button style="width:44px; height:44px; display:flex; align-items:center; justify-content:center; border:0; border-radius:11px; background:#ffffff; box-shadow:0 1px 3px rgba(9,21,64,.08); cursor:pointer; padding:0;" style-hover="background:#f0f5ff;" style-active="background:#dbe4f9;" aria-label="Tillbaka">
+          <svg width="18" height="15" viewBox="0 0 18 15" fill="none"><path d="M7.5 1.5 1.5 7.5l6 6M1.5 7.5H17" stroke="#091540" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+        </button>
+        <div style="font-size:22px; font-weight:800; letter-spacing:-.7px;">Vilka dagar?</div>
+      </div>
+      <div style="padding:0 16px 4px 72px; font-size:15px; font-weight:500; color:#4a5578;">Tryck på en dag, eller dra över flera.</div>
+
+      <div style="padding:14px 16px 0;">
+        <div style="background:#ffffff; border-radius:16px; box-shadow:0 4px 18px rgba(9,21,64,.07), 0 1px 2px rgba(9,21,64,.04); padding:16px 14px 18px;">
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
+            <button style="width:40px; height:40px; display:flex; align-items:center; justify-content:center; border:0; border-radius:11px; background:#eef3fe; cursor:pointer; padding:0;" style-hover="background:#dbe4f9;" aria-label="Föregående månad">
+              <svg width="8" height="14" viewBox="0 0 9 15" fill="none"><path d="M7.5 1.5 2 7.5l5.5 6" stroke="#091540" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+            </button>
+            <div style="text-align:center;">
+              <div style="font-size:19px; font-weight:800; letter-spacing:-.5px;">September</div>
+              <div style="font-size:12px; font-weight:700; letter-spacing:1px; color:#4a5578;">2026</div>
+            </div>
+            <button style="width:40px; height:40px; display:flex; align-items:center; justify-content:center; border:0; border-radius:11px; background:#eef3fe; cursor:pointer; padding:0;" style-hover="background:#dbe4f9;" aria-label="Nästa månad">
+              <svg width="8" height="14" viewBox="0 0 9 15" fill="none"><path d="M1.5 1.5 7 7.5l-5.5 6" stroke="#091540" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+            </button>
+          </div>
+          <div style="display:grid; grid-template-columns:repeat(7, 1fr); gap:2px; margin-bottom:6px;">
+            <div style="text-align:center; font-size:11px; font-weight:700; letter-spacing:.8px; color:#4a5578;">M</div>
+            <div style="text-align:center; font-size:11px; font-weight:700; letter-spacing:.8px; color:#4a5578;">T</div>
+            <div style="text-align:center; font-size:11px; font-weight:700; letter-spacing:.8px; color:#4a5578;">O</div>
+            <div style="text-align:center; font-size:11px; font-weight:700; letter-spacing:.8px; color:#4a5578;">T</div>
+            <div style="text-align:center; font-size:11px; font-weight:700; letter-spacing:.8px; color:#4a5578;">F</div>
+            <div style="text-align:center; font-size:11px; font-weight:600; letter-spacing:.8px; color:#4a5578;">L</div>
+            <div style="text-align:center; font-size:11px; font-weight:600; letter-spacing:.8px; color:#4a5578;">S</div>
+          </div>
+          <div style="display:grid; grid-template-columns:repeat(7, 1fr); gap:2px;">
+            <sc-for list="{{ pickDays }}" as="d" hint-placeholder-count="35">
+              <div onClick="{{ d.toggle }}" style="{{ d.cell }}"><span style="{{ d.num }}">{{ d.label }}</span></div>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+
+      <div style="padding:22px 16px 0;">
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; background:#eef3fe; border-radius:12px; padding:14px 16px;">
+          <span style="font-size:15px; font-weight:600; color:#4a5578;">Valda dagar</span>
+          <span style="font-size:20px; font-weight:800; letter-spacing:-.5px; font-variant-numeric:tabular-nums;">{{ pickedCount }}</span>
+        </div>
+      </div>
+      <div style="padding:14px 16px 0;">
+        <button style="{{ pickButtonStyle }}" style-active="transform:scale(.985);">Fortsätt</button>
+      </div>
+    </div>
+  </div>
+
+  <div style="display:flex; flex-direction:column; gap:10px;">
+    <div style="font-size:12px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:#4a5578; padding-left:4px;">Profil</div>
+    <div style="width:390px; min-height:844px; background:#f3f6fd; border-radius:22px; overflow:hidden; box-shadow:0 18px 50px rgba(9,21,64,.13); padding:0 0 40px; box-sizing:border-box;">
+      <div style="display:flex; align-items:center; gap:12px; padding:14px 16px 12px;">
+        <button style="width:44px; height:44px; display:flex; align-items:center; justify-content:center; border:0; border-radius:11px; background:#ffffff; box-shadow:0 1px 3px rgba(9,21,64,.08); cursor:pointer; padding:0;" style-hover="background:#f0f5ff;" style-active="background:#dbe4f9;" aria-label="Tillbaka">
+          <svg width="18" height="15" viewBox="0 0 18 15" fill="none"><path d="M7.5 1.5 1.5 7.5l6 6M1.5 7.5H17" stroke="#091540" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+        </button>
+        <div style="font-size:22px; font-weight:800; letter-spacing:-.7px;">Profil</div>
+      </div>
+
+      <div style="padding:2px 16px 0;">
+        <div style="background:#ffffff; border-radius:16px; box-shadow:0 4px 18px rgba(9,21,64,.07), 0 1px 2px rgba(9,21,64,.04); padding:18px 18px 20px;">
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:14px;">
+            <div style="font-size:12px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:#4a5578;">Kontakt</div>
+            <div style="font-size:12px; font-weight:700; letter-spacing:.4px; color:#5c3305; background:#fdf2e3; border-radius:999px; padding:5px 10px;">Arbetsledare</div>
+          </div>
+          <div style="display:flex; flex-direction:column; gap:14px;">
+            <label style="display:block;">
+              <span style="display:block; font-size:12px; font-weight:700; letter-spacing:.9px; text-transform:uppercase; color:#4a5578; margin-bottom:6px;">Telefonnummer</span>
+              <input type="tel" value="070 123 45 67" style="width:100%; height:52px; box-sizing:border-box; border:0; border-radius:10px; background:#eef3fe; padding:0 14px; font-family:inherit; font-size:16px; font-weight:600; color:#091540;" style-focus="outline:2px solid #1b2cc1; background:#ffffff;">
+            </label>
+            <label style="display:block;">
+              <span style="display:block; font-size:12px; font-weight:700; letter-spacing:.9px; text-transform:uppercase; color:#4a5578; margin-bottom:6px;">Adress</span>
+              <input type="text" value="Stortorget 1" style="width:100%; height:52px; box-sizing:border-box; border:0; border-radius:10px; background:#eef3fe; padding:0 14px; font-family:inherit; font-size:16px; font-weight:600; color:#091540;" style-focus="outline:2px solid #1b2cc1; background:#ffffff;">
+            </label>
+            <div style="display:flex; gap:10px;">
+              <label style="flex:1; display:block;">
+                <span style="display:block; font-size:12px; font-weight:700; letter-spacing:.9px; text-transform:uppercase; color:#4a5578; margin-bottom:6px;">Postnr</span>
+                <input type="text" value="211 22" style="width:100%; height:52px; box-sizing:border-box; border:0; border-radius:10px; background:#eef3fe; padding:0 14px; font-family:inherit; font-size:16px; font-weight:600; color:#091540; font-variant-numeric:tabular-nums;" style-focus="outline:2px solid #1b2cc1; background:#ffffff;">
+              </label>
+              <label style="flex:1.6; display:block;">
+                <span style="display:block; font-size:12px; font-weight:700; letter-spacing:.9px; text-transform:uppercase; color:#4a5578; margin-bottom:6px;">Stad</span>
+                <input type="text" value="Malmö" style="width:100%; height:52px; box-sizing:border-box; border:0; border-radius:10px; background:#eef3fe; padding:0 14px; font-family:inherit; font-size:16px; font-weight:600; color:#091540;" style-focus="outline:2px solid #1b2cc1; background:#ffffff;">
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="padding:14px 16px 0;">
+        <div style="background:#ffffff; border-radius:16px; box-shadow:0 4px 18px rgba(9,21,64,.07), 0 1px 2px rgba(9,21,64,.04); padding:18px 18px 20px;">
+          <div style="font-size:12px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:#4a5578; margin-bottom:14px;">Utbetalning</div>
+          <div style="display:flex; gap:10px;">
+            <label style="flex:1; display:block;">
+              <span style="display:block; font-size:12px; font-weight:700; letter-spacing:.9px; text-transform:uppercase; color:#4a5578; margin-bottom:6px;">Clearing</span>
+              <input type="text" value="8327-9" style="width:100%; height:52px; box-sizing:border-box; border:0; border-radius:10px; background:#eef3fe; padding:0 14px; font-family:inherit; font-size:16px; font-weight:600; color:#091540; font-variant-numeric:tabular-nums;" style-focus="outline:2px solid #1b2cc1; background:#ffffff;">
+            </label>
+            <label style="flex:1.6; display:block;">
+              <span style="display:block; font-size:12px; font-weight:700; letter-spacing:.9px; text-transform:uppercase; color:#4a5578; margin-bottom:6px;">Kontonummer</span>
+              <input type="text" value="412 938 771" style="width:100%; height:52px; box-sizing:border-box; border:0; border-radius:10px; background:#eef3fe; padding:0 14px; font-family:inherit; font-size:16px; font-weight:600; color:#091540; font-variant-numeric:tabular-nums;" style-focus="outline:2px solid #1b2cc1; background:#ffffff;">
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div style="padding:14px 16px 0;">
+        <div style="background:#ffffff; border-radius:16px; box-shadow:0 4px 18px rgba(9,21,64,.07), 0 1px 2px rgba(9,21,64,.04); padding:18px 18px 20px;">
+          <div style="font-size:12px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:#4a5578; margin-bottom:14px;">Närmast anhörig</div>
+          <div style="display:flex; flex-direction:column; gap:14px;">
+            <label style="display:block;">
+              <span style="display:block; font-size:12px; font-weight:700; letter-spacing:.9px; text-transform:uppercase; color:#4a5578; margin-bottom:6px;">Namn</span>
+              <input type="text" value="Karin Ek" style="width:100%; height:52px; box-sizing:border-box; border:0; border-radius:10px; background:#eef3fe; padding:0 14px; font-family:inherit; font-size:16px; font-weight:600; color:#091540;" style-focus="outline:2px solid #1b2cc1; background:#ffffff;">
+            </label>
+            <label style="display:block;">
+              <span style="display:block; font-size:12px; font-weight:700; letter-spacing:.9px; text-transform:uppercase; color:#4a5578; margin-bottom:6px;">Telefonnummer</span>
+              <input type="tel" value="073 998 21 40" style="width:100%; height:52px; box-sizing:border-box; border:0; border-radius:10px; background:#eef3fe; padding:0 14px; font-family:inherit; font-size:16px; font-weight:600; color:#091540;" style-focus="outline:2px solid #1b2cc1; background:#ffffff;">
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div style="padding:14px 16px 0;">
+        <div onClick="{{ toggleCompany }}" style="background:#ffffff; border-radius:14px; box-shadow:0 4px 18px rgba(9,21,64,.07), 0 1px 2px rgba(9,21,64,.04); height:60px; display:flex; align-items:center; justify-content:space-between; padding:0 18px; cursor:pointer;" style-hover="background:#f6f9ff;">
+          <span style="font-size:17px; font-weight:700; letter-spacing:-.2px;">Har du företag?</span>
+          <span style="{{ boxStyle }}">
+            <svg width="14" height="11" viewBox="0 0 14 11" fill="none" style="{{ tickStyle }}"><path d="M1.5 5.6 5 9.2 12.5 1.6" stroke="#ffffff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+          </span>
+        </div>
+      </div>
+
+      <div style="padding:24px 16px 0;">
+        <button style="width:100%; height:64px; border:0; border-radius:12px; background:#1b2cc1; color:#ffffff; box-shadow:0 6px 18px rgba(27,44,193,.28); font-family:inherit; font-size:20px; font-weight:800; letter-spacing:-.4px; cursor:pointer;" style-hover="background:#12206b;" style-active="transform:scale(.985);">Spara</button>
+        <div style="font-size:15px; font-weight:500; color:#4a5578; text-align:center; padding:12px 8px 0; text-wrap:pretty;">Namn och e-post ändras av administratören.</div>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1720,&quot;height&quot;:980}}">
+class Component extends DCLogic {
+  state = { mode: 'yes', avail: { 9: 'yes', 10: 'yes', 11: 'yes', 12: 'no', 13: 'no', 16: 'yes' }, picked: [8, 9], company: false };
+
+  renderVals() {
+    const mode = this.state.mode;
+    const tabBase = 'flex:1; height:44px; border:0; border-radius:9px; font-family:inherit; font-size:15px; letter-spacing:-.1px; cursor:pointer; transition:background .15s ease;';
+    const cellBase = 'height:44px; border-radius:10px; display:flex; align-items:center; justify-content:center; cursor:pointer; user-select:none;';
+
+    const avail = this.state.avail;
+    const availDays = [{ label: '', cell: 'height:44px;', num: 'display:none;', toggle: () => {} }];
+    for (let d = 1; d <= 30; d++) {
+      const past = d < 8;
+      const v = avail[d];
+      availDays.push({
+        label: String(d),
+        cell: cellBase + (past ? ' background:transparent; cursor:default;'
+          : v === 'yes' ? ' background:#1b2cc1;'
+          : v === 'no' ? ' background:#fbe9ec; box-shadow:inset 0 0 0 1.5px #f0cdd2;'
+          : ' background:#eef3fe;'),
+        num: 'font-size:16px; font-variant-numeric:tabular-nums; letter-spacing:-.2px; font-weight:'
+          + (v ? '800' : '600') + '; color:'
+          + (past ? '#8b98c4' : v === 'yes' ? '#ffffff' : v === 'no' ? '#8e1d15' : '#091540') + ';',
+        toggle: past ? () => {} : () => this.setState(s => {
+          const next = Object.assign({}, s.avail);
+          if (next[d] === s.mode) delete next[d]; else next[d] = s.mode;
+          return { avail: next };
+        })
+      });
+    }
+    const vals = Object.keys(avail).map(k => avail[k]);
+
+    const picked = this.state.picked;
+    const pickDays = [{ label: '', cell: 'height:44px;', num: 'display:none;', toggle: () => {} }];
+    for (let d = 1; d <= 30; d++) {
+      const past = d < 8;
+      const sel = picked.indexOf(d) > -1;
+      pickDays.push({
+        label: String(d),
+        cell: cellBase + (past ? ' background:transparent; cursor:default;' : sel ? ' background:#1b2cc1;' : ' background:#eef3fe;'),
+        num: 'font-size:16px; font-variant-numeric:tabular-nums; letter-spacing:-.2px; font-weight:'
+          + (sel ? '800' : '600') + '; color:' + (past ? '#8b98c4' : sel ? '#ffffff' : '#091540') + ';',
+        toggle: past ? () => {} : () => this.setState(s => ({
+          picked: s.picked.indexOf(d) > -1 ? s.picked.filter(x => x !== d) : s.picked.concat([d]).sort((a, b) => a - b)
+        }))
+      });
+    }
+    const pickBtnBase = 'width:100%; height:64px; border:0; border-radius:12px; font-family:inherit; font-size:20px; font-weight:800; letter-spacing:-.4px; transition:transform .12s ease, background .15s ease;';
+
+    const tag = (kind) => 'font-size:12px; font-weight:700; letter-spacing:.4px; border-radius:999px; padding:5px 10px; white-space:nowrap; '
+      + (kind === 'open' ? 'color:#5c3305; background:#fdf2e3;' : 'color:#146b41; background:#e4f0e8;');
+    const crew = [
+      { name: 'Moa Lindqvist', stamped: 'Stämplade 07:02 till 16:04', start: '07:00', end: '16:00', hours: '8,5', tag: 'Stämplad ut', tagStyle: tag('done') },
+      { name: 'Bo Sandberg', stamped: 'Stämplade 07:11 till —', start: '07:00', end: '16:00', hours: '8,5', tag: 'Ej utstämplad', tagStyle: tag('open') }
+    ];
+
+    const on = this.state.company;
+    return {
+      menu: ['Min passkalender', 'Mina pass', 'Bekräftelse historik', 'Inställningar'],
+      setYes: () => this.setState({ mode: 'yes' }),
+      setNo: () => this.setState({ mode: 'no' }),
+      yesTabStyle: tabBase + (mode === 'yes'
+        ? ' background:#ffffff; color:#091540; box-shadow:0 1px 3px rgba(9,21,64,.10); font-weight:700;'
+        : ' background:transparent; color:#4a5578; font-weight:600;'),
+      noTabStyle: tabBase + (mode === 'no'
+        ? ' background:#ffffff; color:#091540; box-shadow:0 1px 3px rgba(9,21,64,.10); font-weight:700;'
+        : ' background:transparent; color:#4a5578; font-weight:600;'),
+      availDays,
+      yesCount: vals.filter(v => v === 'yes').length + ' dagar',
+      noCount: vals.filter(v => v === 'no').length + ' dagar',
+      crew,
+      pickDays,
+      pickedCount: picked.length,
+      pickButtonStyle: picked.length
+        ? pickBtnBase + ' background:#1b2cc1; color:#ffffff; box-shadow:0 6px 18px rgba(27,44,193,.28); cursor:pointer;'
+        : pickBtnBase + ' background:#e3eafb; color:#8b98c4; cursor:not-allowed;',
+      toggleCompany: () => this.setState(s => ({ company: !s.company })),
+      boxStyle: 'width:26px; height:26px; border-radius:7px; display:flex; align-items:center; justify-content:center; flex:none; transition:background .15s ease; background:'
+        + (on ? '#1b2cc1;' : '#eef3fe; box-shadow:inset 0 0 0 1.5px #dbe4f9;'),
+      tickStyle: on ? 'display:block;' : 'display:none;'
+    };
+  }
+}
+</script>
+</body>
+</html>

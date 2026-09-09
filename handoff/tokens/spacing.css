@@ -1,0 +1,26 @@
+:root {
+  --space-2: 2px;
+  --space-4: 4px;
+  --space-6: 6px;
+  --space-8: 8px;
+  --space-10: 10px;
+  --space-12: 12px;
+  --space-16: 16px;
+  --space-20: 20px;
+  --space-24: 24px;
+  --space-32: 32px;
+  --space-40: 40px;
+  --space-56: 56px;
+
+  /* Layout constants for the worker app */
+  --gutter: var(--space-16);      /* screen side margin */
+  --card-pad: var(--space-20);    /* card interior */
+  --row-pad-x: var(--space-18, 18px);
+  --group-gap: var(--space-24);   /* between card groups */
+  --label-gap: var(--space-10);   /* section label to its card */
+  --divider-inset: 18px;          /* dividers never run full bleed */
+
+  --tap-min: 48px;                /* absolute floor */
+  --tap-row: 60px;                /* list row height */
+  --tap-primary: 64px;            /* the one big action */
+}

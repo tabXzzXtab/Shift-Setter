@@ -1,0 +1,87 @@
+:root {
+  /* Ground — warm paper grey. Never a cool blue-grey, never pure white. */
+  --paper-000: #ffffff;
+  --paper-050: #faf9f8;
+  --paper-100: #f1f0ee;
+  --paper-200: #e8e6e3;
+  --paper-300: #dcd9d5;
+  --paper-400: #c6c2bd;
+
+  /* Ink — the accent of this system is ink, not a hue. */
+  --ink-900: #17171b;
+  --ink-800: #26262c;
+  --ink-700: #3a3a42;
+  --ink-500: #5c5c66;
+  --ink-400: #77777f;
+  --ink-300: #9a9aa2;
+
+  /* Signals — three, each with a tint. Used as marks, never as floods. */
+  --live-600: #146b41;   /* instämplad / on the clock */
+  --live-500: #1b7a4b;
+  --live-tint: #e4f0e8;
+  --pend-600: #96500a;   /* obesvarat pass / awaiting answer */
+  --pend-500: #b25e00;
+  --pend-tint: #f7ecdd;
+  --stop-600: #8e1d15;   /* neka, fel, borttag */
+  --stop-500: #a32219;
+  --stop-tint: #f6e4e2;
+
+  /* Semantic aliases — always design against these. */
+  --bg-app: var(--paper-100);
+  --bg-surface: var(--paper-000);
+  --bg-surface-sunken: var(--paper-050);
+  --bg-inset: var(--paper-100);
+  --bg-hover: var(--paper-050);
+  --bg-pressed: var(--paper-200);
+
+  --text-primary: var(--ink-900);
+  --text-secondary: var(--ink-500);
+  --text-tertiary: var(--ink-400);
+  --text-on-ink: var(--paper-050);
+
+  --accent: var(--ink-900);
+  --accent-hover: var(--ink-800);
+  --accent-pressed: var(--ink-700);
+  --accent-quiet: var(--paper-200);
+
+  --hairline: #e6e4e1;
+  --focus-ring: var(--ink-900);
+
+  --status-live: var(--live-600);
+  --status-live-bg: var(--live-tint);
+  --status-pending: var(--pend-600);
+  --status-pending-bg: var(--pend-tint);
+  --status-stop: var(--stop-600);
+  --status-stop-bg: var(--stop-tint);
+}
+
+/* Dark is a separate ground, not an inversion: warm charcoal, ink flips to
+   paper, and the accent becomes light-on-dark. */
+[data-theme="dark"] {
+  --bg-app: #121214;
+  --bg-surface: #1c1c20;
+  --bg-surface-sunken: #17171a;
+  --bg-inset: #232328;
+  --bg-hover: #232328;
+  --bg-pressed: #2c2c33;
+
+  --text-primary: #f2f1ef;
+  --text-secondary: #a9a9b2;
+  --text-tertiary: #86868f;
+  --text-on-ink: #17171b;
+
+  --accent: #f2f1ef;
+  --accent-hover: #e2e1de;
+  --accent-pressed: #cfcecb;
+  --accent-quiet: #2c2c33;
+
+  --hairline: #2a2a30;
+  --focus-ring: #f2f1ef;
+
+  --status-live: #6bd39a;
+  --status-live-bg: #16301f;
+  --status-pending: #e8a55c;
+  --status-pending-bg: #33230f;
+  --status-stop: #f08c80;
+  --status-stop-bg: #351814;
+}

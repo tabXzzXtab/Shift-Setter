@@ -1,0 +1,9 @@
+:root {
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --dur-press: 110ms;
+  --dur-fast: 180ms;
+  --dur-normal: 240ms;
+  --dur-sheet: 320ms;
+  --press-scale: 0.985;   /* the only press motion in the system */
+}

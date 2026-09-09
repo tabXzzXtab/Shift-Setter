@@ -1,0 +1,27 @@
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  background: var(--bg-app);
+  color: var(--text-primary);
+  font: var(--type-body-m);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+a { color: var(--text-primary); text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 1.5px; }
+a:hover { color: var(--ink-700); }
+
+button { font: inherit; color: inherit; }
+
+:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; border-radius: var(--radius-xs); }
+::selection { background: var(--accent-quiet); color: var(--text-primary); }
+
+.ss-kicker {
+  font: var(--type-kicker);
+  letter-spacing: var(--tracking-kicker);
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+.ss-display { font: var(--type-display-l); letter-spacing: var(--tracking-display); font-variant-numeric: var(--numeric-figures); }
+.ss-num { font-variant-numeric: var(--numeric-figures); }

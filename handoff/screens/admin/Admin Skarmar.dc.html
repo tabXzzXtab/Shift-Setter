@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  html, body { margin:0; padding:0; background:#e8eefb; color:#091540; font-family:'Inter', system-ui, sans-serif; -webkit-font-smoothing:antialiased; }
+  a { color:#1b2cc1; text-decoration:none; }
+  a:hover { color:#12206b; }
+</style>
+</helmet>
+<div style="display:flex; gap:30px; align-items:flex-start; flex-wrap:wrap; padding:30px; font-family:'Inter', system-ui, sans-serif; color:#091540;">
+
+  <div style="display:flex; flex-direction:column; gap:10px;">
+    <div style="font-size:12px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:#4a5578; padding-left:4px;">Logga in</div>
+    <div style="width:390px; min-height:844px; background:#f3f6fd; border-radius:22px; overflow:hidden; box-shadow:0 18px 50px rgba(9,21,64,.13); box-sizing:border-box; display:flex; flex-direction:column; justify-content:center; padding:0 16px 60px;">
+      <div style="font-size:12px; font-weight:700; letter-spacing:1.1px; text-transform:uppercase; color:#1b2cc1; padding:0 4px 6px;">Admin</div>
+      <div style="font-size:38px; font-weight:800; letter-spacing:-1.6px; line-height:1.02; padding:0 4px 26px;">Shift Setter</div>
+      <div style="background:#ffffff; border-radius:16px; box-shadow:0 8px 28px rgba(9,21,64,.09), 0 1px 2px rgba(9,21,64,.05); padding:20px;">
+        <label style="display:block; margin-bottom:14px;">
+          <span style="display:block; font-size:12px; font-weight:700; letter-spacing:.9px; text-transform:uppercase; color:#4a5578; margin-bottom:6px;">E-post</span>
+          <input type="email" placeholder="namn@bolaget.se" style="width:100%; height:52px; box-sizing:border-box; border:0; border-radius:10px; background:#eef3fe; padding:0 14px; font-family:inherit; font-size:16px; font-weight:600; color:#091540;" style-focus="outline:2px solid #1b2cc1; background:#ffffff;">
+        </label>
+        <label style="display:block; margin-bottom:20px;">
+          <span style="display:block; font-size:12px; font-weight:700; letter-spacing:.9px; text-transform:uppercase; color:#4a5578; margin-bottom:6px;">Lösenord</span>
+          <input type="password" value="········" style="width:100%; height:52px; box-sizing:border-box; border:0; border-radius:10px; background:#eef3fe; padding:0 14px; font-family:inherit; font-size:16px; font-weight:600; color:#091540; letter-spacing:2px;" style-focus="outline:2px solid #1b2cc1; background:#ffffff;">
+        </label>
+        <button style="width:100%; height:64px; border:0; border-radius:12px; background:#1b2cc1; color:#ffffff; box-shadow:0 6px 18px rgba(27,44,193,.28); font-family:inherit; font-size:20px; font-weight:800; letter-spacing:-.4px; cursor:pointer;" style-hover="background:#12206b;" style-active="transform:scale(.985);">Logga in</button>
+      </div>
+      <div style="text-align:center; padding-top:18px;"><a href="#" style="font-size:15px; font-weight:700; color:#1b2cc1;">Glömt lösenord?</a></div>
+      <div style="text-align:center; font-size:15px; font-weight:500; color:#4a5578; padding-top:22px;">Konton skapas av administratören.</div>
+    </div>
+  </div>
+
+  <div style="display:flex; flex-direction:column; gap:10px;">
+    <div style="font-size:12px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:#4a5578; padding-left:4px;">Startsida</div>
+    <div style="width:390px; min-height:844px; background:#f3f6fd; border-radius:22px; overflow:hidden; box-shadow:0 18px 50px rgba(9,21,64,.13); padding:0 0 40px; box-sizing:border-box;">
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; padding:14px 16px 10px;">
+        <button style="width:44px; height:44px; display:flex; align-items:center; justify-content:center; border:0; border-radius:11px; background:#ffffff; box-shadow:0 1px 3px rgba(9,21,64,.08); cursor:pointer; padding:0;" style-hover="background:#f0f5ff;" style-active="background:#dbe4f9;" aria-label="Meny">
+          <svg width="20" height="14" viewBox="0 0 20 14" fill="none"><path d="M1 1.5h18M1 7h18M1 12.5h18" stroke="#091540" stroke-width="2.2" stroke-linecap="round"></path></svg>
+        </button>
+        <div style="font-size:17px; font-weight:700; letter-spacing:-.2px;">Admin</div>
+        <button style="width:44px; height:44px; display:flex; align-items:center; justify-content:center; border:0; border-radius:11px; background:#ffffff; box-shadow:0 1px 3px rgba(9,21,64,.08); cursor:pointer; padding:0;" style-hover="background:#f0f5ff;" style-active="background:#dbe4f9;" aria-label="Profil">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="6.4" r="3.4" stroke="#091540" stroke-width="2"></circle><path d="M3.6 17c.9-3.3 3.4-5 6.4-5s5.5 1.7 6.4 5" stroke="#091540" stroke-width="2" stroke-linecap="round"></path></svg>
+        </button>
+      </div>
+
+      <div style="padding:6px 16px 0;">
+        <div style="background:#ffffff; border-radius:16px; box-shadow:0 8px 28px rgba(9,21,64,.09), 0 1px 2px rgba(9,21,64,.05); padding:18px 18px 20px;">
+          <div style="font-size:12px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:#4a5578; margin-bottom:12px;">Skapa</div>
+          <button style="width:100%; height:60px; border:0; border-radius:12px; background:#1b2cc1; color:#ffffff; box-shadow:0 6px 18px rgba(27,44,193,.26); font-family:inherit; font-size:18px; font-weight:800; letter-spacing:-.4px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:10px; margin-bottom:10px;" style-hover="background:#12206b;" style-active="transform:scale(.985);">
+            <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><path d="M7.5 1v13M1 7.5h13" stroke="#ffffff" stroke-width="2.4" stroke-linecap="round"></path></svg>Nytt projekt</button>
+          <div style="display:flex; gap:10px;">
+            <button style="flex:1; height:56px; border:0; border-radius:12px; background:#eef3fe; color:#12206b; font-family:inherit; font-size:16px; font-weight:700; letter-spacing:-.2px; cursor:pointer;" style-hover="background:#dbe4f9;" style-active="transform:scale(.985);">Skapa pass</button>
+            <button style="flex:1; height:56px; border:0; border-radius:12px; background:#eef3fe; color:#12206b; font-family:inherit; font-size:16px; font-weight:700; letter-spacing:-.2px; cursor:pointer;" style-hover="background:#dbe4f9;" style-active="transform:scale(.985);">Snabb pass</button>
+          </div>
+        </div>
+      </div>
+
+      <div style="padding:26px 16px 0;">
+        <div style="display:flex; align-items:baseline; justify-content:space-between; padding:0 4px 10px;">
+          <div style="font-size:12px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:#4a5578;">Alla projekt</div>
+          <div style="font-size:12px; font-weight:700; color:#1b2cc1;">{{ projectCount }}</div>
+        </div>
+        <div style="background:#ffffff; border-radius:14px; box-shadow:0 4px 18px rgba(9,21,64,.07), 0 1px 2px rgba(9,21,64,.04); overflow:hidden;">
+          <sc-for list="{{ projects }}" as="p" hint-placeholder-count="8">
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; padding:13px 18px; cursor:pointer; box-shadow:inset 0 -1px 0 #e3eafb;" style-hover="background:#f6f9ff;">
+              <div style="min-width:0;">
+                <div style="font-size:16px; font-weight:700; letter-spacing:-.3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ p.name }}</div>
+                <div style="font-size:14px; font-weight:500; color:#4a5578; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ p.address }}</div>
+              </div>
+              <div style="{{ p.hoursStyle }}">{{ p.hours }}</div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="display:flex; flex-direction:column; gap:10px;">
+    <div style="font-size:12px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:#4a5578; padding-left:4px;">Meny öppen</div>
+    <div style="width:390px; min-height:844px; background:#f3f6fd; border-radius:22px; overflow:hidden; box-shadow:0 18px 50px rgba(9,21,64,.13); box-sizing:border-box; position:relative;">
+      <div style="filter:blur(2px); opacity:.5; padding:0 0 40px;">
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; padding:14px 16px 10px;">
+          <div style="width:44px; height:44px; border-radius:11px; background:#ffffff; box-shadow:0 1px 3px rgba(9,21,64,.08);"></div>
+          <div style="font-size:17px; font-weight:700; letter-spacing:-.2px;">Admin</div>
+          <div style="width:44px; height:44px; border-radius:11px; background:#ffffff; box-shadow:0 1px 3px rgba(9,21,64,.08);"></div>
+        </div>
+        <div style="padding:6px 16px 0;"><div style="background:#ffffff; border-radius:16px; box-shadow:0 8px 28px rgba(9,21,64,.09); height:200px;"></div></div>
+        <div style="padding:26px 16px 0;"><div style="background:#ffffff; border-radius:14px; box-shadow:0 4px 18px rgba(9,21,64,.07); height:300px;"></div></div>
+      </div>
+      <div style="position:absolute; inset:0; background:rgba(9,21,64,.42);"></div>
+      <div style="position:absolute; left:0; right:0; bottom:0; background:#f3f6fd; border-radius:22px 22px 0 0; box-shadow:0 -12px 40px rgba(9,21,64,.22); padding:10px 16px 22px;">
+        <div style="width:38px; height:4px; border-radius:999px; background:#dbe4f9; margin:0 auto 14px;"></div>
+        <div style="background:#ffffff; border-radius:14px; box-shadow:0 4px 18px rgba(9,21,64,.07), 0 1px 2px rgba(9,21,64,.04); overflow:hidden;">
+          <sc-for list="{{ menu }}" as="m" hint-placeholder-count="6">
+            <a href="#" style="display:flex; align-items:center; justify-content:space-between; height:60px; padding:0 18px; color:#091540; box-shadow:inset 0 -1px 0 #e3eafb;" style-hover="background:#f6f9ff;">
+              <span style="font-size:17px; font-weight:700; letter-spacing:-.2px;">{{ m }}</span>
+              <svg width="9" height="15" viewBox="0 0 9 15" fill="none"><path d="M1.5 1.5 7 7.5l-5.5 6" stroke="#8b98c4" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+            </a>
+          </sc-for>
+        </div>
+        <button style="width:100%; height:56px; margin-top:12px; border:0; border-radius:12px; background:#eef3fe; color:#12206b; font-family:inherit; font-size:17px; font-weight:700; letter-spacing:-.2px; cursor:pointer;" style-hover="background:#dbe4f9;" style-active="transform:scale(.985);">Stäng</button>
+      </div>
+    </div>
+  </div>
+
+  <div style="display:flex; flex-direction:column; gap:10px;">
+    <div style="font-size:12px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:#4a5578; padding-left:4px;">Alla projekt</div>
+    <div style="width:390px; min-height:844px; background:#f3f6fd; border-radius:22px; overflow:hidden; box-shadow:0 18px 50px rgba(9,21,64,.13); padding:0 0 40px; box-sizing:border-box;">
+      <div style="display:flex; align-items:center; gap:12px; padding:14px 16px 12px;">
+        <button style="width:44px; height:44px; display:flex; align-items:center; justify-content:center; border:0; border-radius:11px; background:#ffffff; box-shadow:0 1px 3px rgba(9,21,64,.08); cursor:pointer; padding:0;" style-hover="background:#f0f5ff;" style-active="background:#dbe4f9;" aria-label="Tillbaka">
+          <svg width="18" height="15" viewBox="0 0 18 15" fill="none"><path d="M7.5 1.5 1.5 7.5l6 6M1.5 7.5H17" stroke="#091540" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+        </button>
+        <div style="font-size:22px; font-weight:800; letter-spacing:-.7px;">Alla projekt</div>
+      </div>
+      <div style="padding:4px 16px 0; display:flex; flex-direction:column; gap:10px;">
+        <sc-for list="{{ projects }}" as="p" hint-placeholder-count="8">
+          <div style="background:#ffffff; border-radius:14px; box-shadow:0 4px 18px rgba(9,21,64,.07), 0 1px 2px rgba(9,21,64,.04); padding:15px 16px;">
+            <div style="display:flex; align-items:baseline; justify-content:space-between; gap:10px;">
+              <div style="font-size:18px; font-weight:700; letter-spacing:-.4px;">{{ p.name }}</div>
+              <div style="{{ p.hoursStyle }}">{{ p.hours }}</div>
+            </div>
+            <div style="font-size:15px; font-weight:500; color:#4a5578; margin:2px 0 12px;">{{ p.address }}</div>
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
+              <div style="font-size:12px; font-weight:700; letter-spacing:.4px; color:#4a5578;">Start {{ p.start }}</div>
+              <button style="height:44px; padding:0 18px; border:0; border-radius:10px; background:#eef3fe; color:#12206b; font-family:inherit; font-size:15px; font-weight:700; cursor:pointer;" style-hover="background:#dbe4f9;" style-active="transform:scale(.985);">Redigera</button>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+  </div>
+
+  <div style="display:flex; flex-direction:column; gap:10px;">
+    <div style="font-size:12px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:#4a5578; padding-left:4px;">Redigera projekt</div>
+    <div style="width:390px; min-height:844px; background:#f3f6fd; border-radius:22px; overflow:hidden; box-shadow:0 18px 50px rgba(9,21,64,.13); padding:0 0 40px; box-sizing:border-box;">
+      <div style="display:flex; align-items:center; gap:12px; padding:14px 16px 12px;">
+        <button style="width:44px; height:44px; display:flex; align-items:center; justify-content:center; border:0; border-radius:11px; background:#ffffff; box-shadow:0 1px 3px rgba(9,21,64,.08); cursor:pointer; padding:0;" style-hover="background:#f0f5ff;" style-active="background:#dbe4f9;" aria-label="Tillbaka">
+          <svg width="18" height="15" viewBox="0 0 18 15" fill="none"><path d="M7.5 1.5 1.5 7.5l6 6M1.5 7.5H17" stroke="#091540" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+        </button>
+        <div style="font-size:22px; font-weight:800; letter-spacing:-.7px;">Redigera projekt</div>
+      </div>
+
+      <div style="padding:2px 16px 0;">
+        <div style="background:#ffffff; border-radius:16px; box-shadow:0 4px 18px rgba(9,21,64,.07), 0 1px 2px rgba(9,21,64,.04); padding:18px;">
+          <div style="font-size:12px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:#4a5578; margin-bottom:14px;">Projektet</div>
+          <label style="display:block; margin-bottom:14px;">
+            <span style="display:block; font-size:12px; font-weight:700; letter-spacing:.9px; text-transform:uppercase; color:#4a5578; margin-bottom:6px;">Projektnamn</span>
+            <input type="text" value="Akutjobbet 738467" style="width:100%; height:52px; box-sizing:border-box; border:0; border-radius:10px; background:#eef3fe; padding:0 14px; font-family:inherit; font-size:16px; font-weight:600; color:#091540;" style-focus="outline:2px solid #1b2cc1; background:#ffffff;">
+          </label>
+          <label style="display:block; margin-bottom:14px;">
+            <span style="display:block; font-size:12px; font-weight:700; letter-spacing:.9px; text-transform:uppercase; color:#4a5578; margin-bottom:2px;">Projektets adress</span>
+            <span style="display:block; font-size:14px; font-weight:500; color:#4a5578; margin-bottom:6px;">Dit arbetaren åker.</span>
+            <input type="text" value="Bruksgatan 8, 242 30 Hörby" style="width:100%; height:52px; box-sizing:border-box; border:0; border-radius:10px; background:#eef3fe; padding:0 14px; font-family:inherit; font-size:16px; font-weight:600; color:#091540;" style-focus="outline:2px solid #1b2cc1; background:#ffffff;">
+          </label>
+          <div style="display:flex; gap:10px;">
+            <label style="flex:1; display:block;">
+              <span style="display:block; font-size:12px; font-weight:700; letter-spacing:.9px; text-transform:uppercase; color:#4a5578; margin-bottom:6px;">Startdatum</span>
+              <input type="date" value="2026-09-08" style="width:100%; height:52px; box-sizing:border-box; border:0; border-radius:10px; background:#eef3fe; padding:0 14px; font-family:inherit; font-size:16px; font-weight:600; color:#091540;" style-focus="outline:2px solid #1b2cc1; background:#ffffff;">
+            </label>
+            <label style="flex:1; display:block;">
+              <span style="display:block; font-size:12px; font-weight:700; letter-spacing:.9px; text-transform:uppercase; color:#4a5578; margin-bottom:6px;">Tjänster</span>
+              <input type="text" value="Akut" style="width:100%; height:52px; box-sizing:border-box; border:0; border-radius:10px; background:#eef3fe; padding:0 14px; font-family:inherit; font-size:16px; font-weight:600; color:#091540;" style-focus="outline:2px solid #1b2cc1; background:#ffffff;">
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div style="padding:14px 16px 0;">
+        <div style="background:#ffffff; border-radius:16px; box-shadow:0 4px 18px rgba(9,21,64,.07), 0 1px 2px rgba(9,21,64,.04); padding:18px;">
+          <div style="font-size:12px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:#4a5578; margin-bottom:4px;">Beställaren</div>
+          <div style="font-size:14px; font-weight:500; color:#4a5578; margin-bottom:14px;">Skrivs ut på arbetsdagboken.</div>
+          <label style="display:block; margin-bottom:14px;">
+            <span style="display:block; font-size:12px; font-weight:700; letter-spacing:.9px; text-transform:uppercase; color:#4a5578; margin-bottom:6px;">Bolag</span>
+            <input type="text" value="Eslövs Fastigheter AB" style="width:100%; height:52px; box-sizing:border-box; border:0; border-radius:10px; background:#eef3fe; padding:0 14px; font-family:inherit; font-size:16px; font-weight:600; color:#091540;" style-focus="outline:2px solid #1b2cc1; background:#ffffff;">
+          </label>
+          <label style="display:block; margin-bottom:14px;">
+            <span style="display:block; font-size:12px; font-weight:700; letter-spacing:.9px; text-transform:uppercase; color:#4a5578; margin-bottom:6px;">Adress</span>
+            <input type="text" value="Kundvägen 4, 241 38 Eslöv" style="width:100%; height:52px; box-sizing:border-box; border:0; border-radius:10px; background:#eef3fe; padding:0 14px; font-family:inherit; font-size:16px; font-weight:600; color:#091540;" style-focus="outline:2px solid #1b2cc1; background:#ffffff;">
+          </label>
+          <label style="display:block;">
+            <span style="display:block; font-size:12px; font-weight:700; letter-spacing:.9px; text-transform:uppercase; color:#4a5578; margin-bottom:6px;">Org nummer</span>
+            <input type="text" value="556123-4567" style="width:100%; height:52px; box-sizing:border-box; border:0; border-radius:10px; background:#eef3fe; padding:0 14px; font-family:inherit; font-size:16px; font-weight:600; color:#091540; font-variant-numeric:tabular-nums;" style-focus="outline:2px solid #1b2cc1; background:#ffffff;">
+          </label>
+        </div>
+      </div>
+
+      <div style="padding:22px 16px 0;">
+        <button style="width:100%; height:64px; border:0; border-radius:12px; background:#1b2cc1; color:#ffffff; box-shadow:0 6px 18px rgba(27,44,193,.28); font-family:inherit; font-size:20px; font-weight:800; letter-spacing:-.4px; cursor:pointer;" style-hover="background:#12206b;" style-active="transform:scale(.985);">Spara ändringar</button>
+      </div>
+      <div style="padding:26px 16px 0;">
+        <button style="width:100%; height:56px; border:0; border-radius:12px; background:#fbe9ec; color:#8e1d15; font-family:inherit; font-size:17px; font-weight:700; letter-spacing:-.2px; cursor:pointer;" style-hover="background:#f6d8dd;" style-active="transform:scale(.985);">Ta bort projekt</button>
+        <div style="font-size:14px; font-weight:500; color:#4a5578; text-align:center; padding-top:10px;">Går inte att ångra.</div>
+      </div>
+    </div>
+  </div>
+
+  <div style="display:flex; flex-direction:column; gap:10px;">
+    <div style="font-size:12px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:#4a5578; padding-left:4px;">Alla pass</div>
+    <div style="width:390px; min-height:844px; background:#f3f6fd; border-radius:22px; overflow:hidden; box-shadow:0 18px 50px rgba(9,21,64,.13); padding:0 0 40px; box-sizing:border-box;">
+      <div style="display:flex; align-items:center; gap:12px; padding:14px 16px 12px;">
+        <button style="width:44px; height:44px; display:flex; align-items:center; justify-content:center; border:0; border-radius:11px; background:#ffffff; box-shadow:0 1px 3px rgba(9,21,64,.08); cursor:pointer; padding:0;" style-hover="background:#f0f5ff;" style-active="background:#dbe4f9;" aria-label="Tillbaka">
+          <svg width="18" height="15" viewBox="0 0 18 15" fill="none"><path d="M7.5 1.5 1.5 7.5l6 6M1.5 7.5H17" stroke="#091540" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+        </button>
+        <div style="font-size:22px; font-weight:800; letter-spacing:-.7px;">Alla pass</div>
+      </div>
+      <div style="padding:2px 16px 0;">
+        <div style="display:flex; align-items:center; gap:10px; background:#ffffff; border-radius:12px; box-shadow:0 1px 3px rgba(9,21,64,.08); padding:6px;">
+          <button style="width:40px; height:40px; display:flex; align-items:center; justify-content:center; border:0; border-radius:9px; background:#eef3fe; cursor:pointer; padding:0;" style-hover="background:#dbe4f9;" aria-label="Föregående period">
+            <svg width="8" height="14" viewBox="0 0 9 15" fill="none"><path d="M7.5 1.5 2 7.5l5.5 6" stroke="#091540" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+          </button>
+          <div style="flex:1; text-align:center; font-size:14px; font-weight:700; letter-spacing:.2px; font-variant-numeric:tabular-nums;">8 sep – 8 okt</div>
+          <button style="width:40px; height:40px; display:flex; align-items:center; justify-content:center; border:0; border-radius:9px; background:#eef3fe; cursor:pointer; padding:0;" style-hover="background:#dbe4f9;" aria-label="Nästa period">
+            <svg width="8" height="14" viewBox="0 0 9 15" fill="none"><path d="M1.5 1.5 7 7.5l-5.5 6" stroke="#091540" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+          </button>
+        </div>
+      </div>
+      <sc-for list="{{ passGroups }}" as="g" hint-placeholder-count="4">
+        <div style="padding:22px 16px 0;">
+          <div style="display:flex; align-items:baseline; justify-content:space-between; padding:0 4px 10px;">
+            <div style="font-size:12px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:#4a5578;">{{ g.day }}</div>
+            <div style="font-size:12px; font-weight:700; color:#4a5578;">{{ g.count }}</div>
+          </div>
+          <div style="background:#ffffff; border-radius:14px; box-shadow:0 4px 18px rgba(9,21,64,.07), 0 1px 2px rgba(9,21,64,.04); overflow:hidden;">
+            <sc-for list="{{ g.items }}" as="it" hint-placeholder-count="4">
+              <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 16px; cursor:pointer; box-shadow:inset 0 -1px 0 #e3eafb;" style-hover="background:#f6f9ff;">
+                <div style="min-width:0;">
+                  <div style="font-size:16px; font-weight:700; letter-spacing:-.3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ it.site }}</div>
+                  <div style="font-size:14px; font-weight:500; color:#4a5578; font-variant-numeric:tabular-nums;">{{ it.time }}</div>
+                </div>
+                <div style="font-size:12px; font-weight:700; letter-spacing:.4px; color:#12206b; background:#eef3fe; border-radius:999px; padding:5px 10px; white-space:nowrap;">{{ it.spots }}</div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+
+  <div style="display:flex; flex-direction:column; gap:10px;">
+    <div style="font-size:12px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:#4a5578; padding-left:4px;">Skiftkalender</div>
+    <div style="width:390px; min-height:844px; background:#f3f6fd; border-radius:22px; overflow:hidden; box-shadow:0 18px 50px rgba(9,21,64,.13); padding:0 0 40px; box-sizing:border-box;">
+      <div style="display:flex; align-items:center; gap:12px; padding:14px 16px 6px;">
+        <button style="width:44px; height:44px; display:flex; align-items:center; justify-content:center; border:0; border-radius:11px; background:#ffffff; box-shadow:0 1px 3px rgba(9,21,64,.08); cursor:pointer; padding:0;" style-hover="background:#f0f5ff;" style-active="background:#dbe4f9;" aria-label="Tillbaka">
+          <svg width="18" height="15" viewBox="0 0 18 15" fill="none"><path d="M7.5 1.5 1.5 7.5l6 6M1.5 7.5H17" stroke="#091540" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+        </button>
+        <div style="font-size:22px; font-weight:800; letter-spacing:-.7px;">Skiftkalender</div>
+      </div>
+      <div style="padding:0 16px 4px 72px; font-size:15px; font-weight:500; color:#4a5578;">Tryck på en dag för att se vilka som jobbar då.</div>
+
+      <div style="padding:14px 16px 0;">
+        <div style="background:#ffffff; border-radius:16px; box-shadow:0 4px 18px rgba(9,21,64,.07), 0 1px 2px rgba(9,21,64,.04); padding:16px 14px 18px;">
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
+            <button style="width:40px; height:40px; display:flex; align-items:center; justify-content:center; border:0; border-radius:11px; background:#eef3fe; cursor:pointer; padding:0;" style-hover="background:#dbe4f9;" aria-label="Föregående månad">
+              <svg width="8" height="14" viewBox="0 0 9 15" fill="none"><path d="M7.5 1.5 2 7.5l5.5 6" stroke="#091540" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+            </button>
+            <div style="text-align:center;">
+              <div style="font-size:19px; font-weight:800; letter-spacing:-.5px;">September</div>
+              <div style="font-size:12px; font-weight:700; letter-spacing:1px; color:#4a5578;">2026</div>
+            </div>
+            <button style="width:40px; height:40px; display:flex; align-items:center; justify-content:center; border:0; border-radius:11px; background:#eef3fe; cursor:pointer; padding:0;" style-hover="background:#dbe4f9;" aria-label="Nästa månad">
+              <svg width="8" height="14" viewBox="0 0 9 15" fill="none"><path d="M1.5 1.5 7 7.5l-5.5 6" stroke="#091540" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+            </button>
+          </div>
+          <div style="display:grid; grid-template-columns:repeat(7, 1fr); gap:3px; margin-bottom:6px;">
+            <div style="text-align:center; font-size:11px; font-weight:700; letter-spacing:.8px; color:#4a5578;">M</div>
+            <div style="text-align:center; font-size:11px; font-weight:700; letter-spacing:.8px; color:#4a5578;">T</div>
+            <div style="text-align:center; font-size:11px; font-weight:700; letter-spacing:.8px; color:#4a5578;">O</div>
+            <div style="text-align:center; font-size:11px; font-weight:700; letter-spacing:.8px; color:#4a5578;">T</div>
+            <div style="text-align:center; font-size:11px; font-weight:700; letter-spacing:.8px; color:#4a5578;">F</div>
+            <div style="text-align:center; font-size:11px; font-weight:600; letter-spacing:.8px; color:#4a5578;">L</div>
+            <div style="text-align:center; font-size:11px; font-weight:600; letter-spacing:.8px; color:#4a5578;">S</div>
+          </div>
+          <div style="display:grid; grid-template-columns:repeat(7, 1fr); gap:3px;">
+            <sc-for list="{{ calDays }}" as="d" hint-placeholder-count="35">
+              <div style="{{ d.cell }}">
+                <span style="{{ d.num }}">{{ d.label }}</span>
+                <div style="display:flex; flex-direction:column; gap:2px; padding:0 3px 3px;">
+                  <sc-for list="{{ d.bars }}" as="bar" hint-placeholder-count="0">
+                    <div style="{{ bar }}"></div>
+                  </sc-for>
+                </div>
+                <span style="{{ d.moreStyle }}">{{ d.more }}</span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+
+      <div style="padding:22px 16px 0;">
+        <div style="font-size:12px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:#4a5578; padding:0 4px 10px;">Projekt</div>
+        <div style="background:#ffffff; border-radius:14px; box-shadow:0 4px 18px rgba(9,21,64,.07), 0 1px 2px rgba(9,21,64,.04); padding:14px 16px; display:flex; flex-direction:column; gap:10px;">
+          <sc-for list="{{ legend }}" as="l" hint-placeholder-count="8">
+            <div style="display:flex; align-items:center; gap:10px;">
+              <span style="{{ l.chip }}"></span>
+              <span style="font-size:15px; font-weight:600; letter-spacing:-.2px;">{{ l.name }}</span>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="display:flex; flex-direction:column; gap:10px;">
+    <div style="font-size:12px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:#4a5578; padding-left:4px;">Skapa pass · vilka dagar</div>
+    <div style="width:390px; min-height:844px; background:#f3f6fd; border-radius:22px; overflow:hidden; box-shadow:0 18px 50px rgba(9,21,64,.13); padding:0 0 40px; box-sizing:border-box;">
+      <div style="display:flex; align-items:center; gap:12px; padding:14px 16px 6px;">
+        <button style="width:44px; height:44px; display:flex; align-items:center; justify-content:center; border:0; border-radius:11px; background:#ffffff; box-shadow:0 1px 3px rgba(9,21,64,.08); cursor:pointer; padding:0;" style-hover="background:#f0f5ff;" style-active="background:#dbe4f9;" aria-label="Tillbaka">
+          <svg width="18" height="15" viewBox="0 0 18 15" fill="none"><path d="M7.5 1.5 1.5 7.5l6 6M1.5 7.5H17" stroke="#091540" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+        </button>
+        <div style="font-size:22px; font-weight:800; letter-spacing:-.7px;">Vilka dagar?</div>
+      </div>
+      <div style="padding:0 16px 4px 72px; font-size:15px; font-weight:500; color:#4a5578;">Tryck på en dag, eller dra över flera.</div>
+
+      <div style="padding:14px 16px 0;">
+        <div style="background:#ffffff; border-radius:16px; box-shadow:0 4px 18px rgba(9,21,64,.07), 0 1px 2px rgba(9,21,64,.04); padding:16px 14px 18px;">
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
+            <button style="width:40px; height:40px; display:flex; align-items:center; justify-content:center; border:0; border-radius:11px; background:#eef3fe; cursor:pointer; padding:0;" style-hover="background:#dbe4f9;" aria-label="Föregående månad">
+              <svg width="8" height="14" viewBox="0 0 9 15" fill="none"><path d="M7.5 1.5 2 7.5l5.5 6" stroke="#091540" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+            </button>
+            <div style="text-align:center;">
+              <div style="font-size:19px; font-weight:800; letter-spacing:-.5px;">September</div>
+              <div style="font-size:12px; font-weight:700; letter-spacing:1px; color:#4a5578;">2026</div>
+            </div>
+            <button style="width:40px; height:40px; display:flex; align-items:center; justify-content:center; border:0; border-radius:11px; background:#eef3fe; cursor:pointer; padding:0;" style-hover="background:#dbe4f9;" aria-label="Nästa månad">
+              <svg width="8" height="14" viewBox="0 0 9 15" fill="none"><path d="M1.5 1.5 7 7.5l-5.5 6" stroke="#091540" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+            </button>
+          </div>
+          <div style="display:grid; grid-template-columns:repeat(7, 1fr); gap:2px; margin-bottom:6px;">
+            <div style="text-align:center; font-size:11px; font-weight:700; letter-spacing:.8px; color:#4a5578;">M</div>
+            <div style="text-align:center; font-size:11px; font-weight:700; letter-spacing:.8px; color:#4a5578;">T</div>
+            <div style="text-align:center; font-size:11px; font-weight:700; letter-spacing:.8px; color:#4a5578;">O</div>
+            <div style="text-align:center; font-size:11px; font-weight:700; letter-spacing:.8px; color:#4a5578;">T</div>
+            <div style="text-align:center; font-size:11px; font-weight:700; letter-spacing:.8px; color:#4a5578;">F</div>
+            <div style="text-align:center; font-size:11px; font-weight:600; letter-spacing:.8px; color:#4a5578;">L</div>
+            <div style="text-align:center; font-size:11px; font-weight:600; letter-spacing:.8px; color:#4a5578;">S</div>
+          </div>
+          <div style="display:grid; grid-template-columns:repeat(7, 1fr); gap:2px;">
+            <sc-for list="{{ pickDays }}" as="d" hint-placeholder-count="35">
+              <div onClick="{{ d.toggle }}" style="{{ d.cell }}"><span style="{{ d.num }}">{{ d.label }}</span></div>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+
+      <div style="padding:22px 16px 0;">
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; background:#eef3fe; border-radius:12px; padding:14px 16px;">
+          <span style="font-size:15px; font-weight:600; color:#4a5578;">Valda dagar</span>
+          <span style="font-size:20px; font-weight:800; letter-spacing:-.5px; font-variant-numeric:tabular-nums;">{{ pickedCount }}</span>
+        </div>
+      </div>
+      <div style="padding:14px 16px 0;">
+        <button style="{{ pickButtonStyle }}" style-active="transform:scale(.985);">Fortsätt</button>
+      </div>
+    </div>
+  </div>
+
+  <div style="display:flex; flex-direction:column; gap:10px;">
+    <div style="font-size:12px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:#4a5578; padding-left:4px;">Snabb pass</div>
+    <div style="width:390px; min-height:844px; background:#f3f6fd; border-radius:22px; overflow:hidden; box-shadow:0 18px 50px rgba(9,21,64,.13); padding:0 0 40px; box-sizing:border-box;">
+      <div style="display:flex; align-items:center; gap:12px; padding:14px 16px 6px;">
+        <button style="width:44px; height:44px; display:flex; align-items:center; justify-content:center; border:0; border-radius:11px; background:#ffffff; box-shadow:0 1px 3px rgba(9,21,64,.08); cursor:pointer; padding:0;" style-hover="background:#f0f5ff;" style-active="background:#dbe4f9;" aria-label="Tillbaka">
+          <svg width="18" height="15" viewBox="0 0 18 15" fill="none"><path d="M7.5 1.5 1.5 7.5l6 6M1.5 7.5H17" stroke="#091540" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+        </button>
+        <div style="font-size:22px; font-weight:800; letter-spacing:-.7px;">Snabb pass</div>
+      </div>
+      <div style="padding:0 16px 4px 72px; font-size:15px; font-weight:500; color:#4a5578; text-wrap:pretty;">Går förbi hela turordningen. Används när någon hoppar av i sista stund.</div>
+
+      <div style="padding:14px 16px 0;">
+        <div style="background:#ffffff; border-radius:16px; box-shadow:0 4px 18px rgba(9,21,64,.07), 0 1px 2px rgba(9,21,64,.04); padding:18px;">
+          <label style="display:block; margin-bottom:14px;">
+            <span style="display:block; font-size:12px; font-weight:700; letter-spacing:.9px; text-transform:uppercase; color:#4a5578; margin-bottom:6px;">Projekt</span>
+            <select style="width:100%; height:52px; box-sizing:border-box; border:0; border-radius:10px; background:#eef3fe; padding:0 14px; font-family:inherit; font-size:16px; font-weight:600; color:#091540; appearance:none; cursor:pointer;" style-focus="outline:2px solid #1b2cc1; background:#ffffff;">
+              <option>Välj projekt…</option>
+              <option>Akutjobbet 738467</option>
+              <option>Torget 131962</option>
+            </select>
+          </label>
+          <label style="display:block; margin-bottom:14px;">
+            <span style="display:block; font-size:12px; font-weight:700; letter-spacing:.9px; text-transform:uppercase; color:#4a5578; margin-bottom:2px;">Vem?</span>
+            <span style="display:block; font-size:14px; font-weight:500; color:#4a5578; margin-bottom:6px;">Finns personen inte i listan — välj Ny arbetare.</span>
+            <select style="width:100%; height:52px; box-sizing:border-box; border:0; border-radius:10px; background:#eef3fe; padding:0 14px; font-family:inherit; font-size:16px; font-weight:600; color:#091540; appearance:none; cursor:pointer;" style-focus="outline:2px solid #1b2cc1; background:#ffffff;">
+              <option>Välj person…</option>
+              <option>testarbetare</option>
+              <option>Ny arbetare…</option>
+            </select>
+          </label>
+          <label style="display:block; margin-bottom:14px;">
+            <span style="display:block; font-size:12px; font-weight:700; letter-spacing:.9px; text-transform:uppercase; color:#4a5578; margin-bottom:6px;">Datum</span>
+            <input type="date" value="2026-09-08" style="width:100%; height:52px; box-sizing:border-box; border:0; border-radius:10px; background:#eef3fe; padding:0 14px; font-family:inherit; font-size:16px; font-weight:600; color:#091540;" style-focus="outline:2px solid #1b2cc1; background:#ffffff;">
+          </label>
+          <div style="display:flex; gap:10px; margin-bottom:14px;">
+            <label style="flex:1; display:block;">
+              <span style="display:block; font-size:12px; font-weight:700; letter-spacing:.9px; text-transform:uppercase; color:#4a5578; margin-bottom:6px;">Börjar</span>
+              <input type="time" value="07:00" style="width:100%; height:52px; box-sizing:border-box; border:0; border-radius:10px; background:#eef3fe; padding:0 14px; font-family:inherit; font-size:16px; font-weight:600; color:#091540; font-variant-numeric:tabular-nums;" style-focus="outline:2px solid #1b2cc1; background:#ffffff;">
+            </label>
+            <label style="flex:1; display:block;">
+              <span style="display:block; font-size:12px; font-weight:700; letter-spacing:.9px; text-transform:uppercase; color:#4a5578; margin-bottom:6px;">Slutar</span>
+              <input type="time" value="16:00" style="width:100%; height:52px; box-sizing:border-box; border:0; border-radius:10px; background:#eef3fe; padding:0 14px; font-family:inherit; font-size:16px; font-weight:600; color:#091540; font-variant-numeric:tabular-nums;" style-focus="outline:2px solid #1b2cc1; background:#ffffff;">
+            </label>
+          </div>
+          <label style="display:block;">
+            <span style="display:block; font-size:12px; font-weight:700; letter-spacing:.9px; text-transform:uppercase; color:#4a5578; margin-bottom:2px;">Timmar</span>
+            <span style="display:block; font-size:14px; font-weight:500; color:#4a5578; margin-bottom:6px;">Förifylls som tiden minus 30 min. Ändra om rasten var längre.</span>
+            <input type="text" value="8,5" style="width:100%; height:60px; box-sizing:border-box; border:0; border-radius:10px; background:#eef3fe; padding:0 14px; font-family:inherit; font-size:26px; font-weight:800; letter-spacing:-.6px; color:#091540; font-variant-numeric:tabular-nums;" style-focus="outline:2px solid #1b2cc1; background:#ffffff;">
+          </label>
+        </div>
+      </div>
+
+      <div style="padding:14px 16px 0;">
+        <div style="background:#fdf2e3; border-radius:12px; padding:14px 16px; font-size:15px; font-weight:500; color:#7a4407; text-wrap:pretty;">Har personen redan ett pass den dagen tas det bort och detta gäller i stället.</div>
+      </div>
+      <div style="padding:14px 16px 0;">
+        <button style="width:100%; height:64px; border:0; border-radius:12px; background:#1b2cc1; color:#ffffff; box-shadow:0 6px 18px rgba(27,44,193,.28); font-family:inherit; font-size:20px; font-weight:800; letter-spacing:-.4px; cursor:pointer;" style-hover="background:#12206b;" style-active="transform:scale(.985);">Skapa snabb pass</button>
+      </div>
+    </div>
+  </div>
+
+  <div style="display:flex; flex-direction:column; gap:10px;">
+    <div style="font-size:12px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:#4a5578; padding-left:4px;">Granska pass</div>
+    <div style="width:390px; min-height:844px; background:#f3f6fd; border-radius:22px; overflow:hidden; box-shadow:0 18px 50px rgba(9,21,64,.13); padding:0 0 40px; box-sizing:border-box;">
+      <div style="display:flex; align-items:center; gap:12px; padding:14px 16px 12px;">
+        <button style="width:44px; height:44px; display:flex; align-items:center; justify-content:center; border:0; border-radius:11px; background:#ffffff; box-shadow:0 1px 3px rgba(9,21,64,.08); cursor:pointer; padding:0;" style-hover="background:#f0f5ff;" style-active="background:#dbe4f9;" aria-label="Tillbaka">
+          <svg width="18" height="15" viewBox="0 0 18 15" fill="none"><path d="M7.5 1.5 1.5 7.5l6 6M1.5 7.5H17" stroke="#091540" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+        </button>
+        <div style="font-size:22px; font-weight:800; letter-spacing:-.7px;">Granska pass</div>
+      </div>
+
+      <div style="padding:2px 16px 0;">
+        <div style="font-size:12px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:#4a5578; padding:0 4px 2px;">Torsdag 10 sep</div>
+        <div style="font-size:26px; font-weight:800; letter-spacing:-.9px; padding:0 4px 14px;">testgps</div>
+        <div style="background:#fdf2e3; border-radius:12px; padding:16px;">
+          <div style="font-size:17px; font-weight:800; letter-spacing:-.3px; color:#5c3305; margin-bottom:6px;">Dagen kördes utan arbetsledare.</div>
+          <div style="font-size:15px; font-weight:500; color:#7a4407; text-wrap:pretty;">Ingen har bekräftat den och ingen kan. Du skriver dagens redogörelse och timmarna, och bara du kan bekräfta den.</div>
+        </div>
+      </div>
+
+      <sc-for list="{{ review }}" as="r" hint-placeholder-count="2">
+        <div style="padding:14px 16px 0;">
+          <div style="background:#ffffff; border-radius:16px; box-shadow:0 4px 18px rgba(9,21,64,.07), 0 1px 2px rgba(9,21,64,.04); padding:18px;">
+            <div style="font-size:18px; font-weight:700; letter-spacing:-.4px;">{{ r.name }}</div>
+            <div style="font-size:14px; font-weight:500; color:#4a5578; margin:2px 0 14px;">{{ r.stamped }}</div>
+            <div style="display:flex; gap:10px; margin-bottom:14px;">
+              <label style="flex:1; display:block;">
+                <span style="display:block; font-size:12px; font-weight:700; letter-spacing:.9px; text-transform:uppercase; color:#4a5578; margin-bottom:6px;">Börjar</span>
+                <input type="time" value="{{ r.start }}" style="width:100%; height:52px; box-sizing:border-box; border:0; border-radius:10px; background:#eef3fe; padding:0 14px; font-family:inherit; font-size:16px; font-weight:600; color:#091540; font-variant-numeric:tabular-nums;" style-focus="outline:2px solid #1b2cc1; background:#ffffff;">
+              </label>
+              <label style="flex:1; display:block;">
+                <span style="display:block; font-size:12px; font-weight:700; letter-spacing:.9px; text-transform:uppercase; color:#4a5578; margin-bottom:6px;">Slutar</span>
+                <input type="time" value="{{ r.end }}" style="width:100%; height:52px; box-sizing:border-box; border:0; border-radius:10px; background:#eef3fe; padding:0 14px; font-family:inherit; font-size:16px; font-weight:600; color:#091540; font-variant-numeric:tabular-nums;" style-focus="outline:2px solid #1b2cc1; background:#ffffff;">
+              </label>
+            </div>
+            <label style="display:block;">
+              <span style="display:block; font-size:12px; font-weight:700; letter-spacing:.9px; text-transform:uppercase; color:#4a5578; margin-bottom:2px;">Timmar</span>
+              <span style="display:block; font-size:14px; font-weight:500; color:#4a5578; margin-bottom:6px;">0 om personen inte kom.</span>
+              <input type="text" value="{{ r.hours }}" style="width:100%; height:60px; box-sizing:border-box; border:0; border-radius:10px; background:#eef3fe; padding:0 14px; font-family:inherit; font-size:26px; font-weight:800; letter-spacing:-.6px; color:#091540; font-variant-numeric:tabular-nums;" style-focus="outline:2px solid #1b2cc1; background:#ffffff;">
+            </label>
+          </div>
+        </div>
+      </sc-for>
+
+      <div style="padding:14px 16px 0;">
+        <div style="background:#ffffff; border-radius:16px; box-shadow:0 4px 18px rgba(9,21,64,.07), 0 1px 2px rgba(9,21,64,.04); padding:18px;">
+          <div style="font-size:12px; font-weight:700; letter-spacing:.9px; text-transform:uppercase; color:#4a5578; margin-bottom:2px;">Vad vi gjorde</div>
+          <div style="font-size:14px; font-weight:500; color:#4a5578; margin-bottom:8px;">Arbetsledarens text. Rätta den om den inte stämmer.</div>
+          <textarea rows="4" style="width:100%; box-sizing:border-box; border:0; border-radius:10px; background:#eef3fe; padding:14px; font-family:inherit; font-size:16px; font-weight:500; line-height:1.45; color:#091540; resize:vertical;" style-focus="outline:2px solid #1b2cc1; background:#ffffff;">Rev fasad på norrsidan, ställningen flyttad två sektioner.</textarea>
+        </div>
+      </div>
+
+      <div style="padding:14px 16px 0;">
+        <div style="background:#eef3fe; border-radius:12px; padding:14px 16px; font-size:15px; font-weight:600; color:#12206b; text-wrap:pretty;">Bekräftat är slutgiltigt. Efter det ändras ingenting.</div>
+      </div>
+      <div style="padding:14px 16px 0;">
+        <button style="width:100%; height:64px; border:0; border-radius:12px; background:#1b2cc1; color:#ffffff; box-shadow:0 6px 18px rgba(27,44,193,.28); font-family:inherit; font-size:20px; font-weight:800; letter-spacing:-.4px; cursor:pointer;" style-hover="background:#12206b;" style-active="transform:scale(.985);">Bekräfta dagen</button>
+      </div>
+    </div>
+  </div>
+
+  <div style="display:flex; flex-direction:column; gap:10px;">
+    <div style="font-size:12px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:#4a5578; padding-left:4px;">Bekräftelse historik</div>
+    <div style="width:390px; min-height:844px; background:#f3f6fd; border-radius:22px; overflow:hidden; box-shadow:0 18px 50px rgba(9,21,64,.13); padding:0 0 40px; box-sizing:border-box;">
+      <div style="display:flex; align-items:center; gap:12px; padding:14px 16px 12px;">
+        <button style="width:44px; height:44px; display:flex; align-items:center; justify-content:center; border:0; border-radius:11px; background:#ffffff; box-shadow:0 1px 3px rgba(9,21,64,.08); cursor:pointer; padding:0;" style-hover="background:#f0f5ff;" style-active="background:#dbe4f9;" aria-label="Tillbaka">
+          <svg width="18" height="15" viewBox="0 0 18 15" fill="none"><path d="M7.5 1.5 1.5 7.5l6 6M1.5 7.5H17" stroke="#091540" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+        </button>
+        <div style="font-size:22px; font-weight:800; letter-spacing:-.7px;">Historik</div>
+      </div>
+      <div style="padding:2px 16px 0; display:flex; flex-direction:column; gap:12px;">
+        <sc-for list="{{ history }}" as="h" hint-placeholder-count="2">
+          <div style="background:#ffffff; border-radius:16px; box-shadow:0 4px 18px rgba(9,21,64,.07), 0 1px 2px rgba(9,21,64,.04); padding:18px;">
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:2px;">
+              <div style="font-size:12px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:#4a5578;">{{ h.day }}</div>
+              <div style="display:flex; align-items:center; gap:6px; background:#e4f0e8; border-radius:999px; padding:5px 10px;">
+                <svg width="11" height="9" viewBox="0 0 11 9" fill="none"><path d="M1 4.6 4 7.6 10 1.4" stroke="#146b41" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+                <span style="font-size:12px; font-weight:700; letter-spacing:.4px; color:#146b41;">Godkänd</span>
+              </div>
+            </div>
+            <div style="font-size:22px; font-weight:800; letter-spacing:-.7px; margin-bottom:4px;">{{ h.project }}</div>
+            <div style="font-size:15px; font-weight:500; color:#4a5578; margin-bottom:14px; text-wrap:pretty;">{{ h.chain }}</div>
+            <div style="background:#eef3fe; border-radius:10px; padding:4px 14px; margin-bottom:14px;">
+              <sc-for list="{{ h.people }}" as="pp" hint-placeholder-count="2">
+                <div style="display:flex; align-items:baseline; justify-content:space-between; gap:12px; padding:10px 0; box-shadow:inset 0 -1px 0 #dbe4f9;">
+                  <span style="font-size:15px; font-weight:600;">{{ pp.name }}</span>
+                  <span style="font-size:15px; font-weight:700; font-variant-numeric:tabular-nums; white-space:nowrap;">{{ pp.time }}</span>
+                </div>
+              </sc-for>
+            </div>
+            <div style="font-size:15px; font-weight:500; color:#091540; margin-bottom:12px; text-wrap:pretty;">{{ h.note }}</div>
+            <div style="font-size:12px; font-weight:700; letter-spacing:.4px; color:#4a5578; font-variant-numeric:tabular-nums;">{{ h.approved }}</div>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+  </div>
+
+  <div style="display:flex; flex-direction:column; gap:10px;">
+    <div style="font-size:12px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:#4a5578; padding-left:4px;">Ny arbetare · tom</div>
+    <div style="width:390px; min-height:844px; background:#f3f6fd; border-radius:22px; overflow:hidden; box-shadow:0 18px 50px rgba(9,21,64,.13); padding:0 0 40px; box-sizing:border-box;">
+      <div style="display:flex; align-items:center; gap:12px; padding:14px 16px 12px;">
+        <button style="width:44px; height:44px; display:flex; align-items:center; justify-content:center; border:0; border-radius:11px; background:#ffffff; box-shadow:0 1px 3px rgba(9,21,64,.08); cursor:pointer; padding:0;" style-hover="background:#f0f5ff;" style-active="background:#dbe4f9;" aria-label="Tillbaka">
+          <svg width="18" height="15" viewBox="0 0 18 15" fill="none"><path d="M7.5 1.5 1.5 7.5l6 6M1.5 7.5H17" stroke="#091540" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+        </button>
+        <div style="font-size:22px; font-weight:800; letter-spacing:-.7px;">Ny arbetare</div>
+      </div>
+      <div style="padding:2px 16px 0;">
+        <div style="background:#ffffff; border-radius:16px; box-shadow:0 4px 18px rgba(9,21,64,.07), 0 1px 2px rgba(9,21,64,.04); padding:18px;">
+          <label style="display:block; margin-bottom:14px;">
+            <span style="display:block; font-size:12px; font-weight:700; letter-spacing:.9px; text-transform:uppercase; color:#4a5578; margin-bottom:6px;">Namn</span>
+            <input type="text" placeholder="För- och efternamn" style="width:100%; height:52px; box-sizing:border-box; border:0; border-radius:10px; background:#eef3fe; padding:0 14px; font-family:inherit; font-size:16px; font-weight:600; color:#091540;" style-focus="outline:2px solid #1b2cc1; background:#ffffff;">
+          </label>
+          <label style="display:block; margin-bottom:14px;">
+            <span style="display:block; font-size:12px; font-weight:700; letter-spacing:.9px; text-transform:uppercase; color:#4a5578; margin-bottom:2px;">E-post</span>
+            <span style="display:block; font-size:14px; font-weight:500; color:#4a5578; margin-bottom:6px;">Används för att logga in. Måste inte vara en riktig brevlåda.</span>
+            <input type="email" placeholder="namn@bolaget.test" style="width:100%; height:52px; box-sizing:border-box; border:0; border-radius:10px; background:#eef3fe; padding:0 14px; font-family:inherit; font-size:16px; font-weight:600; color:#091540;" style-focus="outline:2px solid #1b2cc1; background:#ffffff;">
+          </label>
+          <label style="display:block;">
+            <span style="display:block; font-size:12px; font-weight:700; letter-spacing:.9px; text-transform:uppercase; color:#4a5578; margin-bottom:6px;">Roll</span>
+            <select style="width:100%; height:52px; box-sizing:border-box; border:0; border-radius:10px; background:#eef3fe; padding:0 14px; font-family:inherit; font-size:16px; font-weight:600; color:#091540; appearance:none; cursor:pointer;" style-focus="outline:2px solid #1b2cc1; background:#ffffff;">
+              <option>Arbetare</option>
+              <option>Arbetsledare</option>
+              <option>Admin</option>
+            </select>
+          </label>
+        </div>
+      </div>
+      <div style="padding:20px 16px 0;">
+        <button disabled style="width:100%; height:56px; border:0; border-radius:12px; background:#e3eafb; color:#8b98c4; font-family:inherit; font-size:17px; font-weight:700; letter-spacing:-.2px; cursor:not-allowed; margin-bottom:10px;">Kopiera inloggning</button>
+        <button disabled style="width:100%; height:64px; border:0; border-radius:12px; background:#e3eafb; color:#8b98c4; font-family:inherit; font-size:20px; font-weight:800; letter-spacing:-.4px; cursor:not-allowed;">Tillverka arbetare</button>
+        <div style="font-size:15px; font-weight:500; color:#4a5578; padding:12px 4px 0; text-wrap:pretty;">Kopiera inloggningen först. Ett konto vars uppgifter ingen har är ett konto ingen kan använda.</div>
+      </div>
+    </div>
+  </div>
+
+  <div style="display:flex; flex-direction:column; gap:10px;">
+    <div style="font-size:12px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:#4a5578; padding-left:4px;">Ny arbetare · inloggning klar</div>
+    <div style="width:390px; min-height:844px; background:#f3f6fd; border-radius:22px; overflow:hidden; box-shadow:0 18px 50px rgba(9,21,64,.13); padding:0 0 40px; box-sizing:border-box;">
+      <div style="display:flex; align-items:center; gap:12px; padding:14px 16px 12px;">
+        <button style="width:44px; height:44px; display:flex; align-items:center; justify-content:center; border:0; border-radius:11px; background:#ffffff; box-shadow:0 1px 3px rgba(9,21,64,.08); cursor:pointer; padding:0;" style-hover="background:#f0f5ff;" style-active="background:#dbe4f9;" aria-label="Tillbaka">
+          <svg width="18" height="15" viewBox="0 0 18 15" fill="none"><path d="M7.5 1.5 1.5 7.5l6 6M1.5 7.5H17" stroke="#091540" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+        </button>
+        <div style="font-size:22px; font-weight:800; letter-spacing:-.7px;">Ny arbetare</div>
+      </div>
+      <div style="padding:2px 16px 0;">
+        <div style="background:#ffffff; border-radius:16px; box-shadow:0 4px 18px rgba(9,21,64,.07), 0 1px 2px rgba(9,21,64,.04); padding:18px;">
+          <label style="display:block; margin-bottom:14px;">
+            <span style="display:block; font-size:12px; font-weight:700; letter-spacing:.9px; text-transform:uppercase; color:#4a5578; margin-bottom:6px;">Namn</span>
+            <input type="text" value="Nils Nyanställd" style="width:100%; height:52px; box-sizing:border-box; border:0; border-radius:10px; background:#eef3fe; padding:0 14px; font-family:inherit; font-size:16px; font-weight:600; color:#091540;" style-focus="outline:2px solid #1b2cc1; background:#ffffff;">
+          </label>
+          <label style="display:block; margin-bottom:14px;">
+            <span style="display:block; font-size:12px; font-weight:700; letter-spacing:.9px; text-transform:uppercase; color:#4a5578; margin-bottom:6px;">E-post</span>
+            <input type="email" value="nils.nyanstalld@bella.test" style="width:100%; height:52px; box-sizing:border-box; border:0; border-radius:10px; background:#eef3fe; padding:0 14px; font-family:inherit; font-size:16px; font-weight:600; color:#091540;" style-focus="outline:2px solid #1b2cc1; background:#ffffff;">
+          </label>
+          <label style="display:block;">
+            <span style="display:block; font-size:12px; font-weight:700; letter-spacing:.9px; text-transform:uppercase; color:#4a5578; margin-bottom:6px;">Roll</span>
+            <select style="width:100%; height:52px; box-sizing:border-box; border:0; border-radius:10px; background:#eef3fe; padding:0 14px; font-family:inherit; font-size:16px; font-weight:600; color:#091540; appearance:none; cursor:pointer;" style-focus="outline:2px solid #1b2cc1; background:#ffffff;">
+              <option>Arbetare</option>
+              <option>Arbetsledare</option>
+              <option>Admin</option>
+            </select>
+          </label>
+        </div>
+      </div>
+
+      <div style="padding:14px 16px 0;">
+        <div style="background:#ffffff; border-radius:16px; box-shadow:0 4px 18px rgba(9,21,64,.07), 0 1px 2px rgba(9,21,64,.04); padding:18px;">
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:12px;">
+            <div style="font-size:12px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:#4a5578;">Inloggning</div>
+            <div style="display:flex; align-items:center; gap:6px; background:#e4f0e8; border-radius:999px; padding:5px 10px;">
+              <svg width="11" height="9" viewBox="0 0 11 9" fill="none"><path d="M1 4.6 4 7.6 10 1.4" stroke="#146b41" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+              <span style="font-size:12px; font-weight:700; letter-spacing:.4px; color:#146b41;">Kopierad</span>
+            </div>
+          </div>
+          <div style="background:#eef3fe; border-radius:10px; padding:14px 16px; display:flex; flex-direction:column; gap:10px;">
+            <div>
+              <div style="font-size:12px; font-weight:700; letter-spacing:.9px; text-transform:uppercase; color:#4a5578;">Länk</div>
+              <div style="font-size:15px; font-weight:600; word-break:break-all;">tabxzzxtab.github.io/Shift-Setter</div>
+            </div>
+            <div>
+              <div style="font-size:12px; font-weight:700; letter-spacing:.9px; text-transform:uppercase; color:#4a5578;">E-post</div>
+              <div style="font-size:15px; font-weight:600; word-break:break-all;">nils.nyanstalld@bella.test</div>
+            </div>
+            <div>
+              <div style="font-size:12px; font-weight:700; letter-spacing:.9px; text-transform:uppercase; color:#4a5578;">Lösenord</div>
+              <div style="font-size:22px; font-weight:800; letter-spacing:1px; font-variant-numeric:tabular-nums;">691107</div>
+            </div>
+          </div>
+          <button style="width:100%; height:52px; margin-top:12px; border:0; border-radius:10px; background:#eef3fe; color:#12206b; font-family:inherit; font-size:16px; font-weight:700; cursor:pointer;" style-hover="background:#dbe4f9;" style-active="transform:scale(.985);">Kopiera igen</button>
+        </div>
+      </div>
+
+      <div style="padding:20px 16px 0;">
+        <button style="width:100%; height:64px; border:0; border-radius:12px; background:#1b2cc1; color:#ffffff; box-shadow:0 6px 18px rgba(27,44,193,.28); font-family:inherit; font-size:20px; font-weight:800; letter-spacing:-.4px; cursor:pointer;" style-hover="background:#12206b;" style-active="transform:scale(.985);">Tillverka arbetare</button>
+      </div>
+    </div>
+  </div>
+
+  <div style="display:flex; flex-direction:column; gap:10px;">
+    <div style="font-size:12px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:#4a5578; padding-left:4px;">Kontohantering</div>
+    <div style="width:390px; min-height:844px; background:#f3f6fd; border-radius:22px; overflow:hidden; box-shadow:0 18px 50px rgba(9,21,64,.13); padding:0 0 40px; box-sizing:border-box;">
+      <div style="display:flex; align-items:center; gap:12px; padding:14px 16px 12px;">
+        <button style="width:44px; height:44px; display:flex; align-items:center; justify-content:center; border:0; border-radius:11px; background:#ffffff; box-shadow:0 1px 3px rgba(9,21,64,.08); cursor:pointer; padding:0;" style-hover="background:#f0f5ff;" style-active="background:#dbe4f9;" aria-label="Tillbaka">
+          <svg width="18" height="15" viewBox="0 0 18 15" fill="none"><path d="M7.5 1.5 1.5 7.5l6 6M1.5 7.5H17" stroke="#091540" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+        </button>
+        <div style="font-size:22px; font-weight:800; letter-spacing:-.7px;">Konton</div>
+      </div>
+      <div style="padding:2px 16px 0;">
+        <button style="width:100%; height:56px; border:0; border-radius:12px; background:#1b2cc1; color:#ffffff; box-shadow:0 6px 18px rgba(27,44,193,.26); font-family:inherit; font-size:17px; font-weight:800; letter-spacing:-.3px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:10px;" style-hover="background:#12206b;" style-active="transform:scale(.985);">
+          <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><path d="M7.5 1v13M1 7.5h13" stroke="#ffffff" stroke-width="2.4" stroke-linecap="round"></path></svg>Nytt konto</button>
+      </div>
+      <div style="padding:22px 16px 0; display:flex; flex-direction:column; gap:12px;">
+        <sc-for list="{{ accounts }}" as="a" hint-placeholder-count="5">
+          <div style="background:#ffffff; border-radius:16px; box-shadow:0 4px 18px rgba(9,21,64,.07), 0 1px 2px rgba(9,21,64,.04); padding:16px 18px 18px;">
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
+              <div style="font-size:18px; font-weight:700; letter-spacing:-.4px;">{{ a.name }}</div>
+              <div style="{{ a.roleTag }}">{{ a.role }}</div>
+            </div>
+            <div style="font-size:14px; font-weight:500; color:#4a5578; margin:2px 0 14px; word-break:break-all;">{{ a.email }}</div>
+            <div style="display:flex; gap:10px;">
+              <button style="flex:1; height:48px; border:0; border-radius:10px; background:#eef3fe; color:#12206b; font-family:inherit; font-size:15px; font-weight:700; cursor:pointer;" style-hover="background:#dbe4f9;" style-active="transform:scale(.985);">Nytt lösenord</button>
+              <button style="flex:1; height:48px; border:0; border-radius:10px; background:#eef3fe; color:#12206b; font-family:inherit; font-size:15px; font-weight:700; cursor:pointer;" style-hover="background:#dbe4f9;" style-active="transform:scale(.985);">Kopiera</button>
+              <button style="width:48px; height:48px; display:flex; align-items:center; justify-content:center; border:0; border-radius:10px; background:#fbe9ec; cursor:pointer; padding:0;" style-hover="background:#f6d8dd;" style-active="transform:scale(.985);" aria-label="Ta bort konto">
+                <svg width="14" height="16" viewBox="0 0 14 16" fill="none"><path d="M1.6 4.2h10.8M5 4.2V2.4h4v1.8M2.8 4.2l.8 9.4h6.8l.8-9.4" stroke="#8e1d15" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+              </button>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+  </div>
+
+  <div style="display:flex; flex-direction:column; gap:10px;">
+    <div style="font-size:12px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:#4a5578; padding-left:4px;">Admin profil</div>
+    <div style="width:390px; min-height:844px; background:#f3f6fd; border-radius:22px; overflow:hidden; box-shadow:0 18px 50px rgba(9,21,64,.13); padding:0 0 40px; box-sizing:border-box;">
+      <div style="display:flex; align-items:center; gap:12px; padding:14px 16px 12px;">
+        <button style="width:44px; height:44px; display:flex; align-items:center; justify-content:center; border:0; border-radius:11px; background:#ffffff; box-shadow:0 1px 3px rgba(9,21,64,.08); cursor:pointer; padding:0;" style-hover="background:#f0f5ff;" style-active="background:#dbe4f9;" aria-label="Tillbaka">
+          <svg width="18" height="15" viewBox="0 0 18 15" fill="none"><path d="M7.5 1.5 1.5 7.5l6 6M1.5 7.5H17" stroke="#091540" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+        </button>
+        <div style="font-size:22px; font-weight:800; letter-spacing:-.7px;">Profil</div>
+      </div>
+      <div style="padding:2px 16px 0;">
+        <div style="background:#ffffff; border-radius:16px; box-shadow:0 4px 18px rgba(9,21,64,.07), 0 1px 2px rgba(9,21,64,.04); padding:18px;">
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:14px;">
+            <div style="font-size:12px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:#4a5578;">Konto</div>
+            <div style="font-size:12px; font-weight:700; letter-spacing:.4px; color:#12206b; background:#eef3fe; border-radius:999px; padding:5px 10px;">Admin</div>
+          </div>
+          <div style="font-size:22px; font-weight:800; letter-spacing:-.7px;">Bella Larsson</div>
+          <div style="font-size:15px; font-weight:500; color:#4a5578; margin-bottom:16px;">bella@bolaget.se</div>
+          <label style="display:block; margin-bottom:14px;">
+            <span style="display:block; font-size:12px; font-weight:700; letter-spacing:.9px; text-transform:uppercase; color:#4a5578; margin-bottom:6px;">Telefonnummer</span>
+            <input type="tel" value="070 123 45 67" style="width:100%; height:52px; box-sizing:border-box; border:0; border-radius:10px; background:#eef3fe; padding:0 14px; font-family:inherit; font-size:16px; font-weight:600; color:#091540;" style-focus="outline:2px solid #1b2cc1; background:#ffffff;">
+          </label>
+          <label style="display:block;">
+            <span style="display:block; font-size:12px; font-weight:700; letter-spacing:.9px; text-transform:uppercase; color:#4a5578; margin-bottom:6px;">Adress</span>
+            <input type="text" value="Storgatan 1, 242 30 Hörby" style="width:100%; height:52px; box-sizing:border-box; border:0; border-radius:10px; background:#eef3fe; padding:0 14px; font-family:inherit; font-size:16px; font-weight:600; color:#091540;" style-focus="outline:2px solid #1b2cc1; background:#ffffff;">
+          </label>
+        </div>
+      </div>
+      <div style="padding:14px 16px 0;">
+        <div style="background:#ffffff; border-radius:14px; box-shadow:0 4px 18px rgba(9,21,64,.07), 0 1px 2px rgba(9,21,64,.04); overflow:hidden;">
+          <a href="#" style="display:flex; align-items:center; justify-content:space-between; height:60px; padding:0 18px; color:#091540; box-shadow:inset 0 -1px 0 #e3eafb;" style-hover="background:#f6f9ff;">
+            <span style="font-size:17px; font-weight:700; letter-spacing:-.2px;">Byt lösenord</span>
+            <svg width="9" height="15" viewBox="0 0 9 15" fill="none"><path d="M1.5 1.5 7 7.5l-5.5 6" stroke="#8b98c4" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+          </a>
+          <a href="#" style="display:flex; align-items:center; justify-content:space-between; height:60px; padding:0 18px; color:#091540;" style-hover="background:#f6f9ff;">
+            <span style="font-size:17px; font-weight:700; letter-spacing:-.2px;">Kontohantering</span>
+            <svg width="9" height="15" viewBox="0 0 9 15" fill="none"><path d="M1.5 1.5 7 7.5l-5.5 6" stroke="#8b98c4" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+          </a>
+        </div>
+      </div>
+      <div style="padding:22px 16px 0;">
+        <button style="width:100%; height:64px; border:0; border-radius:12px; background:#1b2cc1; color:#ffffff; box-shadow:0 6px 18px rgba(27,44,193,.28); font-family:inherit; font-size:20px; font-weight:800; letter-spacing:-.4px; cursor:pointer;" style-hover="background:#12206b;" style-active="transform:scale(.985);">Spara</button>
+      </div>
+      <div style="padding:26px 16px 0;">
+        <button style="width:100%; height:56px; border:0; border-radius:12px; background:#eef3fe; color:#12206b; font-family:inherit; font-size:17px; font-weight:700; letter-spacing:-.2px; cursor:pointer;" style-hover="background:#dbe4f9;" style-active="transform:scale(.985);">Logga ut</button>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1720,&quot;height&quot;:980}}">
+class Component extends DCLogic {
+  state = { picked: [8, 9, 10] };
+
+  renderVals() {
+    const hoursStyle = (h) => 'font-size:15px; font-weight:700; white-space:nowrap; font-variant-numeric:tabular-nums; color:'
+      + (h === '0 h' ? '#4a5578' : '#1b2cc1') + ';';
+
+    const P = (name, address, hours, start) => ({ name, address, hours, start, hoursStyle: hoursStyle(hours) });
+    const torget = ['131962', '292266', '450443', '536075', '659943'];
+    const idag = ['055743', '142028', '215005', '915942', '990155'];
+    const projects = [
+      P('Akutjobbet 738467', 'Bruksgatan 8, 242 30 Hörby', '0 h', '2026-09-08'),
+      P('Alfa 071360', 'Alfa 071360vägen 1, 242 30 Hörby', '34 h', '2026-09-07'),
+      P('Beta 071360', 'Beta 071360vägen 1, 242 30 Hörby', '0 h', '2026-09-07'),
+      P('Demoprojektet', 'Storgatan 1, 242 30 Hörby', '0 h', '2026-09-08'),
+      P('Geo 032754', 'Bruksgatan 8, 242 30 Hörby', '0 h', '2026-09-08'),
+      ...idag.map(n => P('Idagjobbet ' + n, 'Storgatan 1, 242 30 Hörby', '0 h', '2026-09-08')),
+      ...idag.map(n => P('Imorgonjobbet ' + n, 'Storgatan 1, 242 30 Hörby', '0 h', '2026-09-09')),
+      P('test', 'flintyxegatan 9', '9,66 h', '2026-09-08'),
+      P('test2', 'flintyxegatan 9', '10,5 h', '2026-09-08'),
+      P('testgps', 'karlavägen 35', '0 h', '2026-09-08'),
+      ...torget.map(n => P('Torget ' + n, 'Stortorget 1, 211 22 Malmö', '0 h', '2026-09-08'))
+    ];
+
+    const S = (site, time) => ({ site, time, spots: '1 plats' });
+    const passGroups = [
+      { day: 'Tisdag 8 sep', count: '16 pass', items: [
+        S('Geo 032754', '00:00–23:59'), S('Idagjobbet 990155', '07:00–12:00'), S('Idagjobbet 055743', '07:00–12:00'),
+        S('Idagjobbet 215005', '07:00–12:00'), S('Torget 292266', '07:00–16:00'), S('test', '07:00–12:05'),
+        S('test2', '07:00–13:12'), S('testgps', '13:46–22:00')
+      ]},
+      { day: 'Onsdag 9 sep', count: '9 pass', items: [
+        S('Imorgonjobbet 990155', '07:00–16:00'), S('Imorgonjobbet 055743', '07:00–16:00'),
+        S('Imorgonjobbet 915942', '07:00–16:00'), S('test2', '07:00–14:00'), S('testgps', '07:00–16:00')
+      ]},
+      { day: 'Torsdag 10 sep', count: '3 pass', items: [
+        S('testgps', '07:00–16:00'), S('Torget 659943', '07:00–16:00'), S('testgps', '11:00–21:00')
+      ]},
+      { day: 'Fredag 11 sep', count: '1 pass', items: [S('Beta 071360', '07:00–16:00')] },
+      { day: 'Lördag 12 sep', count: '5 pass', items: torget.map(n => S('Torget ' + n, '07:00–16:00')) }
+    ];
+
+    const palette = ['#1b2cc1', '#0f6f7a', '#6c3fc5', '#1f7a3d', '#8a5300', '#8e1d15', '#0a5ea8', '#7a3f8f'];
+    const legendNames = ['Akutjobbet 738467', 'Alfa 071360', 'Beta 071360', 'Geo 032754', 'Idagjobbet 055743', 'Imorgonjobbet 215005', 'test2', 'testgps'];
+    const legend = legendNames.map((name, i) => ({
+      name,
+      chip: 'width:16px; height:16px; border-radius:5px; flex:none; background:' + palette[i] + ';'
+    }));
+
+    const barsFor = { 7: [1, 6], 8: [3, 4, 5, 0], 9: [2, 1, 4], 10: [5, 6], 11: [2], 12: [1, 3, 5], 13: [1, 3, 5], 14: [1, 3, 5], 15: [1, 3, 5], 16: [1, 3, 5], 6: [1] };
+    const moreFor = { 8: '+11', 9: '+4', 12: '+2', 13: '+2', 14: '+2', 15: '+2', 16: '+2' };
+    const calCellBase = 'min-height:64px; border-radius:8px; display:flex; flex-direction:column; overflow:hidden; background:#f8faff;';
+    const calDays = [{ label: '', cell: 'min-height:64px;', num: 'display:none;', bars: [], more: '', moreStyle: 'display:none;' }];
+    for (let d = 1; d <= 30; d++) {
+      const idx = barsFor[d] || [];
+      const isToday = d === 8;
+      calDays.push({
+        label: String(d),
+        cell: calCellBase + (isToday ? ' box-shadow:inset 0 0 0 2px #091540; background:#ffffff;' : ''),
+        num: 'font-size:13px; font-weight:' + (isToday ? '800' : '700') + '; padding:4px 0 3px 6px; font-variant-numeric:tabular-nums; color:#091540;',
+        bars: idx.map(i => 'height:5px; border-radius:2px; background:' + palette[i] + ';'),
+        more: moreFor[d] || '',
+        moreStyle: moreFor[d]
+          ? 'font-size:10px; font-weight:700; color:#4a5578; padding:1px 0 3px 6px; font-variant-numeric:tabular-nums;'
+          : 'display:none;'
+      });
+    }
+
+    const picked = this.state.picked;
+    const pickBase = 'height:44px; border-radius:10px; display:flex; align-items:center; justify-content:center; cursor:pointer; user-select:none;';
+    const pickDays = [{ label: '', cell: 'height:44px;', num: 'display:none;', toggle: () => {} }];
+    for (let d = 1; d <= 30; d++) {
+      const isPast = d < 8;
+      const sel = picked.indexOf(d) > -1;
+      pickDays.push({
+        label: String(d),
+        cell: pickBase + (isPast
+          ? ' background:transparent; cursor:default;'
+          : sel ? ' background:#1b2cc1;' : ' background:#eef3fe;'),
+        num: 'font-size:16px; font-variant-numeric:tabular-nums; letter-spacing:-.2px; font-weight:'
+          + (sel ? '800' : '600') + '; color:' + (isPast ? '#8b98c4' : sel ? '#ffffff' : '#091540') + ';',
+        toggle: isPast ? () => {} : () => this.setState(s => ({
+          picked: s.picked.indexOf(d) > -1 ? s.picked.filter(x => x !== d) : s.picked.concat([d]).sort((a, b) => a - b)
+        }))
+      });
+    }
+    const pickBtnBase = 'width:100%; height:64px; border:0; border-radius:12px; font-family:inherit; font-size:20px; font-weight:800; letter-spacing:-.4px; transition:transform .12s ease, background .15s ease;';
+
+    const review = [
+      { name: 'testgps', stamped: 'Stämplade — till —', start: '07:00', end: '16:00', hours: '8,5' },
+      { name: 'test2arbetare', stamped: 'Stämplade — till —', start: '11:00', end: '21:00', hours: '9,5' }
+    ];
+
+    const history = [
+      { day: 'Tisdag 8 sep', project: 'test', chain: 'Bekräftad av arbetsledaren, godkänd av admin · testledare',
+        people: [
+          { name: 'testarbetare', time: '07:00–12:05 · 4,58 h' },
+          { name: 'testledare', time: '07:00–12:05 · 5,08 h' }
+        ], note: 'test', approved: 'Godkänd 2026-09-08' },
+      { day: 'Tisdag 8 sep', project: 'test2', chain: 'Bekräftad av arbetsledaren, godkänd av admin · arkiverad i en arbetsdagbok',
+        people: [
+          { name: 'test2arbetare', time: '07:00–13:12 · 5 h' },
+          { name: 'testledare', time: '07:00–13:12 · 5,5 h' }
+        ], note: 'test beräftelse', approved: 'Godkänd 2026-09-08' }
+    ];
+
+    const roleTag = (role) => 'font-size:12px; font-weight:700; letter-spacing:.4px; border-radius:999px; padding:5px 10px; white-space:nowrap; '
+      + (role === 'Admin' ? 'color:#12206b; background:#dbe4f9;'
+        : role === 'Arbetsledare' ? 'color:#5c3305; background:#fdf2e3;'
+        : 'color:#12206b; background:#eef3fe;');
+    const A = (name, email, role) => ({ name, email, role, roleTag: roleTag(role) });
+    const accounts = [
+      A('Bella Larsson', 'bella@bolaget.se', 'Admin'),
+      A('testledare', 'testledare@bella.test', 'Arbetsledare'),
+      A('testarbetare', 'testarbetare@bella.test', 'Arbetare'),
+      A('test2arbetare', 'test2arbetare@bella.test', 'Arbetare'),
+      A('Nils Nyanställd', 'nils.nyanstalld@bella.test', 'Arbetare')
+    ];
+
+    return {
+      projects,
+      projectCount: projects.length + ' projekt',
+      menu: ['Kalender', 'Alla projekt', 'Alla pass', 'Granska pass', 'Bekräftelse historik', 'Inställningar'],
+      passGroups,
+      calDays,
+      legend,
+      pickDays,
+      pickedCount: picked.length,
+      pickButtonStyle: picked.length
+        ? pickBtnBase + ' background:#1b2cc1; color:#ffffff; box-shadow:0 6px 18px rgba(27,44,193,.28); cursor:pointer;'
+        : pickBtnBase + ' background:#e3eafb; color:#8b98c4; cursor:not-allowed;',
+      review,
+      history,
+      accounts
+    };
+  }
+}
+</script>
+</body>
+</html>

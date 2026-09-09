@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="_ds/nocturne-3c5bf009-ab76-4048-b9e5-5558163b9bf9/styles.css">
+<script src="_ds/nocturne-3c5bf009-ab76-4048-b9e5-5558163b9bf9/_ds_bundle.js"></script>
+<script src="./image-slot.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  html, body { margin:0; padding:0; background:#e8eefb; color:#091540; font-family:'Inter', system-ui, sans-serif; }
+  a { color:#1b2cc1; text-decoration:none; }
+  a:hover { color:#12206b; }
+  @keyframes livedot { 0%,100% { opacity:1; transform:scale(1); } 50% { opacity:.35; transform:scale(.82); } }
+</style>
+</helmet>
+<div style="width:100%; max-width:390px; margin:0 auto; min-height:844px; background:#f3f6fd; font-family:'Inter', system-ui, sans-serif; color:#091540; padding:0 0 40px; box-sizing:border-box; -webkit-font-smoothing:antialiased;">
+
+  <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; padding:14px 16px 10px; position:sticky; top:0; background:rgba(244,244,246,.88); backdrop-filter:blur(12px); z-index:5;">
+    <button style="width:44px; height:44px; display:flex; align-items:center; justify-content:center; border:0; border-radius:11px; background:#ffffff; box-shadow:0 1px 3px rgba(9,21,64,.08); cursor:pointer; padding:0;" style-hover="background:#f0f5ff;" style-active="background:#dbe4f9;" aria-label="Meny">
+      <svg width="20" height="14" viewBox="0 0 20 14" fill="none"><path d="M1 1.5h18M1 7h18M1 12.5h18" stroke="#091540" stroke-width="2.2" stroke-linecap="round"></path></svg>
+    </button>
+    <div style="font-size:17px; font-weight:700; letter-spacing:-.2px;">Arbetare</div>
+    <button style="width:44px; height:44px; display:flex; align-items:center; justify-content:center; border:0; border-radius:11px; background:#ffffff; box-shadow:0 1px 3px rgba(9,21,64,.08); cursor:pointer; padding:0;" style-hover="background:#f0f5ff;" style-active="background:#dbe4f9;" aria-label="Profil">
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="6.4" r="3.4" stroke="#091540" stroke-width="2"></circle><path d="M3.6 17c.9-3.3 3.4-5 6.4-5s5.5 1.7 6.4 5" stroke="#091540" stroke-width="2" stroke-linecap="round"></path></svg>
+    </button>
+  </div>
+
+  <div style="padding:6px 16px 0;">
+    <div style="background:#ffffff; border-radius:16px; box-shadow:0 8px 28px rgba(9,21,64,.09), 0 1px 2px rgba(9,21,64,.05); padding:20px 20px 18px; position:relative;">
+      <span style="{{ dotStyle }}"></span>
+      <div style="font-size:15px; font-weight:600; color:#4a5578; margin-bottom:2px;">Torget 131962</div>
+      <div style="font-size:34px; font-weight:800; letter-spacing:-1.4px; line-height:1.05; margin-bottom:18px;">07:00–16:00</div>
+      <button onClick="{{ toggleClock }}" style="{{ primaryStyle }}" style-active="transform:scale(.985);">{{ clockLabel }}</button>
+    </div>
+  </div>
+
+  <div style="padding:14px 16px 0;">
+    <div style="background:#ffffff; border-radius:14px; box-shadow:0 4px 18px rgba(9,21,64,.07), 0 1px 2px rgba(9,21,64,.04); overflow:hidden;">
+      <a href="#" style="display:flex; align-items:center; justify-content:space-between; padding:0 18px; height:60px; color:#091540;" style-hover="background:#f6f9ff;">
+        <span style="font-size:17px; font-weight:700; letter-spacing:-.2px;">Mina Pass</span>
+        <svg width="9" height="15" viewBox="0 0 9 15" fill="none"><path d="M1.5 1.5 7 7.5l-5.5 6" stroke="#8b98c4" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+      </a>
+      <div style="height:1px; background:#e3eafb; margin-left:18px;"></div>
+      <a href="#" style="display:flex; align-items:center; justify-content:space-between; padding:0 18px; height:60px; color:#091540;" style-hover="background:#f6f9ff;">
+        <span style="font-size:17px; font-weight:700; letter-spacing:-.2px;">Arbetsdagar</span>
+        <svg width="9" height="15" viewBox="0 0 9 15" fill="none"><path d="M1.5 1.5 7 7.5l-5.5 6" stroke="#8b98c4" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+      </a>
+    </div>
+  </div>
+
+  <div style="padding:26px 16px 0;">
+    <div style="font-size:12px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:#4a5578; padding:0 4px 10px;">Nästa pass</div>
+    <div style="background:#e7edfb; border-radius:14px; padding:22px; text-align:center; font-size:15px; font-weight:500; color:#4a5578;">Inga kommande pass.</div>
+  </div>
+
+  <div style="padding:26px 16px 0;">
+    <div style="display:flex; align-items:baseline; justify-content:space-between; padding:0 4px 10px;">
+      <div style="font-size:12px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:#4a5578;">Acceptera pass</div>
+      <div style="font-size:12px; font-weight:700; color:#1b2cc1;">{{ countLabel }}</div>
+    </div>
+
+    <sc-if value="{{ hasShift }}" hint-placeholder-val="{{ true }}">
+      <div style="position:relative;">
+        <div style="position:absolute; left:14px; right:14px; bottom:-7px; height:24px; border-radius:14px; background:#ffffff; opacity:.55; box-shadow:0 6px 16px rgba(9,21,64,.06);"></div>
+        <div style="position:absolute; left:7px; right:7px; bottom:-4px; height:24px; border-radius:14px; background:#ffffff; opacity:.8; box-shadow:0 6px 16px rgba(9,21,64,.06);"></div>
+        <div style="position:relative; background:#ffffff; border-radius:15px; box-shadow:0 10px 30px rgba(9,21,64,.10), 0 1px 2px rgba(9,21,64,.05); overflow:hidden;">
+          <sc-if value="{{ showMap }}" hint-placeholder-val="{{ true }}">
+            <div style="height:150px; margin:16px 16px 0; position:relative; overflow:hidden; border-radius:9px; background:#e7edfb; box-shadow:inset 0 0 0 1px rgba(9,21,64,.06);">
+              <image-slot id="shift-map" shape="rect" fit="cover" placeholder="Släpp en kartbild här"></image-slot>
+            </div>
+          </sc-if>
+          <div style="padding:16px 20px 20px;">
+            <div style="display:flex; align-items:baseline; justify-content:space-between; gap:12px; margin-bottom:16px;">
+              <div style="font-size:21px; font-weight:700; letter-spacing:-.5px;">{{ shift.site }}</div>
+              <span style="font-size:15px; font-weight:500; color:#4a5578; text-align:right;">{{ shift.address }}</span>
+            </div>
+            <div style="display:flex; align-items:baseline; justify-content:space-between; gap:12px; padding:14px 16px; background:#eef3fe; border-radius:10px; margin-bottom:16px;">
+              <div>
+                <div style="font-size:12px; font-weight:700; letter-spacing:.9px; text-transform:uppercase; color:#4a5578; margin-bottom:3px;">{{ shift.day }}</div>
+                <div style="font-size:20px; font-weight:800; letter-spacing:-.5px;">{{ shift.time }}</div>
+              </div>
+              <div style="font-size:15px; font-weight:700; color:#1b2cc1; white-space:nowrap;">{{ shift.hours }}</div>
+            </div>
+            <div style="display:flex; gap:10px;">
+              <button onClick="{{ accept }}" style="flex:2; height:54px; border:0; border-radius:10px; background:#1b2cc1; color:#ffffff; font-family:inherit; font-size:17px; font-weight:700; letter-spacing:-.2px; cursor:pointer;" style-hover="background:#12206b;" style-active="transform:scale(.985);">Acceptera</button>
+              <button onClick="{{ deny }}" style="flex:1; height:54px; border:0; border-radius:10px; background:#e7edfb; color:#12206b; font-family:inherit; font-size:17px; font-weight:600; letter-spacing:-.2px; cursor:pointer;" style-hover="background:#dbe4f9;" style-active="transform:scale(.985);">Neka</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ noShifts }}" hint-placeholder-val="{{ false }}">
+      <div style="background:#e7edfb; border-radius:14px; padding:22px; text-align:center; font-size:15px; font-weight:500; color:#4a5578;">Inga pass att svara på.</div>
+    </sc-if>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:390,&quot;height&quot;:900},&quot;clockedIn&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Tillstånd&quot;},&quot;pendingCount&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:29,&quot;min&quot;:0,&quot;max&quot;:99,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Tillstånd&quot;},&quot;showMap&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Utseende&quot;},&quot;primaryStyle&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;filled&quot;,&quot;outlined&quot;],&quot;default&quot;:&quot;filled&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Utseende&quot;},&quot;accent&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;#1b2cc1&quot;,&quot;options&quot;:[&quot;#1b2cc1&quot;,&quot;#091540&quot;,&quot;#7692ff&quot;,&quot;#abd2fa&quot;],&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Utseende&quot;}}">
+class Component extends DCLogic {
+  state = { clockedIn: null, i: 0, remaining: null };
+
+  get pool() {
+    return [
+      { site: 'test2', address: 'flintyxegatan 9', day: 'Tisdag 8 sep', time: '07:00–14:00', hours: '6,5 h' },
+      { site: 'Kvarnholmen', address: 'Bronsyxegatan 4', day: 'Onsdag 9 sep', time: '06:30–15:00', hours: '8 h' },
+      { site: 'Nästräng', address: 'Tallbovägen 22', day: 'Torsdag 10 sep', time: '08:00–16:30', hours: '8 h' }
+    ];
+  }
+
+  next(n) {
+    this.setState(s => ({
+      i: s.i + 1,
+      remaining: Math.max(0, (s.remaining ?? (this.props.pendingCount ?? 29)) - 1)
+    }));
+  }
+
+  renderVals() {
+    const accent = this.props.accent ?? '#1b2cc1';
+    const filled = (this.props.primaryStyle ?? 'filled') === 'filled';
+    const clockedIn = this.state.clockedIn ?? (this.props.clockedIn ?? true);
+    const total = this.state.remaining ?? (this.props.pendingCount ?? 29);
+    const list = this.pool;
+    const shift = list[this.state.i % list.length];
+    const has = total > 0;
+
+    const base = 'width:100%; height:66px; border-radius:12px; font-family:inherit; font-size:23px; font-weight:800; letter-spacing:-.5px; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:transform .12s ease, background .15s ease;';
+    const primaryStyle = filled
+      ? base + `border:0; background:${clockedIn ? '#091540' : accent}; color:#ffffff; box-shadow:0 6px 18px ${clockedIn ? 'rgba(9,21,64,.22)' : 'rgba(27,44,193,.28)'};`
+      : base + `border:2px solid ${accent}; background:transparent; color:${accent};`;
+
+    return {
+      clockLabel: clockedIn ? 'Stämpla Ut' : 'Stämpla In',
+      dotStyle: 'position:absolute; top:20px; right:20px; width:9px; height:9px; border-radius:50%; '
+        + (clockedIn
+            ? 'background:#1b2cc1; box-shadow:0 0 0 5px rgba(118,146,255,.20); animation:livedot 2s ease-in-out infinite;'
+            : 'background:#8b98c4;'),
+      primaryStyle,
+      toggleClock: () => this.setState(s => ({ clockedIn: !(s.clockedIn ?? (this.props.clockedIn ?? true)) })),
+      countLabel: has ? `${total} till` : '',
+      showMap: this.props.showMap ?? true,
+      hasShift: has,
+      noShifts: !has,
+      shift,
+      accept: () => this.next(),
+      deny: () => this.next()
+    };
+  }
+}
+</script>
+</body>
+</html>

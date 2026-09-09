@@ -1,0 +1,11 @@
+/* Figtree — geometric humanist sans, variable, Google Fonts.
+   SUBSTITUTION NOTE: no font binaries were supplied with the source material.
+   Figtree is the chosen stand-in for the geometric direction. Swap the URL for
+   self-hosted @font-face rules when licensed files exist. */
+@import url("https://fonts.googleapis.com/css2?family=Figtree:ital,wght@0,300..900;1,300..900&display=swap");
+
+:root {
+  --font-display: "Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-body: "Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-numeric: "Figtree", system-ui, sans-serif;
+}
