@@ -1322,12 +1322,12 @@ insert into public.pass (id, project_id, work_date, start_time, end_time,
                          planned_hours, headcount, created_by)
 select 'eeeeeeee-0000-0000-0000-00000000000a'::uuid,
        'aaaaaaaa-0000-0000-0000-00000000000a'::uuid,
-       app.week_start(app.stockholm_today() + 40), '07:00'::time, '16:00'::time,
+       app.week_start(app.stockholm_today() + 160), '07:00'::time, '16:00'::time,
        8.00, 1::smallint, (select v from fx where k = 'leaderA');
 
 insert into public.tilldelning (pass_id, worker_id, source, work_date)
 select 'eeeeeeee-0000-0000-0000-00000000000a', w.id, 'manuell',
-       app.week_start(app.stockholm_today() + 40)
+       app.week_start(app.stockholm_today() + 160)
 from public.worker w join fx on fx.v = w.account_id where fx.k = 'w2';
 
 -- late_marks is not the worker's to move, and postgres carries no admin claim,
@@ -1340,7 +1340,7 @@ reset role;
 
 -- Thursday of the same week.
 insert into public.forval (worker_id, work_date, can_work)
-select w.id, app.week_start(app.stockholm_today() + 40) + 3, true
+select w.id, app.week_start(app.stockholm_today() + 160) + 3, true
 from public.worker w join fx on fx.v = w.account_id where fx.k in ('w1', 'w2');
 
 insert into public.pass_batch (id, project_id, created_by)
@@ -1352,8 +1352,38 @@ insert into public.pass (id, project_id, batch_id, work_date, start_time, end_ti
 select 'eeeeeeee-0000-0000-0000-000000000003'::uuid,
        'aaaaaaaa-0000-0000-0000-00000000000a'::uuid,
        'ffffffff-0000-0000-0000-00000000000c'::uuid,
-       app.week_start(app.stockholm_today() + 40) + 3, '07:00'::time, '16:00'::time,
+       app.week_start(app.stockholm_today() + 160) + 3, '07:00'::time, '16:00'::time,
        8.00, 1::smallint, (select v from fx where k = 'leaderA');
+
+-- WHY THIS WEEK MUST BE EMPTY OF EVERYTHING ELSE.
+--
+-- The control on the assertion below perturbs late_marks out of the ranking, so
+-- the fixture proves something only while lateness is the ONLY thing separating
+-- these two. That needs w1 to rank FIRST on shifts alone -- strictly fewer that
+-- week than w2 -- so the +3 is what pushes them under.
+--
+-- It broke exactly that way once: the invariant 2 overlap fixture started using
+-- today+40, which is inside the week this one measured, and gave w1 shifts here.
+-- w2 then won on shift count before lateness was consulted, so the suite passed
+-- with the guard removed and the control proved nothing. Asserted rather than
+-- assumed, so the next fixture to wander into this week fails here, by name,
+-- instead of quietly hollowing the control out.
+select pg_temp.ok(
+  (select count(*) from public.tilldelning t
+   join public.pass p on p.id = t.pass_id and p.deleted_at is null
+   join public.worker w on w.id = t.worker_id join fx on fx.v = w.account_id
+   where fx.k = 'w1' and t.released_at is null
+     and t.work_date >= app.week_start(app.stockholm_today() + 160)
+     and t.work_date <  app.week_start(app.stockholm_today() + 160) + 7)
+  <
+  (select count(*) from public.tilldelning t
+   join public.pass p on p.id = t.pass_id and p.deleted_at is null
+   join public.worker w on w.id = t.worker_id join fx on fx.v = w.account_id
+   where fx.k = 'w2' and t.released_at is null
+     and t.work_date >= app.week_start(app.stockholm_today() + 160)
+     and t.work_date <  app.week_start(app.stockholm_today() + 160) + 7),
+  'TIER.lateness_fixture_isolated',
+  'w1 must rank first on shifts alone, or the lateness control proves nothing');
 
 set local role authenticated;
 select pg_temp.act_as((select v from fx where k = 'leaderA'));
