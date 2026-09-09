@@ -258,10 +258,14 @@ try {
   // the name too. The row is the one that states the role and the hours.
   const rows = (await acrossProjects(page, DAY, [P1, P2], () =>
     page.locator("li").allInnerTexts())).flat();
-  // Uppercased, because allInnerTexts returns rendered text and the role label
-  // is text-transform: uppercase.
+  // Case-insensitive on the role label. allInnerTexts returns RENDERED text, so
+  // whether that word arrives as ARBETSLEDARE or Arbetsledare is decided by a
+  // text-transform in the stylesheet -- the handoff redesign dropped the
+  // uppercase and this assertion started failing on a day that had swapped
+  // correctly. What is being asserted is that the row states the role, not how
+  // the role is capitalised.
   const row = (name) => rows.find(
-    (t) => t.includes(name) && t.includes("ARBETSLEDARE") && !t.includes("Pass —"));
+    (t) => t.includes(name) && /arbetsledare/i.test(t) && !t.includes("Pass —"));
   const l1row = row(L1.name);
   const l2row = row(L2.name);
   if (!l1row || !l2row) {
