@@ -18,6 +18,9 @@ and tap height below is final — reproduce the values exactly.
 ```
 handoff/
   README.md                 this file — the whole spec
+  arbetare-startsida.md     the worker home screen in depth: interactions, state,
+                            accessibility, and the per-block detail this file does
+                            not carry. The screen `e3630ed` was built against.
   styles.css                token entry point (imports tokens/*)
   tokens/                   the same values as CSS custom properties
   screens/arbetare/         worker: home + my shifts, calendar, open shifts, profile
