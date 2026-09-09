@@ -64,6 +64,9 @@ export function HomeAdmin() {
   const [rows, setRows] = useState<Row[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState<"menu" | "profile" | null>(null);
+  /** Which project has its actions showing. Separate from `open`, which is
+   *  about the two sheets -- a sheet and a project are not one control. */
+  const [openProject, setOpenProject] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -208,12 +211,24 @@ export function HomeAdmin() {
               className="overflow-hidden rounded-[14px]"
               style={{ background: C.surface, boxShadow: SHADOW.group }}
             >
-              {rows.map((p, i) => (
-                <div key={p.project_id}>
+              {rows.map((p, i) => {
+                const shown = openProject === p.project_id;
+                return (
+                <div key={p.project_id} data-project={p.project_id}>
                   {i > 0 && <div className="ml-[18px] h-px" style={{ background: C.hairline }} />}
-                  <Link
-                    href={`/arbetsdagbok?projekt=${p.project_id}`}
-                    className="flex items-center justify-between gap-3 px-[18px] py-[13px] hover:bg-[#f6f9ff]"
+                  {/*
+                    THE ROW IS A CONTROL, not a link, and it opens the same
+                    three actions Alla Projekt opens. It used to go straight to
+                    Generera Arbetsdagbok -- which made one of three equal
+                    errands look like what a project is for, and made this list
+                    disagree with the list on the other screen about what
+                    tapping a project means.
+                  */}
+                  <button
+                    type="button"
+                    aria-expanded={shown}
+                    onClick={() => setOpenProject(shown ? null : p.project_id)}
+                    className="flex w-full items-center justify-between gap-3 px-[18px] py-[13px] text-left hover:bg-[#f6f9ff]"
                     style={{ color: C.ink }}
                   >
                     <span className="min-w-0">
@@ -227,18 +242,56 @@ export function HomeAdmin() {
                         {p.site_address}
                       </span>
                     </span>
-                    {/* Accent when there are hours on it, secondary when there
-                        are none: the accent is reserved for numbers that
-                        change, and "0 h" is the one that has not. */}
-                    <span
-                      className="whitespace-nowrap text-[15px] font-bold"
-                      style={{ color: p.hours ? C.accent : C.text2 }}
-                    >
-                      {hours(p.hours)} h
+                    <span className="flex shrink-0 items-center gap-[10px]">
+                      {/* Accent when there are hours on it, secondary when there
+                          are none: the accent is reserved for numbers that
+                          change, and "0 h" is the one that has not. */}
+                      <span
+                        className="whitespace-nowrap text-[15px] font-bold"
+                        style={{ color: p.hours ? C.accent : C.text2 }}
+                      >
+                        {hours(p.hours)} h
+                      </span>
+                      {/* The chevron turns to point at what it opened, which is
+                          the only thing on the row that says it is a control. */}
+                      <svg
+                        width="9" height="15" viewBox="0 0 9 15" fill="none" aria-hidden
+                        className="transition-transform duration-150"
+                        style={{ transform: shown ? "rotate(90deg)" : undefined }}
+                      >
+                        <path d="M1.5 1.5 7 7.5l-5.5 6" stroke={C.chevron} strokeWidth="2.2"
+                          strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
                     </span>
-                  </Link>
+                  </button>
+
+                  {shown && (
+                    <div className="px-[18px] pb-4">
+                      <div className="mb-[14px] h-px" style={{ background: C.hairline }} />
+                      <div className="flex flex-col gap-[10px]">
+                        {/* The same three, in the same order, pointing at the
+                            same routes as Alla Projekt. Two lists that disagree
+                            about what a project offers is worse than either. */}
+                        {[
+                          { href: `/arbetsdagbok?projekt=${p.project_id}`, label: "Generera Arbetsdagbok" },
+                          { href: `/projekt/redigera?id=${p.project_id}`, label: "Redigera Projekt" },
+                          { href: `/pass?projekt=${p.project_id}`, label: "Kolla Pass" },
+                        ].map((a) => (
+                          <Link
+                            key={a.href}
+                            href={a.href}
+                            className="press-scale flex h-12 w-full items-center justify-center rounded-[10px] text-[15px] font-bold transition-transform duration-[110ms] hover:bg-[#dbe4f9] active:scale-[.985]"
+                            style={{ background: C.panel2, color: C.inkHover }}
+                          >
+                            {a.label}
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>

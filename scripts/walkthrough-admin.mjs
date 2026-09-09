@@ -124,18 +124,43 @@ try {
   log("tapping the darkened background closes the menu");
 
   // ---- Alla Projekt on the landing page ------------------------------------
+  //
+  // THE ROW IS A CONTROL HERE TOO. It used to link straight to Generera
+  // Arbetsdagbok, which made one of three equal errands look like what a
+  // project is for, and made this list disagree with the Alla Projekt page
+  // about what tapping a project means. Nothing on the row navigates until it
+  // is opened, so that is asserted before it is tapped.
   await page.getByText("Alla projekt", { exact: true }).first().waitFor({ timeout: 20000 });
-  // Two attribute matches rather than one substring: trailingSlash is on, so
-  // the href is /arbetsdagbok/?projekt=, and a selector spelling it the other
-  // way finds nothing and reads as "there are no projects".
-  const rows = page.locator('a[href*="arbetsdagbok"][href*="projekt="]');
+  const rows = page.locator('[data-project]');
   const n = await rows.count();
   if (n === 0) fail("the landing page lists no projects at all");
+
   const first = await rows.first().innerText();
   if (!/\d/.test(first) || !/\bh\b/.test(first)) {
     fail(`a project row shows no hours: ${JSON.stringify(first)}`);
   }
-  log(`Alla Projekt: ${n} rows, first reads ${JSON.stringify(first.replace(/\n/g, " | "))}`);
+  if (await rows.first().locator("a").count()) {
+    await shot(page, "FAILED");
+    fail("a project row offers its actions before it is tapped");
+  }
+
+  await rows.first().getByRole("button").click();
+  for (const [label, href] of [
+    ["Generera Arbetsdagbok", "arbetsdagbok"],
+    ["Redigera Projekt", "projekt/redigera"],
+    ["Kolla Pass", "pass"],
+  ]) {
+    const link = rows.first().getByRole("link", { name: label, exact: true });
+    if (!(await link.count())) {
+      await shot(page, "FAILED");
+      fail(`tapping a project on the landing page does not offer "${label}"`);
+    }
+    if (!(await link.getAttribute("href"))?.includes(href)) {
+      fail(`"${label}" on the landing page points somewhere other than ${href}`);
+    }
+  }
+  await shot(page, "a8-hem-projekt-actions");
+  log(`Alla Projekt: ${n} rows, first reads ${JSON.stringify(first.replace(/\n/g, " | "))}, and opens the same three actions`);
 
   // ---- Inställningar, reached from the profile icon -------------------------
   await page.getByRole("button", { name: "Profil", exact: true }).click();
