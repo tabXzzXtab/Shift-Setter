@@ -2,7 +2,10 @@
 
 import { useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { Button, Field, Input, Notice, Textarea } from "@/components/ui";
+import {
+  C, Card, PrimaryButton, SecondaryButton, SHADOW, SoftField, SoftInput,
+  SoftNotice, SoftTextarea,
+} from "@/components/soft";
 import { getSupabase } from "@/lib/supabase/client";
 import { surveyDayHeading } from "@/lib/dates";
 
@@ -62,14 +65,20 @@ const FIELD_LABELS: Record<ProjectField, string> = {
 function Panel({ error, children }: { error: string | null; children: ReactNode }) {
   return (
     <div
-      className="fixed inset-0 z-50 overflow-y-auto bg-black/70 p-4"
+      className="fixed inset-0 z-50 overflow-y-auto p-4"
+      style={{ background: "rgba(9,21,64,.42)" }}
       role="dialog"
       aria-modal="true"
       aria-label="Bristsurvey"
     >
-      <div className="mx-auto w-full max-w-md border-2 border-black bg-white p-4">
-        {error && <Notice kind="error">{error}</Notice>}
-        {children}
+      <div
+        className="mx-auto mt-[40px] w-full max-w-[358px] pb-[40px]"
+        style={{ color: C.ink, fontFamily: "var(--font-inter), system-ui, sans-serif", fontVariantNumeric: "tabular-nums" }}
+      >
+        <Card radius={16} shadow={SHADOW.hero} pad="p-[18px]">
+          {error && <div className="pb-[14px]"><SoftNotice tone="stop">{error}</SoftNotice></div>}
+          {children}
+        </Card>
       </div>
     </div>
   );
@@ -176,22 +185,26 @@ export function Bristsurvey({
   if (step === "warning") {
     return (
       <Panel error={error}>
-        <p className="mb-6 text-lg">
+        {/*
+          The one path in the system where hours come from a span rather than
+          from a person, so it opens by saying exactly that. Amber, because it
+          is an override being explained before it happens.
+        */}
+        <SoftNotice tone="warn" headline="Dagen är inte bekräftad.">
           Att generera en obekräftad arbetsdagbok riskerar att du bokför obekräftade
           arbetstimmar, felaktiga tider och ej verifierade uppgifter i arbetsdagboken,
           vill du gå vidare?
-        </p>
-        <div className="mb-3">
+        </SoftNotice>
+        <div className="mt-[18px]">
           {/* Nej leaves, back to Alla Projekt. It is the outcome this screen
-              would rather have. */}
-          <Button onClick={() => router.push("/projekt")}>Nej</Button>
+              would rather have, so it is the one that looks like the default. */}
+          <PrimaryButton onClick={() => router.push("/projekt")}>Nej</PrimaryButton>
         </div>
-        <Button
-          variant="outline"
-          onClick={() => setStep(live.days.length > 0 ? "leader" : "work")}
-        >
-          Ja
-        </Button>
+        <div className="mt-[10px]">
+          <SecondaryButton onClick={() => setStep(live.days.length > 0 ? "leader" : "work")}>
+            Ja
+          </SecondaryButton>
+        </div>
       </Panel>
     );
   }
@@ -199,22 +212,24 @@ export function Bristsurvey({
   if (step === "leader") {
     return (
       <Panel error={error}>
-        <p className="mb-6 text-lg">
+        <p className="text-[17px] font-medium leading-[1.45]" style={{ textWrap: "pretty" }}>
           Passen du begär om har inte blivit bekräftade av{" "}
-          <strong>
+          <strong className="font-extrabold">
             {live.leaders.length > 0 ? live.leaders.join(", ") : "någon arbetsledare"}
           </strong>
           , be de att bekräfta passen.
         </p>
-        <div className="mb-3">
+        <div className="mt-[18px]">
           {/* The heavier button is the one that leaves. Chasing the leader is
               the right outcome and it looks like the default; taking the day
               off him is the recessive option, deliberately. */}
-          <Button onClick={onAbandon}>Tillbaka</Button>
+          <PrimaryButton onClick={onAbandon}>Tillbaka</PrimaryButton>
         </div>
-        <Button variant="outline" onClick={() => setStep("work")}>
-          Bekräfta Uppgifter
-        </Button>
+        <div className="mt-[10px]">
+          <SecondaryButton onClick={() => setStep("work")}>
+            Bekräfta Uppgifter
+          </SecondaryButton>
+        </div>
       </Panel>
     );
   }
@@ -222,37 +237,54 @@ export function Bristsurvey({
   if (onFields) {
     return (
       <Panel error={error}>
-        <h2 className="mb-2 text-xl font-bold">Uppgifter saknas om projektet</h2>
-        <p className="mb-4 text-base">
+        <h2 className="text-[19px] font-extrabold" style={{ letterSpacing: "-.5px" }}>
+          Uppgifter saknas om projektet
+        </h2>
+        <p
+          className="mb-[14px] mt-1 text-[15px] font-medium"
+          style={{ color: C.text2, textWrap: "pretty" }}
+        >
           Dokumentet kan inte skapas med en tom ruta. Fyll i det som saknas.
         </p>
-        {live.project.missing.map((k) => (
-          <Field key={k} label={FIELD_LABELS[k as ProjectField] ?? k}>
-            <Input
-              value={fields[k] ?? ""}
-              onChange={(e) => setFields((f) => ({ ...f, [k]: e.target.value }))}
-            />
-          </Field>
-        ))}
-        <Button onClick={saveFields} disabled={busy}>
+        <div className="mb-[18px] flex flex-col gap-[14px]">
+          {live.project.missing.map((k) => (
+            <SoftField key={k} label={FIELD_LABELS[k as ProjectField] ?? k}>
+              <SoftInput
+                value={fields[k] ?? ""}
+                onChange={(e) => setFields((f) => ({ ...f, [k]: e.target.value }))}
+              />
+            </SoftField>
+          ))}
+        </div>
+        <PrimaryButton onClick={saveFields} disabled={busy}>
           {busy ? "Sparar…" : "Spara"}
-        </Button>
+        </PrimaryButton>
       </Panel>
     );
   }
 
-  if (!day) return <Panel error={error}><p className="text-lg">Läser…</p></Panel>;
+  if (!day) {
+    return (
+      <Panel error={error}>
+        <p className="text-[15px] font-medium" style={{ color: C.text2 }}>Läser…</p>
+      </Panel>
+    );
+  }
 
   return (
     <Panel error={error}>
-      <p className="mb-1 text-sm font-bold uppercase tracking-wide">
+      <p
+        className="text-[12px] font-bold uppercase"
+        style={{ letterSpacing: "1px", color: C.text2 }}
+      >
         {live.days.length} dag{live.days.length === 1 ? "" : "ar"} kvar
       </p>
-      <h2 className="mb-4 text-xl font-bold">
+      <h2 className="mb-[14px] mt-[2px] text-[19px] font-extrabold" style={{ letterSpacing: "-.5px", textWrap: "pretty" }}>
         Vad har ni uppfyllt på {live.project.name} den {surveyDayHeading(day.work_date)}?
       </h2>
 
-      <Textarea
+      <SoftTextarea
+        rows={4}
         value={text}
         onChange={(e) => setText(e.target.value)}
         placeholder="T.ex. Rev gammalt tegel, la ny underlagspapp och läkt på södra takfallet."
@@ -266,17 +298,24 @@ export function Bristsurvey({
         name, which is the one thing this path must not become.
       */}
       {day.rows.length > 0 && (
-        <div className="mt-4 border-2 border-black">
-          <p className="border-b-2 border-black px-3 py-2 text-sm font-bold uppercase tracking-wide">
+        <div className="mt-[14px] rounded-[10px] px-[14px] py-[6px]" style={{ background: C.panel2 }}>
+          <p
+            className="py-2 text-[12px] font-bold uppercase"
+            style={{ letterSpacing: ".9px", color: C.text2, boxShadow: "inset 0 -1px 0 #dbe4f9" }}
+          >
             Registrerat — bokförs som det står
           </p>
           <ul>
             {day.rows.map((r, i) => (
-              <li key={i} className="flex justify-between gap-2 border-t border-neutral-300 px-3 py-2 text-base first:border-t-0">
-                <span>{r.worker}</span>
-                <span className="text-right">
-                  {r.tider}
-                  <span className="block text-sm">
+              <li
+                key={i}
+                className="flex justify-between gap-3 py-[10px]"
+                style={i > 0 ? { boxShadow: "inset 0 1px 0 #dbe4f9" } : undefined}
+              >
+                <span className="text-[15px] font-semibold">{r.worker}</span>
+                <span className="shrink-0 text-right">
+                  <span className="text-[15px] font-bold">{r.tider}</span>
+                  <span className="block text-[14px] font-medium" style={{ color: C.text2 }}>
                     {String(r.timmar).replace(".", ",")} h
                     {r.stamplat ? " (stämplat)" : " (planerat)"}
                   </span>
@@ -287,15 +326,15 @@ export function Bristsurvey({
         </div>
       )}
 
-      <div className="mt-4">
-        <Button onClick={saveDay} disabled={busy || text.trim() === ""}>
+      <div className="mt-[18px]">
+        <PrimaryButton onClick={saveDay} disabled={busy || text.trim() === ""}>
           {busy ? "Sparar…" : "Bekräfta dagen"}
-        </Button>
+        </PrimaryButton>
       </div>
-      <div className="mt-3">
-        <Button variant="outline" onClick={onAbandon} disabled={busy}>
+      <div className="mt-[10px]">
+        <SecondaryButton onClick={onAbandon} disabled={busy}>
           Avbryt
-        </Button>
+        </SecondaryButton>
       </div>
     </Panel>
   );

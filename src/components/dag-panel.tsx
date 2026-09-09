@@ -1,7 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Button, Empty, Input, Notice } from "@/components/ui";
+import {
+  C, Card, ChevronRight, EmptyState, SecondaryButton, SHADOW, SoftField,
+  SoftInput, SoftNotice, Tag,
+} from "@/components/soft";
 import { BytArbetsledare, replacementOptions, type Options } from "./byt-arbetsledare";
 import { BytaPlats, swapPartners, type SwapOptions } from "./byta-plats";
 import { getSupabase } from "@/lib/supabase/client";
@@ -311,44 +314,61 @@ export function DagPanel({ date }: { date: string }) {
     <div data-day-panel={date}>
       {/*
         VÄLJ UTBYTE -- Step 5b's popup.
-        Over a darkened page, because the slot is open right now and the answer
-        is one press away. Closing it without picking is allowed and leaves the
-        slot open: the cards are the fallback for having nobody to ask, not a
+        Over the scrim, because the slot is open right now and the answer is one
+        press away. Closing it without picking is allowed and leaves the slot
+        open: the cards are the fallback for having nobody to ask, not a
         consolation for indecision, so nothing goes out behind the leader's
         back after they decided to handle it themselves.
       */}
       {vacancy && (
         <div
-          className="fixed inset-0 z-50 overflow-y-auto bg-black/70 p-4"
+          className="fixed inset-0 z-50 overflow-y-auto p-4"
+          style={{ background: "rgba(9,21,64,.42)" }}
           role="dialog"
           aria-modal="true"
           aria-label="Välj Utbyte"
         >
-          <div className="mx-auto w-full max-w-md border-2 border-black bg-white p-4">
-            <h2 className="mb-1 text-xl font-bold">Välj Utbyte</h2>
-            <p className="mb-4 text-base">
-              {vacancy.removed} är borttagen. De här har förvalt {vacancy.work_date} och
-              är lediga.
-            </p>
+          <div
+            className="mx-auto mt-[60px] w-full max-w-[358px]"
+            style={{ fontFamily: "var(--font-inter), system-ui, sans-serif" }}
+          >
+            <Card radius={16} shadow={SHADOW.hero} pad="p-[18px]">
+              <h2 className="text-[19px] font-extrabold" style={{ letterSpacing: "-.5px" }}>
+                Välj Utbyte
+              </h2>
+              <p
+                className="mb-[14px] mt-1 text-[15px] font-medium"
+                style={{ color: C.text2, textWrap: "pretty" }}
+              >
+                {vacancy.removed} är borttagen. De här har förvalt {vacancy.work_date} och
+                är lediga.
+              </p>
 
-            <div className="mb-3 flex flex-col gap-2">
-              {vacancy.replacements.map((r) => (
-                <button
-                  key={r.worker_id}
-                  type="button"
-                  onClick={() => place(r.worker_id, r.name)}
-                  disabled={busy === r.worker_id}
-                  className="flex min-h-[56px] w-full items-center justify-between border-2 border-black px-4 text-lg font-bold disabled:opacity-30"
-                >
-                  <span>{r.name}</span>
-                  <span aria-hidden className="text-2xl">→</span>
-                </button>
-              ))}
-            </div>
+              <div
+                className="mb-3 overflow-hidden rounded-[14px]"
+                style={{ background: C.surface, boxShadow: SHADOW.group }}
+              >
+                {vacancy.replacements.map((r, i) => (
+                  <div key={r.worker_id}>
+                    {i > 0 && <div className="ml-[18px] h-px" style={{ background: C.hairline }} />}
+                    <button
+                      type="button"
+                      onClick={() => place(r.worker_id, r.name)}
+                      disabled={busy === r.worker_id}
+                      className="flex h-[60px] w-full items-center justify-between px-[18px] text-[17px] font-bold hover:bg-[#f6f9ff] disabled:opacity-40"
+                      style={{ letterSpacing: "-.2px" }}
+                    >
+                      <span>{r.name}</span>
+                      <ChevronRight />
+                    </button>
+                  </div>
+                ))}
+              </div>
 
-            <Button variant="outline" onClick={() => setVacancy(null)}>
-              Ingen av dem
-            </Button>
+              <SecondaryButton onClick={() => setVacancy(null)}>
+                Ingen av dem
+              </SecondaryButton>
+            </Card>
           </div>
         </div>
       )}
@@ -369,10 +389,19 @@ export function DagPanel({ date }: { date: string }) {
         />
       )}
 
-      {error && <Notice kind="error">{error}</Notice>}
-      {note && <Notice kind="info">{note}</Notice>}
+      {error && <div className="pb-[14px]"><SoftNotice tone="stop">{error}</SoftNotice></div>}
+      {note && !error && <div className="pb-[14px]"><SoftNotice tone="quiet">{note}</SoftNotice></div>}
 
-      <p className="mb-4 text-xl font-bold">{longDayHeading(date)}</p>
+      {/* The day as a kicker, not a headline: longDayHeading returns caps
+          because every other screen sets it at 12/700, and the same string at
+          22/800 shouts. The picker directly above already says which day this
+          is in full. */}
+      <p
+        className="mb-[14px] px-1 text-[12px] font-bold uppercase"
+        style={{ letterSpacing: "1px", color: C.text2 }}
+      >
+        {longDayHeading(date)}
+      </p>
 
       {/*
         THE PROJECT TABS. Only when there is a choice to make -- with one
@@ -382,10 +411,10 @@ export function DagPanel({ date }: { date: string }) {
       */}
       {projectsToday.length > 1 && (
         <>
-          <p className="mb-2 text-base">
+          <p className="mb-2 px-1 text-[15px] font-medium" style={{ color: C.text2 }}>
             {projectsToday.length} projekt den här dagen. Välj vilket du vill se.
           </p>
-          <div className="-mx-4 mb-4 flex gap-2 overflow-x-auto px-4 pb-1">
+          <div className="-mx-4 mb-[14px] flex gap-2 overflow-x-auto px-4 pb-1">
             {projectsToday.map((p) => {
               const colour = colourOf(p.id);
               const on = p.id === active;
@@ -396,9 +425,12 @@ export function DagPanel({ date }: { date: string }) {
                   data-project-tab={p.name}
                   aria-pressed={on}
                   onClick={() => setOpenProject(p.id)}
-                  className={`flex min-h-[56px] shrink-0 items-center gap-2 border-2 border-black px-3 text-base font-bold ${
-                    on ? "bg-black text-white" : "bg-white text-black"
-                  }`}
+                  className="press-scale flex h-11 shrink-0 items-center gap-2 rounded-[10px] px-3 text-[15px] font-bold transition-transform duration-[110ms] active:scale-[.985]"
+                  style={{
+                    letterSpacing: "-.2px",
+                    background: on ? C.accent : C.panel2,
+                    color: on ? C.surface : C.inkHover,
+                  }}
                 >
                   {/* The same colour the day wore on the calendar. Findable by
                       attribute rather than by carrying a style, so a tab that
@@ -407,8 +439,8 @@ export function DagPanel({ date }: { date: string }) {
                   <span
                     aria-hidden
                     data-tab-swatch={p.name}
-                    className="inline-block h-6 w-3 shrink-0 border border-current"
-                    style={colour ? { background: colour } : undefined}
+                    className="inline-block h-[14px] w-[14px] shrink-0 rounded-[4px]"
+                    style={colour ? { background: colour } : { background: C.hairline }}
                   />
                   <span className="whitespace-nowrap">{p.name}</span>
                 </button>
@@ -418,7 +450,9 @@ export function DagPanel({ date }: { date: string }) {
         </>
       )}
 
-      {passes === null && <p>Laddar…</p>}
+      {passes === null && (
+        <p className="px-1 text-[15px] font-medium" style={{ color: C.text2 }}>Laddar…</p>
+      )}
       {/*
         AN EMPTY DAY AND A CANCELLED ONE ARE DIFFERENT FACTS. Nothing was ever
         planned here, versus what was planned here was called off -- the second
@@ -426,17 +460,28 @@ export function DagPanel({ date }: { date: string }) {
         should not have to remember which days he emptied himself.
       */}
       {passes?.length === 0 && (cancelled.length > 0 ? (
-        <div className="border-4 border-black p-4">
-          <p className="text-xl font-bold">Inställd dag</p>
-          <p className="mt-2 text-base">
+        <Card radius={16}>
+          <p className="text-[19px] font-extrabold" style={{ letterSpacing: "-.5px" }}>
+            Inställd dag
+          </p>
+          <p
+            className="mt-1 text-[15px] font-medium"
+            style={{ color: C.text2, textWrap: "pretty" }}
+          >
             Passen är borttagna och ingen jobbar den här dagen. De som stod på
             dem är meddelade.
           </p>
-          <ul className="mt-3 flex flex-col gap-2">
+          <ul className="mt-[14px] flex flex-col gap-2">
             {cancelled.map((c) => (
-              <li key={c.project_id} className="border-2 border-black p-3">
-                <span className="block text-lg font-bold">{c.project_name}</span>
-                <span className="text-base">
+              <li
+                key={c.project_id}
+                className="rounded-[10px] px-[14px] py-3"
+                style={{ background: C.panel2 }}
+              >
+                <span className="block text-[17px] font-bold" style={{ letterSpacing: "-.3px" }}>
+                  {c.project_name}
+                </span>
+                <span className="text-[15px] font-medium" style={{ color: C.text2 }}>
                   {c.cancelled_passes === 1
                     ? "1 pass borttaget"
                     : `${c.cancelled_passes} pass borttagna`}
@@ -444,147 +489,201 @@ export function DagPanel({ date }: { date: string }) {
               </li>
             ))}
           </ul>
-        </div>
+        </Card>
       ) : (
-        <Empty>Inga pass den dagen.</Empty>
+        <EmptyState>Inga pass den dagen.</EmptyState>
       ))}
 
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-[14px]">
         {showing.map((p) => (
-          <section key={p.id} className="border-2 border-black p-4">
-            <p className="text-lg font-bold">{p.project_name}</p>
-            <p className="mb-1 text-lg">
-              {hhmm(p.start_time)}–{hhmm(p.end_time)} · {String(p.planned_hours).replace(".", ",")} h
-            </p>
-            {/* Step 4b: the leader's row was never a slot the pass demanded,
-                so it is not counted against the headcount here either. */}
-            <p className="mb-4 text-base">
-              {p.people.filter((x) => x.source !== "ledare").length} av {p.headcount} platser
-            </p>
+          // The section IS the card: the project name has to stay a DIRECT
+          // child <p> of the section, because that is how the day walkthroughs
+          // read which project a block belongs to.
+          <section
+            key={p.id}
+            className="rounded-[16px] p-[18px] pb-5"
+            style={{ background: C.surface, boxShadow: SHADOW.group }}
+          >
+            <p className="text-[18px] font-bold" style={{ letterSpacing: "-.4px" }}>
+                {p.project_name}
+              </p>
+              <p className="text-[15px] font-medium" style={{ color: C.text2 }}>
+                {hhmm(p.start_time)}–{hhmm(p.end_time)} · {String(p.planned_hours).replace(".", ",")} h
+              </p>
+              {/* Step 4b: the leader's row was never a slot the pass demanded,
+                  so it is not counted against the headcount here either. */}
+              <p className="mb-[14px] text-[15px] font-bold" style={{ color: C.accent }}>
+                {p.people.filter((x) => x.source !== "ledare").length} av {p.headcount} platser
+              </p>
 
-            <ul className="mb-4 flex flex-col gap-2">
-              {p.people.filter((x) => x.source !== "ledare").map((person) => (
-                <li key={person.tilldelning_id} className="flex items-stretch gap-2">
-                  <span className="flex min-h-[56px] flex-1 items-center border-2 border-black px-3 text-lg font-bold">
-                    {person.name}
-                  </span>
-                  <button
-                    type="button"
-                    aria-label={`Ta bort ${person.name}`}
-                    onClick={() => remove(p, person)}
-                    disabled={busy === person.tilldelning_id}
-                    className="h-auto min-h-[56px] w-[64px] border-2 border-black text-2xl disabled:opacity-30"
-                  >
-                    🗑
-                  </button>
-                </li>
-              ))}
-              {p.people.filter((x) => x.source !== "ledare").length === 0 && (
-                <li className="border-2 border-dashed border-black p-3 text-base">
-                  Ingen tillsatt än.
-                </li>
-              )}
-
-              {/* Placed automatically because their people are here, with the
-                  span running from the first arrival to the last departure.
-                  No trash icon: a leader is never simply absent, and taking one
-                  off forces the question of who is answerable for the day. */}
-              {p.people.filter((x) => x.source === "ledare").map((person) => (
-                <li
-                  key={person.tilldelning_id}
-                  className="flex min-h-[56px] items-center justify-between gap-2 border-2 border-dashed border-black px-3"
-                >
-                  <span className="text-lg font-bold">{person.name}</span>
-                  <span className="text-right text-sm font-bold uppercase tracking-wide">
-                    Arbetsledare
-                    {person.own_start && person.own_end && (
-                      <span className="block text-base font-normal normal-case tracking-normal">
-                        {hhmm(person.own_start)}–{hhmm(person.own_end)}
-                      </span>
-                    )}
-                  </span>
-                </li>
-              ))}
-
-              {/* Not a trash icon, and that is the point: this does not take
-                  somebody off a day, it asks who is answerable for it instead. */}
-              {p.people.filter((x) => x.source === "ledare").map((person) => (
-                <li key={`avboka-${person.tilldelning_id}`}>
-                  <button
-                    type="button"
-                    onClick={() => askWhoTakesOver(person.tilldelning_id)}
-                    disabled={busy === person.tilldelning_id}
-                    className="min-h-[56px] w-full border-2 border-black px-3 text-base font-bold disabled:opacity-30"
-                  >
-                    Avboka Pass — {person.name}
-                  </button>
-
-                  {/* Only the admin, and only when the day really does hold a
-                      second arbetsledare on another project -- otherwise the
-                      button opens a list of nothing. */}
-                  {account?.role === "admin" && leadersElsewhere(p.project_id) && (
+              <ul className="mb-[14px] flex flex-col gap-2">
+                {p.people.filter((x) => x.source !== "ledare").map((person) => (
+                  <li key={person.tilldelning_id} className="flex items-stretch gap-2">
+                    <span
+                      className="flex min-w-0 flex-1 items-center rounded-[10px] px-[14px] text-[17px] font-bold"
+                      style={{ letterSpacing: "-.2px", background: C.panel2, minHeight: 52 }}
+                    >
+                      <span className="truncate">{person.name}</span>
+                    </span>
                     <button
                       type="button"
-                      onClick={() => askWhoToSwapWith(person.tilldelning_id)}
+                      aria-label={`Ta bort ${person.name}`}
+                      onClick={() => remove(p, person)}
                       disabled={busy === person.tilldelning_id}
-                      className="mt-2 min-h-[56px] w-full border-2 border-black px-3 text-base font-bold disabled:opacity-30"
+                      className="press-scale flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-[10px] transition-transform duration-[110ms] hover:bg-[#f6d8dd] active:scale-[.985] disabled:opacity-40"
+                      style={{ background: C.stopBg }}
                     >
-                      Byta Plats Med Arbetsledare — {person.name}
+                      <svg width="14" height="16" viewBox="0 0 14 16" fill="none" aria-hidden>
+                        <path d="M1.6 4.2h10.8M5 4.2V2.4h4v1.8M2.8 4.2l.8 9.4h6.8l.8-9.4"
+                          stroke={C.stopInk} strokeWidth="1.8"
+                          strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </button>
+                  </li>
+                ))}
+                {p.people.filter((x) => x.source !== "ledare").length === 0 && (
+                  <li
+                    className="rounded-[10px] p-[14px] text-center text-[15px] font-medium"
+                    style={{ background: C.panel, color: C.text2 }}
+                  >
+                    Ingen tillsatt än.
+                  </li>
+                )}
+
+                {/* Placed automatically because their people are here, with the
+                    span running from the first arrival to the last departure.
+                    No trash icon: a leader is never simply absent, and taking one
+                    off forces the question of who is answerable for the day. */}
+                {p.people.filter((x) => x.source === "ledare").map((person) => (
+                  <li
+                    key={person.tilldelning_id}
+                    className="flex items-center justify-between gap-2 rounded-[10px] px-[14px] py-3"
+                    style={{ background: C.panel2 }}
+                  >
+                    <span className="min-w-0 truncate text-[17px] font-bold" style={{ letterSpacing: "-.2px" }}>
+                      {person.name}
+                    </span>
+                    <span className="shrink-0 text-right">
+                      <Tag tone="warn">Arbetsledare</Tag>
+                      {person.own_start && person.own_end && (
+                        <span
+                          className="mt-1 block text-[14px] font-medium"
+                          style={{ color: C.text2 }}
+                        >
+                          {hhmm(person.own_start)}–{hhmm(person.own_end)}
+                        </span>
+                      )}
+                    </span>
+                  </li>
+                ))}
+
+                {/* Not a trash icon, and that is the point: this does not take
+                    somebody off a day, it asks who is answerable for it instead. */}
+                {p.people.filter((x) => x.source === "ledare").map((person) => (
+                  <li key={`avboka-${person.tilldelning_id}`} className="flex flex-col gap-2">
+                    <button
+                      type="button"
+                      onClick={() => askWhoTakesOver(person.tilldelning_id)}
+                      disabled={busy === person.tilldelning_id}
+                      className="press-scale flex h-12 w-full items-center justify-center rounded-[10px] px-3 text-[15px] font-bold transition-transform duration-[110ms] hover:bg-[#dbe4f9] active:scale-[.985] disabled:opacity-40"
+                      style={{ background: C.panel2, color: C.inkHover }}
+                    >
+                      Avboka Pass — {person.name}
+                    </button>
+
+                    {/* Only the admin, and only when the day really does hold a
+                        second arbetsledare on another project -- otherwise the
+                        button opens a list of nothing. */}
+                    {account?.role === "admin" && leadersElsewhere(p.project_id) && (
+                      <button
+                        type="button"
+                        onClick={() => askWhoToSwapWith(person.tilldelning_id)}
+                        disabled={busy === person.tilldelning_id}
+                        className="press-scale flex h-12 w-full items-center justify-center rounded-[10px] px-3 text-[15px] font-bold transition-transform duration-[110ms] hover:bg-[#dbe4f9] active:scale-[.985] disabled:opacity-40"
+                        style={{ background: C.panel2, color: C.inkHover }}
+                      >
+                        Byta Plats Med Arbetsledare — {person.name}
+                      </button>
+                    )}
+                  </li>
+                ))}
+              </ul>
+
+              {editing === p.id && draft ? (
+                <div className="pt-[14px]" style={{ boxShadow: `inset 0 1px 0 ${C.hairline}` }}>
+                  <div className="mb-[14px] flex gap-[10px]">
+                    <div className="min-w-0 flex-1">
+                      <SoftField label="Börjar">
+                        <SoftInput type="time" value={draft.start}
+                          onChange={(e) => setDraft({ ...draft, start: e.target.value })} />
+                      </SoftField>
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <SoftField label="Slutar">
+                        <SoftInput type="time" value={draft.end}
+                          onChange={(e) => setDraft({ ...draft, end: e.target.value })} />
+                      </SoftField>
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <SoftField label="Timmar">
+                        <SoftInput inputMode="decimal" value={draft.hours}
+                          aria-label="Timmar"
+                          onChange={(e) => setDraft({ ...draft, hours: e.target.value })} />
+                      </SoftField>
+                    </div>
+                  </div>
+                  <div className="flex gap-[10px]">
+                    <button
+                      type="button"
+                      onClick={() => saveEdit(p)}
+                      disabled={busy === p.id}
+                      className="press-scale flex h-12 flex-1 items-center justify-center rounded-[10px] text-[15px] font-bold transition-transform duration-[110ms] hover:bg-[#12206b] active:scale-[.985] disabled:opacity-40"
+                      style={{ background: C.accent, color: C.surface }}
+                    >
+                      Spara
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setEditing(null); setDraft(null); }}
+                      className="press-scale flex h-12 flex-1 items-center justify-center rounded-[10px] text-[15px] font-bold transition-transform duration-[110ms] hover:bg-[#dbe4f9] active:scale-[.985]"
+                      style={{ background: C.panel2, color: C.inkHover }}
+                    >
+                      Avbryt
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditing(p.id);
+                      setDraft({
+                        start: hhmm(p.start_time), end: hhmm(p.end_time),
+                        hours: String(p.planned_hours).replace(".", ","),
+                        headcount: p.headcount,
+                      });
+                    }}
+                    className="press-scale flex h-12 w-full items-center justify-center rounded-[10px] text-[15px] font-bold transition-transform duration-[110ms] hover:bg-[#dbe4f9] active:scale-[.985]"
+                    style={{ background: C.panel2, color: C.inkHover }}
+                  >
+                    Ändra detta pass
+                  </button>
+                  {/* The only control here that destroys something, so it is a
+                      tint and it is last. */}
+                  {account?.role === "admin" && (
+                    <button
+                      type="button"
+                      onClick={() => cancelPass(p)}
+                      disabled={busy === p.id}
+                      className="press-scale flex h-12 w-full items-center justify-center rounded-[10px] text-[15px] font-bold transition-transform duration-[110ms] hover:bg-[#f6d8dd] active:scale-[.985] disabled:opacity-40"
+                      style={{ background: C.stopBg, color: C.stopInk }}
+                    >
+                      Ta bort detta pass
                     </button>
                   )}
-                </li>
-              ))}
-            </ul>
-
-            {editing === p.id && draft ? (
-              <div className="border-t-2 border-black pt-3">
-                <div className="mb-3 grid grid-cols-3 gap-2">
-                  <label className="block">
-                    <span className="mb-1 block text-xs font-bold uppercase">Börjar</span>
-                    <Input type="time" value={draft.start}
-                      onChange={(e) => setDraft({ ...draft, start: e.target.value })} />
-                  </label>
-                  <label className="block">
-                    <span className="mb-1 block text-xs font-bold uppercase">Slutar</span>
-                    <Input type="time" value={draft.end}
-                      onChange={(e) => setDraft({ ...draft, end: e.target.value })} />
-                  </label>
-                  <label className="block">
-                    <span className="mb-1 block text-xs font-bold uppercase">Timmar</span>
-                    <Input center inputMode="decimal" value={draft.hours}
-                      aria-label="Timmar"
-                      onChange={(e) => setDraft({ ...draft, hours: e.target.value })} />
-                  </label>
                 </div>
-                <div className="flex gap-2">
-                  <Button onClick={() => saveEdit(p)} disabled={busy === p.id}>Spara</Button>
-                  <Button variant="outline" onClick={() => { setEditing(null); setDraft(null); }}>
-                    Avbryt
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <div className="flex flex-col gap-2">
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setEditing(p.id);
-                    setDraft({
-                      start: hhmm(p.start_time), end: hhmm(p.end_time),
-                      hours: String(p.planned_hours).replace(".", ","),
-                      headcount: p.headcount,
-                    });
-                  }}
-                >
-                  Ändra detta pass
-                </Button>
-                {account?.role === "admin" && (
-                  <Button variant="outline" onClick={() => cancelPass(p)} disabled={busy === p.id}>
-                    Ta bort detta pass
-                  </Button>
-                )}
-              </div>
-            )}
+              )}
           </section>
         ))}
       </div>

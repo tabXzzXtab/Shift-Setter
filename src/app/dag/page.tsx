@@ -3,7 +3,7 @@
 import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { AuthGate } from "@/components/auth-gate";
-import { Field, Input, Screen } from "@/components/ui";
+import { Card, SoftField, SoftInput, SoftScreen } from "@/components/soft";
 import { DagPanel } from "@/components/dag-panel";
 import { stockholmToday } from "@/lib/dates";
 
@@ -26,13 +26,19 @@ function Dag({ asked }: { asked: string | null }) {
     // Back to the calendar when the calendar sent us, and only then. Sending a
     // person who opened this page directly to a screen they never saw is worse
     // than no shortcut at all.
-    <Screen title="Öppna dag" back={asked ? "/kalender" : "/"}>
-      <Field label="Datum">
-        <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
-      </Field>
+    <SoftScreen title="Öppna dag" back={asked ? "/kalender" : "/"}>
+      <div className="px-4 pt-[2px]">
+        <Card radius={16} pad="p-[18px]">
+          <SoftField label="Datum">
+            <SoftInput type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+          </SoftField>
+        </Card>
+      </div>
 
-      <DagPanel date={date} />
-    </Screen>
+      <div className="px-4 pt-[22px]">
+        <DagPanel date={date} />
+      </div>
+    </SoftScreen>
   );
 }
 
@@ -52,7 +58,7 @@ function DagFromUrl() {
 export default function Page() {
   return (
     <AuthGate>
-      <Suspense fallback={<Screen title="Öppna dag" back="/"><span>Laddar…</span></Screen>}>
+      <Suspense fallback={<SoftScreen title="Öppna dag" back="/"><span /></SoftScreen>}>
         <DagFromUrl />
       </Suspense>
     </AuthGate>
