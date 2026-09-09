@@ -23,6 +23,7 @@ delete from public.pass_block;
 delete from public.pass;
 delete from public.pass_batch_handpick;
 delete from public.pass_batch;
+delete from public.day_review;
 delete from public.project_day;
 delete from public.arbetsdagbok;
 delete from public.project_leader;
@@ -30,6 +31,12 @@ delete from public.notification;
 delete from public.forval;
 delete from public.project;
 delete from public.worker;
+-- CASCADE from account only reaches rows owned by the accounts being deleted,
+-- so an ADMIN's personal event or profile row survives the wipe unless it is
+-- named here. Both are content, not credentials.
+delete from public.personal_event_viewer;
+delete from public.personal_event;
+delete from public.profile;
 delete from public.account where role <> 'admin';
 delete from auth.users u where not exists (
   select 1 from public.account a where a.id = u.id
