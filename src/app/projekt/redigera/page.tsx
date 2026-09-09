@@ -4,7 +4,10 @@ import { Suspense, useEffect, useState, type FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AuthGate } from "@/components/auth-gate";
 import { useAccount } from "@/lib/account";
-import { Button, Field, Input, Notice, Screen } from "@/components/ui";
+import {
+  C, Card, DangerButton, PrimaryButton, SecondaryButton, SoftField, SoftInput,
+  SoftNotice, SoftScreen,
+} from "@/components/soft";
 import { getSupabase } from "@/lib/supabase/client";
 
 /**
@@ -27,6 +30,11 @@ import { getSupabase } from "@/lib/supabase/client";
  * form whose every write is refused. Same for the delete: the refusal lives in
  * public.delete_project(), and the confirmation step is a courtesy in front of
  * it rather than the thing holding the rule up.
+ *
+ * TWO CARDS, NOT ONE COLUMN. The handoff splits the seven fields into what the
+ * project is and who is being billed, because those are read at different
+ * times: the site address is checked against a van's satnav, the org nummer
+ * against an invoice. The card titles are what make that split visible.
  */
 
 type Project = {
@@ -40,16 +48,29 @@ type Project = {
   bestallare_orgnr: string;
 };
 
-/** Every business column on the table, in the order the document reads them. */
-const FIELDS = [
-  ["name", "Projektnamn", ""],
-  ["site_address", "Projektets adress", "Dit arbetaren åker."],
-  ["start_date", "Startdatum", ""],
-  ["services", "Tjänster", ""],
-  ["bestallare_address", "Beställarens adress", "Kundens adress. Skrivs ut på dokumentet."],
-  ["bestallare_bolag", "Beställarens bolag", ""],
-  ["bestallare_orgnr", "Beställarens org nummer", ""],
-] as const;
+type FieldSpec = { key: keyof Omit<Project, "id">; label: string; help?: string };
+
+/**
+ * The labels are the ones /projekt/ny already uses, not the shorter ones the
+ * handoff draws under its card titles. The two project forms write the same
+ * seven columns, and a field a person fills in as "Beställarens bolag" on one
+ * screen and "Bolag" on the other is two names for one thing.
+ */
+const PROJEKTET: FieldSpec[] = [
+  { key: "name", label: "Projektnamn" },
+  { key: "site_address", label: "Projektets adress", help: "Dit arbetaren åker." },
+];
+
+const PROJEKTET_PAIR: FieldSpec[] = [
+  { key: "start_date", label: "Startdatum" },
+  { key: "services", label: "Tjänster" },
+];
+
+const BESTALLAREN: FieldSpec[] = [
+  { key: "bestallare_bolag", label: "Beställarens bolag" },
+  { key: "bestallare_address", label: "Beställarens adress", help: "Kundens adress." },
+  { key: "bestallare_orgnr", label: "Beställarens org nummer" },
+];
 
 /**
  * The database speaks its own language and the site does not. Only the
@@ -68,6 +89,15 @@ function saySwedish(message: string): string {
     return "Projektet är redan borttaget.";
   }
   return message;
+}
+
+/** The ground, the header and a line -- the three loading and dead ends. */
+function Plain({ children }: { children: React.ReactNode }) {
+  return (
+    <SoftScreen title="Redigera projekt" back="/projekt">
+      <div className="px-4 pt-[2px]">{children}</div>
+    </SoftScreen>
+  );
 }
 
 function RedigeraProjekt({ id }: { id: string | null }) {
@@ -163,96 +193,139 @@ function RedigeraProjekt({ id }: { id: string | null }) {
   }
 
   if (accountLoading || !isAdmin) {
-    return (
-      <Screen title="Redigera projekt" back="/projekt">
-        <span>Laddar…</span>
-      </Screen>
-    );
+    return <Plain><p className="text-[15px] font-medium" style={{ color: C.text2 }}>Laddar…</p></Plain>;
   }
 
   if (!id || missing) {
-    return (
-      <Screen title="Redigera projekt" back="/projekt">
-        <Notice kind="error">Projektet finns inte.</Notice>
-      </Screen>
-    );
+    return <Plain><SoftNotice tone="stop">Projektet finns inte.</SoftNotice></Plain>;
   }
 
   if (!project) {
-    return (
-      <Screen title="Redigera projekt" back="/projekt">
-        <span>Laddar…</span>
-      </Screen>
-    );
+    return <Plain><p className="text-[15px] font-medium" style={{ color: C.text2 }}>Laddar…</p></Plain>;
   }
 
+  /** One field, wired to the row. Every one on this screen is the same object. */
+  const field = ({ key, label, help }: FieldSpec) => (
+    <SoftField key={key} label={label} help={help}>
+      <SoftInput
+        type={key === "start_date" ? "date" : "text"}
+        value={project[key]}
+        required
+        autoComplete="off"
+        onChange={(e) => {
+          setSaved(false);
+          setProject({ ...project, [key]: e.target.value });
+        }}
+      />
+    </SoftField>
+  );
+
   return (
-    <Screen title="Redigera projekt" back="/projekt">
-      {error && <Notice kind="error">{error}</Notice>}
-      {saved && <Notice kind="ok">Ändringarna är sparade.</Notice>}
+    <SoftScreen title="Redigera projekt" back="/projekt">
+      {(error || saved) && (
+        <div className="px-4 pb-[10px] pt-[2px]">
+          {error && <SoftNotice tone="stop">{error}</SoftNotice>}
+          {saved && !error && <SoftNotice tone="live">Ändringarna är sparade.</SoftNotice>}
+        </div>
+      )}
 
       <form onSubmit={onSave}>
-        {FIELDS.map(([key, label, hint]) => (
-          <Field key={key} label={label} hint={hint || undefined}>
-            <Input
-              type={key === "start_date" ? "date" : "text"}
-              value={project[key]}
-              required
-              autoComplete="off"
-              onChange={(e) => {
-                setSaved(false);
-                setProject({ ...project, [key]: e.target.value });
-              }}
-            />
-          </Field>
-        ))}
+        <div className="px-4 pt-[2px]">
+          <Card radius={16} pad="p-[18px]">
+            <div
+              className="mb-[14px] text-[12px] font-bold uppercase"
+              style={{ letterSpacing: "1px", color: C.text2 }}
+            >
+              Projektet
+            </div>
+            {PROJEKTET.map((f) => (
+              <div key={f.key} className="mb-[14px]">{field(f)}</div>
+            ))}
+            {/* Startdatum and Tjänster share a row: both are short, and a date
+                on its own line reads as more of the form than it is. */}
+            <div className="flex gap-[10px]">
+              {PROJEKTET_PAIR.map((f) => (
+                <div key={f.key} className="flex-1">{field(f)}</div>
+              ))}
+            </div>
+          </Card>
+        </div>
 
-        <div className="mt-6">
-          <Button type="submit" disabled={saving}>
+        <div className="px-4 pt-[14px]">
+          <Card radius={16} pad="p-[18px]">
+            <div
+              className="mb-1 text-[12px] font-bold uppercase"
+              style={{ letterSpacing: "1px", color: C.text2 }}
+            >
+              Beställaren
+            </div>
+            <div className="mb-[14px] text-[14px] font-medium" style={{ color: C.text2 }}>
+              Skrivs ut på arbetsdagboken.
+            </div>
+            {BESTALLAREN.map((f, i) => (
+              <div key={f.key} className={i < BESTALLAREN.length - 1 ? "mb-[14px]" : undefined}>
+                {field(f)}
+              </div>
+            ))}
+          </Card>
+        </div>
+
+        <div className="px-4 pt-[22px]">
+          <PrimaryButton type="submit" disabled={saving}>
             {saving ? "Sparar…" : "Spara ändringar"}
-          </Button>
+          </PrimaryButton>
         </div>
       </form>
 
       {/*
-        The one red thing on the site. CLAUDE.md keeps colour for the shift
-        calendar, where it carries meaning -- and it carries meaning here for
-        the same reason: this is the only control in the app that destroys
-        something, and it must not look like the button above it.
+        Separated by 26px and drawn as a tint rather than a fill. This is the
+        only control on the screen that destroys something, and the handoff is
+        explicit that it must not be the loudest button on the page -- it sits
+        under Spara ändringar, shorter and quieter, with the consequence
+        spelled out beneath it.
 
-        Styled inline rather than as a Button variant, because ui.tsx is shared
-        and this page is not the place to add a colour every screen inherits.
+        The confirmation step is not in the handoff, which draws the resting
+        state only. It stays: deletion is irreversible and a single tap is not
+        a decision.
       */}
-      <div className="mt-12 border-t-2 border-black pt-6">
+      <div className="px-4 pt-[26px]">
         {!confirming ? (
-          <button
-            type="button"
-            onClick={() => {
-              setError(null);
-              setConfirming(true);
-            }}
-            className="flex min-h-[56px] w-full items-center justify-center border-2 border-red-700 bg-red-700 px-4 text-center text-lg font-bold text-white"
-          >
-            Ta bort projekt
-          </button>
-        ) : (
-          <div className="border-2 border-red-700 p-4">
-            <p className="mb-4 text-lg font-bold">Är du säker? Detta går inte att ångra.</p>
-            <button
-              type="button"
-              onClick={onDelete}
-              disabled={deleting}
-              className="mb-3 flex min-h-[56px] w-full items-center justify-center border-2 border-red-700 bg-red-700 px-4 text-center text-lg font-bold text-white disabled:opacity-30"
+          <>
+            <DangerButton
+              onClick={() => {
+                setError(null);
+                setConfirming(true);
+              }}
             >
-              {deleting ? "Tar bort…" : "Ja, ta bort projektet"}
-            </button>
-            <Button variant="outline" onClick={() => setConfirming(false)} disabled={deleting}>
+              Ta bort projekt
+            </DangerButton>
+            <p
+              className="pt-[10px] text-center text-[14px] font-medium"
+              style={{ color: C.text2 }}
+            >
+              Går inte att ångra.
+            </p>
+          </>
+        ) : (
+          <div className="rounded-[14px] p-[18px]" style={{ background: C.stopBg }}>
+            <p
+              className="mb-[14px] text-[17px] font-bold"
+              style={{ letterSpacing: "-.2px", color: C.stopInk }}
+            >
+              Är du säker? Detta går inte att ångra.
+            </p>
+            <div className="mb-[10px]">
+              <DangerButton onClick={onDelete} disabled={deleting}>
+                {deleting ? "Tar bort…" : "Ja, ta bort projektet"}
+              </DangerButton>
+            </div>
+            <SecondaryButton onClick={() => setConfirming(false)} disabled={deleting}>
               Avbryt
-            </Button>
+            </SecondaryButton>
           </div>
         )}
       </div>
-    </Screen>
+    </SoftScreen>
   );
 }
 
@@ -276,9 +349,9 @@ export default function Page() {
     <AuthGate>
       <Suspense
         fallback={
-          <Screen title="Redigera projekt" back="/projekt">
-            <span>Laddar…</span>
-          </Screen>
+          <Plain>
+            <p className="text-[15px] font-medium" style={{ color: C.text2 }}>Laddar…</p>
+          </Plain>
         }
       >
         <RedigeraFromUrl />

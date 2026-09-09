@@ -2,7 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { AuthGate } from "@/components/auth-gate";
-import { Button, Field, Group, Input, Notice, Screen, Select } from "@/components/ui";
+import {
+  C, Card, PrimaryButton, SecondaryButton, SHADOW, SoftField, SoftInput,
+  SoftNotice, SoftScreen, SoftSelect,
+} from "@/components/soft";
 import { PaintCalendar } from "@/components/paint-calendar";
 import { getSupabase } from "@/lib/supabase/client";
 import { stockholmToday } from "@/lib/dates";
@@ -178,62 +181,64 @@ function NyttPass() {
   // ---- result ---------------------------------------------------------------
   if (result) {
     return (
-      <Screen title="Passen är skapade" back="/">
-        <p className="mb-2 text-3xl font-bold">{result.passes} pass</p>
-        <p className="mb-6 text-xl">
-          {result.filled} av {result.slots} platser tillsatta
-        </p>
+      <SoftScreen title="Passen är skapade" back="/">
+        <div className="px-4 pt-[2px]">
+          <Card radius={16} shadow={SHADOW.hero} pad="px-5 pb-5 pt-[18px]">
+            <div
+              className="mb-[2px] text-[12px] font-bold uppercase"
+              style={{ letterSpacing: "1px", color: C.text2 }}
+            >
+              Skapade
+            </div>
+            <div className="text-[34px] font-extrabold leading-[1.05]" style={{ letterSpacing: "-1.4px" }}>
+              {result.passes} pass
+            </div>
+            <div className="mt-1 text-[15px] font-medium" style={{ color: C.text2 }}>
+              {result.filled} av {result.slots} platser tillsatta
+            </div>
+          </Card>
+        </div>
+
         {result.slots > result.filled && (
-          <Notice kind="info">
-            {result.slots - result.filled} plats(er) kvar. De har gått ut som Acceptera Pass.
-          </Notice>
+          <div className="px-4 pt-[14px]">
+            <SoftNotice tone="warn">
+              {result.slots - result.filled} plats(er) kvar. De har gått ut som Acceptera Pass.
+            </SoftNotice>
+          </div>
         )}
-        <div className="mt-6 flex flex-col gap-3">
-          <Button
+
+        <div className="px-4 pt-[22px]">
+          <PrimaryButton
             onClick={() => {
               setResult(null); setDays([]); setRows([newRow()]);
               setHandpicked([]); setStep("days");
             }}
           >
             Skapa fler
-          </Button>
+          </PrimaryButton>
         </div>
-      </Screen>
+      </SoftScreen>
     );
   }
 
   // ---- step 1: which days ---------------------------------------------------
+  //
+  // A SUB-SCREEN, not a full-bleed overlay with a floating confirm. The
+  // handoff's picker is 44px cells at a 2px gap, so a six-week month, the
+  // count panel and Fortsätt all fit on a phone without scrolling -- which is
+  // the only thing the fixed corner button was solving. The button that leaves
+  // this step is now where every other screen's is: at the bottom, after the
+  // thing it is confirming.
   if (step === "days") {
     return (
-      <div className="fixed inset-0 z-50 overflow-y-auto bg-white">
-        {/* Fixed in the corner: on a long month the confirm must be reachable
-            without scrolling back to the top. */}
-        <button
-          type="button"
-          onClick={() => setStep("detail")}
-          disabled={days.length === 0}
-          aria-label={`Klar, ${days.length} dagar valda`}
-          className="fixed right-4 top-4 z-10 flex h-16 min-w-[64px] items-center justify-center gap-2 border-2 border-black bg-black px-4 text-2xl font-bold text-white disabled:opacity-30"
-        >
-          {days.length > 0 && <span className="text-lg">{days.length}</span>}
-          <span aria-hidden>✓</span>
-        </button>
-
-        <div className="mx-auto w-full max-w-md px-4 pb-8 pt-4">
-          <div className="mb-6 flex items-center gap-3 pr-24">
-            <a
-              href="./"
-              aria-label="Tillbaka"
-              className="flex h-12 w-12 shrink-0 items-center justify-center border-2 border-black text-2xl leading-none"
-            >
-              ←
-            </a>
-            <h1 className="text-2xl font-bold leading-tight">Vilka dagar?</h1>
-          </div>
-
-          <p className="mb-4 text-base">Tryck på en dag, eller dra över flera.</p>
-
+      <SoftScreen
+        title="Vilka dagar?"
+        back="/"
+        subtitle="Tryck på en dag, eller dra över flera."
+      >
+        <div className="px-4 pt-[14px]">
           <PaintCalendar
+            soft
             month={month}
             onMonthChange={setMonth}
             onPaint={toggleDay}
@@ -241,164 +246,261 @@ function NyttPass() {
               const on = days.includes(date);
               const past = date < today;
               return {
-                className:
-                  (on ? "bg-black text-white" : "bg-white text-black") +
-                  (past ? " opacity-40" : ""),
+                className: on ? "font-extrabold" : "font-semibold",
+                style: {
+                  background: past ? "transparent" : on ? C.accent : C.panel2,
+                  color: past ? C.chevron : on ? C.surface : C.ink,
+                  cursor: past ? "default" : "pointer",
+                },
                 label: `${Number(date.slice(8))} ${on ? "vald" : "inte vald"}`,
               };
             }}
           />
-
-          <p className="mt-4 text-base" aria-live="polite">
-            {days.length} dag(ar) valda
-          </p>
         </div>
-      </div>
+
+        <div className="px-4 pt-[22px]">
+          <div
+            className="flex items-center justify-between gap-3 rounded-[12px] px-4 py-[14px]"
+            style={{ background: C.panel2 }}
+          >
+            <span className="text-[15px] font-semibold" style={{ color: C.text2 }}>
+              Valda dagar
+            </span>
+            {/* The one number on the screen, and the thing Fortsätt is waiting
+                for -- announced when it changes, because a count that only
+                exists as a numeral is invisible to a screen reader mid-drag. */}
+            <span
+              data-picked-count={days.length}
+              aria-live="polite"
+              aria-label={`${days.length} dagar valda`}
+              className="text-[20px] font-extrabold"
+              style={{ letterSpacing: "-.5px" }}
+            >
+              {days.length}
+            </span>
+          </div>
+        </div>
+
+        <div className="px-4 pt-[14px]">
+          <PrimaryButton onClick={() => setStep("detail")} disabled={days.length === 0}>
+            Fortsätt
+          </PrimaryButton>
+        </div>
+      </SoftScreen>
     );
   }
 
   // ---- step 2: what each day needs ------------------------------------------
+  //
+  // The handoff draws no screen for this one -- it stops at Vilka dagar. Built
+  // out of the same pieces anyway, because a wizard that changes language
+  // between its two steps reads as two different apps.
   return (
-    <Screen title="Vad behövs?" back="/">
-      {error && <Notice kind="error">{error}</Notice>}
+    <SoftScreen title="Vad behövs?" back="/">
+      {error && <div className="px-4 pb-[10px] pt-[2px]"><SoftNotice tone="stop">{error}</SoftNotice></div>}
 
-      <button
-        type="button"
-        onClick={() => setStep("days")}
-        className="mb-4 flex min-h-[56px] w-full items-center justify-between border-2 border-black px-4 text-lg font-bold"
-      >
-        <span>{days.length} dag(ar) valda</span>
-        <span aria-hidden className="text-base">Ändra</span>
-      </button>
+      <div className="px-4 pt-[2px]">
+        <button
+          type="button"
+          onClick={() => setStep("days")}
+          className="press-scale flex h-[60px] w-full items-center justify-between rounded-[12px] px-4 text-[17px] font-bold transition-transform duration-[110ms] hover:bg-[#dbe4f9] active:scale-[.985]"
+          style={{ letterSpacing: "-.2px", background: C.panel2, color: C.inkHover }}
+        >
+          <span>{days.length} dag(ar) valda</span>
+          <span aria-hidden className="text-[15px] font-bold">Ändra</span>
+        </button>
+      </div>
 
-      <Field label="Projekt">
-        <Select value={projectId} onChange={(e) => setProjectId(e.target.value)}>
-          <option value="">Välj…</option>
-          {projects.map((p) => (
-            <option key={p.id} value={p.id}>{p.name}</option>
-          ))}
-        </Select>
-      </Field>
+      <div className="px-4 pt-[14px]">
+        <Card radius={16} pad="p-[18px]">
+          <SoftField label="Projekt">
+            <SoftSelect value={projectId} onChange={(e) => setProjectId(e.target.value)}>
+              <option value="">Välj…</option>
+              {projects.map((p) => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </SoftSelect>
+          </SoftField>
+        </Card>
+      </div>
 
-      <Group
-        label="Pass per dag"
-        hint="Varje rad skapas på varje vald dag. Timmar förifylls som tiden minus 30 min — ändra om rasten var längre."
-      >
-        <div className="flex flex-col gap-4">
+      {/*
+        fieldset/legend, not a label: a label may only name one control, and
+        wrapping a whole row of them in one makes its text part of the first
+        control's accessible name.
+      */}
+      <fieldset className="block border-0 p-0 px-4 pt-[26px]">
+        <legend
+          className="px-1 pb-1 text-[12px] font-bold uppercase"
+          style={{ letterSpacing: "1px", color: C.text2 }}
+        >
+          Pass per dag
+        </legend>
+        <p
+          className="px-1 pb-[10px] text-[14px] font-medium"
+          style={{ color: C.text2, textWrap: "pretty" }}
+        >
+          Varje rad skapas på varje vald dag. Timmar förifylls som tiden minus 30 min — ändra om rasten var längre.
+        </p>
+
+        <div className="flex flex-col gap-[14px]">
           {rows.map((r, i) => (
-            <div key={i} className="border-2 border-black p-3">
-              <div className="mb-3 flex items-center justify-between">
-                <span className="text-base font-bold">Rad {i + 1}</span>
+            <Card key={i} radius={16} pad="p-[18px]">
+              <div className="mb-[14px] flex items-center justify-between">
+                <span className="text-[18px] font-bold" style={{ letterSpacing: "-.4px" }}>
+                  Rad {i + 1}
+                </span>
                 {rows.length > 1 && (
                   <button
                     type="button"
                     aria-label={`Ta bort rad ${i + 1}`}
                     onClick={() => setRows((p) => p.filter((_, j) => j !== i))}
-                    className="h-12 min-w-[56px] border-2 border-black px-3 text-base font-bold"
+                    className="press-scale h-11 rounded-[10px] px-[14px] text-[15px] font-bold transition-transform duration-[110ms] hover:bg-[#f6d8dd] active:scale-[.985]"
+                    style={{ background: C.stopBg, color: C.stopInk }}
                   >
                     Ta bort
                   </button>
                 )}
               </div>
 
-              <div className="mb-3 flex items-stretch gap-2">
+              {/* The headcount stepper: minus, the number, plus. */}
+              <div className="mb-[14px] flex items-stretch gap-[10px]">
                 <button
                   type="button"
                   aria-label={`Färre på rad ${i + 1}`}
                   onClick={() => setRows((p) => p.map((x, j) => j === i ? { ...x, headcount: Math.max(1, x.headcount - 1) } : x))}
-                  className="h-[56px] w-[64px] border-2 border-black text-3xl font-bold"
+                  className="press-scale h-[52px] w-16 rounded-[10px] text-[24px] font-extrabold leading-none transition-transform duration-[110ms] hover:bg-[#dbe4f9] active:scale-[.985]"
+                  style={{ background: C.panel2, color: C.inkHover }}
                 >
                   −
                 </button>
-                <output className="flex h-[56px] flex-1 items-center justify-center border-2 border-black text-2xl font-bold">
+                <output
+                  className="flex h-[52px] flex-1 items-center justify-center rounded-[10px] text-[26px] font-extrabold"
+                  style={{ letterSpacing: "-.6px", background: C.panel2 }}
+                >
                   {r.headcount}
                 </output>
                 <button
                   type="button"
                   aria-label={`Fler på rad ${i + 1}`}
                   onClick={() => setRows((p) => p.map((x, j) => j === i ? { ...x, headcount: Math.min(20, x.headcount + 1) } : x))}
-                  className="h-[56px] w-[64px] border-2 border-black text-3xl font-bold"
+                  className="press-scale h-[52px] w-16 rounded-[10px] text-[24px] font-extrabold leading-none transition-transform duration-[110ms] hover:bg-[#dbe4f9] active:scale-[.985]"
+                  style={{ background: C.panel2, color: C.inkHover }}
                 >
                   +
                 </button>
               </div>
 
-              <div className="grid grid-cols-3 gap-2">
-                <label className="block">
-                  <span className="mb-1 block text-xs font-bold uppercase">Börjar</span>
-                  <Input
-                    type="time" value={r.start}
-                    onChange={(e) => setTime(i, "start", e.target.value)}
-                  />
-                </label>
-                <label className="block">
-                  <span className="mb-1 block text-xs font-bold uppercase">Slutar</span>
-                  <Input
-                    type="time" value={r.end}
-                    onChange={(e) => setTime(i, "end", e.target.value)}
-                  />
-                </label>
-                <label className="block">
-                  <span className="mb-1 block text-xs font-bold uppercase">Timmar</span>
-                  <Input
-                    center
-                    inputMode="decimal" value={r.hours}
-                    aria-label={`Timmar på rad ${i + 1}`}
-                    onChange={(e) => setRows((p) => p.map((x, j) =>
-                      j === i ? { ...x, hours: e.target.value, hoursTouched: true } : x))}
-                  />
-                </label>
+              <div className="flex gap-[10px]">
+                <div className="flex-1">
+                  <SoftField label="Börjar">
+                    <SoftInput
+                      type="time" value={r.start}
+                      onChange={(e) => setTime(i, "start", e.target.value)}
+                    />
+                  </SoftField>
+                </div>
+                <div className="flex-1">
+                  <SoftField label="Slutar">
+                    <SoftInput
+                      type="time" value={r.end}
+                      onChange={(e) => setTime(i, "end", e.target.value)}
+                    />
+                  </SoftField>
+                </div>
+                <div className="flex-1">
+                  <SoftField label="Timmar">
+                    <SoftInput
+                      inputMode="decimal" value={r.hours}
+                      aria-label={`Timmar på rad ${i + 1}`}
+                      onChange={(e) => setRows((p) => p.map((x, j) =>
+                        j === i ? { ...x, hours: e.target.value, hoursTouched: true } : x))}
+                    />
+                  </SoftField>
+                </div>
               </div>
-            </div>
+            </Card>
           ))}
 
-          <Button variant="outline" onClick={() => setRows((p) => [...p, newRow()])}>
+          <SecondaryButton onClick={() => setRows((p) => [...p, newRow()])}>
             + Lägg till rad
-          </Button>
+          </SecondaryButton>
         </div>
-      </Group>
+      </fieldset>
 
-      <p className="mb-4 text-lg font-bold">
-        {rows.length} rad(er) × {days.length} dag(ar) = {totalPasses} pass, {totalSlots} platser
-      </p>
+      <div className="px-4 pt-[22px]">
+        <div
+          className="rounded-[12px] px-4 py-[14px] text-[15px] font-semibold"
+          style={{ background: C.panel2, color: C.inkHover }}
+        >
+          {rows.length} rad(er) × {days.length} dag(ar) = {totalPasses} pass, {totalSlots} platser
+        </div>
+      </div>
 
       {shortTotal > 0 && (
-        <Notice kind="info">
-          {shortTotal} plats(er) saknar folk som markerat dagen
-          {shortDays.length > 0 && (
-            <> — sämst {shortDays[0]!.work_date} ({shortDays[0]!.available} av {shortDays[0]!.slots})</>
-          )}
-          . Resten går ut som Acceptera Pass.
-        </Notice>
+        <div className="px-4 pt-[14px]">
+          <SoftNotice tone="warn">
+            {shortTotal} plats(er) saknar folk som markerat dagen
+            {shortDays.length > 0 && (
+              <> — sämst {shortDays[0]!.work_date} ({shortDays[0]!.available} av {shortDays[0]!.slots})</>
+            )}
+            . Resten går ut som Acceptera Pass.
+          </SoftNotice>
+        </div>
       )}
 
-      <Group
-        label={`Handplocka (${handpicked.length})`}
-        hint="Frivilligt. Ger förtur — men bara till dem som markerat dagen. Arbetsledare står inte i listan, de placeras automatiskt."
-      >
-        <div className="flex flex-col gap-2">
-          {workers.map((w) => {
+      <fieldset className="block border-0 p-0 px-4 pt-[26px]">
+        <legend
+          className="px-1 pb-1 text-[12px] font-bold uppercase"
+          style={{ letterSpacing: "1px", color: C.text2 }}
+        >
+          Handplocka ({handpicked.length})
+        </legend>
+        <p
+          className="px-1 pb-[10px] text-[14px] font-medium"
+          style={{ color: C.text2, textWrap: "pretty" }}
+        >
+          Frivilligt. Ger förtur — men bara till dem som markerat dagen. Arbetsledare står inte i listan, de placeras automatiskt.
+        </p>
+
+        <div
+          className="overflow-hidden rounded-[14px]"
+          style={{ background: C.surface, boxShadow: SHADOW.group }}
+        >
+          {workers.map((w, i) => {
             const on = handpicked.includes(w.id);
             return (
-              <button
-                key={w.id}
-                type="button"
-                aria-pressed={on}
-                onClick={() => setHandpicked((p) => on ? p.filter((x) => x !== w.id) : [...p, w.id])}
-                className={`flex min-h-[56px] items-center justify-between border-2 border-black px-4 text-lg font-bold ${
-                  on ? "bg-black text-white" : "bg-white text-black"
-                }`}
-              >
-                <span>{w.name}</span>
-                <span aria-hidden className="text-2xl">{on ? "✓" : "+"}</span>
-              </button>
+              <div key={w.id}>
+                {i > 0 && <div className="ml-[18px] h-px" style={{ background: C.hairline }} />}
+                <button
+                  type="button"
+                  aria-pressed={on}
+                  onClick={() => setHandpicked((p) => on ? p.filter((x) => x !== w.id) : [...p, w.id])}
+                  className="flex h-[60px] w-full items-center justify-between px-[18px] text-[17px] font-bold hover:bg-[#f6f9ff]"
+                  style={{ letterSpacing: "-.2px", background: on ? C.panel2 : undefined }}
+                >
+                  <span>{w.name}</span>
+                  {/* Colour is never the only carrier: a chosen row is a tint
+                      AND a check, and aria-pressed says it out loud. */}
+                  {on ? (
+                    <svg width="15" height="12" viewBox="0 0 11 9" fill="none" aria-hidden>
+                      <path d="M1 4.6 4 7.6 10 1.4" stroke={C.accent} strokeWidth="2.2"
+                        strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  ) : (
+                    <svg width="13" height="13" viewBox="0 0 15 15" fill="none" aria-hidden>
+                      <path d="M7.5 1v13M1 7.5h13" stroke={C.chevron} strokeWidth="2.4" strokeLinecap="round" />
+                    </svg>
+                  )}
+                </button>
+              </div>
             );
           })}
         </div>
-      </Group>
+      </fieldset>
 
-      <div className="mt-6">
-        <Button
+      <div className="px-4 pt-[26px]">
+        <PrimaryButton
           onClick={generate}
           disabled={
             saving || !projectId || days.length === 0 ||
@@ -406,9 +508,9 @@ function NyttPass() {
           }
         >
           {saving ? `Skapar ${totalPasses} pass…` : `Skapa ${totalPasses} pass`}
-        </Button>
+        </PrimaryButton>
       </div>
-    </Screen>
+    </SoftScreen>
   );
 }
 

@@ -84,7 +84,7 @@ export function HomeAdmin() {
   }, []);
 
   return (
-    <div
+    <main
       data-screen="admin"
       className="mx-auto min-h-[844px] w-full max-w-[390px] pb-[40px]"
       style={{
@@ -260,6 +260,6 @@ export function HomeAdmin() {
           <SignOut soft />
         </SoftSheet>
       )}
-    </div>
+    </main>
   );
 }

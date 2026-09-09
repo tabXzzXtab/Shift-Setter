@@ -15,6 +15,7 @@ import { chromium, devices } from "playwright";
 import { mkdirSync } from "node:fs";
 import path from "node:path";
 import { required } from "./env.mjs";
+import { chooseProject } from "./day-page.mjs";
 
 const BASE = process.env.BASE_URL ?? "http://localhost:3000/Shift-Setter";
 const ART = "artifacts";
@@ -127,7 +128,7 @@ try {
   await c2.scrollIntoViewIfNeeded();
   const b2 = await c2.boundingBox();
   await page.touchscreen.tap(b2.x + b2.width / 2, b2.y + b2.height / 2);
-  await page.getByRole("button", { name: /Klar, / }).click();
+  await page.getByRole("button", { name: "Fortsätt", exact: true }).click();
   await page.getByText("Vad behövs?").waitFor({ timeout: 20000 });
   await field(page, "Projekt").selectOption({ label: project });
   await page.getByLabel("Timmar på rad 1").fill("8");
@@ -192,6 +193,9 @@ try {
   await signIn(page, L.email, L.password);
   await page.goto(`${BASE}/dag/`, { waitUntil: "networkidle" });
   await field(page, "Datum").fill(D);
+  // The day shows ONE project at a time, and which one it opens on is a sort
+  // order this run does not control.
+  await chooseProject(page, project);
   await mustSee(page, "0 av 1 platser", "the ordinary pass should have lost its worker");
   const adaRows = await page.getByText(`Ada S${RUN}`, { exact: false }).count();
   if (adaRows !== 1) fail(`Ada appears ${adaRows} times on ${D}; the Snabb Pass must win, not duplicate`);

@@ -14,6 +14,7 @@ import { chromium, devices } from "playwright";
 import { mkdirSync } from "node:fs";
 import path from "node:path";
 import { required } from "./env.mjs";
+import { openDayPage } from "./day-page.mjs";
 
 const BASE = process.env.BASE_URL ?? "http://localhost:3000/Shift-Setter";
 const ART = "artifacts";
@@ -124,7 +125,7 @@ async function makePass(page, project, date, pick, start, end) {
   await cell.scrollIntoViewIfNeeded();
   const b = await cell.boundingBox();
   await page.touchscreen.tap(b.x + b.width / 2, b.y + b.height / 2);
-  await page.getByRole("button", { name: /Klar, / }).click();
+  await page.getByRole("button", { name: "Fortsätt", exact: true }).click();
   await page.getByText("Vad behövs?").waitFor({ timeout: 20000 });
   await field(page, "Projekt").selectOption({ label: project });
   await field(page, "Börjar").fill(start);
@@ -135,15 +136,27 @@ async function makePass(page, project, date, pick, start, end) {
   await mustSee(page, "1 av 1 platser tillsatta", `${date} did not fill with ${pick}`);
 }
 
-/** Open the day in the shift calendar. */
-async function openDay(page, date) {
-  await page.goto(`${BASE}/kalender/`, { waitUntil: "networkidle" });
-  await reachDay(page, date);
-  const cell = page.locator(`[data-date="${date}"]`);
-  await cell.scrollIntoViewIfNeeded();
-  const b = await cell.boundingBox();
-  await page.touchscreen.tap(b.x + b.width / 2, b.y + b.height / 2);
+/** Open the day, on the named project's tab. */
+async function openDay(page, date, project) {
+  await openDayPage(page, BASE, date, project);
   await page.getByText("Arbetsledare", { exact: false }).first().waitFor({ timeout: 20000 });
+}
+
+/**
+ * Read something off the day once per project, and hand back both answers.
+ *
+ * This suite is about two arbetsledare on two projects on one date, and the
+ * day page shows ONE project at a time -- so "what the day says" is no longer
+ * a single innerText. It is what each tab says, and the comparison this
+ * walkthrough exists to make spans both of them.
+ */
+async function acrossProjects(page, date, projects, read) {
+  const out = [];
+  for (const p of projects) {
+    await openDay(page, date, p);
+    out.push(await read());
+  }
+  return out;
 }
 
 const browser = await chromium.launch();
@@ -188,8 +201,11 @@ try {
 
   // ---- an arbetsledare is not offered the swap ----------------------------
   await signIn(page, L1.email, L1.password);
-  await openDay(page, DAY);
-  if (await page.getByRole("button", { name: /Byta Plats Med Arbetsledare/ }).count()) {
+  // On every tab they can reach, not just the first: the offer being absent
+  // from one project is not the offer being absent.
+  const offered = await acrossProjects(page, DAY, [P1, P2], () =>
+    page.getByRole("button", { name: /Byta Plats Med Arbetsledare/ }).count());
+  if (offered.some((n) => n > 0)) {
     await shot(page, "FAILED");
     fail("an arbetsledare is offered the swap; it moves somebody else's day too");
   }
@@ -198,13 +214,15 @@ try {
 
   // ---- the admin swaps them ----------------------------------------------
   await signIn(page, ADMIN.email, ADMIN.password);
-  await openDay(page, DAY);
 
-  const before = await page.locator("main").innerText();
+  const before = (await acrossProjects(page, DAY, [P1, P2], () =>
+    page.locator("main").innerText())).join("\n");
   if (!(before.includes("07:00–16:00") && before.includes("06:00–14:00"))) {
     await shot(page, "FAILED");
     fail(`the day should show both spans before the swap: ${JSON.stringify(before)}`);
   }
+  // Back to P1, whose leader the swap is pressed on.
+  await openDay(page, DAY, P1);
   await shot(page, "bp1-innan");
   log("the day shows both arbetsledare, each on their own project's hours");
 
@@ -234,10 +252,12 @@ try {
   log("the two swapped");
 
   // ---- the hours went with the project ------------------------------------
-  await openDay(page, DAY);
+  // Both tabs: after the swap each leader is on the OTHER project, so the two
+  // rows being compared are on two different tabs by definition.
   // Not just "an li mentioning them": the Avboka and Byta Plats buttons carry
   // the name too. The row is the one that states the role and the hours.
-  const rows = await page.locator("li").allInnerTexts();
+  const rows = (await acrossProjects(page, DAY, [P1, P2], () =>
+    page.locator("li").allInnerTexts())).flat();
   // Uppercased, because allInnerTexts returns rendered text and the role label
   // is text-transform: uppercase.
   const row = (name) => rows.find(

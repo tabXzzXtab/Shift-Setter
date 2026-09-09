@@ -19,6 +19,7 @@ import { chromium, devices } from "playwright";
 import { mkdirSync } from "node:fs";
 import path from "node:path";
 import { required } from "./env.mjs";
+import { openDayPage } from "./day-page.mjs";
 
 const BASE = process.env.BASE_URL ?? "http://localhost:3000/Shift-Setter";
 const ART = "artifacts";
@@ -119,7 +120,7 @@ async function makePass(page, project, date, pick, start, end) {
   await page.getByText("Vilka dagar?").waitFor({ timeout: 20000 });
   await reach(page, date);
   await tap(page, date);
-  await page.getByRole("button", { name: /Klar, / }).click();
+  await page.getByRole("button", { name: "Fortsätt", exact: true }).click();
   await page.getByText("Vad behövs?").waitFor({ timeout: 20000 });
   await field(page, "Projekt").selectOption({ label: project });
   await field(page, "Börjar").fill(start);
@@ -130,11 +131,15 @@ async function makePass(page, project, date, pick, start, end) {
   await mustSee(page, "1 av 1 platser tillsatta", `${date} did not fill with ${pick}`);
 }
 
-/** Open a day in the shift calendar and hand back everything it says. */
-async function dayText(page, date) {
-  await page.goto(`${BASE}/kalender/`, { waitUntil: "networkidle" });
-  await reach(page, date);
-  await tap(page, date);
+/**
+ * Open a day and hand back everything it says.
+ *
+ * Named to the project, because the day page shows one at a time and this
+ * database has other runs' shifts on the same dates -- without it the text
+ * handed back could belong to somebody else's site entirely.
+ */
+async function dayText(page, date, project) {
+  await openDayPage(page, BASE, date, project);
   await page.getByText("platser", { exact: false }).first().waitFor({ timeout: 20000 });
   return page.locator("main").innerText();
 }
@@ -212,7 +217,7 @@ try {
   if (!card.includes("Pausad")) fail(`the card should read Pausad: ${JSON.stringify(card)}`);
 
   // FUTURE: released. The slot is open again and their name is gone.
-  const future = await dayText(page, FUTURE);
+  const future = await dayText(page, FUTURE, P);
   if (future.includes(W.name)) {
     await shot(page, "FAILED");
     fail(`${W.name} still holds ${FUTURE}; a pause releases what has not started`);
@@ -224,7 +229,7 @@ try {
   log(`the future shift on ${FUTURE} is released and the slot is open again`);
 
   // TODAY: untouched. They are standing on it.
-  const today = await dayText(page, TODAY);
+  const today = await dayText(page, TODAY, P);
   if (!today.includes(W.name)) {
     await shot(page, "FAILED");
     fail(`${W.name} lost today's shift; it had already started and is hours they worked`);
@@ -235,7 +240,7 @@ try {
   // ---- unpausing an arbetare gives nothing back ----------------------------
   await setActive(page, W.name, true);
   await mustSee(page, "Kontot är aktivt igen", "unpausing said nothing");
-  const back = await dayText(page, FUTURE);
+  const back = await dayText(page, FUTURE, P);
   if (back.includes(W.name)) {
     await shot(page, "FAILED");
     fail(`${W.name} was put back on ${FUTURE}; an arbetare's released slot is somebody else's now`);
@@ -243,11 +248,11 @@ try {
   log("unpausing an arbetare restores nothing -- the slot was offered on the day it opened");
 
   // ---- the leader half -----------------------------------------------------
-  const led = await dayText(page, LEADERDAY);
+  const led = await dayText(page, LEADERDAY, P);
   if (!led.includes(L.name)) fail(`${L.name} should be on ${LEADERDAY} to begin with`);
 
   await setActive(page, L.name, false);
-  const gone = await dayText(page, LEADERDAY);
+  const gone = await dayText(page, LEADERDAY, P);
   if (gone.includes(L.name)) {
     await shot(page, "FAILED");
     fail(`${L.name} is still on ${LEADERDAY} after being paused`);
@@ -256,7 +261,7 @@ try {
   log(`a paused arbetsledare comes off ${LEADERDAY} -- ${W2.name} is still on it, with nobody over them`);
 
   await setActive(page, L.name, true);
-  const rehired = await dayText(page, LEADERDAY);
+  const rehired = await dayText(page, LEADERDAY, P);
   if (!rehired.includes(L.name)) {
     await shot(page, "FAILED");
     fail(`${L.name} was not put back on ${LEADERDAY}; unpausing must re-place a leader`);

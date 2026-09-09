@@ -104,7 +104,7 @@ async function makePass(page, project, date, hours, pick) {
   await cell.scrollIntoViewIfNeeded();
   const b = await cell.boundingBox();
   await page.touchscreen.tap(b.x + b.width / 2, b.y + b.height / 2);
-  await page.getByRole("button", { name: /Klar, / }).click();
+  await page.getByRole("button", { name: "Fortsätt", exact: true }).click();
   await page.getByText("Vad behövs?").waitFor({ timeout: 20000 });
   await field(page, "Projekt").selectOption({ label: project });
   await page.getByLabel("Timmar på rad 1").fill(hours);
@@ -447,6 +447,130 @@ try {
   if (JSON.stringify(items) !== JSON.stringify(["Öppna Pass"])) {
     fail(`menu holds ${JSON.stringify(items)}, expected ["Öppna Pass"]`);
   }
+
+  // ---- the menu is the handoff's sheet, not the old panel -------------------
+  //
+  // Reading the LINKS alone would have passed just as happily against the
+  // black-bordered panel this replaced, so the shape is measured too: a sheet
+  // is a thing at the bottom edge with two rounded corners at the top, and
+  // every one of those words is a number here.
+  //
+  // The sheet SLIDES, so measuring it on the frame it appeared measures it
+  // mid-travel -- which is how this assertion twice "found" the sheet hanging
+  // 96px below the bottom of the screen.
+  //
+  // Waiting on transitionend rather than on the geometry settling, because
+  // both cheaper reads are wrong here. getComputedStyle().transform never
+  // moves: Tailwind 4 compiles translate-y-* to the `translate` property, so
+  // it reads "none" for the whole journey. And polling the rect until it holds
+  // still for two frames catches the frames BEFORE the slide starts -- the
+  // panel mounts at translate-y-full and flips on the next rAF -- and calls
+  // the starting position the resting one.
+  //
+  // The timeout is a cap, not a sleep: it only runs out if the slide finished
+  // before the listener was attached, which is the case where measuring
+  // immediately would have been right anyway.
+  await panel.evaluate((el) => new Promise((done) => {
+    const cap = setTimeout(done, 1200);
+    el.addEventListener("transitionend", () => { clearTimeout(cap); done(); }, { once: true });
+  }));
+
+  // getBoundingClientRect, not boundingBox(): the page is scrolled down to the
+  // offer stack by now, and only the browser's own rect is viewport-relative,
+  // which is the frame a fixed sheet lives in.
+  const [sheetBg, sheetRadius, sheetShadow, sheetBox] = await Promise.all([
+    panel.evaluate((el) => getComputedStyle(el).backgroundColor),
+    panel.evaluate((el) => getComputedStyle(el).borderRadius),
+    panel.evaluate((el) => getComputedStyle(el).boxShadow),
+    panel.evaluate((el) => {
+      const r = el.getBoundingClientRect();
+      return { y: r.top, height: r.height };
+    }),
+  ]);
+  const viewport = await page.evaluate(() => ({ height: window.innerHeight }));
+
+  if (sheetBg !== "rgb(243, 246, 253)") {
+    fail(`the sheet is ${sheetBg}, the handoff says #f3f6fd`);
+  }
+  // 22 on the two top corners and 0 on the two bottom ones -- which is what
+  // makes it a sheet rising off the edge rather than a floating card.
+  if (sheetRadius !== "22px 22px 0px 0px") {
+    fail(`the sheet radius is ${sheetRadius}, the handoff says 22px on the top corners only`);
+  }
+  if (!sheetShadow.includes("rgba(9, 21, 64, 0.22)")) {
+    fail(`the sheet has no upward shadow: ${sheetShadow}`);
+  }
+  if (Math.abs((sheetBox.y + sheetBox.height) - viewport.height) > 1) {
+    fail(`the sheet ends at ${sheetBox.y + sheetBox.height}, not the viewport bottom ${viewport.height}`);
+  }
+  if (sheetBox.y < viewport.height / 2) {
+    fail(`the sheet starts at ${sheetBox.y}, which is the top half -- it is dropping, not rising`);
+  }
+
+  // The old panel's whole vocabulary was a 2px black border. Nothing inside
+  // the sheet may still be wearing one.
+  const blackEdges = await panel.evaluate((el) =>
+    [...el.querySelectorAll("*")].filter((n) => {
+      const c = getComputedStyle(n);
+      return parseFloat(c.borderTopWidth) > 0 && /rgb\(0, 0, 0\)/.test(c.borderTopColor);
+    }).length);
+  if (blackEdges) fail(`${blackEdges} elements in the sheet still carry a black border`);
+
+  const closer = panel.getByRole("button", { name: "Stäng", exact: true });
+  const [closeH, closeBg] = await Promise.all([
+    closer.evaluate((el) => getComputedStyle(el).height),
+    closer.evaluate((el) => getComputedStyle(el).backgroundColor),
+  ]);
+  if (closeH !== "56px") fail(`Stäng is ${closeH} tall, the handoff says 56`);
+  if (closeBg !== "rgb(238, 243, 254)") {
+    fail(`Stäng is ${closeBg}, the handoff says #eef3fe`);
+  }
+
+  await shot(page, "w3a-meny-sheet");
+  log("the menu is the handoff's bottom sheet: #f3f6fd, radius 22 on top, on the bottom edge");
+
+  // ---- the profile sheet, and the one thing in it that is not a link --------
+  //
+  // Stäng closes it, which is the reason the button is there at all -- the
+  // scrim and Escape are the two exits a finger on a phone does not find.
+  await closer.click();
+  await panel.waitFor({ state: "detached", timeout: 20000 });
+
+  await page.getByRole("button", { name: "Profil", exact: true }).first().click();
+  const profile = page.getByRole("dialog", { name: "Profil" });
+  await profile.waitFor({ timeout: 20000 });
+
+  const profileRows = await profile.getByRole("link").allInnerTexts();
+  if (JSON.stringify(profileRows.map((t) => t.trim())) !== JSON.stringify(["Konto", "Profil"])) {
+    fail(`the profile sheet holds ${JSON.stringify(profileRows)}, expected Konto and Profil`);
+  }
+
+  // SignOut is ui.tsx's, shared with screens still in black and white, so it
+  // takes a `soft` prop rather than a redesign. Dropping that prop is a silent
+  // regression -- the button still works, it just arrives wearing the old
+  // language -- so the variant is asserted, not assumed.
+  const ut = profile.getByRole("button", { name: "Logga ut", exact: true });
+  const [utBorder, utRadius, utColour] = await Promise.all([
+    ut.evaluate((el) => getComputedStyle(el).borderTopWidth),
+    ut.evaluate((el) => getComputedStyle(el).borderRadius),
+    ut.evaluate((el) => getComputedStyle(el).color),
+  ]);
+  if (parseFloat(utBorder) > 0) {
+    fail(`Logga ut still carries a ${utBorder} border -- SignOut is missing its \`soft\` prop`);
+  }
+  if (utRadius !== "12px") fail(`Logga ut radius is ${utRadius}, the design says 12`);
+  if (utColour !== "rgb(142, 29, 21)") {
+    fail(`Logga ut is ${utColour}, the design's stop ink is #8e1d15`);
+  }
+
+  await shot(page, "w3b-profil-sheet");
+  log("the profile sheet: Konto, Profil, and a Logga ut in the new language");
+
+  await profile.getByRole("button", { name: "Stäng", exact: true }).click();
+  await profile.waitFor({ state: "detached", timeout: 20000 });
+  await page.getByRole("button", { name: "Meny", exact: true }).click();
+  await panel.waitFor({ timeout: 20000 });
+
   await panel.getByRole("link", { name: "Öppna Pass", exact: true }).click();
   await page.waitForURL((u) => u.pathname.includes("/oppna-pass"), { timeout: 20000 });
   await mustSee(page, project, "the shift they declined is not in Öppna Pass");

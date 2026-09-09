@@ -105,7 +105,7 @@ export function SoftScreen({
   children: ReactNode;
 }) {
   return (
-    <div
+    <main
       data-soft-screen={title}
       className="mx-auto min-h-[844px] w-full max-w-[390px] pb-[40px]"
       style={{
@@ -132,7 +132,7 @@ export function SoftScreen({
       )}
 
       {children}
-    </div>
+    </main>
   );
 }
 
@@ -185,6 +185,100 @@ export function EmptyState({ headline, children }: { headline?: string; children
       )}
       <div className="text-[15px] font-medium" style={{ color: C.text2 }}>{children}</div>
     </div>
+  );
+}
+
+/**
+ * The shape of a month: what a Monday-first grid needs to draw one.
+ *
+ * Exported because both calendars compute it and a leading-blank count that
+ * disagrees between two grids puts the same date under two different weekdays.
+ */
+export function monthShape(month: string) {
+  const first = `${month}-01`;
+  const daysInMonth = new Date(Number(month.slice(0, 4)), Number(month.slice(5, 7)), 0).getDate();
+  return {
+    first,
+    daysInMonth,
+    // Monday-based, matching the ISO week the priority list counts in.
+    leadingBlanks: (new Date(`${first}T12:00:00Z`).getUTCDay() + 6) % 7,
+  };
+}
+
+/**
+ * The card every month grid is drawn in: the pager, the month over its year,
+ * and the weekday letters. The grid itself is the caller's, because the two
+ * calendars in this app disagree about everything below this line -- cell
+ * height, gap, what a cell contains, and whether it can be painted.
+ *
+ * ONE COPY OF THE CHROME. The shift calendar and the day picker are different
+ * screens that must look like the same object; two pagers drifting a pixel
+ * apart is the kind of thing nobody sees in review and everybody feels in use.
+ */
+export function MonthCard({
+  month, onMonthChange, gap = 3, children,
+}: {
+  month: string;
+  onMonthChange: (month: string) => void;
+  /** 3px on the shift calendar, 2px on the picker -- the handoff's own two. */
+  gap?: 2 | 3;
+  children: ReactNode;
+}) {
+  const { first, daysInMonth } = monthShape(month);
+  const monthName = new Intl.DateTimeFormat("sv-SE", { month: "long" })
+    .format(new Date(`${first}T12:00:00Z`));
+
+  const pager = (label: string, to: string, d: string) => (
+    <button
+      type="button"
+      aria-label={label}
+      onClick={() => onMonthChange(to)}
+      className="press-scale flex h-10 w-10 items-center justify-center rounded-[11px] p-0 transition-transform duration-[110ms] hover:bg-[#dbe4f9] active:scale-[.985]"
+      style={{ background: C.panel2 }}
+    >
+      <svg width="8" height="14" viewBox="0 0 9 15" fill="none" aria-hidden>
+        <path d={d} stroke={C.ink} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    </button>
+  );
+
+  // Day-of-month arithmetic without importing lib/dates: soft.tsx is the
+  // design layer and has no other reason to know about the calendar.
+  const shift = (days: number) =>
+    new Date(Date.UTC(Number(month.slice(0, 4)), Number(month.slice(5, 7)) - 1, 1 + days, 12))
+      .toISOString().slice(0, 7);
+
+  return (
+    <Card radius={16} pad="px-[14px] pb-[18px] pt-4">
+      <div className="mb-4 flex items-center justify-between">
+        {pager("Föregående månad", shift(-1), "M7.5 1.5 2 7.5l5.5 6")}
+        <div className="text-center">
+          <div className="text-[19px] font-extrabold capitalize" style={{ letterSpacing: "-.5px" }}>
+            {monthName}
+          </div>
+          <div className="text-[12px] font-bold" style={{ letterSpacing: "1px", color: C.text2 }}>
+            {month.slice(0, 4)}
+          </div>
+        </div>
+        {pager("Nästa månad", shift(daysInMonth), "M1.5 1.5 7 7.5l-5.5 6")}
+      </div>
+
+      {/* The weekend a step lighter in weight -- the handoff's only mark that
+          Saturday and Sunday are different from the rest. */}
+      <div className={`mb-[6px] grid grid-cols-7 ${gap === 2 ? "gap-[2px]" : "gap-[3px]"}`}>
+        {["M", "T", "O", "T", "F", "L", "S"].map((d, i) => (
+          <div
+            key={i}
+            className={`text-center text-[11px] ${i > 4 ? "font-semibold" : "font-bold"}`}
+            style={{ letterSpacing: ".8px", color: C.text2 }}
+          >
+            {d}
+          </div>
+        ))}
+      </div>
+
+      {children}
+    </Card>
   );
 }
 
@@ -295,6 +389,67 @@ export function SoftTextarea(props: React.TextareaHTMLAttributes<HTMLTextAreaEle
       className={`min-h-[76px] w-full resize-y rounded-[10px] border-0 px-[14px] py-[13px] text-[16px] font-semibold outline-none focus:bg-white focus:outline-2 focus:outline-[#1b2cc1] ${className}`}
       style={{ background: C.panel2, color: C.ink, ...style }}
     />
+  );
+}
+
+/**
+ * The select, in the input's clothes.
+ *
+ * `appearance: none` because a native chrome-drawn arrow is the one thing on
+ * these screens that would not be from the handoff, and the caret is drawn as
+ * a background SVG instead -- data-encoded rather than fetched, since the CSP
+ * on a static export has no host to allow.
+ */
+export function SoftSelect(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
+  const { className = "", style, ...rest } = props;
+  return (
+    <select
+      {...rest}
+      className={`h-[52px] w-full cursor-pointer appearance-none rounded-[10px] border-0 py-0 pl-[14px] pr-[38px] text-[16px] font-semibold outline-none focus:bg-white focus:outline-2 focus:outline-[#1b2cc1] ${className}`}
+      style={{
+        background: `${C.panel2} url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='13' height='8' viewBox='0 0 13 8' fill='none'%3E%3Cpath d='M1.5 1.5 6.5 6.5l5-5' stroke='%238b98c4' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 14px center`,
+        color: C.ink,
+        ...style,
+      }}
+    />
+  );
+}
+
+/**
+ * The one control in the app that destroys something: 56px, #fbe9ec, #8e1d15.
+ *
+ * NEVER THE LOUDEST BUTTON ON ITS SCREEN. It is shorter than the 64px primary
+ * above it and it is a tint rather than a fill, because the handoff puts "Ta
+ * bort projekt" below "Spara ändringar" and separated by 26px -- deletion is
+ * reachable, not offered.
+ */
+export function DangerButton({
+  children, onClick, disabled, full = true,
+}: {
+  children: ReactNode;
+  onClick?: () => void;
+  disabled?: boolean;
+  /** false for the 48px square icon variant on the Konton rows. */
+  full?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className={`press-scale flex items-center justify-center rounded-[12px] text-[17px] font-bold transition-transform duration-[110ms] hover:bg-[#f6d8dd] active:scale-[.985] ${
+        full ? "h-14 w-full" : "h-12 w-12 rounded-[10px]"
+      }`}
+      style={{
+        letterSpacing: "-.2px",
+        background: C.stopBg,
+        color: C.stopInk,
+        opacity: disabled ? 0.5 : undefined,
+        cursor: disabled ? "not-allowed" : undefined,
+      }}
+    >
+      {children}
+    </button>
   );
 }
 

@@ -13,6 +13,7 @@ import { chromium, devices } from "playwright";
 import { mkdirSync } from "node:fs";
 import path from "node:path";
 import { required } from "./env.mjs";
+import { openDayPage } from "./day-page.mjs";
 
 const BASE = process.env.BASE_URL ?? "http://localhost:3000/Shift-Setter";
 const ART = "artifacts";
@@ -117,7 +118,7 @@ async function makePass(page, project, date, pick) {
   await cell.scrollIntoViewIfNeeded();
   const b = await cell.boundingBox();
   await page.touchscreen.tap(b.x + b.width / 2, b.y + b.height / 2);
-  await page.getByRole("button", { name: /Klar, / }).click();
+  await page.getByRole("button", { name: "Fortsätt", exact: true }).click();
   await page.getByText("Vad behövs?").waitFor({ timeout: 20000 });
   await field(page, "Projekt").selectOption({ label: project });
   await page.getByLabel("Timmar på rad 1").fill("8");
@@ -126,14 +127,15 @@ async function makePass(page, project, date, pick) {
   await mustSee(page, "1 av 1 platser tillsatta", `${date} did not fill with ${pick}`);
 }
 
-/** Open the day in the shift calendar and press the bin beside a name. */
-async function avboka(page, date, name) {
-  await page.goto(`${BASE}/kalender/`, { waitUntil: "networkidle" });
-  await reachDay(page, date);
-  const cell = page.locator(`[data-date="${date}"]`);
-  await cell.scrollIntoViewIfNeeded();
-  const b = await cell.boundingBox();
-  await page.touchscreen.tap(b.x + b.width / 2, b.y + b.height / 2);
+/**
+ * Open the day and press the bin beside a name.
+ *
+ * The project has to be named now. The day page shows one project at a time,
+ * so on a date this database has collected other runs' shifts on, the bin
+ * beside a name is not merely further down the page -- it is not rendered.
+ */
+async function avboka(page, date, name, project) {
+  await openDayPage(page, BASE, date, project);
   const bin = page.getByRole("button", { name: `Ta bort ${name}`, exact: true });
   await bin.waitFor({ timeout: 20000 });
   await bin.click();
@@ -198,7 +200,7 @@ try {
   log(`three shifts on ${FAR}, ${NONE} and ${NEAR}, all held by ${A.name}`);
 
   // ---- far, and someone is free -------------------------------------------
-  await avboka(page, FAR, A.name);
+  await avboka(page, FAR, A.name, project);
   const popup = page.getByRole("dialog", { name: "Välj Utbyte" });
   await popup.waitFor({ timeout: 20000 });
   if (!(await popup.getByRole("button", { name: B.name, exact: true }).count())) {
@@ -218,7 +220,7 @@ try {
   log(`${B.name} took the place; the shift is full again and headcount never dropped`);
 
   // ---- far, and nobody is free --------------------------------------------
-  await avboka(page, NONE, A.name);
+  await avboka(page, NONE, A.name, project);
   await mustSee(page, "Ingen förvald var ledig",
     "with nobody free there should be no popup, only the cards");
   await mustSee(page, "Acceptera Pass", "the slot did not go out as Acceptera Pass");
@@ -229,7 +231,7 @@ try {
   log("nobody free: no popup, and the slot went out as Acceptera Pass");
 
   // ---- inside five days, and someone is free ------------------------------
-  await avboka(page, NEAR, A.name);
+  await avboka(page, NEAR, A.name, project);
   const near = page.getByRole("dialog", { name: "Välj Utbyte" });
   await near.waitFor({ timeout: 20000 });
   if (!(await near.getByRole("button", { name: B.name, exact: true }).count())) {

@@ -116,7 +116,7 @@ async function pickDays(page, dates) {
     await page.touchscreen.tap(b.x + b.width / 2, b.y + b.height / 2);
     await page.waitForTimeout(400);
   }
-  await page.getByRole("button", { name: /Klar, / }).click();
+  await page.getByRole("button", { name: "Fortsätt", exact: true }).click();
   await page.getByText("Vad behövs?").waitFor({ timeout: 20000 });
 }
 

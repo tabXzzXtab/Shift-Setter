@@ -1,9 +1,16 @@
 "use client";
 
-import { useRef, type ReactNode } from "react";
+import { useRef, type CSSProperties, type ReactNode } from "react";
 import { addDays } from "@/lib/dates";
+import { MonthCard, monthShape } from "./soft";
 
-export type CellLook = { className: string; label: string };
+export type CellLook = {
+  className: string;
+  label: string;
+  /** The handoff's cells are fills and radii rather than borders, and a fill
+   *  that changes per state is a value, not a class. Only `soft` uses it. */
+  style?: CSSProperties;
+};
 
 /**
  * A month grid you paint by dragging.
@@ -23,6 +30,13 @@ export type CellLook = { className: string; label: string };
  *
  * The consumer owns the meaning: this reports each date the finger crosses,
  * once per gesture, and asks how each cell should look.
+ *
+ * `soft` draws it in the handoff's language -- the shared MonthCard chrome and
+ * 44px radius-10 cells instead of the black bordered squares. A VARIANT rather
+ * than a second component, for the same reason SignOut has one: the gesture
+ * above is the whole reason this file exists and it must not be copied to get
+ * a different skin. The prop retires when the last screen using the old look
+ * has moved.
  */
 export function PaintCalendar({
   month,
@@ -31,6 +45,7 @@ export function PaintCalendar({
   onPaint,
   onPaintEnd,
   cellContent,
+  soft = false,
 }: {
   month: string;                       // YYYY-MM
   onMonthChange: (month: string) => void;
@@ -38,15 +53,13 @@ export function PaintCalendar({
   onPaint: (date: string) => void;
   onPaintEnd?: () => void;
   cellContent?: (date: string, day: number) => ReactNode;
+  soft?: boolean;
 }) {
   const painting = useRef(false);
   const swept = useRef<Set<string>>(new Set());
   const gridRef = useRef<HTMLDivElement>(null);
 
-  const first = `${month}-01`;
-  const daysInMonth = new Date(Number(month.slice(0, 4)), Number(month.slice(5, 7)), 0).getDate();
-  // Monday-based, matching the ISO week the priority list counts in.
-  const leadingBlanks = (new Date(`${first}T12:00:00Z`).getUTCDay() + 6) % 7;
+  const { first, daysInMonth, leadingBlanks } = monthShape(month);
 
   const monthName = new Intl.DateTimeFormat("sv-SE", { month: "long", year: "numeric" })
     .format(new Date(`${first}T12:00:00Z`));
@@ -65,6 +78,59 @@ export function PaintCalendar({
     painting.current = false;
     onPaintEnd?.();
   };
+
+  /** The grid, with the gesture on it. Both looks share every handler. */
+  const grid = (
+    <div
+      ref={gridRef}
+      data-calendar-grid
+      className={`grid touch-none select-none grid-cols-7 ${soft ? "gap-[2px]" : "gap-1"}`}
+      onPointerDown={(e) => {
+        const d = dateUnder(e.clientX, e.clientY);
+        if (!d) return;
+        painting.current = true;
+        swept.current.clear();
+        // Keeps the gesture ours even if the finger leaves the grid.
+        gridRef.current?.setPointerCapture(e.pointerId);
+        sweep(d);                       // a tap is a one-cell drag
+      }}
+      onPointerMove={(e) => {
+        if (!painting.current) return;
+        const d = dateUnder(e.clientX, e.clientY);
+        if (d) sweep(d);
+      }}
+      onPointerUp={end}
+      onPointerCancel={end}
+    >
+      {Array.from({ length: leadingBlanks }, (_, i) => (
+        <span key={`b${i}`} className={soft ? "h-11" : undefined} />
+      ))}
+
+      {Array.from({ length: daysInMonth }, (_, i) => {
+        const day = i + 1;
+        const date = `${month}-${String(day).padStart(2, "0")}`;
+        const { className, label, style } = look(date);
+        return (
+          <div
+            key={date}
+            data-date={date}
+            role="button"
+            aria-label={label}
+            className={
+              soft
+                ? `flex h-11 items-center justify-center rounded-[10px] text-[16px] ${className}`
+                : `flex aspect-square items-center justify-center border-2 border-black text-lg font-bold ${className}`
+            }
+            style={soft ? { letterSpacing: "-.2px", ...style } : style}
+          >
+            {cellContent ? cellContent(date, day) : day}
+          </div>
+        );
+      })}
+    </div>
+  );
+
+  if (soft) return <MonthCard month={month} onMonthChange={onMonthChange} gap={2}>{grid}</MonthCard>;
 
   return (
     <>
@@ -94,46 +160,7 @@ export function PaintCalendar({
         ))}
       </div>
 
-      <div
-        ref={gridRef}
-        data-calendar-grid
-        className="grid touch-none select-none grid-cols-7 gap-1"
-        onPointerDown={(e) => {
-          const d = dateUnder(e.clientX, e.clientY);
-          if (!d) return;
-          painting.current = true;
-          swept.current.clear();
-          // Keeps the gesture ours even if the finger leaves the grid.
-          gridRef.current?.setPointerCapture(e.pointerId);
-          sweep(d);                       // a tap is a one-cell drag
-        }}
-        onPointerMove={(e) => {
-          if (!painting.current) return;
-          const d = dateUnder(e.clientX, e.clientY);
-          if (d) sweep(d);
-        }}
-        onPointerUp={end}
-        onPointerCancel={end}
-      >
-        {Array.from({ length: leadingBlanks }, (_, i) => <span key={`b${i}`} />)}
-
-        {Array.from({ length: daysInMonth }, (_, i) => {
-          const day = i + 1;
-          const date = `${month}-${String(day).padStart(2, "0")}`;
-          const { className, label } = look(date);
-          return (
-            <div
-              key={date}
-              data-date={date}
-              role="button"
-              aria-label={label}
-              className={`flex aspect-square items-center justify-center border-2 border-black text-lg font-bold ${className}`}
-            >
-              {cellContent ? cellContent(date, day) : day}
-            </div>
-          );
-        })}
-      </div>
+      {grid}
     </>
   );
 }

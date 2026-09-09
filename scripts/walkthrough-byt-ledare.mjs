@@ -15,6 +15,7 @@ import { chromium, devices } from "playwright";
 import { mkdirSync } from "node:fs";
 import path from "node:path";
 import { required } from "./env.mjs";
+import { openDayPage } from "./day-page.mjs";
 
 const BASE = process.env.BASE_URL ?? "http://localhost:3000/Shift-Setter";
 const ART = "artifacts";
@@ -112,7 +113,7 @@ async function makePass(page, project, date, pick) {
   await cell.scrollIntoViewIfNeeded();
   const b = await cell.boundingBox();
   await page.touchscreen.tap(b.x + b.width / 2, b.y + b.height / 2);
-  await page.getByRole("button", { name: /Klar, / }).click();
+  await page.getByRole("button", { name: "Fortsätt", exact: true }).click();
   await page.getByText("Vad behövs?").waitFor({ timeout: 20000 });
   await field(page, "Projekt").selectOption({ label: project });
   await page.getByLabel("Timmar på rad 1").fill("8");
@@ -121,14 +122,14 @@ async function makePass(page, project, date, pick) {
   await mustSee(page, "1 av 1 platser tillsatta", `${date} did not fill with ${pick}`);
 }
 
-/** Open the day in the shift calendar and press Avboka Pass on the leader. */
-async function avbokaLeader(page, date, leaderName) {
-  await page.goto(`${BASE}/kalender/`, { waitUntil: "networkidle" });
-  await reachDay(page, date);
-  const cell = page.locator(`[data-date="${date}"]`);
-  await cell.scrollIntoViewIfNeeded();
-  const b = await cell.boundingBox();
-  await page.touchscreen.tap(b.x + b.width / 2, b.y + b.height / 2);
+/**
+ * Open the day and press Avboka Pass on the leader.
+ *
+ * The project has to be named: the day page shows one project at a time, and
+ * a leader's buttons belong to their project's card.
+ */
+async function avbokaLeader(page, date, leaderName, project) {
+  await openDayPage(page, BASE, date, project);
   const btn = page.getByRole("button", { name: `Avboka Pass — ${leaderName}`, exact: true });
   await btn.waitFor({ timeout: 20000 });
   await btn.click();
@@ -181,7 +182,7 @@ try {
   log(`${W.name} works three past days, and ${L1.name} is on each of them automatically`);
 
   // ---- ROUTE 1: another arbetsledare takes the day -------------------------
-  let popup = await avbokaLeader(page, SWAP, L1.name);
+  let popup = await avbokaLeader(page, SWAP, L1.name, project);
   await mustSee(page, `Vem ska byta ut ${L1.name}?`, "the popup does not ask the question");
   const pick = popup.getByRole("button", { name: L2.name, exact: true });
   if (!(await pick.count())) {
@@ -213,7 +214,7 @@ try {
   // flags_the_day, S5C.ansvarig_must_be_on_the_shift, S5C.leader_cannot_flag_
   // a_day and S5C.flag_survives_confirmation, where the fixtures control who
   // exists.
-  popup = await avbokaLeader(page, COVER, L1.name);
+  popup = await avbokaLeader(page, COVER, L1.name, project);
   if ((await popup.getByRole("button", { name: L2.name, exact: true }).count()) === 0) {
     fail(`${L2.name} should be free on ${COVER} and offered`);
   }
@@ -239,7 +240,7 @@ try {
 
   // ---- ROUTE 3: nobody, and it is the admin who says so --------------------
   await signIn(page, ADMIN.email, ADMIN.password);
-  popup = await avbokaLeader(page, NOBODY, L1.name);
+  popup = await avbokaLeader(page, NOBODY, L1.name, project);
   const nobody = popup.getByRole("button", { name: "Ingen Arbetsledare", exact: true });
   if (!(await nobody.count())) fail("the popup has no Ingen Arbetsledare");
 

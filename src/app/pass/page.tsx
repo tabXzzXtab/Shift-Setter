@@ -4,7 +4,10 @@ import Link from "next/link";
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { AuthGate } from "@/components/auth-gate";
-import { Button, Empty, Input, Notice, Screen } from "@/components/ui";
+import {
+  C, Card, EmptyState, PrimaryButton, SecondaryButton, SHADOW, SoftField,
+  SoftInput, SoftNotice, SoftScreen, Tag,
+} from "@/components/soft";
 import { getSupabase } from "@/lib/supabase/client";
 import { useAccount } from "@/lib/account";
 import {
@@ -127,131 +130,181 @@ function AllaPass({ askedProject }: { askedProject: string | null }) {
     byDate.get(p.work_date)!.push(p);
   }
 
+  /** The 40px pale arrow the period pager is steered with. */
+  const arrow = (dir: -1 | 1, label: string) => (
+    <button
+      type="button"
+      aria-label={label}
+      onClick={() => setFrom((f) => addDays(f, dir * 30))}
+      className="press-scale flex h-10 w-10 items-center justify-center rounded-[9px] p-0 transition-transform duration-[110ms] hover:bg-[#dbe4f9] active:scale-[.985]"
+      style={{ background: C.panel2 }}
+    >
+      <svg width="8" height="14" viewBox="0 0 9 15" fill="none" aria-hidden>
+        <path
+          d={dir === -1 ? "M7.5 1.5 2 7.5l5.5 6" : "M1.5 1.5 7 7.5l-5.5 6"}
+          stroke={C.ink} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"
+        />
+      </svg>
+    </button>
+  );
+
   return (
-    <Screen
+    <SoftScreen
       title={askedProject ? (rows?.[0]?.project?.name ?? "Pass") : "Alla Pass"}
       back={askedProject ? "/projekt" : "/"}
+      subtitle={askedProject ? "Pass i det här projektet." : undefined}
     >
-      {error && <Notice kind="error">{error}</Notice>}
-      {askedProject && (
-        <p className="mb-4 text-base text-neutral-700">Pass i det här projektet.</p>
+      {(error || note) && (
+        <div className="px-4 pb-[10px] pt-[2px]">
+          {error && <SoftNotice tone="stop">{error}</SoftNotice>}
+          {note && !error && <SoftNotice tone="live">{note}</SoftNotice>}
+        </div>
       )}
-      {note && <Notice kind="ok">{note}</Notice>}
 
       {/*
-        The question, over a darkened page, because it is about a shift people
-        are standing on right now. It asks for the hours before it does
-        anything -- closing without logging them would throw away the only
-        record of a day that was half worked.
+        The question, over the scrim, because it is about a shift people are
+        standing on right now. It asks for the hours before it does anything --
+        closing without logging them would throw away the only record of a day
+        that was half worked.
+
+        Not in the handoff, which draws no dialog anywhere. Drawn in its
+        language instead: the sheet's scrim, a white card, the 64px primary.
       */}
       {closing && (
         <div
-          className="fixed inset-0 z-50 overflow-y-auto bg-black/70 p-4"
+          className="fixed inset-0 z-50 overflow-y-auto p-4"
+          style={{ background: "rgba(9,21,64,.42)" }}
           role="dialog"
           aria-modal="true"
           aria-label="Stäng pass"
         >
-          <div className="mx-auto w-full max-w-md border-2 border-black bg-white p-4">
-            <h2 className="mb-1 text-xl font-bold">
-              Vill du logga tiden detta passet har jobbat?
-            </h2>
-            <p className="mb-4 text-base">
-              {closing.project?.name ?? "Projekt"} ·{" "}
-              {hhmm(closing.start_time)}–{hhmm(closing.end_time)}
-            </p>
+          <div
+            className="mx-auto mt-[60px] w-full max-w-[358px]"
+            style={{ fontFamily: "var(--font-inter), system-ui, sans-serif" }}
+          >
+            <Card radius={16} shadow={SHADOW.hero} pad="p-[18px]">
+              <h2 className="text-[19px] font-extrabold" style={{ letterSpacing: "-.5px" }}>
+                Vill du logga tiden detta passet har jobbat?
+              </h2>
+              <p className="mb-[14px] mt-1 text-[15px] font-medium" style={{ color: C.text2 }}>
+                {closing.project?.name ?? "Projekt"} ·{" "}
+                {hhmm(closing.start_time)}–{hhmm(closing.end_time)}
+              </p>
 
-            <label className="mb-4 block">
-              <span className="mb-1 block text-sm font-bold uppercase tracking-wide">
-                Timmar
-              </span>
-              <span className="mb-1 block text-base text-neutral-700">
-                Loggas på alla som stämplade in. De som aldrig kom tas bort från
-                passet.
-              </span>
-              <Input
-                center
-                inputMode="decimal"
-                value={hours}
-                aria-label="Timmar passet har jobbat"
-                onChange={(e) => setHours(e.target.value)}
-              />
-            </label>
+              <div className="mb-[18px]">
+                <SoftField
+                  label="Timmar"
+                  help="Loggas på alla som stämplade in. De som aldrig kom tas bort från passet."
+                  big
+                >
+                  <SoftInput
+                    inputMode="decimal"
+                    value={hours}
+                    aria-label="Timmar passet har jobbat"
+                    onChange={(e) => setHours(e.target.value)}
+                  />
+                </SoftField>
+              </div>
 
-            <div className="flex flex-col gap-2">
-              <Button onClick={close} disabled={busy}>
-                {busy ? "Stänger…" : "Stäng passet"}
-              </Button>
-              <Button variant="outline" onClick={() => setClosing(null)} disabled={busy}>
+              <div className="mb-[10px]">
+                <PrimaryButton onClick={close} disabled={busy}>
+                  {busy ? "Stänger…" : "Stäng passet"}
+                </PrimaryButton>
+              </div>
+              <SecondaryButton onClick={() => setClosing(null)} disabled={busy}>
                 Avbryt
-              </Button>
-            </div>
+              </SecondaryButton>
+            </Card>
           </div>
         </div>
       )}
 
-      <div className="mb-4 flex items-center justify-between gap-2">
-        <button
-          type="button"
-          aria-label="Tidigare"
-          onClick={() => setFrom((f) => addDays(f, -30))}
-          className="h-14 w-14 border-2 border-black text-2xl font-bold"
+      {/* ---- the period pager ---------------------------------------------- */}
+      <div className="px-4 pt-[2px]">
+        <div
+          className="flex items-center gap-[10px] rounded-[12px] p-[6px]"
+          style={{ background: C.surface, boxShadow: SHADOW.flat }}
         >
-          ‹
-        </button>
-        <span className="text-base font-bold">{from} – {to}</span>
-        <button
-          type="button"
-          aria-label="Senare"
-          onClick={() => setFrom((f) => addDays(f, 30))}
-          className="h-14 w-14 border-2 border-black text-2xl font-bold"
-        >
-          ›
-        </button>
+          {arrow(-1, "Tidigare")}
+          <span className="flex-1 text-center text-[14px] font-bold" style={{ letterSpacing: ".2px" }}>
+            {from} – {to}
+          </span>
+          {arrow(1, "Senare")}
+        </div>
       </div>
 
-      {rows === null && <p className="text-base">Laddar…</p>}
-      {rows !== null && rows.length === 0 && <Empty>Inga pass i den här perioden.</Empty>}
+      {rows === null && (
+        <p className="px-5 pt-[14px] text-[15px] font-medium" style={{ color: C.text2 }}>Laddar…</p>
+      )}
+      {rows !== null && rows.length === 0 && (
+        <div className="px-4 pt-[22px]">
+          <EmptyState>Inga pass i den här perioden.</EmptyState>
+        </div>
+      )}
 
-      <div className="flex flex-col gap-6">
-        {[...byDate.entries()].map(([date, list]) => (
-          <section key={date}>
-            <h2 className="mb-2 text-sm font-bold uppercase tracking-wide">
+      {[...byDate.entries()].map(([date, list]) => (
+        <section key={date} className="px-4 pt-[22px]">
+          <div className="flex items-baseline justify-between px-1 pb-[10px]">
+            <h2 className="text-[12px] font-bold uppercase" style={{ letterSpacing: "1px", color: C.text2 }}>
               {longDayHeading(date)}
             </h2>
-            <div className="flex flex-col gap-2">
-              {list.map((p) => (
-                <div key={p.id} className="border-2 border-black">
-                  <Link href={`/dag?datum=${p.work_date}`} className="block p-4">
-                    <p className="text-lg font-bold">{p.project?.name ?? "Projekt"}</p>
-                    <p className="text-base">
-                      {hhmm(p.start_time)}–{hhmm(p.end_time)} · {p.headcount}{" "}
-                      {p.headcount === 1 ? "plats" : "platser"}
-                      {running(p) && <span className="font-bold"> · Pågår nu</span>}
-                    </p>
-                  </Link>
+            <span className="text-[12px] font-bold" style={{ color: C.text2 }}>
+              {list.length} pass
+            </span>
+          </div>
 
-                  {/* Admin only, and only while it is actually running. The
-                      database refuses it either way -- close_pass checks the
-                      clock itself -- so this is the courtesy, not the rule. */}
-                  {account?.role === "admin" && running(p) && (
-                    <div className="border-t-2 border-black p-3">
-                      <button
-                        type="button"
-                        onClick={() => ask(p)}
-                        disabled={busy}
-                        className="min-h-[56px] w-full border-2 border-black px-3 text-base font-bold disabled:opacity-30"
-                      >
-                        Stäng Pass
-                      </button>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </section>
-        ))}
-      </div>
-    </Screen>
+          <div
+            className="overflow-hidden rounded-[14px]"
+            style={{ background: C.surface, boxShadow: SHADOW.group }}
+          >
+            {list.map((p, i) => (
+              <div key={p.id} data-pass={p.id}>
+                {i > 0 && <div className="ml-4 h-px" style={{ background: C.hairline }} />}
+                <Link
+                  href={`/dag?datum=${p.work_date}`}
+                  className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-[#f6f9ff]"
+                  style={{ color: C.ink }}
+                >
+                  <span className="min-w-0">
+                    <span className="block truncate text-[16px] font-bold" style={{ letterSpacing: "-.3px" }}>
+                      {p.project?.name ?? "Projekt"}
+                    </span>
+                    <span className="block text-[14px] font-medium" style={{ color: C.text2 }}>
+                      {hhmm(p.start_time)}–{hhmm(p.end_time)}
+                    </span>
+                  </span>
+                  <span className="flex shrink-0 items-center gap-[6px]">
+                    {/* Colour is never the only carrier: the running pass gets
+                        the live pair AND the word. */}
+                    {running(p) && <Tag tone="live">Pågår nu</Tag>}
+                    <Tag tone="quiet">
+                      {p.headcount} {p.headcount === 1 ? "plats" : "platser"}
+                    </Tag>
+                  </span>
+                </Link>
+
+                {/* Admin only, and only while it is actually running. The
+                    database refuses it either way -- close_pass checks the
+                    clock itself -- so this is the courtesy, not the rule. */}
+                {account?.role === "admin" && running(p) && (
+                  <div className="px-4 pb-[14px] pt-1">
+                    <button
+                      type="button"
+                      onClick={() => ask(p)}
+                      disabled={busy}
+                      className="press-scale flex h-12 w-full items-center justify-center rounded-[10px] text-[15px] font-bold transition-transform duration-[110ms] hover:bg-[#dbe4f9] active:scale-[.985] disabled:opacity-40"
+                      style={{ background: C.panel2, color: C.inkHover }}
+                    >
+                      Stäng Pass
+                    </button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </section>
+      ))}
+    </SoftScreen>
   );
 }
 
@@ -270,7 +323,13 @@ function AllaPassFromUrl() {
 export default function Page() {
   return (
     <AuthGate>
-      <Suspense fallback={<Screen title="Alla Pass" back="/"><span>Laddar…</span></Screen>}>
+      <Suspense
+        fallback={
+          <SoftScreen title="Alla Pass" back="/">
+            <p className="px-5 text-[15px] font-medium" style={{ color: C.text2 }}>Laddar…</p>
+          </SoftScreen>
+        }
+      >
         <AllaPassFromUrl />
       </Suspense>
     </AuthGate>

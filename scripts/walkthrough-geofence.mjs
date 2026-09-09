@@ -198,7 +198,7 @@ try {
   await page.getByText("Vilka dagar?").waitFor({ timeout: 20000 });
   await reach(page, TODAY);
   await tap(page, TODAY);
-  await page.getByRole("button", { name: /Klar, / }).click();
+  await page.getByRole("button", { name: "Fortsätt", exact: true }).click();
   await page.getByText("Vad behövs?").waitFor({ timeout: 20000 });
   await field(page, "Projekt").selectOption({ label: P });
   await field(page, "Börjar").fill("00:00");

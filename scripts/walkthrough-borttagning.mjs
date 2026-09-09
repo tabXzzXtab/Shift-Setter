@@ -13,6 +13,7 @@ import { chromium, devices } from "playwright";
 import { mkdirSync } from "node:fs";
 import path from "node:path";
 import { required } from "./env.mjs";
+import { openDayPage } from "./day-page.mjs";
 
 const BASE = process.env.BASE_URL ?? "http://localhost:3000/Shift-Setter";
 const ART = "artifacts";
@@ -118,7 +119,7 @@ async function makePass(page, project, date, pick, start, end) {
   await page.getByText("Vilka dagar?").waitFor({ timeout: 20000 });
   await reach(page, date);
   await tap(page, date);
-  await page.getByRole("button", { name: /Klar, / }).click();
+  await page.getByRole("button", { name: "Fortsätt", exact: true }).click();
   await page.getByText("Vad behövs?").waitFor({ timeout: 20000 });
   await field(page, "Projekt").selectOption({ label: project });
   await field(page, "Börjar").fill(start);
@@ -129,18 +130,23 @@ async function makePass(page, project, date, pick, start, end) {
   await mustSee(page, "1 av 1 platser tillsatta", `${date} did not fill with ${pick}`);
 }
 
-/** Open a day in the shift calendar and hand back everything it says. */
-async function openDay(page, date) {
-  await page.goto(`${BASE}/kalender/`, { waitUntil: "networkidle" });
-  await reach(page, date);
-  await tap(page, date);
-  await page.waitForTimeout(1500);
+/**
+ * Open a day and hand back everything it says.
+ *
+ * `project` is optional on purpose. findCleanDays below asks about days before
+ * this run has created anything, and a day with nothing on it has no tabs to
+ * choose between; once the project exists, naming it is what keeps the text
+ * from belonging to another run's site on the same date.
+ */
+async function openDay(page, date, project) {
+  await openDayPage(page, BASE, date, project);
   return page.locator("main").innerText();
 }
 
 /**
- * Scoped to THIS run's project, never .first(): the day panel shows every
- * project working that date, and a stray match deletes somebody else's shift.
+ * Scoped to THIS run's project, never .first(). The day page shows one project
+ * at a time, but which one is a tab away and the project runs several passes
+ * here -- a stray match deletes somebody else's shift.
  * `> p` is a DIRECT child -- the panel is itself a <section> around these, so a
  * descendant match resolves to two nested elements and never settles.
  */
@@ -221,7 +227,7 @@ try {
   await makePass(page, P, TWO, W2.name, "13:00", "18:00");
 
   // ---- an arbetsledare has no such control --------------------------------
-  const asLeader = await openDay(page, ONE);
+  const asLeader = await openDay(page, ONE, P);
   if (!asLeader.includes(W.name)) fail(`${W.name} should hold ${ONE}`);
   if (await deleteButton(page, P).count()) {
     await shot(page, "FAILED");
@@ -233,7 +239,7 @@ try {
 
   // ---- a shift already under way is a fact, not a mistake ------------------
   await signIn(page, ADMIN.email, ADMIN.password);
-  await openDay(page, PAST);
+  await openDay(page, PAST, P);
   await deleteButton(page, P).waitFor({ timeout: 20000 });
   await deleteButton(page, P).click();
   await mustSee(page, "Passet har redan börjat", "a started pass was deleted");
@@ -241,14 +247,14 @@ try {
   log("a pass that has already started cannot be deleted -- it is confirmed, not erased");
 
   // ---- the admin deletes the only shift on a day --------------------------
-  await openDay(page, ONE);
+  await openDay(page, ONE, P);
   await deleteButton(page, P).click();
   await mustSee(page, "Passet är borttaget", "the future pass was not deleted");
   await shot(page, "bo3-borttaget");
   log(`the admin deleted the only pass on ${ONE}`);
 
   // ---- and the day says it was called off ---------------------------------
-  const cancelled = await openDay(page, ONE);
+  const cancelled = await openDay(page, ONE, P);
   if (cancelled.includes("Inga pass den dagen")) {
     await shot(page, "FAILED");
     fail(`${ONE} reads as an ordinary empty day; a cancelled day is a different fact`);
@@ -263,10 +269,10 @@ try {
   log("the day reads Inställd dag, names the project and counts what went");
 
   // ---- one of two is not a cancelled day ----------------------------------
-  await openDay(page, TWO);
+  await openDay(page, TWO, P);
   await deleteButton(page, P).first().click();
   await mustSee(page, "Passet är borttaget", "the first of two was not deleted");
-  const stillRunning = await openDay(page, TWO);
+  const stillRunning = await openDay(page, TWO, P);
   if (stillRunning.includes("Inställd dag")) {
     await shot(page, "FAILED");
     fail(`${TWO} still has a shift on it; calling the day off would be a lie`);
@@ -279,7 +285,7 @@ try {
   // ---- and when the last one goes ------------------------------------------
   await deleteButton(page, P).first().click();
   await mustSee(page, "Passet är borttaget", "the second of two was not deleted");
-  const bothGone = await openDay(page, TWO);
+  const bothGone = await openDay(page, TWO, P);
   if (!bothGone.includes("Inställd dag") || !bothGone.includes("2 pass borttagna")) {
     await shot(page, "FAILED");
     fail(`${TWO} should now be cancelled, counting both: ${JSON.stringify(bothGone.slice(0, 400))}`);

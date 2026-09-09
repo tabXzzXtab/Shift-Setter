@@ -25,6 +25,7 @@ import { chromium, devices } from "playwright";
 import { mkdirSync } from "node:fs";
 import path from "node:path";
 import { required } from "./env.mjs";
+import { chooseProject } from "./day-page.mjs";
 
 const BASE = process.env.BASE_URL ?? "http://localhost:3000/Shift-Setter";
 const ART = "artifacts";
@@ -125,6 +126,25 @@ async function createPerson(page, name, email, role) {
   return { email, password };
 }
 
+/**
+ * The day picker's "Valda dagar" figure.
+ *
+ * Read off the attribute rather than the rendered numeral: "12" as text also
+ * matches the 12 in a date, in a month name, and in every other number on the
+ * screen -- which is exactly how a check like this comes out green while the
+ * picker is broken.
+ */
+async function mustCount(page, n, why) {
+  try {
+    await page.locator(`[data-picked-count="${n}"]`).waitFor({ timeout: 20000 });
+  } catch {
+    const got = await page.locator("[data-picked-count]").first()
+      .getAttribute("data-picked-count").catch(() => "(no counter)");
+    await shot(page, "FAILED");
+    fail(`${why} (wanted ${n} selected, the picker says ${got})`);
+  }
+}
+
 const browser = await chromium.launch();
 const ctx = await browser.newContext({
   ...devices["Pixel 7"],          // hasTouch, isMobile -- a phone, not a desktop
@@ -210,17 +230,17 @@ try {
   await page.getByText("Vilka dagar?").waitFor({ timeout: 20000 });
 
   await touchDrag(page, MONTH_DAYS);
-  await mustSee(page, `${MONTH_DAYS.length} dag(ar) valda`, "the touch drag did not select the days");
+  await mustCount(page, MONTH_DAYS.length, "the touch drag did not select the days");
 
   // Drag back over one and it drops out; drag over it again and it returns.
   await touchTap(page, MONTH_DAYS[3]);
-  await mustSee(page, `${MONTH_DAYS.length - 1} dag(ar) valda`, "tapping a selected day did not unselect it");
+  await mustCount(page, MONTH_DAYS.length - 1, "tapping a selected day did not unselect it");
   await touchTap(page, MONTH_DAYS[3]);
-  await mustSee(page, `${MONTH_DAYS.length} dag(ar) valda`, "tapping it again did not reselect it");
+  await mustCount(page, MONTH_DAYS.length, "tapping it again did not reselect it");
   await shot(page, "31-valj-dagar");
   log(`selected ${MONTH_DAYS.length} days by touch; tapping toggles one day`);
 
-  await page.getByRole("button", { name: /Klar, / }).click();
+  await page.getByRole("button", { name: "Fortsätt", exact: true }).click();
   await page.getByText("Vad behövs?").waitFor({ timeout: 20000 });
 
   // ---- the hours prefill ----------------------------------------------------
@@ -296,6 +316,10 @@ try {
   const D = MONTH_DAYS[2], NEXT = MONTH_DAYS[3];
   await page.goto(`${BASE}/dag/`, { waitUntil: "networkidle" });
   await field(page, "Datum").fill(D);
+  // The day shows ONE project at a time, and which one it opens on is a sort
+  // order this run does not control. Both of this day's passes belong to this
+  // project, so choosing its tab is what puts them on screen.
+  await chooseProject(page, project);
   await mustSee(page, "07:00–16:00", "the day view shows no 07:00 pass to edit");
 
   await page.getByRole("button", { name: "Ändra detta pass" }).first().click();
@@ -328,13 +352,14 @@ try {
   // ---- and not inside five days --------------------------------------------
   await page.goto(`${BASE}/pass/ny/`, { waitUntil: "networkidle" });
   await touchTap(page, NEAR);
-  await page.getByRole("button", { name: /Klar, / }).click();
+  await page.getByRole("button", { name: "Fortsätt", exact: true }).click();
   await field(page, "Projekt").selectOption({ label: project });
   await page.getByRole("button", { name: /Skapa 1 pass/ }).click();
   await mustSee(page, "Passen är skapade", "the near-day pass was not created");
 
   await page.goto(`${BASE}/dag/`, { waitUntil: "networkidle" });
   await field(page, "Datum").fill(NEAR);
+  await chooseProject(page, project);
   await page.getByRole("button", { name: /^Ta bort / }).first().waitFor({ timeout: 20000 });
   await page.getByRole("button", { name: /^Ta bort / }).first().click();
   await mustSee(page, "inom fem dagar", "the five-day cutoff did not hold");
