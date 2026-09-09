@@ -3472,4 +3472,129 @@ select pg_temp.rejects($$
 $$, 'CLOSE.a_finished_pass_is_confirmed_not_closed');
 reset role;
 
+
+-- ============================================================================
+-- PERSONLIG KALENDER -- a private diary that shares a screen and nothing else
+--
+-- Driven as the real roles, never as the owner: half of this rule is a WITH
+-- CHECK, and a WITH CHECK only fires for a caller RLS applies to.
+-- ============================================================================
+
+set local role authenticated;
+select pg_temp.act_as((select v from fx where k = 'admin'));
+
+insert into public.personal_event (id, owner_id, title, event_date, all_day, colour)
+values ('eeeeeeee-0000-0000-0000-0000000000e1',
+        (select v from fx where k = 'admin'),
+        'Platsbesök Hörby', app.stockholm_today(), true, '#1b2cc1');
+
+insert into public.personal_event_viewer (event_id, account_id)
+values ('eeeeeeee-0000-0000-0000-0000000000e1', (select v from fx where k = 'leaderA'));
+reset role;
+
+-- The owner reads their own back.
+set local role authenticated;
+select pg_temp.act_as((select v from fx where k = 'admin'));
+select pg_temp.ok(
+  (select count(*) from public.personal_event
+   where id = 'eeeeeeee-0000-0000-0000-0000000000e1') = 1,
+  'PERSONAL.owner_sees_own',
+  'the person who wrote the event can read it');
+reset role;
+
+-- Named on it: leaderA sees it.
+set local role authenticated;
+select pg_temp.act_as((select v from fx where k = 'leaderA'));
+select pg_temp.ok(
+  (select count(*) from public.personal_event
+   where id = 'eeeeeeee-0000-0000-0000-0000000000e1') = 1,
+  'PERSONAL.named_can_see',
+  'somebody named on the event can read it');
+reset role;
+
+-- NOT named on it: leaderB sees nothing. This is the whole point of the
+-- feature, and RLS FILTERS rather than raising -- so the assertion is on the
+-- count, not on an exception.
+set local role authenticated;
+select pg_temp.act_as((select v from fx where k = 'leaderB'));
+select pg_temp.ok(
+  (select count(*) from public.personal_event
+   where id = 'eeeeeeee-0000-0000-0000-0000000000e1') = 0,
+  'PERSONAL.unnamed_cannot_see',
+  'an arbetsledare who was not named cannot read the event');
+reset role;
+
+-- A SECOND ADMIN IS NOT ABOVE THIS. is_admin() is deliberately absent from
+-- the read policy: the admin's reach over shift data is not a reach over
+-- somebody else's diary, and "personlig" would mean nothing if it were.
+set local role authenticated;
+select pg_temp.act_as((select v from fx where k = 'admin2'));
+select pg_temp.ok(
+  (select count(*) from public.personal_event
+   where id = 'eeeeeeee-0000-0000-0000-0000000000e1') = 0,
+  'PERSONAL.another_admin_cannot_see',
+  'an admin who did not write the event cannot read it either');
+reset role;
+
+-- Being shown an event is not being given it. The UPDATE matches no visible
+-- row and is a silent no-op, so this asserts on state.
+set local role authenticated;
+select pg_temp.act_as((select v from fx where k = 'leaderA'));
+update public.personal_event set title = 'Ändrad av fel person'
+where id = 'eeeeeeee-0000-0000-0000-0000000000e1';
+delete from public.personal_event
+where id = 'eeeeeeee-0000-0000-0000-0000000000e1';
+reset role;
+
+select pg_temp.ok(
+  (select title from public.personal_event
+   where id = 'eeeeeeee-0000-0000-0000-0000000000e1') = 'Platsbesök Hörby',
+  'PERSONAL.viewer_cannot_edit',
+  'a named viewer can read the event and cannot change or delete it');
+
+-- The WITH CHECK, which is the half a USING clause cannot hold up: an account
+-- may not write a row that names somebody else as its owner.
+set local role authenticated;
+select pg_temp.act_as((select v from fx where k = 'admin2'));
+select pg_temp.rejects($$
+  insert into public.personal_event (owner_id, title, event_date, all_day, colour)
+  values ((select v from fx where k = 'admin'), 'Falsk',
+          app.stockholm_today(), true, '#1b2cc1')
+$$, 'PERSONAL.cannot_create_in_another_name');
+reset role;
+
+-- "All day" is a different claim from "a long event", and one constraint keeps
+-- the two shapes out of the same row.
+set local role authenticated;
+select pg_temp.act_as((select v from fx where k = 'admin'));
+select pg_temp.rejects($$
+  insert into public.personal_event (owner_id, title, event_date, all_day,
+                                     start_time, end_time, colour)
+  values ((select v from fx where k = 'admin'), 'Blandad',
+          app.stockholm_today(), true, '07:00', '16:00', '#1b2cc1')
+$$, 'PERSONAL.all_day_carries_no_times');
+
+select pg_temp.rejects($$
+  insert into public.personal_event (owner_id, title, event_date, all_day, colour)
+  values ((select v from fx where k = 'admin'), 'Fel färg',
+          app.stockholm_today(), true, '#123456')
+$$, 'PERSONAL.colour_is_from_the_palette');
+reset role;
+
+-- IT IS NOT SHIFT DATA, and this is the assertion that keeps it that way when
+-- somebody later reaches for a convenient join. A personal event references
+-- nothing the Arbetsdagbok reads, and nothing the tier walk reads.
+select pg_temp.ok(
+  not exists (
+    select 1
+    from pg_constraint c
+    join pg_class t on t.oid = c.conrelid
+    join pg_class r on r.oid = c.confrelid
+    where c.contype = 'f'
+      and t.relname in ('personal_event', 'personal_event_viewer')
+      and r.relname in ('pass', 'tilldelning', 'project_day', 'project', 'arbetsdagbok')
+  ),
+  'PERSONAL.touches_no_shift_table',
+  'a personal event references nothing the shift logic or the document reads');
+
 select pg_temp.ok(true, 'SUITE.complete', 'every assertion passed');

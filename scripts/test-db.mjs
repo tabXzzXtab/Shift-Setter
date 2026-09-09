@@ -46,6 +46,26 @@ const perturb = (find, replace) => perturbIn("app.fill_pass(uuid)", find, replac
 
 /** Each control: disable one protection, name the assertion that must then fail. */
 const CONTROLS = [
+  ["personlig kalender -- an event is private to its owner and whoever they named",
+   // The read policy made permissive. Everything else about the feature still
+   // works, which is the point: a calendar that showed everybody everything
+   // would look entirely correct to whoever wrote it.
+   "drop policy personal_event_select on public.personal_event; " +
+   "create policy personal_event_select on public.personal_event for select using (true)",
+   "PERSONAL.unnamed_cannot_see"],
+
+  ["personlig kalender -- nobody writes an event in another person's name",
+   // ONLY THE WITH CHECK IS PERTURBED. The USING clause is left owner-scoped
+   // on purpose: personal_event_write is FOR ALL, so its USING also serves
+   // SELECT, and removing it would land on PERSONAL.unnamed_cannot_see -- the
+   // control above -- rather than on anything about writing. What is left is
+   // the half a USING clause cannot hold up, which is the half that decides
+   // whose name a new row may carry.
+   "drop policy personal_event_write on public.personal_event; " +
+   "create policy personal_event_write on public.personal_event for all " +
+   "using (owner_id = (select auth.uid())) with check (true)",
+   "PERSONAL.cannot_create_in_another_name"],
+
   ["invariant 2 -- no two assignments whose hours overlap",
    // The index this used to drop is gone: invariant 2 is a no-overlap rule
    // now, and a trigger is what holds it up.
