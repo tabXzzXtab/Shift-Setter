@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { PinIcon } from "./icons";
+import { C, EmptyState, SHADOW } from "./soft";
 import { hhmm, longDayHeading } from "@/lib/dates";
 
 const ProjectMap = dynamic(() => import("./project-map"), { ssr: false });
@@ -16,30 +16,29 @@ export type Offer = {
   site_address: string;
 };
 
-/** How many slivers show behind the front card. */
-const BEHIND = 3;
-
-/** Each layer back: down this far, and this much smaller. */
-const STEP_Y = 8;
-const STEP_SCALE = 0.05;
+/** The slabs' own shadow -- softer than a card's, because they are not one. */
+const SHADOW_SLAB = "0 6px 16px rgba(9,21,64,.06)";
 
 /**
- * Acceptera Pass, stacked the way a phone stacks notifications.
+ * Acceptera Pass, as the handoff draws it.
  *
- * The front card is whole and is the only one that can be answered. Behind it
- * sit at most three slivers, each 8px lower and 5% smaller than the one in
- * front, aligned and centred -- no rotation, no scatter, no angles. A fanned
- * deck says "shuffle me"; a stack says "there are more behind this one", which
- * is the only thing the cards behind need to say.
+ * TWO SLABS AND A CARD. The front card is whole and is the only one that can
+ * be answered; behind it sit exactly two white slabs, 24px tall, peeping out
+ * 7px and 4px below at .55 and .8 opacity. Not a fanned deck -- a fan says
+ * "shuffle me", and the only thing the cards behind need to say is "there are
+ * more of these". They are aria-hidden: a 24px sliver cannot show a project
+ * name, and reading out two cards nobody can act on would make the list longer
+ * for the people it is hardest for. The count beside the section label is what
+ * tells everyone how many are waiting.
  *
- * They are drawn as empty boxes and hidden from screen readers. A sliver 8px
- * tall cannot show a project name, and reading out three cards nobody can act
- * on would make the list longer for the people it is hardest for. The count
- * under the stack is what tells everyone else how many are waiting.
+ * ONE DEFINITION OF THE CARD, used by the arbetare's startsida and by Acceptera
+ * Pass itself, so the same offer cannot look like two different things
+ * depending on how it was reached. It was drawn on the startsida first, from
+ * the handoff; it lives here now for the same reason SoftNastaPass moved.
  *
- * ONE definition of the card, used by the landing page and by Acceptera Pass
- * itself, so the same offer cannot look like two different things depending on
- * how it was reached.
+ * The map is the real map view centred on the shift address, inset 16px on
+ * three sides at radius 9 -- not a placeholder, which is what the design file
+ * could only show.
  */
 export function OfferStack({
   offers,
@@ -50,93 +49,97 @@ export function OfferStack({
   busy: boolean;
   onRespond: (passId: string, take: boolean) => void;
 }) {
-  if (offers.length === 0) {
-    return (
-      <p className="border-2 border-dashed border-black p-6 text-center text-base">
-        Inga pass erbjuds just nu.
-      </p>
-    );
-  }
-
-  const front = offers[0]!;
-  const behind = Math.min(offers.length - 1, BEHIND);
+  const front = offers[0];
+  if (!front) return <EmptyState>Inga pass erbjuds just nu.</EmptyState>;
 
   return (
-    <div>
-      <div className="relative">
-        {/* Furthest back first, so the DOM order and the stacking order agree.
-            transform-origin is the BOTTOM edge: scaling then keeps that edge
-            put and the translate moves it down, which is what leaves a sliver
-            showing under the card in front. */}
-        {Array.from({ length: behind }, (_, i) => {
-          const depth = behind - i;      // 3, 2, 1 -- deepest drawn first
-          return (
-            <div
-              key={depth}
-              aria-hidden
-              className="absolute inset-0 border-2 border-black bg-white"
-              style={{
-                transformOrigin: "bottom center",
-                transform: `translateY(${depth * STEP_Y}px) scale(${1 - depth * STEP_SCALE})`,
-                zIndex: BEHIND - depth,
-              }}
-            />
-          );
-        })}
+    <div className="relative">
+      {/* The stack illusion: two slabs behind the card, nothing more. */}
+      <div
+        data-stack-slab="deep"
+        className="absolute bottom-[-7px] left-[14px] right-[14px] h-6 rounded-[14px] opacity-55"
+        style={{ background: C.surface, boxShadow: SHADOW_SLAB }}
+        aria-hidden
+      />
+      <div
+        data-stack-slab="near"
+        className="absolute bottom-[-4px] left-[7px] right-[7px] h-6 rounded-[14px] opacity-80"
+        style={{ background: C.surface, boxShadow: SHADOW_SLAB }}
+        aria-hidden
+      />
 
-        <section
-          data-offer-card="front"
-          className="relative border-2 border-black bg-white"
-          style={{ zIndex: BEHIND + 1 }}
-        >
-          {front.site_address && <ProjectMap address={front.site_address} />}
-          <div className="p-4">
-            <p className="text-xl font-bold">{front.project_name}</p>
-            <p className="flex items-start gap-2 text-base">
-              <span className="mt-[2px] shrink-0"><PinIcon /></span>
-              <span>{front.site_address}</span>
-            </p>
-            <p className="mt-2 text-base font-bold">{longDayHeading(front.work_date)}</p>
-            <p className="text-base text-neutral-700">
-              {hhmm(front.start_time)}–{hhmm(front.end_time)} ·{" "}
+      <div
+        data-offer-card="front"
+        className="relative overflow-hidden rounded-[15px]"
+        style={{ background: C.surface, boxShadow: SHADOW.offer }}
+      >
+        {front.site_address && (
+          <div
+            className="mx-4 mt-4 h-[150px] overflow-hidden rounded-[9px]"
+            style={{ background: C.panel, boxShadow: "inset 0 0 0 1px rgba(9,21,64,.06)" }}
+          >
+            <ProjectMap address={front.site_address} />
+          </div>
+        )}
+
+        <div className="px-5 pb-5 pt-4">
+          <div className="mb-4 flex items-baseline justify-between gap-3">
+            <div className="text-[21px] font-bold" style={{ letterSpacing: "-.5px" }}>
+              {front.project_name}
+            </div>
+            <span className="text-right text-[15px] font-medium" style={{ color: C.text2 }}>
+              {front.site_address}
+            </span>
+          </div>
+
+          <div
+            className="mb-4 flex items-baseline justify-between gap-3 rounded-[10px] px-4 py-[14px]"
+            style={{ background: C.panel2 }}
+          >
+            <div>
+              <div
+                className="mb-[3px] text-[12px] font-bold uppercase"
+                style={{ letterSpacing: ".9px", color: C.text2 }}
+              >
+                {longDayHeading(front.work_date)}
+              </div>
+              <div className="text-[20px] font-extrabold" style={{ letterSpacing: "-.5px" }}>
+                {hhmm(front.start_time)}–{hhmm(front.end_time)}
+              </div>
+            </div>
+            {/*
+              Typed by a human and never derived from the span -- invariant 1,
+              and the handoff says the same thing in its own words.
+            */}
+            <div className="whitespace-nowrap text-[15px] font-bold" style={{ color: C.accent }}>
               {String(front.planned_hours).replace(".", ",")} h
-            </p>
-
-            {/* Acceptera left, Neka right. Both full height, because a smaller
-                Neka would be a thumb pressed the wrong way. */}
-            <div className="mt-4 grid grid-cols-2 gap-3">
-              <button
-                type="button"
-                onClick={() => onRespond(front.pass_id, true)}
-                disabled={busy}
-                className="flex min-h-[56px] items-center justify-center border-2 border-black bg-black px-3 text-lg font-bold text-white disabled:opacity-30"
-              >
-                Acceptera
-              </button>
-              <button
-                type="button"
-                onClick={() => onRespond(front.pass_id, false)}
-                disabled={busy}
-                className="flex min-h-[56px] items-center justify-center border-2 border-black px-3 text-lg font-bold disabled:opacity-30"
-              >
-                Neka
-              </button>
             </div>
           </div>
-        </section>
-      </div>
 
-      {/* The stack hides how deep it is, so the number is written out. Placed
-          below the slivers rather than over them, which would need a badge
-          sitting on a card that is not the one you can answer. */}
-      {offers.length > 1 && (
-        <p
-          className="text-center text-base font-bold"
-          style={{ marginTop: `${behind * STEP_Y + 12}px` }}
-        >
-          {offers.length - 1} till
-        </p>
-      )}
+          {/* Acceptera left and twice the width, Neka right. Both 54px tall,
+              because a smaller Neka would be a thumb pressed the wrong way. */}
+          <div className="flex gap-[10px]">
+            <button
+              type="button"
+              onClick={() => onRespond(front.pass_id, true)}
+              disabled={busy}
+              className="press-scale h-[54px] flex-[2] rounded-[10px] text-[17px] font-bold text-white transition-transform duration-[120ms] hover:bg-[#12206b] active:scale-[.985] disabled:opacity-60"
+              style={{ letterSpacing: "-.2px", background: C.accent }}
+            >
+              Acceptera
+            </button>
+            <button
+              type="button"
+              onClick={() => onRespond(front.pass_id, false)}
+              disabled={busy}
+              className="press-scale h-[54px] flex-1 rounded-[10px] text-[17px] font-semibold transition-transform duration-[120ms] hover:bg-[#dbe4f9] active:scale-[.985] disabled:opacity-60"
+              style={{ letterSpacing: "-.2px", background: C.panel, color: C.inkHover }}
+            >
+              Neka
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

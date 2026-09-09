@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { AuthGate } from "@/components/auth-gate";
-import { Notice, Screen } from "@/components/ui";
+import { C, Card, Segmented, SoftNotice, SoftScreen } from "@/components/soft";
 import { PaintCalendar } from "@/components/paint-calendar";
 import { getSupabase } from "@/lib/supabase/client";
 import { addDays, stockholmToday } from "@/lib/dates";
@@ -10,10 +10,6 @@ import { useAccount } from "@/lib/account";
 
 type Mark = boolean; // true = can work, false = cannot
 type Marks = Record<string, Mark>;
-
-/** Diagonal hatch for "cannot work". Reads at cell size and needs no colour. */
-const HATCH =
-  "bg-[repeating-linear-gradient(45deg,#000_0_2px,transparent_2px_7px)] bg-white";
 
 /**
  * Min kalender -- the worker paints the days they can work.
@@ -127,83 +123,140 @@ function MinKalender() {
 
   if (!workerId) {
     return (
-      <Screen title="Min kalender" back="/">
-        <Notice kind="info">Ditt konto har ingen arbetarprofil.</Notice>
-      </Screen>
+      <SoftScreen title="Min kalender" back="/">
+        <div className="px-4 pt-[2px]">
+          <SoftNotice tone="quiet">Ditt konto har ingen arbetarprofil.</SoftNotice>
+        </div>
+      </SoftScreen>
     );
   }
 
+  const yesCount = Object.values(marks).filter((v) => v === true).length;
+  const noCount = Object.values(marks).filter((v) => v === false).length;
+
   return (
-    <Screen title="Min kalender" back="/">
-      {error && <Notice kind="error">{error}</Notice>}
+    <SoftScreen
+      title="Min kalender"
+      back="/"
+      subtitle="Tryck på en dag, eller dra över flera."
+    >
+      {error && <div className="px-4 pb-[4px] pt-[10px]"><SoftNotice tone="stop">{error}</SoftNotice></div>}
 
-      <p className="mb-4 text-base">Tryck på en dag, eller dra över flera.</p>
-
-      <div className="mb-4 grid grid-cols-2 gap-2">
-        <button
-          type="button"
-          aria-pressed={mode === true}
-          onClick={() => setMode(true)}
-          className={`min-h-[56px] border-2 border-black text-base font-bold ${
-            mode ? "bg-black text-white" : "bg-white text-black"
-          }`}
-        >
-          Kan jobba
-        </button>
-        <button
-          type="button"
-          aria-pressed={mode === false}
-          onClick={() => setMode(false)}
-          className={`min-h-[56px] border-2 border-black text-base font-bold ${
-            !mode ? "bg-black text-white" : "bg-white text-black"
-          }`}
-        >
-          Kan inte
-        </button>
+      {/* The mode switch decides what a tap WRITES; tapping a day already in
+          that state clears it back to "Inte sagt". Three states, one gesture. */}
+      <div className="px-4 pt-[14px]">
+        <Segmented
+          label="Vad en tryckning betyder"
+          value={mode ? "yes" : "no"}
+          onChange={(v) => setMode(v === "yes")}
+          options={[
+            { value: "yes", label: "Kan jobba" },
+            { value: "no", label: "Kan inte" },
+          ]}
+        />
       </div>
 
-      <PaintCalendar
-        month={month}
-        onMonthChange={setMonth}
-        onPaint={paint}
-        onPaintEnd={() => setPendingWrite(true)}
-        look={(date) => {
-          const mark = marks[date];
-          const past = date < today;
-          return {
-            className:
-              (mark === true ? "bg-black text-white"
-                : mark === false ? `text-black ${HATCH}`
-                : "bg-white text-black") + (past ? " opacity-40" : ""),
-            label: `${Number(date.slice(8))} ${
-              mark === true ? "kan jobba" : mark === false ? "kan inte" : "omarkerad"
-            }`,
-          };
-        }}
-        cellContent={(date, day) => (
-          <span className={marks[date] === false ? "bg-white px-1" : undefined}>{day}</span>
-        )}
-      />
-
-      <p className="mt-4 text-base" aria-live="polite">
-        {saving ? "Sparar…" : "Sparas automatiskt."}
-      </p>
-
-      <div className="mt-6 flex flex-col gap-3 text-base">
-        <span className="flex items-center gap-3">
-          <span className="inline-block h-10 w-10 border-2 border-black bg-black" />
-          Kan jobba
-        </span>
-        <span className="flex items-center gap-3">
-          <span className={`inline-block h-10 w-10 border-2 border-black ${HATCH}`} />
-          Kan inte
-        </span>
-        <span className="flex items-center gap-3">
-          <span className="inline-block h-10 w-10 border-2 border-black bg-white" />
-          Inte sagt
-        </span>
+      <div className="px-4 pt-[14px]">
+        <PaintCalendar
+          month={month}
+          onMonthChange={setMonth}
+          onPaint={paint}
+          onPaintEnd={() => setPendingWrite(true)}
+          look={(date) => {
+            const mark = marks[date];
+            const past = date < today;
+            return {
+              className: mark === undefined ? "font-semibold" : "font-extrabold",
+              style: {
+                background: past
+                  ? "transparent"
+                  : mark === true ? C.accent
+                    : mark === false ? C.stopBg
+                      : C.panel2,
+                // The unavailable day gets a ring as well as a fill, so it is
+                // not a colour alone that separates it from an unmarked one.
+                boxShadow: !past && mark === false ? "inset 0 0 0 1.5px #f0cdd2" : undefined,
+                color: past
+                  ? C.chevron
+                  : mark === true ? C.surface
+                    : mark === false ? C.stopInk
+                      : C.ink,
+                cursor: past ? "default" : "pointer",
+              },
+              label: `${Number(date.slice(8))} ${
+                mark === true ? "kan jobba" : mark === false ? "kan inte" : "omarkerad"
+              }`,
+            };
+          }}
+        />
       </div>
-    </Screen>
+
+      {/* Availability is advisory and autosaves -- so the screen says so in
+          the live pair rather than making anybody look for a Spara. */}
+      <div className="px-4 pt-[14px]">
+        <div
+          className="flex items-center gap-2 rounded-[12px] px-4 py-3"
+          style={{ background: C.liveBg }}
+          aria-live="polite"
+        >
+          {!saving && (
+            <svg width="13" height="10" viewBox="0 0 11 9" fill="none" aria-hidden>
+              <path d="M1 4.6 4 7.6 10 1.4" stroke={C.liveInk} strokeWidth="2.2"
+                strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          )}
+          <span className="text-[15px] font-semibold" style={{ color: C.liveInk }}>
+            {saving ? "Sparar…" : "Sparas automatiskt"}
+          </span>
+        </div>
+      </div>
+
+      {/*
+        Colour is never the only carrier: "Kan inte" pairs its fill with an ✕,
+        and every row is named in words. The counts are live, because the
+        question this screen answers is "how many days have I said yes to".
+      */}
+      <div className="px-4 pt-[14px]">
+        <Card radius={14} pad="px-4 py-[14px]" className="flex flex-col gap-3">
+          <div className="flex items-center gap-[10px]">
+            <span
+              className="h-[22px] w-[22px] shrink-0 rounded-[7px]"
+              style={{ background: C.accent }}
+            />
+            <span className="text-[15px] font-semibold">Kan jobba</span>
+            <span className="ml-auto text-[15px] font-bold" style={{ color: C.text2 }}>
+              {yesCount}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-[10px]">
+            <span
+              className="flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-[7px]"
+              style={{ background: C.stopBg, boxShadow: "inset 0 0 0 1.5px #f0cdd2" }}
+            >
+              <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden>
+                <path d="M1.6 1.6l6.8 6.8M8.4 1.6l-6.8 6.8" stroke={C.stopInk}
+                  strokeWidth="1.8" strokeLinecap="round" />
+              </svg>
+            </span>
+            <span className="text-[15px] font-semibold">Kan inte</span>
+            <span className="ml-auto text-[15px] font-bold" style={{ color: C.text2 }}>
+              {noCount}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-[10px]">
+            <span
+              className="h-[22px] w-[22px] shrink-0 rounded-[7px]"
+              style={{ background: C.panel2 }}
+            />
+            <span className="text-[15px] font-semibold" style={{ color: C.text2 }}>
+              Inte sagt
+            </span>
+          </div>
+        </Card>
+      </div>
+    </SoftScreen>
   );
 }
 

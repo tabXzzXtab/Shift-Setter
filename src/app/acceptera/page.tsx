@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { AuthGate } from "@/components/auth-gate";
-import { Notice, Screen } from "@/components/ui";
+import { C, SoftNotice, SoftScreen } from "@/components/soft";
 import { OfferStack, type Offer } from "@/components/offer-stack";
 import { getSupabase } from "@/lib/supabase/client";
 
@@ -68,16 +68,39 @@ function Acceptera() {
   }
 
   if (offers === null) {
-    return <Screen title="Acceptera pass" back="/"><span>Laddar…</span></Screen>;
+    return (
+      <SoftScreen title="Acceptera pass" back="/">
+        <p className="px-5 text-[15px] font-medium" style={{ color: C.text2 }}>Laddar…</p>
+      </SoftScreen>
+    );
   }
 
   return (
-    <Screen title="Acceptera pass" back="/">
-      {error && <Notice kind="error">{error}</Notice>}
-      {note && <Notice kind="info">{note}</Notice>}
+    <SoftScreen title="Acceptera pass" back="/">
+      {(error || note) && (
+        <div className="px-4 pb-[10px] pt-[2px]">
+          {error && <SoftNotice tone="stop">{error}</SoftNotice>}
+          {/* Losing is normal here, so it is worded and coloured as a fact
+              rather than a fault: somebody else was quicker. */}
+          {note && !error && <SoftNotice tone="quiet">{note}</SoftNotice>}
+        </div>
+      )}
 
-      <OfferStack offers={offers} busy={busy} onRespond={respond} />
-    </Screen>
+      <div className="px-4 pt-[2px]">
+        <div className="flex items-baseline justify-between px-1 pb-[10px]">
+          <div className="text-[12px] font-bold uppercase" style={{ letterSpacing: "1px", color: C.text2 }}>
+            Erbjudna pass
+          </div>
+          {offers.length > 1 && (
+            <div className="text-[12px] font-bold" style={{ color: C.accent }}>
+              {offers.length} till
+            </div>
+          )}
+        </div>
+
+        <OfferStack offers={offers} busy={busy} onRespond={respond} />
+      </div>
+    </SoftScreen>
   );
 }
 

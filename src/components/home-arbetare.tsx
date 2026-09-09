@@ -1,19 +1,14 @@
 "use client";
 
-import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { SoftNastaPass } from "./nasta-pass-card";
-import { type Offer } from "./offer-stack";
+import { OfferStack, type Offer } from "./offer-stack";
 import { GroupedList, SoftSheet } from "./soft";
 import { SignOut } from "./ui";
 import { getSupabase } from "@/lib/supabase/client";
-import { addDays, hhmm, longDayHeading, stockholmToday } from "@/lib/dates";
+import { addDays, hhmm, stockholmToday } from "@/lib/dates";
 import { stampGate } from "@/lib/geo";
-
-// Leaflet reaches for `window` on import and this app is prerendered, so the
-// map is loaded in the browser only -- and only once there is an address.
-const ProjectMap = dynamic(() => import("./project-map"), { ssr: false });
 
 type Shift = {
   id: string;
@@ -45,14 +40,11 @@ const CHEVRON = "#8b98c4";      // chevrons, inactive dot
 const GROUND = "#f3f6fd";       // app background
 const SURFACE = "#ffffff";      // cards
 const PANEL = "#e7edfb";        // empty states, map ground, "Neka"
-const PANEL_2 = "#eef3fe";      // inset time panel
 const HAIRLINE = "#e3eafb";     // row divider
 
 const SHADOW_FLAT = "0 1px 3px rgba(9,21,64,.08)";
 const SHADOW_GROUP = "0 4px 18px rgba(9,21,64,.07), 0 1px 2px rgba(9,21,64,.05)";
 const SHADOW_HERO = "0 8px 28px rgba(9,21,64,.09), 0 1px 2px rgba(9,21,64,.05)";
-const SHADOW_OFFER = "0 10px 30px rgba(9,21,64,.10), 0 1px 2px rgba(9,21,64,.05)";
-const SHADOW_SLAB = "0 6px 16px rgba(9,21,64,.06)";
 
 /** #e7edfb, radius 14, 22px, centred, 15/500. Used by both empty states. */
 function EmptyPanel({ children }: { children: React.ReactNode }) {
@@ -451,95 +443,11 @@ export function HomeArbetare() {
         {offers !== null && !front && <EmptyPanel>Inga pass att svara på.</EmptyPanel>}
 
         {front && (
-          <div className="relative">
-            {/* The stack illusion: two slabs behind the card, nothing more. */}
-            <div
-              data-stack-slab="deep"
-              className="absolute bottom-[-7px] left-[14px] right-[14px] h-6 rounded-[14px] opacity-55"
-              style={{ background: SURFACE, boxShadow: SHADOW_SLAB }}
-              aria-hidden
-            />
-            <div
-              data-stack-slab="near"
-              className="absolute bottom-[-4px] left-[7px] right-[7px] h-6 rounded-[14px] opacity-80"
-              style={{ background: SURFACE, boxShadow: SHADOW_SLAB }}
-              aria-hidden
-            />
-
-            <div
-              data-offer-card="front"
-              className="relative overflow-hidden rounded-[15px]"
-              style={{ background: SURFACE, boxShadow: SHADOW_OFFER }}
-            >
-              {front.site_address && (
-                <div
-                  className="mx-4 mt-4 h-[150px] overflow-hidden rounded-[9px]"
-                  style={{ background: PANEL, boxShadow: "inset 0 0 0 1px rgba(9,21,64,.06)" }}
-                >
-                  <ProjectMap address={front.site_address} />
-                </div>
-              )}
-
-              <div className="px-5 pb-5 pt-4">
-                <div className="mb-4 flex items-baseline justify-between gap-3">
-                  <div className="text-[21px] font-bold" style={{ letterSpacing: "-.5px" }}>
-                    {front.project_name}
-                  </div>
-                  <span className="text-right text-[15px] font-medium" style={{ color: TEXT_2 }}>
-                    {front.site_address}
-                  </span>
-                </div>
-
-                <div
-                  className="mb-4 flex items-baseline justify-between gap-3 rounded-[10px] px-4 py-[14px]"
-                  style={{ background: PANEL_2 }}
-                >
-                  <div>
-                    <div
-                      className="mb-[3px] text-[12px] font-bold uppercase"
-                      style={{ letterSpacing: ".9px", color: TEXT_2 }}
-                    >
-                      {longDayHeading(front.work_date)}
-                    </div>
-                    <div className="text-[20px] font-extrabold" style={{ letterSpacing: "-.5px" }}>
-                      {hhmm(front.start_time)}–{hhmm(front.end_time)}
-                    </div>
-                  </div>
-                  {/*
-                    Typed by a human and never derived from the span -- invariant
-                    1, and the handoff says the same thing in its own words.
-                  */}
-                  <div
-                    className="whitespace-nowrap text-[15px] font-bold"
-                    style={{ color: ACCENT }}
-                  >
-                    {String(front.planned_hours).replace(".", ",")} h
-                  </div>
-                </div>
-
-                <div className="flex gap-[10px]">
-                  <button
-                    type="button"
-                    onClick={() => respond(front.pass_id, true)}
-                    disabled={waiting}
-                    className="press-scale h-[54px] flex-[2] rounded-[10px] text-[17px] font-bold text-white transition-transform duration-[120ms] hover:bg-[#12206b] active:scale-[.985] disabled:opacity-60"
-                    style={{ letterSpacing: "-.2px", background: ACCENT }}
-                  >
-                    Acceptera
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => respond(front.pass_id, false)}
-                    disabled={waiting}
-                    className="press-scale h-[54px] flex-1 rounded-[10px] text-[17px] font-semibold transition-transform duration-[120ms] hover:bg-[#dbe4f9] active:scale-[.985] disabled:opacity-60"
-                    style={{ letterSpacing: "-.2px", background: PANEL, color: INK_HOVER }}
-                  >
-                    Neka
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
+          <OfferStack
+            offers={offers ?? []}
+            busy={waiting}
+            onRespond={respond}
+          />
         )}
       </div>
 

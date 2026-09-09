@@ -238,7 +238,6 @@ function NyttPass() {
       >
         <div className="px-4 pt-[14px]">
           <PaintCalendar
-            soft
             month={month}
             onMonthChange={setMonth}
             onPaint={toggleDay}
