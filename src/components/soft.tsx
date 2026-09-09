@@ -246,8 +246,12 @@ export function SoftField({
 }) {
   return (
     <label className="block">
+      {/* 2px under the label when a help line follows it, 6px when none does.
+          The label and its help are one block with one gap beneath -- 6px
+          twice would open a hole between a field's name and its explanation
+          the same size as the one before the input. */}
       <span
-        className="mb-[6px] block text-[12px] font-bold uppercase"
+        className={`block text-[12px] font-bold uppercase ${help ? "mb-[2px]" : "mb-[6px]"}`}
         style={{ letterSpacing: ".9px", color: C.text2 }}
       >
         {label}
@@ -271,6 +275,24 @@ export function SoftInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
     <input
       {...rest}
       className={`h-[52px] w-full rounded-[10px] border-0 px-[14px] text-[16px] font-semibold outline-none focus:bg-white focus:outline-2 focus:outline-[#1b2cc1] ${className}`}
+      style={{ background: C.panel2, color: C.ink, ...style }}
+    />
+  );
+}
+
+/**
+ * The multi-line variant of SoftInput, for the one field that is prose.
+ *
+ * Same fill, radius, focus ring and type as the input -- only the height
+ * differs, and it is a minimum rather than the input's fixed 52 because a
+ * description that has outgrown two lines should show what it says.
+ */
+export function SoftTextarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
+  const { className = "", style, ...rest } = props;
+  return (
+    <textarea
+      {...rest}
+      className={`min-h-[76px] w-full resize-y rounded-[10px] border-0 px-[14px] py-[13px] text-[16px] font-semibold outline-none focus:bg-white focus:outline-2 focus:outline-[#1b2cc1] ${className}`}
       style={{ background: C.panel2, color: C.ink, ...style }}
     />
   );
@@ -379,23 +401,40 @@ export function Tag({ tone, children }: { tone: "live" | "warn" | "stop" | "quie
  * The handoff does not draw error states, so these reuse its signal pairs.
  */
 export function SoftNotice({
-  tone, children,
+  tone, headline, children,
 }: {
   tone: "live" | "warn" | "stop" | "quiet";
+  /** 17/800 above the body. The handoff draws one: "Dagen kördes utan
+   *  arbetsledare." on Granska pass, where the panel is the reason the screen
+   *  exists rather than an aside on it. */
+  headline?: string;
   children: ReactNode;
 }) {
   const pair = {
     live: [C.liveInk, C.liveBg],
     warn: [C.warnInk, C.warnBg],
     stop: [C.stopInk, C.stopBg],
-    quiet: [C.text2, C.panel],
+    /** The handoff's own inset notice -- "Bekräftat är slutgiltigt." It is
+     *  #eef3fe rather than the empty state's #e7edfb, and 600 rather than 500,
+     *  because it is a statement the screen is making, not a shrug. */
+    quiet: [C.inkHover, C.panel2],
   }[tone];
   return (
     <div
       role={tone === "stop" ? "alert" : "status"}
-      className="rounded-[14px] p-[18px] text-[15px] font-medium"
-      style={{ color: pair[0], background: pair[1] }}
+      className={`rounded-[12px] px-4 py-[14px] text-[15px] ${
+        tone === "quiet" ? "font-semibold" : "font-medium"
+      }`}
+      style={{ color: pair[0], background: pair[1], textWrap: "pretty" }}
     >
+      {headline && (
+        <div
+          className="mb-[6px] text-[17px] font-extrabold"
+          style={{ letterSpacing: "-.3px", color: tone === "warn" ? C.tagWarnInk : pair[0] }}
+        >
+          {headline}
+        </div>
+      )}
       {children}
     </div>
   );
@@ -404,15 +443,13 @@ export function SoftNotice({
 /**
  * The handoff's bottom sheet, which is what a menu is in this design.
  *
- * From the BOTTOM rather than the top, unlike app-bar's DropPanel: the sheet
- * is where a thumb already is, and the handoff draws the home behind it
+ * From the BOTTOM rather than the top, unlike the DropPanel it replaced: the
+ * sheet is where a thumb already is, and the handoff draws the home behind it
  * blurred and dimmed rather than merely darkened, so the page it covers is
  * still legible as the place you will come back to.
  *
- * DropPanel stays where it is until the admin's screens move too. Two menus in
- * two languages for one release is the cost of migrating a role at a time; one
- * app with a blue sheet on one landing page and a black panel on another,
- * forever, would not be.
+ * All three landing pages open this one. The panel from the top went with the
+ * admin's screens, which were the last role still wearing it.
  *
  * Tapping the scrim closes it, so does Escape, and so does the Stäng button --
  * three ways out, because a sheet with no visible exit is the thing people get

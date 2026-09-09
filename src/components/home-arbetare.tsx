@@ -3,9 +3,9 @@
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { DropPanel } from "./app-bar";
 import { SoftNastaPass } from "./nasta-pass-card";
 import { type Offer } from "./offer-stack";
+import { GroupedList, SoftSheet } from "./soft";
 import { SignOut } from "./ui";
 import { getSupabase } from "@/lib/supabase/client";
 import { addDays, hhmm, longDayHeading, stockholmToday } from "@/lib/dates";
@@ -95,9 +95,10 @@ const Chevron = () => (
  * gate, the two RPCs, the offer responses -- is unchanged from before it.
  *
  * IT DRAWS ITS OWN TOP BAR rather than using AppBar, because the handoff's icon
- * buttons are a different shape and AppBar is shared with the admin and
- * arbetsledare screens, which this redesign does not cover. The panels BEHIND
- * those buttons are AppBar's, imported, so "Logga ut" still lives in one place.
+ * buttons are a different shape and AppBar is shared with the admin screens,
+ * which this redesign does not cover. Behind those buttons are soft.tsx's
+ * bottom sheets, the same two the arbetsledare's startsida opens, and the
+ * "Logga ut" inside one of them is still ui.tsx's single SignOut.
  */
 export function HomeArbetare() {
   const [shift, setShift] = useState<Shift | null | undefined>(undefined);
@@ -542,40 +543,26 @@ export function HomeArbetare() {
         )}
       </div>
 
-      {/* The panels behind the two icon buttons. AppBar's, not a second copy --
-          SignOut has to live in exactly one place. */}
+      {/* ---- the two sheets ------------------------------------------------
+          The handoff draws a menu as a bottom sheet, not a panel from the top:
+          it opens where a thumb already is, and the home behind it stays
+          legible under the scrim rather than being blacked out. All three
+          landing pages open this same sheet now. */}
       {open === "menu" && (
-        <DropPanel onClose={() => setOpen(null)} label="Meny">
-          <nav className="flex flex-col gap-3">
-            <Link
-              href="/oppna-pass"
-              className="flex min-h-[56px] w-full items-center justify-between border-2 border-black px-4 text-lg font-bold"
-            >
-              <span>Öppna Pass</span>
-              <span aria-hidden className="text-2xl">→</span>
-            </Link>
-          </nav>
-        </DropPanel>
+        <SoftSheet onClose={() => setOpen(null)} label="Meny">
+          {/* Mina Pass and Arbetsdagar are already grouped rows on the page
+              itself, so the menu carries the one route that is not. */}
+          <GroupedList rows={[{ href: "/oppna-pass", label: "Öppna Pass" }]} />
+        </SoftSheet>
       )}
 
       {open === "profile" && (
-        <DropPanel onClose={() => setOpen(null)} label="Profil">
-          <div className="flex flex-col gap-3">
-            <Link
-              href="/konto"
-              className="flex min-h-[56px] w-full items-center justify-center border-2 border-black bg-black px-4 text-lg font-bold text-white"
-            >
-              Konto
-            </Link>
-            <Link
-              href="/profil"
-              className="flex min-h-[56px] w-full items-center justify-center border-2 border-black px-4 text-lg font-bold"
-            >
-              Profil
-            </Link>
-            <SignOut />
-          </div>
-        </DropPanel>
+        <SoftSheet onClose={() => setOpen(null)} label="Profil">
+          <GroupedList rows={[{ href: "/konto", label: "Konto" }, { href: "/profil", label: "Profil" }]} />
+          {/* SignOut is ui.tsx's, and stays there: one place signs out, whatever
+              the screen around it looks like. */}
+          <SignOut soft />
+        </SoftSheet>
       )}
     </div>
   );

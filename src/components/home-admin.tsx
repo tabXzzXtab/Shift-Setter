@@ -2,8 +2,10 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { AppBar, type MenuItem } from "./app-bar";
-import { ActionLink, Empty, Landing, Notice } from "./ui";
+import { SignOut } from "./ui";
+import {
+  C, Card, EmptyState, GroupedList, SHADOW, SoftNotice, SoftSheet,
+} from "./soft";
 import { getSupabase } from "@/lib/supabase/client";
 
 type Row = {
@@ -14,16 +16,24 @@ type Row = {
 };
 
 /**
- * The admin's landing page: three buttons, then the list.
+ * The admin's landing page: the three things he creates, then the list.
  *
  * The list is the work. Those three sit above it because creating is the only
- * thing an owner does that a list cannot show him (spec Section 7).
+ * thing an owner does that a list cannot show him (spec Section 7). The
+ * handoff gathers them into one "Skapa" card rather than leaving three
+ * identical slabs stacked down the screen -- Nytt projekt is the accent
+ * button, and the two that follow a project's existence share a 56px row
+ * beneath it.
  *
  * The Arbetsdagbok is not here and not in the menu. It lives inside the
  * project, because a document is about one project over one range and a button
  * on the landing page would have to ask which before it could do anything.
+ *
+ * IT DRAWS ITS OWN TOP BAR, as the other two landing pages do: the handoff's
+ * icon buttons are a different shape from app-bar's, and behind them are
+ * soft.tsx's bottom sheets rather than a panel from the top.
  */
-const MENU: MenuItem[] = [
+const MENU = [
   { href: "/kalender", label: "Kalender" },
   // Alla Pass is not here. A company-wide list of every shift answered a
   // question nobody asks; shifts belong to the project they run on, and Alla
@@ -39,7 +49,9 @@ const MENU: MenuItem[] = [
 // Behind the profile icon, not in the hamburger. The menu is the work --
 // Kalender, the projects, the days waiting. Inställningar is this installation
 // and the people in it, which is what someone opens their own icon looking for.
-const PROFILE_MENU: MenuItem[] = [
+const PROFILE_MENU = [
+  { href: "/konto", label: "Konto" },
+  { href: "/profil", label: "Profil" },
   { href: "/installningar", label: "Inställningar" },
 ];
 
@@ -52,6 +64,7 @@ const hours = (n: number) => {
 export function HomeAdmin() {
   const [rows, setRows] = useState<Row[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [open, setOpen] = useState<"menu" | "profile" | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -71,34 +84,182 @@ export function HomeAdmin() {
   }, []);
 
   return (
-    <Landing>
-      <AppBar title="Admin" menu={MENU} profileMenu={PROFILE_MENU} />
+    <div
+      data-screen="admin"
+      className="mx-auto min-h-[844px] w-full max-w-[390px] pb-[40px]"
+      style={{
+        background: C.ground,
+        color: C.ink,
+        fontFamily: "var(--font-inter), system-ui, sans-serif",
+        fontVariantNumeric: "tabular-nums",
+      }}
+    >
+      {/* Everything the sheet covers. The handoff draws the home BLURRED and
+          dimmed behind an open sheet, not merely darkened, so the page stays
+          legible as the place you are coming back to.
 
-      <div className="mb-8 flex flex-col gap-3">
-        <ActionLink href="/projekt/ny">Nytt Projekt</ActionLink>
-        <ActionLink href="/pass/ny">Skapa Pass</ActionLink>
-        <ActionLink href="/snabb">Snabb Pass</ActionLink>
-      </div>
-
-      <h2 className="mb-3 text-sm font-bold uppercase tracking-wide">Alla Projekt</h2>
-
-      {error && <Notice kind="error">{error}</Notice>}
-      {rows === null && <p className="text-base">Laddar…</p>}
-      {rows !== null && rows.length === 0 && <Empty>Inga projekt än.</Empty>}
-
-      <div className="flex flex-col gap-3">
-        {(rows ?? []).map((p) => (
-          <Link
-            key={p.project_id}
-            href={`/arbetsdagbok?projekt=${p.project_id}`}
-            className="block border-2 border-black p-4"
+          It is its own element because a CSS filter makes an ancestor the
+          containing block for fixed positioning: a sheet inside this would
+          stop being fixed to the viewport, and would be blurred with the rest
+          of the page. */}
+      <div style={open ? { filter: "blur(2px)", opacity: 0.5 } : undefined}>
+        {/* ---- top bar ---------------------------------------------------- */}
+        <div
+          className="sticky top-0 z-[5] flex items-center justify-between gap-2 px-4 pb-[10px] pt-[14px]"
+          style={{ background: "rgba(243,246,253,.88)", backdropFilter: "blur(12px)" }}
+        >
+          <button
+            type="button"
+            aria-label="Meny"
+            aria-expanded={open === "menu"}
+            onClick={() => setOpen("menu")}
+            className="press-scale flex h-11 w-11 items-center justify-center rounded-[11px] p-0 transition-transform duration-[120ms] hover:bg-[#f0f5ff] active:scale-[.985] active:bg-[#dbe4f9]"
+            style={{ background: C.surface, boxShadow: SHADOW.flat }}
           >
-            <p className="text-xl font-bold">{p.name}</p>
-            <p className="text-base">{p.site_address}</p>
-            <p className="mt-2 text-base font-bold">{hours(p.hours)} h</p>
-          </Link>
-        ))}
+            <svg width="20" height="14" viewBox="0 0 20 14" fill="none" aria-hidden>
+              <path d="M1 1.5h18M1 7h18M1 12.5h18" stroke={C.ink} strokeWidth="2.2" strokeLinecap="round" />
+            </svg>
+          </button>
+
+          <h1 className="text-[17px] font-bold" style={{ letterSpacing: "-.2px" }}>
+            Admin
+          </h1>
+
+          <button
+            type="button"
+            aria-label="Profil"
+            aria-expanded={open === "profile"}
+            onClick={() => setOpen("profile")}
+            className="press-scale flex h-11 w-11 items-center justify-center rounded-[11px] p-0 transition-transform duration-[120ms] hover:bg-[#f0f5ff] active:scale-[.985] active:bg-[#dbe4f9]"
+            style={{ background: C.surface, boxShadow: SHADOW.flat }}
+          >
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden>
+              <circle cx="10" cy="6.4" r="3.4" stroke={C.ink} strokeWidth="2" />
+              <path d="M3.6 17c.9-3.3 3.4-5 6.4-5s5.5 1.7 6.4 5" stroke={C.ink} strokeWidth="2" strokeLinecap="round" />
+            </svg>
+          </button>
+        </div>
+
+        {error && <div className="px-4 pb-[6px]"><SoftNotice tone="stop">{error}</SoftNotice></div>}
+
+        {/* ---- skapa ------------------------------------------------------ */}
+        <div className="px-4 pt-[6px]">
+          <Card radius={16} shadow={SHADOW.hero} pad="px-[18px] pb-5 pt-[18px]">
+            <div
+              className="mb-3 text-[12px] font-bold uppercase"
+              style={{ letterSpacing: "1px", color: C.text2 }}
+            >
+              Skapa
+            </div>
+
+            <Link
+              href="/projekt/ny"
+              className="press-scale mb-[10px] flex h-[60px] w-full items-center justify-center gap-[10px] rounded-[12px] text-[18px] font-extrabold transition-[transform,background] duration-150 hover:bg-[#12206b] active:scale-[.985]"
+              style={{
+                letterSpacing: "-.4px",
+                background: C.accent,
+                color: C.surface,
+                boxShadow: "0 6px 18px rgba(27,44,193,.26)",
+              }}
+            >
+              <svg width="15" height="15" viewBox="0 0 15 15" fill="none" aria-hidden>
+                <path d="M7.5 1v13M1 7.5h13" stroke={C.surface} strokeWidth="2.4" strokeLinecap="round" />
+              </svg>
+              Nytt projekt
+            </Link>
+
+            <div className="flex gap-[10px]">
+              {[
+                { href: "/pass/ny", label: "Skapa pass" },
+                { href: "/snabb", label: "Snabb pass" },
+              ].map((a) => (
+                <Link
+                  key={a.href}
+                  href={a.href}
+                  className="press-scale flex h-14 flex-1 items-center justify-center rounded-[12px] text-[16px] font-bold transition-transform duration-[110ms] hover:bg-[#dbe4f9] active:scale-[.985]"
+                  style={{ letterSpacing: "-.2px", background: C.panel2, color: C.inkHover }}
+                >
+                  {a.label}
+                </Link>
+              ))}
+            </div>
+          </Card>
+        </div>
+
+        {/* ---- alla projekt ------------------------------------------------ */}
+        <div className="px-4 pt-[26px]">
+          <div className="flex items-baseline justify-between px-1 pb-[10px]">
+            <h2 className="text-[12px] font-bold uppercase" style={{ letterSpacing: "1px", color: C.text2 }}>
+              Alla projekt
+            </h2>
+            {rows !== null && rows.length > 0 && (
+              <span className="text-[12px] font-bold" style={{ color: C.accent }}>
+                {rows.length} projekt
+              </span>
+            )}
+          </div>
+
+          {rows === null && (
+            <p className="px-1 text-[15px] font-medium" style={{ color: C.text2 }}>Laddar…</p>
+          )}
+          {rows !== null && rows.length === 0 && <EmptyState>Inga projekt än.</EmptyState>}
+
+          {rows !== null && rows.length > 0 && (
+            <div
+              className="overflow-hidden rounded-[14px]"
+              style={{ background: C.surface, boxShadow: SHADOW.group }}
+            >
+              {rows.map((p, i) => (
+                <div key={p.project_id}>
+                  {i > 0 && <div className="ml-[18px] h-px" style={{ background: C.hairline }} />}
+                  <Link
+                    href={`/arbetsdagbok?projekt=${p.project_id}`}
+                    className="flex items-center justify-between gap-3 px-[18px] py-[13px] hover:bg-[#f6f9ff]"
+                    style={{ color: C.ink }}
+                  >
+                    <span className="min-w-0">
+                      <span
+                        className="block truncate text-[16px] font-bold"
+                        style={{ letterSpacing: "-.3px" }}
+                      >
+                        {p.name}
+                      </span>
+                      <span className="block truncate text-[14px] font-medium" style={{ color: C.text2 }}>
+                        {p.site_address}
+                      </span>
+                    </span>
+                    {/* Accent when there are hours on it, secondary when there
+                        are none: the accent is reserved for numbers that
+                        change, and "0 h" is the one that has not. */}
+                    <span
+                      className="whitespace-nowrap text-[15px] font-bold"
+                      style={{ color: p.hours ? C.accent : C.text2 }}
+                    >
+                      {hours(p.hours)} h
+                    </span>
+                  </Link>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
-    </Landing>
+
+      {/* ---- the two sheets ------------------------------------------------ */}
+      {open === "menu" && (
+        <SoftSheet onClose={() => setOpen(null)} label="Meny">
+          <GroupedList rows={MENU} />
+        </SoftSheet>
+      )}
+
+      {open === "profile" && (
+        <SoftSheet onClose={() => setOpen(null)} label="Profil">
+          <GroupedList rows={PROFILE_MENU} />
+          {/* SignOut is ui.tsx's, and stays there: one place signs out, whatever
+              the screen around it looks like. */}
+          <SignOut soft />
+        </SoftSheet>
+      )}
+    </div>
   );
 }

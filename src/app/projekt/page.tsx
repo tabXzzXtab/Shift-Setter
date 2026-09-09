@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { AuthGate } from "@/components/auth-gate";
-import { Empty, Screen } from "@/components/ui";
+import { C, EmptyState, SHADOW, SoftScreen } from "@/components/soft";
 import { getSupabase } from "@/lib/supabase/client";
 
 type Project = { id: string; name: string; site_address: string; start_date: string };
@@ -15,7 +15,8 @@ type Project = { id: string; name: string; site_address: string; start_date: str
  * navigating: a project is not a page you read, it is a thing you generate a
  * document from, edit, or look at the shifts of, and those are three different
  * errands. Putting one of them on the card as a permanent button -- which is
- * what Redigera used to be -- makes that one look like what a project is for.
+ * what Redigera used to be, and what the handoff still draws -- makes that one
+ * look like what a project is for.
  *
  * Only one open at a time. Three buttons under every row would be a wall of
  * nine identical controls on a screen with three projects.
@@ -42,57 +43,97 @@ function AllaProjekt() {
       .then(({ data }) => setProjects((data ?? []) as Project[]));
   }, []);
 
-  if (!projects) return <Screen title="Alla projekt" back="/"><span>Laddar…</span></Screen>;
+  if (!projects) {
+    return (
+      <SoftScreen title="Alla projekt" back="/">
+        <p className="px-5 text-[15px] font-medium" style={{ color: C.text2 }}>Laddar…</p>
+      </SoftScreen>
+    );
+  }
 
   return (
-    <Screen title="Alla projekt" back="/">
-      {projects.length === 0 && <Empty>Inga projekt än.</Empty>}
-      <div className="flex flex-col gap-3">
+    <SoftScreen title="Alla projekt" back="/">
+      <div className="flex flex-col gap-[10px] px-4 pt-1">
+        {projects.length === 0 && <EmptyState>Inga projekt än.</EmptyState>}
+
         {projects.map((p) => {
           const shown = open === p.id;
           return (
-            <section key={p.id} className="border-2 border-black">
+            <section
+              key={p.id}
+              data-project={p.id}
+              className="rounded-[14px]"
+              style={{ background: C.surface, boxShadow: SHADOW.group }}
+            >
               <button
                 type="button"
                 aria-expanded={shown}
                 onClick={() => setOpen(shown ? null : p.id)}
-                className="flex w-full flex-col items-start gap-1 p-4 text-left"
+                className="w-full px-4 py-[15px] text-left"
               >
-                <span className="text-xl font-bold">{p.name}</span>
-                <span className="text-base">{p.site_address}</span>
-                <span className="text-base text-neutral-600">Start {p.start_date}</span>
+                <span className="block text-[18px] font-bold" style={{ letterSpacing: "-.4px" }}>
+                  {p.name}
+                </span>
+                <span
+                  className="mb-3 mt-[2px] block text-[15px] font-medium"
+                  style={{ color: C.text2 }}
+                >
+                  {p.site_address}
+                </span>
+                <span className="flex items-center justify-between gap-[10px]">
+                  <span
+                    className="text-[12px] font-bold"
+                    style={{ letterSpacing: ".4px", color: C.text2 }}
+                  >
+                    Start {p.start_date}
+                  </span>
+                  {/* The chevron turns to point at what it opened, which is the
+                      only thing on the card that says the card is a control. */}
+                  <svg
+                    width="9" height="15" viewBox="0 0 9 15" fill="none" aria-hidden
+                    className="transition-transform duration-150"
+                    style={{ transform: shown ? "rotate(90deg)" : undefined }}
+                  >
+                    <path d="M1.5 1.5 7 7.5l-5.5 6" stroke={C.chevron} strokeWidth="2.2"
+                      strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </span>
               </button>
 
               {shown && (
-                <div className="flex flex-col gap-3 border-t-2 border-black p-4">
-                  {/*
-                    Links and not buttons: they go somewhere, so a long press
-                    opens a new tab and the back arrow behaves. Every id
-                    travels in the query string because there is no server to
-                    resolve /projekt/<uuid>/... against -- a static export
-                    writes one file per route at build time, and a project id
-                    does not exist until long after the build.
-                  */}
-                  {[
-                    { href: `/arbetsdagbok?projekt=${p.id}`, label: "Generera Arbetsdagbok" },
-                    { href: `/projekt/redigera?id=${p.id}`, label: "Redigera Projekt" },
-                    { href: `/pass?projekt=${p.id}`, label: "Kolla Pass" },
-                  ].map((a) => (
-                    <Link
-                      key={a.href}
-                      href={a.href}
-                      className="flex min-h-[56px] w-full items-center justify-center border-2 border-black px-4 text-lg font-bold"
-                    >
-                      {a.label}
-                    </Link>
-                  ))}
+                <div className="px-4 pb-4">
+                  <div className="mb-[14px] h-px" style={{ background: C.hairline }} />
+                  <div className="flex flex-col gap-[10px]">
+                    {/*
+                      Links and not buttons: they go somewhere, so a long press
+                      opens a new tab and the back arrow behaves. Every id
+                      travels in the query string because there is no server to
+                      resolve /projekt/<uuid>/... against -- a static export
+                      writes one file per route at build time, and a project id
+                      does not exist until long after the build.
+                    */}
+                    {[
+                      { href: `/arbetsdagbok?projekt=${p.id}`, label: "Generera Arbetsdagbok" },
+                      { href: `/projekt/redigera?id=${p.id}`, label: "Redigera Projekt" },
+                      { href: `/pass?projekt=${p.id}`, label: "Kolla Pass" },
+                    ].map((a) => (
+                      <Link
+                        key={a.href}
+                        href={a.href}
+                        className="press-scale flex h-12 w-full items-center justify-center rounded-[10px] text-[15px] font-bold transition-transform duration-[110ms] hover:bg-[#dbe4f9] active:scale-[.985]"
+                        style={{ background: C.panel2, color: C.inkHover }}
+                      >
+                        {a.label}
+                      </Link>
+                    ))}
+                  </div>
                 </div>
               )}
             </section>
           );
         })}
       </div>
-    </Screen>
+    </SoftScreen>
   );
 }
 

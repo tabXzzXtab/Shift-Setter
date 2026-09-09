@@ -75,9 +75,9 @@ try {
 
   // ---- the three + buttons --------------------------------------------------
   const ACTIONS = [
-    ["Nytt Projekt", "/projekt/ny", "Projektnamn"],
-    ["Skapa Pass", "/pass/ny", "Vilka dagar?"],
-    ["Snabb Pass", "/snabb", "Snabb Pass"],
+    ["Nytt projekt", "/projekt/ny", "Projektnamn"],
+    ["Skapa pass", "/pass/ny", "Vilka dagar?"],
+    ["Snabb pass", "/snabb", "Snabb pass"],
   ];
   for (const [label, href, lands] of ACTIONS) {
     await page.goto(`${BASE}/`, { waitUntil: "networkidle" });
@@ -119,12 +119,12 @@ try {
   log(`menu holds ${ITEMS.join(", ")} -- and no Alla Pass, no Inställningar`);
 
   // Tapping outside closes it.
-  await page.getByRole("button", { name: "Stäng", exact: true }).click();
+  await panel.getByRole("button", { name: "Stäng", exact: true }).click();
   await panel.waitFor({ state: "detached", timeout: 20000 });
   log("tapping the darkened background closes the menu");
 
   // ---- Alla Projekt on the landing page ------------------------------------
-  await page.getByText("Alla Projekt", { exact: true }).first().waitFor({ timeout: 20000 });
+  await page.getByText("Alla projekt", { exact: true }).first().waitFor({ timeout: 20000 });
   // Two attribute matches rather than one substring: trailingSlash is on, so
   // the href is /arbetsdagbok/?projekt=, and a selector spelling it the other
   // way finds nothing and reads as "there are no projects".
@@ -173,14 +173,14 @@ try {
   // permanently, which made one of three equal errands look like what a
   // project is for.
   await page.goto(`${BASE}/projekt/`, { waitUntil: "networkidle" });
-  const cards = page.locator("section.border-2");
+  const cards = page.locator("section[data-project]");
   await cards.first().waitFor({ timeout: 20000 });
   if (await page.getByRole("link", { name: "Redigera Projekt", exact: true }).count()) {
     await shot(page, "FAILED");
     fail("a project's actions are on the page before any card is tapped");
   }
 
-  const cardName = (await cards.first().locator("span").first().innerText()).trim();
+  const cardName = (await cards.first().locator("button span").first().innerText()).trim();
   await cards.first().getByRole("button").click();
 
   const CARD_ACTIONS = [
