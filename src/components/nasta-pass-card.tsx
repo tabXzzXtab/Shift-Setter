@@ -2,7 +2,6 @@
 
 import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState } from "react";
-import { PinIcon } from "./icons";
 import { C, EmptyState, SectionLabel, SHADOW } from "./soft";
 import { getSupabase } from "@/lib/supabase/client";
 import { addDays, hhmm, longDayHeading, passEndAt, stockholmToday } from "@/lib/dates";
@@ -157,66 +156,6 @@ export function useNextShift(): Next | undefined {
  * so planned_hours belongs to whichever pass it hangs on and not to them.
  * start_time and end_time are safe because my_shift coalesces own_start /
  * own_end over the pass's times -- the leader's card shows the leader's span.
- */
-export function NastaPassCard() {
-  const next = useNextShift();
-
-  return (
-    <>
-      <h2 className="mb-3 text-sm font-bold uppercase tracking-wide">Nästa Pass</h2>
-
-      {next === undefined && <p className="text-base">Laddar…</p>}
-      {next === null && (
-        <p className="border-2 border-dashed border-black p-6 text-center text-base">
-          Inga kommande pass.
-        </p>
-      )}
-
-      {next && (
-        // The whole card is the link. Tapping it hands the address to whatever
-        // the phone uses for navigation rather than trying to be a map itself.
-        <a
-          href={`https://maps.google.com/maps?q=${encodeURIComponent(next.address)}`}
-          target="_blank"
-          rel="noreferrer"
-          className="block border-2 border-black"
-        >
-          {next.address && <ProjectMap address={next.address} />}
-          <div className="p-4">
-            <p className="text-xl font-bold">{next.project}</p>
-            <p className="flex items-start gap-2 text-base">
-              <span className="mt-[2px] shrink-0"><PinIcon /></span>
-              <span>{next.address}</span>
-            </p>
-            <p className="mt-2 text-base font-bold">{longDayHeading(next.date)}</p>
-            <p className="text-base text-neutral-700">
-              {hhmm(next.start)}–{hhmm(next.end)}
-            </p>
-          </div>
-        </a>
-      )}
-    </>
-  );
-}
-
-/**
- * Nästa pass in the handoff's language, for a redesigned landing page.
- *
- * THE HANDOFF DESIGNS THIS BLOCK'S EMPTY STATE ONLY -- both roles' sample data
- * had no upcoming shift. Rather than invent a look, the populated card is
- * built from the vocabulary the handoff already defines for "a shift with a
- * map": the offer card's surface, radius, map panel and title row, minus the
- * time panel's duration and the two actions, because there is nothing here to
- * accept. The whole card is the link, so a tap hands the address to the
- * phone's own navigation.
- *
- * NO HOURS FIGURE, and that is invariant 10 rather than an omission: a day
- * already held has its hours masked until an Arbetsdagbok covers the date,
- * which a coming day never has. On an auto-assigned leader's row the pass's
- * planned number would not be theirs in any case.
- *
- * One component for both roles. The arbetare and the arbetsledare read the
- * same card from the same rows, so the two cannot drift apart.
  */
 export function SoftNastaPass() {
   const next = useNextShift();
