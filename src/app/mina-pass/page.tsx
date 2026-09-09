@@ -175,6 +175,7 @@ function Lista({ shifts, today }: { shifts: Shift[]; today: string }) {
                     reason reads as a fault.
                   */}
                   <div
+                    data-hours
                     className="whitespace-nowrap text-[15px] font-bold"
                     style={{ color: s.filed && s.confirmed_hours !== null ? C.accent : C.text2 }}
                   >
@@ -371,6 +372,7 @@ function Kalender({ shifts, today }: { shifts: Shift[]; today: string }) {
                       {s.project_name}
                     </div>
                     <div
+                      data-hours
                       className="whitespace-nowrap text-[15px] font-bold"
                       style={{ color: s.filed && s.confirmed_hours !== null ? C.accent : C.text2 }}
                     >

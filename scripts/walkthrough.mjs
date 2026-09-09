@@ -62,7 +62,11 @@ async function mustSee(page, text, why) {
  * it is read as one cell and compared in full.
  */
 async function mustReadHours(page, expected, why) {
-  const dd = page.locator('div:has(> dt:text-is("Timmar")) > dd').first();
+  // data-hours, not a label, because the handoff's card has no visible one:
+  // the figure sits on the project's baseline and the three states are told
+  // apart by what the cell SAYS. The attribute is the only stable anchor, and
+  // it exists on the screen for exactly this reason.
+  const dd = page.locator("[data-hours]").first();
   await dd.waitFor({ timeout: 20000 });
   let got = "";
   // The row renders before the fetch behind it resolves; poll rather than
@@ -247,13 +251,24 @@ try {
     "hours were shown to the worker before the day was confirmed (invariant 10)");
   await shot(page, "08-arbetare-fore-stampling");
 
-  await page.getByRole("button", { name: "Stämpla in" }).click();
-  await page.getByRole("button", { name: "Stämpla ut" }).waitFor({ timeout: 20000 });
-  log("clocked in");
-  await page.getByRole("button", { name: "Stämpla ut" }).click();
-  await page.getByText("Klart för dagen").waitFor({ timeout: 20000 });
-  await shot(page, "09-arbetare-efter-stampling");
-  log("clocked out");
+  // NO STAMPING HERE ANY MORE, and the reason is worth writing down rather
+  // than leaving as a gap.
+  //
+  // The stamp used to sit on every row of Mina Pass, which meant two
+  // implementations of one act. There is one now and it is on the landing
+  // page, where it is deliberately TODAY-ONLY: it offers the shift a person is
+  // standing on, not a shift they might scroll to. This slice's fixture runs
+  // on YESTERDAY, because a day has to have ENDED before it reaches the
+  // confirmation queue -- so there is nothing here for the stamp to act on,
+  // and a version of this suite that moved the day to today would stop testing
+  // confirmation, which is the thing it exists for.
+  //
+  // Stamping is driven properly elsewhere, against a shift that is actually
+  // today: walkthrough:arbetare takes it in and out and proves the timestamp
+  // is the server's, and walkthrough:geofence proves where it may be done
+  // from. Clock stamps are evidence a leader may overwrite (invariant 3), and
+  // nothing below this line reads them.
+  await shot(page, "09-arbetare-mina-pass");
 
   await signOut(page);
 
@@ -263,7 +278,7 @@ try {
 
   await mustSee(page, `Anna Arbetare ${RUN}`, "the day did not reach the confirmation queue");
   await field(page, "Timmar").fill("8");
-  await field(page, "Vad vi gjorde").fill("Rev gammalt tegel, la ny underlagspapp och läkt på södra takfallet.");
+  await page.getByLabel("Vad vi gjorde").fill("Rev gammalt tegel, la ny underlagspapp och läkt på södra takfallet.");
   await shot(page, "10-bekrafta");
   await page.getByRole("button", { name: "Bekräfta dagen" }).click();
   await mustSee(page, "Inget att bekräfta", "the day was not confirmed");

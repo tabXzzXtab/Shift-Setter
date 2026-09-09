@@ -200,6 +200,7 @@ before writing framework code.
 | `npm run walkthrough:geofence` | Stämpla In/Ut inside 4 km: refused position, 50 km away, on site |
 | `npm run walkthrough:profil` | Profil: every field, the company toggle, and an admin saving someone else's row |
 | `npm run walkthrough:minapass` | Mina Pass: the Lista/Kalender toggle, invariant 10, fills not colours |
+| `npm run walkthrough:bekraftelser` | Bekräftelser: the switch, a row that opens the day it names, the admin's version |
 | `npm run demo:reset` | Clear demo data **and** recreate the stable demo logins |
 | `npm run test:race` | Two concurrent accepts on a one-slot pass, N rounds |
 | `node scripts/long-doc-check.mjs` | Print a long Arbetsdagbok; assert no header/footer overlap |

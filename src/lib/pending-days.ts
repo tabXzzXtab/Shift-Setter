@@ -12,6 +12,8 @@ export type PendingPass = {
 export type PendingDay = {
   project_id: string;
   project_name: string;
+  /** The site. Bekräfta Pass prints it under the project name. */
+  site_address: string;
   work_date: string;
   passes: PendingPass[];
   /** The admin's words, on a day he sent back. Null on a day never rejected. */
@@ -57,7 +59,7 @@ export async function pendingDays(): Promise<PendingDay[]> {
 
   const { data: passes, error } = await sb
     .from("pass")
-    .select("id, project_id, work_date, start_time, end_time, planned_hours, project(name)")
+    .select("id, project_id, work_date, start_time, end_time, planned_hours, project(name, site_address)")
     .is("deleted_at", null)
     .order("work_date");
 
@@ -93,6 +95,7 @@ export async function pendingDays(): Promise<PendingDay[]> {
       byDay.set(key, {
         project_id: p.project_id,
         project_name: (p.project as { name: string } | null)?.name ?? "Projekt",
+        site_address: (p.project as { site_address: string } | null)?.site_address ?? "",
         work_date: p.work_date,
         passes: [],
         rejection_note: r?.rejected_at ? (r.rejection_note ?? null) : null,

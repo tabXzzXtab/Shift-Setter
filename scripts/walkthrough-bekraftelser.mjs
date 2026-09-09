@@ -248,7 +248,8 @@ try {
   // first one and this fails.
   await rows.nth(1).click();
   await page.waitForURL((u) => u.pathname.includes("/bekrafta"), { timeout: 20000 });
-  const url = new URL(page.url());
+  const askedUrl = page.url();
+  const url = new URL(askedUrl);
   if (url.searchParams.get("datum") !== newer) {
     fail(`the row carries datum=${url.searchParams.get("datum")}, expected ${newer}`);
   }
@@ -256,10 +257,11 @@ try {
   if (await page.getByText(heading(older), { exact: false }).count()) {
     fail(`tapping ${newer} opened ${older} instead -- the ask was ignored`);
   }
+  await shot(page, "b4-bekrafta-ifylld");
   log(`tapping the second row opens ${newer}, not the oldest day in the queue`);
 
   // ---- confirming moves a day off one view without putting it on the other -
-  await field(page, "Vad vi gjorde").fill("Stenläggning, norra sidan.");
+  await page.getByLabel("Vad vi gjorde").fill("Stenläggning, norra sidan.");
   await page.getByRole("button", { name: "Bekräfta dagen" }).click();
   await page.waitForTimeout(3000);
 
@@ -296,35 +298,24 @@ try {
 
   // ---- stage 2, and the day arrives ---------------------------------------
   //
-  // GRANSKA PASS OPENS ON THE OLDEST WAITING DAY, NOT ON OURS. The admin sees
-  // every project, so a run of this script that stopped between confirming and
-  // approving leaves a day of the same date sitting ahead of this one, and the
-  // approval then lands on the wrong project -- which is exactly how this test
-  // went green on the admin's global log and red on the leader's scoped one.
-  //
-  // So the queue is walked rather than assumed, and only past days this script
-  // itself made: a project named otherwise belongs to somebody else's fixture
-  // or to real data, and clearing it to reach ours would be a test tidying up
-  // by breaking something.
-  let cleared = 0;
-  let approved = false;
-  for (let i = 0; i < 6 && !approved; i++) {
-    await page.goto(`${BASE}/granska/`, { waitUntil: "networkidle" });
-    // "Bekräfta dagen" is what the button says on a flagged day, which is the
-    // one kind of stage 2 day that never had a leader's claim behind it.
-    const godkann = page.getByRole("button", { name: /Godkänn|Bekräfta dagen/ });
-    await godkann.waitFor({ timeout: 20000 });
-    const head = await page.locator("main").innerText();
-    approved = head.includes(project) && head.includes(heading(newer));
-    if (!approved && !/Bekräftelser \d{6}/.test(head)) {
-      fail(`Granska Pass is holding a day this script did not make -- ${JSON.stringify(head.slice(0, 120))}. Refusing to approve it; run npm run demo:reset if the queue is stale.`);
-    }
-    await godkann.click();
-    await page.waitForTimeout(3000);
-    if (!approved) cleared++;
+  // ASKED FOR BY NAME. Granska Pass opens on the oldest waiting day across
+  // every project, so whichever fixture happens to be at the head of the queue
+  // is the one a bare visit would approve -- and this test spent a run
+  // approving another walkthrough's day, going green on the admin's global log
+  // and red on the leader's scoped one. The deep link makes it OUR day or
+  // nothing; the assertion below is what proves it landed on ours.
+  const projectId = new URL(askedUrl).searchParams.get("projekt");
+  await page.goto(`${BASE}/granska/?projekt=${projectId}&datum=${newer}`, { waitUntil: "networkidle" });
+  const godkann = page.getByRole("button", { name: /Godkänn|Bekräfta dagen/ });
+  await godkann.waitFor({ timeout: 20000 });
+  const head = await page.locator("main").innerText();
+  if (!head.includes(project) || !head.includes(heading(newer))) {
+    await shot(page, "FAILED");
+    fail(`Granska Pass opened ${JSON.stringify(head.slice(0, 140))} instead of our day`);
   }
-  if (!approved) fail("never reached our own day in the stage 2 queue");
-  if (cleared) log(`cleared ${cleared} stale day(s) left by an interrupted run of this script`);
+  await godkann.click();
+  await page.waitForTimeout(3000);
+  log("the admin opened our day by name and approved it at stage 2");
 
   await page.goto(`${BASE}/historik/`, { waitUntil: "networkidle" });
   await mustSee(page, project, "the approved day never reached the admin's Historik");

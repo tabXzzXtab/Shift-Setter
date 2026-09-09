@@ -2,13 +2,14 @@
 /**
  * Drive the arbetsledare's landing page.
  *
- *   + Skapa Pass · the Bekräfta Pass widget with its red dot · the Nästa Pass
- *   card with a Leaflet map and a link into the phone's own navigation ·
- *   a menu of exactly three things.
+ *   the hero count of days owed · Skapa pass · the Nästa Pass card with a
+ *   Leaflet map, the shift's span, no hours figure, and a link into the
+ *   phone's own navigation · a menu of exactly three things.
  *
- * The widget is the part worth testing hardest: it claims to preview the days
- * actually waiting, so the assertions check that the day it names is the day
- * the Bekräfta Pass page then opens on.
+ * THE COUNT IS THE PART WORTH TESTING HARDEST. The handoff replaced the
+ * day-by-day preview and the red dot with one number, so that number is now
+ * the only thing on the screen saying work is outstanding: it has to be the
+ * right number, and the action under it has to open the day it is counting.
  */
 import { chromium, devices } from "playwright";
 import { mkdirSync } from "node:fs";
@@ -173,13 +174,18 @@ try {
 
   await signIn(page, W.email, W.password);
   await markDay(page, yesterday);
+  await markDay(page, soon);
   await signOut(page);
 
   await signIn(page, L.email, L.password);
-  await markDay(page, soon);           // the leader is also a worker
+  // THE LEADER IS NOT HAND-PICKED ONTO EITHER DAY. Handplock is arbetare only,
+  // and a leader does not queue for their own project -- STEP 4b places them on
+  // any day their project has workers on it. So both passes go to the worker,
+  // and the leader's own next shift on the coming day is the row the auto-assignment
+  // makes, carrying the envelope across that day rather than one pass's times.
   await makePass(page, project, yesterday, W.name, "8");
-  await makePass(page, project, soon, L.name, "7");
-  log(`a day gone unconfirmed (${yesterday}) and the leader's own next shift (${soon})`);
+  await makePass(page, project, soon, W.name, "7");
+  log(`a day gone unconfirmed (${yesterday}) and the leader auto-placed on ${soon}`);
 
   // ---- the landing page ----------------------------------------------------
   await page.goto(`${BASE}/`, { waitUntil: "networkidle" });
@@ -193,37 +199,68 @@ try {
   }
   log("top bar: hamburger left, profile icon right");
 
-  const skapa = page.getByRole("link", { name: "Skapa Pass", exact: true });
-  if (!(await skapa.count())) fail("no + Skapa Pass button");
-  log("+ Skapa Pass is on the page");
+  // "Skapa pass", sentence case, which is how the handoff writes every label.
+  const skapa = page.getByRole("link", { name: "Skapa pass", exact: true });
+  if (!(await skapa.count())) fail("no Skapa pass button");
+  const sbox = await skapa.boundingBox();
+  if (Math.round(sbox.height) !== 60) fail(`Skapa pass is ${sbox.height}px tall, wanted 60`);
+  const sbg = await skapa.evaluate((el) => getComputedStyle(el).backgroundColor);
+  if (sbg !== "rgb(238, 243, 254)") fail(`Skapa pass is ${sbg}, wanted the #eef3fe panel`);
+  log(`Skapa pass: 60px on ${sbg}, the second-rank action`);
 
-  // ---- the Bekräfta Pass widget -------------------------------------------
-  const widget = page.locator('a[href*="bekrafta"]').first();
-  await widget.waitFor({ timeout: 20000 });
-  await page.getByText("Ingen tilldelad", { exact: true }).count();   // settle
-  const preview = await widget.innerText();
-
-  if (!preview.includes(W.name)) {
-    fail(`the widget does not name the worker waiting: ${JSON.stringify(preview)}`);
+  // ---- the hero: the count of days owed ------------------------------------
+  //
+  // ONE NUMBER, AND IT HAS TO BE RIGHT. The handoff's Startsida drops the
+  // day-by-day preview and the red dot in favour of a single count, so this is
+  // the only thing on the screen that says anything is outstanding. This
+  // fixture leaves exactly one day unconfirmed, and Swedish counts one day in
+  // the singular -- "1 dag", not "1 dagar".
+  const hero = page.getByRole("status");
+  await hero.waitFor({ timeout: 20000 });
+  for (let i = 0; i < 40 && (await hero.innerText()).trim() === "…"; i++) {
+    await page.waitForTimeout(250);
   }
-  if (!/\b8 h\b/.test(preview)) fail(`the widget shows no hours: ${JSON.stringify(preview)}`);
-  const heading = new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Stockholm", weekday: "long" })
-    .format(new Date(`${yesterday}T12:00:00Z`)).toUpperCase();
-  if (!preview.toUpperCase().includes(heading)) {
-    fail(`the widget does not name the day: ${JSON.stringify(preview)}`);
+  const count = (await hero.innerText()).trim();
+  if (count !== "1 dag") {
+    await shot(page, "FAILED");
+    fail(`the hero counts ${JSON.stringify(count)}, and exactly one day is waiting`);
   }
-  log(`widget previews ${JSON.stringify(preview.split("\n").slice(1).join(" | "))}`);
+  await mustSee(page, "Väntar på dig", "the hero has no kicker saying whose the days are");
+  await mustSee(page, "Bekräfta den innan admin kan godkänna.",
+                "the hero does not say why the days matter");
+  log(`hero reads "Väntar på dig / ${count}" -- no preview list, no red dot`);
 
-  const dot = page.getByRole("status");
-  if (!(await dot.count())) fail("no notification dot while a day is pending");
-  const red = await dot.first().evaluate((el) => getComputedStyle(el).backgroundColor);
-  if (!/^rgb\(214, 39, 40\)$/.test(red)) fail(`the dot is not red: ${red}`);
-  log(`red dot present (${red})`);
+  // The dot is GONE, not merely restyled. #d62728 is not in this design's
+  // palette; a leftover would be the one thing on the screen in a colour the
+  // system does not have.
+  const reds = await page.locator("body").evaluate(() =>
+    [...document.querySelectorAll("*")]
+      .map((el) => getComputedStyle(el).backgroundColor)
+      .filter((c) => c === "rgb(214, 39, 40)").length);
+  if (reds > 0) fail(`${reds} element(s) still painted #d62728, which is not in the palette`);
+  log("nothing on the page is painted the old notification red");
 
-  await widget.click();
+  // 66px on the accent, with its own shadow: the one primary action.
+  const cta = page.getByRole("link", { name: "Bekräfta pass", exact: true });
+  const box = await cta.boundingBox();
+  if (Math.round(box.height) !== 66) fail(`the primary action is ${box.height}px tall, wanted 66`);
+  const cbg = await cta.evaluate((el) => getComputedStyle(el).backgroundColor);
+  if (cbg !== "rgb(27, 44, 193)") fail(`the primary action is ${cbg}, wanted the accent #1b2cc1`);
+  log(`primary action 66px on ${cbg}`);
+
+  await shot(page, "l1b-hero");
+  await cta.click();
   await page.waitForURL((u) => u.pathname.includes("/bekrafta"), { timeout: 20000 });
-  await mustSee(page, W.name, "the widget opened a page about a different day");
-  log("tapping the widget opens Bekräfta Pass, on the day it previewed");
+  await mustSee(page, W.name, "the hero's action opened a page about a different day");
+  const dayHeading = new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Stockholm", weekday: "long" })
+    .format(new Date(`${yesterday}T12:00:00Z`)).toUpperCase();
+  if (!(await page.locator("main, [data-soft-screen]").first().innerText()).toUpperCase().includes(dayHeading)) {
+    fail(`Bekräfta Pass did not open on ${yesterday}, which is the day the count is counting`);
+  }
+  log("tapping it opens Bekräfta Pass, on the day the count was counting");
+
+  await page.goto(`${BASE}/`, { waitUntil: "networkidle" });
+  await landed(page);
 
   // ---- Nästa Pass ----------------------------------------------------------
   await page.goto(`${BASE}/`, { waitUntil: "networkidle" });
@@ -241,6 +278,26 @@ try {
     if (!text.includes(bit)) fail(`the Nästa Pass card is missing ${JSON.stringify(bit)}`);
   }
   log(`card reads ${JSON.stringify(text.replace(/\n+/g, " | "))}`);
+
+  // THE SPAN, AND THE FIGURE THAT MUST NOT BE THERE.
+  //
+  // 07:00-16:00 is /pass/ny's default and makePass leaves it alone, so this
+  // is the span read back off the card -- for the leader, the envelope on
+  // their auto-assigned row.
+  //
+  // No hours figure, and that is the assertion with teeth. INVARIANT 10
+  // masks a day's hours until an Arbetsdagbok covers the date, which a
+  // coming day never has -- and on an auto-assigned leader row the pass's
+  // planned_hours is not the leader's figure at all. Copying the Acceptera
+  // Pass card's "07:00-16:00 · 8 h" wholesale is the mistake this catches.
+  if (!text.includes("07:00\u201316:00")) {
+    fail(`the Nästa Pass card shows no time span: ${JSON.stringify(text)}`);
+  }
+  const figure = text.match(/\d+(?:[,.]\d+)?\s*h\b/);
+  if (figure) {
+    fail(`the Nästa Pass card prints an hours figure (${figure[0]}); invariant 10 masks it`);
+  }
+  log("span 07:00\u201316:00, and no hours figure on a day nothing has been filed for");
 
   // Read only: no accept, no deny.
   for (const word of ["Acceptera", "Neka", "Bekräfta"]) {

@@ -233,7 +233,15 @@ export function Empty({ children }: { children: ReactNode }) {
   return <p className="border-2 border-dashed border-black p-6 text-center text-base">{children}</p>;
 }
 
-export function SignOut() {
+/**
+ * `soft` draws it in the handoff's language for a redesigned screen.
+ *
+ * A VARIANT rather than a second component: signing out is one line of real
+ * behaviour and it belongs in one place, whatever the screen around it looks
+ * like. The prop retires with ui.tsx, when the last screen has been migrated
+ * and there is only one look left.
+ */
+export function SignOut({ soft = false }: { soft?: boolean }) {
   const router = useRouter();
   return (
     <button
@@ -242,7 +250,16 @@ export function SignOut() {
         await getSupabase().auth.signOut();
         router.replace("/login");
       }}
-      className="mt-8 flex min-h-[56px] w-full items-center justify-center border-2 border-black bg-white text-base font-bold"
+      className={
+        soft
+          ? "press-scale mt-3 flex h-14 w-full items-center justify-center rounded-[12px] bg-white text-[17px] font-bold transition-transform duration-[110ms] hover:bg-[#f6f9ff] active:scale-[.985]"
+          : "mt-8 flex min-h-[56px] w-full items-center justify-center border-2 border-black bg-white text-base font-bold"
+      }
+      style={
+        soft
+          ? { letterSpacing: "-.2px", color: "#8e1d15", boxShadow: "0 4px 18px rgba(9,21,64,.07), 0 1px 2px rgba(9,21,64,.04)" }
+          : undefined
+      }
     >
       Logga ut
     </button>

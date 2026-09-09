@@ -4,7 +4,7 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { DropPanel } from "./app-bar";
-import { useNextShift } from "./nasta-pass-card";
+import { SoftNastaPass } from "./nasta-pass-card";
 import { type Offer } from "./offer-stack";
 import { SignOut } from "./ui";
 import { getSupabase } from "@/lib/supabase/client";
@@ -53,18 +53,6 @@ const SHADOW_GROUP = "0 4px 18px rgba(9,21,64,.07), 0 1px 2px rgba(9,21,64,.05)"
 const SHADOW_HERO = "0 8px 28px rgba(9,21,64,.09), 0 1px 2px rgba(9,21,64,.05)";
 const SHADOW_OFFER = "0 10px 30px rgba(9,21,64,.10), 0 1px 2px rgba(9,21,64,.05)";
 const SHADOW_SLAB = "0 6px 16px rgba(9,21,64,.06)";
-
-/** The section label that sits OUTSIDE each card. 12/700/+1, uppercase. */
-function SectionLabel({ children }: { children: React.ReactNode }) {
-  return (
-    <div
-      className="px-1 pb-[10px] text-[12px] font-bold uppercase"
-      style={{ letterSpacing: "1px", color: TEXT_2 }}
-    >
-      {children}
-    </div>
-  );
-}
 
 /** #e7edfb, radius 14, 22px, centred, 15/500. Used by both empty states. */
 function EmptyPanel({ children }: { children: React.ReactNode }) {
@@ -122,8 +110,6 @@ export function HomeArbetare() {
   const [note, setNote] = useState<string | null>(null);
   const [reload, setReload] = useState(0);
   const [open, setOpen] = useState<"menu" | "profile" | null>(null);
-
-  const next = useNextShift();
 
   useEffect(() => {
     let live = true;
@@ -437,68 +423,11 @@ export function HomeArbetare() {
       </div>
 
       {/* ---- 4. nästa pass ------------------------------------------------ */}
+      {/* The same card the arbetsledare gets, from the same component and the
+          same rows. It was written here first; it lives in nasta-pass-card
+          now so the two landing pages cannot drift apart. */}
       <div className="px-4 pt-[26px]">
-        <SectionLabel>Nästa pass</SectionLabel>
-
-        {next === undefined && <EmptyPanel>Laddar…</EmptyPanel>}
-        {next === null && <EmptyPanel>Inga kommande pass.</EmptyPanel>}
-
-        {next && (
-          /*
-            The handoff designs this block's EMPTY state only -- its sample data
-            had no upcoming shift. Rather than invent a look, the populated card
-            is built from the vocabulary the handoff already defines for "a
-            shift with a map": the offer card's surface, radius, map panel and
-            title row, minus the time panel and the two actions, because there
-            is nothing here to accept. The whole card is the link, as before, so
-            a tap hands the address to the phone's own navigation.
-          */
-          <a
-            href={`https://maps.google.com/maps?q=${encodeURIComponent(next.address)}`}
-            target="_blank"
-            rel="noreferrer"
-            className="block overflow-hidden rounded-[15px]"
-            style={{ background: SURFACE, boxShadow: SHADOW_OFFER }}
-          >
-            {next.address && (
-              <div
-                className="mx-4 mt-4 h-[150px] overflow-hidden rounded-[9px]"
-                style={{ background: PANEL, boxShadow: "inset 0 0 0 1px rgba(9,21,64,.06)" }}
-              >
-                <ProjectMap address={next.address} />
-              </div>
-            )}
-            <div className="px-5 pb-5 pt-4">
-              <div className="mb-4 flex items-baseline justify-between gap-3">
-                <div className="text-[21px] font-bold" style={{ letterSpacing: "-.5px" }}>
-                  {next.project}
-                </div>
-                <span
-                  className="text-right text-[15px] font-medium"
-                  style={{ color: TEXT_2 }}
-                >
-                  {next.address}
-                </span>
-              </div>
-              <div
-                className="flex items-baseline justify-between gap-3 rounded-[10px] px-4 py-[14px]"
-                style={{ background: PANEL_2 }}
-              >
-                <div>
-                  <div
-                    className="mb-[3px] text-[12px] font-bold uppercase"
-                    style={{ letterSpacing: ".9px", color: TEXT_2 }}
-                  >
-                    {longDayHeading(next.date)}
-                  </div>
-                  <div className="text-[20px] font-extrabold" style={{ letterSpacing: "-.5px" }}>
-                    {hhmm(next.start)}–{hhmm(next.end)}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </a>
-        )}
+        <SoftNastaPass />
       </div>
 
       {/* ---- 5. acceptera pass -------------------------------------------- */}

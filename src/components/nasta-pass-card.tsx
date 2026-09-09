@@ -3,6 +3,7 @@
 import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState } from "react";
 import { PinIcon } from "./icons";
+import { C, EmptyState, SectionLabel, SHADOW } from "./soft";
 import { getSupabase } from "@/lib/supabase/client";
 import { addDays, hhmm, longDayHeading, passEndAt, stockholmToday } from "@/lib/dates";
 
@@ -191,6 +192,83 @@ export function NastaPassCard() {
             <p className="text-base text-neutral-700">
               {hhmm(next.start)}–{hhmm(next.end)}
             </p>
+          </div>
+        </a>
+      )}
+    </>
+  );
+}
+
+/**
+ * Nästa pass in the handoff's language, for a redesigned landing page.
+ *
+ * THE HANDOFF DESIGNS THIS BLOCK'S EMPTY STATE ONLY -- both roles' sample data
+ * had no upcoming shift. Rather than invent a look, the populated card is
+ * built from the vocabulary the handoff already defines for "a shift with a
+ * map": the offer card's surface, radius, map panel and title row, minus the
+ * time panel's duration and the two actions, because there is nothing here to
+ * accept. The whole card is the link, so a tap hands the address to the
+ * phone's own navigation.
+ *
+ * NO HOURS FIGURE, and that is invariant 10 rather than an omission: a day
+ * already held has its hours masked until an Arbetsdagbok covers the date,
+ * which a coming day never has. On an auto-assigned leader's row the pass's
+ * planned number would not be theirs in any case.
+ *
+ * One component for both roles. The arbetare and the arbetsledare read the
+ * same card from the same rows, so the two cannot drift apart.
+ */
+export function SoftNastaPass() {
+  const next = useNextShift();
+
+  return (
+    <>
+      <SectionLabel>Nästa pass</SectionLabel>
+
+      {next === undefined && <EmptyState>Laddar…</EmptyState>}
+      {next === null && <EmptyState>Inga kommande pass.</EmptyState>}
+
+      {next && (
+        <a
+          href={`https://maps.google.com/maps?q=${encodeURIComponent(next.address)}`}
+          target="_blank"
+          rel="noreferrer"
+          className="block overflow-hidden rounded-[15px]"
+          style={{ background: C.surface, boxShadow: SHADOW.offer }}
+        >
+          {next.address && (
+            <div
+              className="mx-4 mt-4 h-[150px] overflow-hidden rounded-[9px]"
+              style={{ background: C.panel, boxShadow: "inset 0 0 0 1px rgba(9,21,64,.06)" }}
+            >
+              <ProjectMap address={next.address} />
+            </div>
+          )}
+          <div className="px-5 pb-5 pt-4">
+            <div className="mb-4 flex items-baseline justify-between gap-3">
+              <div className="text-[21px] font-bold" style={{ letterSpacing: "-.5px" }}>
+                {next.project}
+              </div>
+              <span className="text-right text-[15px] font-medium" style={{ color: C.text2 }}>
+                {next.address}
+              </span>
+            </div>
+            <div
+              className="flex items-baseline justify-between gap-3 rounded-[10px] px-4 py-[14px]"
+              style={{ background: C.panel2 }}
+            >
+              <div>
+                <div
+                  className="mb-[3px] text-[12px] font-bold uppercase"
+                  style={{ letterSpacing: ".9px", color: C.text2 }}
+                >
+                  {longDayHeading(next.date)}
+                </div>
+                <div className="text-[20px] font-extrabold" style={{ letterSpacing: "-.5px" }}>
+                  {hhmm(next.start)}–{hhmm(next.end)}
+                </div>
+              </div>
+            </div>
           </div>
         </a>
       )}

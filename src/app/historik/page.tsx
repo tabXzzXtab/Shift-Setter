@@ -3,7 +3,9 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { AuthGate } from "@/components/auth-gate";
-import { Empty, Notice, Screen } from "@/components/ui";
+import {
+  C, Card, ChevronRight, EmptyState, Segmented, SoftNotice, SoftScreen, Tag,
+} from "@/components/soft";
 import { getSupabase } from "@/lib/supabase/client";
 import { hhmm, longDayHeading } from "@/lib/dates";
 import { pendingSummaries, type PendingSummary } from "@/lib/pending-days";
@@ -43,6 +45,18 @@ function routeLabel(route: string | null, reviewer: string | null): string {
   return "Bekräftad av arbetsledaren";
 }
 
+/** 12/700/+1 uppercase, the handoff's day header. */
+function Kicker({ children }: { children: React.ReactNode }) {
+  return (
+    <div
+      className="pb-[2px] text-[12px] font-bold uppercase"
+      style={{ letterSpacing: "1px", color: C.text2 }}
+    >
+      {children}
+    </div>
+  );
+}
+
 /**
  * Bekräftelser -- one day's confirmation, before and after, on one screen.
  *
@@ -56,6 +70,12 @@ function routeLabel(route: string | null, reviewer: string | null): string {
  * opening this page has no "att bekräfta" to be shown. His outstanding work is
  * stage 2 and it lives on Granska Pass. A queue of days the database would
  * refuse him is not a queue.
+ *
+ * THE HANDOFF DOES NOT DRAW THIS SCREEN -- it predates the merge, and lists
+ * "Bekräftelse historik" as one of the leader's eight. So it is composed from
+ * the vocabulary the handoff does define: its segmented control, its cards,
+ * its day kicker, its empty state and its status tags. Nothing here invents a
+ * value; everything here is a value used somewhere else in the bundle.
  */
 function Bekraftelser() {
   const { account, loading } = useAccount();
@@ -63,36 +83,36 @@ function Bekraftelser() {
   const [view, setView] = useState<View>("att");
 
   if (loading) {
-    return <Screen title="Bekräftelser" back="/"><span>Laddar…</span></Screen>;
+    return (
+      <SoftScreen title="Bekräftelser" back="/">
+        <div className="px-4 pt-2 text-[15px] font-medium" style={{ color: C.text2 }}>Laddar…</div>
+      </SoftScreen>
+    );
   }
 
   const showing: View = queue ? view : "historik";
 
   return (
-    <Screen title="Bekräftelser" back="/">
-      {/* Two states, both always visible, the current one filled -- the same
-          switch Mina Pass uses. A control that hides the thing it switches to
-          makes people press it to find out. */}
+    <SoftScreen title="Bekräftelser" back="/">
+      {/* Both states always visible, the current one on the white thumb. A
+          control that hides the thing it switches to makes people press it to
+          find out. */}
       {queue && (
-        <div role="group" aria-label="Visa" className="mb-6 flex">
-          {(["att", "historik"] as View[]).map((v) => (
-            <button
-              key={v}
-              type="button"
-              aria-pressed={view === v}
-              onClick={() => setView(v)}
-              className={`flex min-h-[56px] flex-1 items-center justify-center border-2 border-black text-lg font-bold ${
-                view === v ? "bg-black text-white" : "bg-white text-black"
-              } ${v === "historik" ? "border-l-0" : ""}`}
-            >
-              {v === "att" ? "Att bekräfta" : "Historik"}
-            </button>
-          ))}
+        <div className="px-4 pt-[2px]">
+          <Segmented
+            label="Visa"
+            value={view}
+            onChange={setView}
+            options={[
+              { value: "att", label: "Att bekräfta" },
+              { value: "historik", label: "Historik" },
+            ]}
+          />
         </div>
       )}
 
       {showing === "att" ? <AttBekrafta /> : <Historik forLeader={queue} />}
-    </Screen>
+    </SoftScreen>
   );
 }
 
@@ -124,31 +144,48 @@ function AttBekrafta() {
     return () => { active = false; };
   }, []);
 
-  if (waiting === undefined) return <span>Laddar…</span>;
+  if (waiting === undefined) {
+    return (
+      <div className="px-4 pt-[26px] text-[15px] font-medium" style={{ color: C.text2 }}>
+        Laddar…
+      </div>
+    );
+  }
 
   return (
     <>
-      {error && <Notice kind="error">{error}</Notice>}
+      {error && <div className="px-4 pt-[14px]"><SoftNotice tone="stop">{error}</SoftNotice></div>}
 
       {waiting.length === 0 ? (
-        <Empty>Inget väntar på dig.</Empty>
-      ) : (
-        <div className="flex flex-col gap-4">
-          {waiting.map((d) => (
-            <Link
-              key={d.key}
-              href={`/bekrafta?projekt=${d.project_id}&datum=${d.work_date}`}
-              className="block border-2 border-black p-4"
-            >
-              <p className="text-xl font-bold">{longDayHeading(d.work_date)}</p>
-              <p className="mb-3 text-lg">{d.project_name}</p>
-              <p className="text-base">
-                {d.workers.length > 0 ? d.workers.join(", ") : "Ingen tilldelad"}
-              </p>
-              <p className="text-base text-neutral-700">{hh(d.hours)} h</p>
-            </Link>
-          ))}
+        <div className="px-4 pt-[26px]">
+          <EmptyState headline="Inget väntar på dig">
+            Dagar som behöver dig hamnar här.
+          </EmptyState>
         </div>
+      ) : (
+        waiting.map((d) => (
+          <div key={d.key} className="px-4 pt-[14px]">
+            <Link href={`/bekrafta?projekt=${d.project_id}&datum=${d.work_date}`} className="block">
+              <Card radius={14} className="hover:bg-[#f6f9ff]">
+                <Kicker>{longDayHeading(d.work_date)}</Kicker>
+                <div className="flex items-baseline justify-between gap-[10px]">
+                  <div className="text-[18px] font-bold" style={{ letterSpacing: "-.4px" }}>
+                    {d.project_name}
+                  </div>
+                  <div className="shrink-0 text-[15px] font-bold" style={{ color: C.accent }}>
+                    {hh(d.hours)} h
+                  </div>
+                </div>
+                <div className="mt-[6px] flex items-center justify-between gap-[10px]">
+                  <div className="text-[15px] font-medium" style={{ color: C.text2 }}>
+                    {d.workers.length > 0 ? d.workers.join(", ") : "Ingen tilldelad"}
+                  </div>
+                  <ChevronRight />
+                </div>
+              </Card>
+            </Link>
+          </div>
+        ))
       )}
     </>
   );
@@ -270,64 +307,89 @@ function Historik({ forLeader }: { forLeader: boolean }) {
     return () => { active = false; };
   }, []);
 
-  if (days === undefined) return <span>Laddar…</span>;
+  if (days === undefined) {
+    return (
+      <div className="px-4 pt-[26px] text-[15px] font-medium" style={{ color: C.text2 }}>
+        Laddar…
+      </div>
+    );
+  }
 
   return (
     <>
-      {error && <Notice kind="error">{error}</Notice>}
+      {error && <div className="px-4 pt-[14px]"><SoftNotice tone="stop">{error}</SoftNotice></div>}
 
       {forLeader && (
-        <p className="mb-4 text-base text-neutral-700">
-          Dagar du bekräftat visas här när admin har godkänt dem.
-        </p>
+        <div className="px-4 pt-[14px]">
+          <div className="px-1 text-[15px] font-medium" style={{ color: C.text2, textWrap: "pretty" }}>
+            Dagar du bekräftat visas här när admin har godkänt dem.
+          </div>
+        </div>
       )}
 
       {days.length === 0 ? (
-        <Empty>Inga avslutade dagar än.</Empty>
+        <div className="px-4 pt-[14px]">
+          <EmptyState headline="Inga avslutade dagar än">
+            Dagar som är klara hamnar här.
+          </EmptyState>
+        </div>
       ) : (
-        <div className="flex flex-col gap-4">
-          {days.map((d) => (
-            <section key={d.key} className="border-2 border-black p-4">
-              <p className="text-xl font-bold">{longDayHeading(d.work_date)}</p>
-              <p className="mb-3 text-lg">{d.project_name}</p>
+        days.map((d) => (
+          <div key={d.key} className="px-4 pt-[14px]">
+            <Card radius={14}>
+              <Kicker>{longDayHeading(d.work_date)}</Kicker>
+              <div className="flex items-baseline justify-between gap-[10px]">
+                <div className="text-[18px] font-bold" style={{ letterSpacing: "-.4px" }}>
+                  {d.project_name}
+                </div>
+                <Tag tone={d.stage === "admin_confirmed" ? "live" : "quiet"}>
+                  {d.stage === "admin_confirmed" ? "Godkänd" : "Bekräftad"}
+                </Tag>
+              </div>
 
-              <p className="mb-1 text-base">
-                {d.stage === "admin_confirmed" ? "Godkänd" : "Bekräftad"} ·{" "}
+              <div className="mt-[6px] text-[15px] font-medium" style={{ color: C.text2 }}>
                 {routeLabel(d.route, d.reviewed_by_name)}
-              </p>
-              <p className="mb-3 text-sm text-neutral-600">
+              </div>
+              <div className="mt-[2px] text-[14px] font-medium" style={{ color: C.chevron }}>
                 {d.confirmed_by_name ?? "—"}
                 {d.reviewed_by_name ? ` · godkänd av ${d.reviewed_by_name}` : ""}
                 {d.filed ? " · arkiverad i en arbetsdagbok" : ""}
-              </p>
+              </div>
 
-              <ul className="mb-3 flex flex-col gap-1">
+              <div className="mt-[14px] rounded-[10px] px-[14px] py-[6px]" style={{ background: C.panel2 }}>
                 {d.rows.map((r, i) => (
-                  <li key={i} className="flex justify-between border-b border-neutral-300 py-1 text-base">
-                    <span>{r.worker_name}</span>
-                    <span className="tabular-nums">
+                  <div
+                    key={i}
+                    className="flex items-baseline justify-between gap-3 py-[8px]"
+                    style={i > 0 ? { boxShadow: `inset 0 1px 0 ${C.hairline}` } : undefined}
+                  >
+                    <span className="text-[15px] font-semibold">{r.worker_name}</span>
+                    <span className="shrink-0 text-[15px] font-medium" style={{ color: C.text2 }}>
                       {r.tider} · {r.hours === null ? "—" : String(r.hours).replace(".", ",")} h
                     </span>
-                  </li>
+                  </div>
                 ))}
-              </ul>
+              </div>
 
-              <p className="text-base">{d.vad_vi_gjorde}</p>
+              {d.vad_vi_gjorde && (
+                <p className="mt-[14px] text-[15px] font-medium" style={{ textWrap: "pretty" }}>
+                  {d.vad_vi_gjorde}
+                </p>
+              )}
 
               {d.log.length > 0 && (
-                <ul className="mt-3 flex flex-col gap-1 border-t-2 border-black pt-2">
+                <div className="mt-[14px] pt-[10px]" style={{ boxShadow: `inset 0 1px 0 ${C.hairline}` }}>
                   {d.log.map((a, i) => (
-                    <li key={i} className="text-sm text-neutral-700">
-                      {a.action === "rejected" ? "Underkänd" : "Godkänd"}{" "}
-                      {a.acted_at.slice(0, 10)}
+                    <div key={i} className="text-[14px] font-medium" style={{ color: C.text2 }}>
+                      {a.action === "rejected" ? "Underkänd" : "Godkänd"} {a.acted_at.slice(0, 10)}
                       {a.note ? ` — ${a.note}` : ""}
-                    </li>
+                    </div>
                   ))}
-                </ul>
+                </div>
               )}
-            </section>
-          ))}
-        </div>
+            </Card>
+          </div>
+        ))
       )}
     </>
   );

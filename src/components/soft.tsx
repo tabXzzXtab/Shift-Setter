@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 /**
  * The handoff's design language, as components.
@@ -37,6 +37,9 @@ export const C = {
   liveInk: "#146b41",
   liveBg: "#e4f0e8",
   warnInk: "#7a4407",
+  /** The warn pair has two inks. Tags use the darker one; the handoff's own
+   *  tag() helper and its Arbetsledare role tag are both #5c3305. */
+  tagWarnInk: "#5c3305",
   warnBg: "#fdf2e3",
   stopInk: "#8e1d15",
   stopBg: "#fbe9ec",
@@ -357,7 +360,7 @@ export function GroupedList({ rows }: { rows: { href: string; label: string }[] 
 export function Tag({ tone, children }: { tone: "live" | "warn" | "stop" | "quiet"; children: ReactNode }) {
   const pair = {
     live: [C.liveInk, C.liveBg],
-    warn: [C.warnInk, C.warnBg],
+    warn: [C.tagWarnInk, C.warnBg],
     stop: [C.stopInk, C.stopBg],
     quiet: [C.inkHover, C.panel2],
   }[tone];
@@ -394,6 +397,85 @@ export function SoftNotice({
       style={{ color: pair[0], background: pair[1] }}
     >
       {children}
+    </div>
+  );
+}
+
+/**
+ * The handoff's bottom sheet, which is what a menu is in this design.
+ *
+ * From the BOTTOM rather than the top, unlike app-bar's DropPanel: the sheet
+ * is where a thumb already is, and the handoff draws the home behind it
+ * blurred and dimmed rather than merely darkened, so the page it covers is
+ * still legible as the place you will come back to.
+ *
+ * DropPanel stays where it is until the admin's screens move too. Two menus in
+ * two languages for one release is the cost of migrating a role at a time; one
+ * app with a blue sheet on one landing page and a black panel on another,
+ * forever, would not be.
+ *
+ * Tapping the scrim closes it, so does Escape, and so does the Stäng button --
+ * three ways out, because a sheet with no visible exit is the thing people get
+ * stuck in.
+ */
+export function SoftSheet({
+  onClose, label, children,
+}: {
+  onClose: () => void;
+  label: string;
+  children: ReactNode;
+}) {
+  const [shown, setShown] = useState(false);
+
+  // The flip happens on the frame AFTER mount, which is what gives the
+  // transform a value to move from; a single render would jump.
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setShown(true));
+    const esc = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", esc);
+    return () => { cancelAnimationFrame(id); window.removeEventListener("keydown", esc); };
+  }, [onClose]);
+
+  return (
+    <div className="fixed inset-0 z-50">
+      <button
+        type="button"
+        aria-label="Stäng"
+        onClick={onClose}
+        className={`absolute inset-0 h-full w-full transition-opacity duration-200 ${
+          shown ? "opacity-100" : "opacity-0"
+        }`}
+        style={{ background: "rgba(9,21,64,.42)" }}
+      />
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={label}
+        className={`absolute inset-x-0 bottom-0 mx-auto w-full max-w-[390px] px-4 pb-[22px] pt-[10px] transition-transform duration-200 ${
+          shown ? "translate-y-0" : "translate-y-full"
+        }`}
+        style={{
+          background: C.ground,
+          color: C.ink,
+          borderRadius: "22px 22px 0 0",
+          boxShadow: SHADOW.sheet,
+          fontFamily: "var(--font-inter), system-ui, sans-serif",
+        }}
+      >
+        <div
+          className="mx-auto mb-[14px] h-1 w-[38px] rounded-full"
+          style={{ background: "#dbe4f9" }}
+        />
+        {children}
+        <button
+          type="button"
+          onClick={onClose}
+          className="press-scale mt-3 h-14 w-full rounded-[12px] text-[17px] font-bold transition-transform duration-[110ms] hover:bg-[#dbe4f9] active:scale-[.985]"
+          style={{ letterSpacing: "-.2px", background: C.panel2, color: C.inkHover }}
+        >
+          Stäng
+        </button>
+      </div>
     </div>
   );
 }

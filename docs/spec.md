@@ -562,7 +562,7 @@ Every `leader_confirmed` day arrives in the admin's review queue. Three outcomes
 
 **A day is in the historik once it is finished with.** Two routes in, and a day can arrive by both: the admin approved it at stage 2, or an Arbetsdagbok was generated over it, which consumes a day whatever stage it had reached. **Admin and arbetsledare both read it**, scoped to the projects they are on, and both read the same definition — a leader and the owner looking at two different versions of the same log would be worse than no log.
 
-**The screen is Bekräftelser, and it holds a day before and after.** One switch, two views: **Att bekräfta** is what is still owed and **Historik** is what is settled. They were two menu entries pointing at two screens, which meant the leader had to already know which of them a day had reached in order to look for it. "Att bekräfta" is `pendingDays()` and nothing else, so this list, the landing page's widget and Bekräfta Pass cannot disagree about what is waiting; each row opens the day it names, and Bekräfta Pass takes that as a preference rather than a permission — a day not in the queue falls back to the oldest one that is.
+**The screen is Bekräftelser, and it holds a day before and after.** One switch, two views: **Att bekräfta** is what is still owed and **Historik** is what is settled. They were two menu entries pointing at two screens, which meant the leader had to already know which of them a day had reached in order to look for it. "Att bekräfta" is `pendingDays()` and nothing else, so this list, the Startsida's count and Bekräfta Pass cannot disagree about what is waiting; each row opens the day it names, and Bekräfta Pass takes that as a preference rather than a permission — a day not in the queue falls back to the oldest one that is.
 
 **The switch is the arbetsledare's.** Stage 1 is theirs alone, so an admin opening Bekräftelser sees the log and no switch: his outstanding work is stage 2 and it lives on Granska Pass. A queue of days the database would refuse him is not a queue.
 
@@ -607,7 +607,7 @@ That block is the entire enforcement mechanism. The admin needs the document; on
 - Column-level grants cannot separate roles: every logged-in user is the same database role, so a grant restricting workers restricts leaders identically. Triggers comparing old and new values are the mechanism that works.
 - Notifications, reminders, scheduled alerts and deadline emails are **impossible as-is**. They need something running — a scheduled function or a small server. That is an architecture decision, not a feature.
 
-**Notifications are in-app only.** A red dot and a message on next load. No push, no email, no scheduled digests — those need a server or a scheduled function, and neither exists. In-app is enough for the two things that actually need to travel: a deleted shift, and an offered one.
+**Notifications are in-app only.** A message on next load. (The arbetare's badge; the leader's Startsida counts rather than dots.) No push, no email, no scheduled digests — those need a server or a scheduled function, and neither exists. In-app is enough for the two things that actually need to travel: a deleted shift, and an offered one.
 
 **Account creation needs elevated credentials**, so it runs through a separate function with its own deployment path. Creating an auth user requires the service-role key, which cannot ship in a static bundle.
 
@@ -658,8 +658,8 @@ The Arbetsdagbok is not in either place. It lives inside the project (Section 1)
 **Landing page:**
 
 - **+ Skapa Pass**
-- **Bekräfta Pass** — a widget, not a link. A live preview of the days actually waiting, with a red dot whenever anything is pending. Tapping it opens the full page. A leader should see the size of the debt without pressing anything.
-- **Nästa Pass** — a card for their next shift: map, project name, address, date. **Read only. No accept, no deny.** A leader's days are auto-assigned (Step 4b), so there is nothing to accept, and a button that only ever agrees with what is already true teaches people to press without reading.
+- **Bekräfta Pass** — a hero card, and the first thing on the screen: the kicker "Väntar på dig", the COUNT of days owed at 34/800, one line saying why they matter, and the 66px action under it. A leader should see the size of the debt without pressing anything, and a number is what says that; the days themselves are named one tap away, in Bekräfta Pass and in Bekräftelser' "Att bekräfta". It was a preview list with a red dot, and both went with the redesign — three places naming the same days is two too many, and `#d62728` is not in this design's palette, so the count carries the alarm the dot was carrying. "1 dag", not "1 dagar": a screen whose whole subject is a number should not get its own number's grammar wrong.
+- **Nästa Pass** — a card for their next shift: map, project name, address, date, times. Same body as an Acceptera Pass card **minus its hours figure** — an offer prints planned hours because that is the figure being offered, while this is a day already held and invariant 10 masks its hours until an Arbetsdagbok covers the date, which a coming day never has. On a leader's auto-assigned row the number would be the pass's and not theirs in any case; the times shown are the envelope that row carries. **Read only. No accept, no deny.** A leader's days are auto-assigned (Step 4b), so there is nothing to accept, and a button that only ever agrees with what is already true teaches people to press without reading. The same card, from the same component, is on the arbetare's landing page.
 
 **Hamburger menu**, top left:
 

@@ -3,7 +3,9 @@
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { AuthGate } from "@/components/auth-gate";
-import { Button, Empty, Field, Input, Notice, Screen, Textarea } from "@/components/ui";
+import {
+  C, Card, PrimaryButton, SHADOW, SoftField, SoftInput, SoftNotice, SoftScreen, Tag,
+} from "@/components/soft";
 import { getSupabase } from "@/lib/supabase/client";
 import { hhmm, longDayHeading, stampToTime } from "@/lib/dates";
 import { pendingDays } from "@/lib/pending-days";
@@ -29,6 +31,7 @@ type Row = {
 type Day = {
   project_id: string;
   project_name: string;
+  site_address: string;
   work_date: string;
   /** Set when the admin sent this day back. The reason he gave, verbatim. */
   rejection_note: string | null;
@@ -141,6 +144,7 @@ function Bekrafta({ askedProject, askedDate }: { askedProject: string | null; as
       setDay({
         project_id: first.project_id,
         project_name: first.project_name,
+        site_address: first.site_address,
         work_date: first.work_date,
         rejection_note: first.rejection_note,
         rows,
@@ -225,98 +229,191 @@ function Bekrafta({ askedProject, askedDate }: { askedProject: string | null; as
     setReload((r) => r + 1);
   }
 
-  if (day === undefined) return <Screen title="Bekräfta pass" back="/"><span>Laddar…</span></Screen>;
+  if (day === undefined) {
+    return (
+      <SoftScreen title="Bekräfta pass" back="/">
+        <div className="px-4 pt-2 text-[15px] font-medium" style={{ color: C.text2 }}>Laddar…</div>
+      </SoftScreen>
+    );
+  }
 
+  // The handoff's empty state: a check glyph in a white 46px tile, then the
+  // headline and the line under it.
   if (day === null) {
     return (
-      <Screen title="Bekräfta pass" back="/">
-        {error && <Notice kind="error">{error}</Notice>}
-        <Empty>Inget att bekräfta.</Empty>
-      </Screen>
+      <SoftScreen title="Bekräfta pass" back="/">
+        <div className="px-4 pt-[2px]">
+          {error && <div className="pb-[10px]"><SoftNotice tone="stop">{error}</SoftNotice></div>}
+          <div className="rounded-[14px] px-[22px] py-[34px] text-center" style={{ background: C.panel }}>
+            <div
+              className="mx-auto mb-[14px] flex h-[46px] w-[46px] items-center justify-center rounded-[14px]"
+              style={{ background: C.surface, boxShadow: SHADOW.flat }}
+            >
+              <svg width="20" height="16" viewBox="0 0 11 9" fill="none" aria-hidden>
+                <path d="M1 4.6 4 7.6 10 1.4" stroke={C.liveInk} strokeWidth="2.2"
+                  strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </div>
+            <div className="mb-1 text-[17px] font-bold" style={{ letterSpacing: "-.2px" }}>
+              Inget att bekräfta
+            </div>
+            <div className="text-[15px] font-medium" style={{ color: C.text2 }}>
+              Dagar som behöver dig hamnar här.
+            </div>
+          </div>
+        </div>
+      </SoftScreen>
     );
   }
 
   return (
-    <Screen title="Bekräfta pass" back="/">
-      {error && <Notice kind="error">{error}</Notice>}
+    <SoftScreen title="Bekräfta pass" back="/">
+      {error && <div className="px-4 pb-[10px] pt-[2px]"><SoftNotice tone="stop">{error}</SoftNotice></div>}
 
-      <p className="mb-1 text-2xl font-bold">{longDayHeading(day.work_date)}</p>
-      <p className="mb-6 text-lg">{day.project_name}</p>
+      {/* Day kicker, project at 26/800, the site under it. */}
+      <div className="px-4 pt-[2px]">
+        <div
+          className="px-1 pb-[2px] text-[12px] font-bold uppercase"
+          style={{ letterSpacing: "1px", color: C.text2 }}
+        >
+          {longDayHeading(day.work_date)}
+        </div>
+        <div className="px-1 text-[26px] font-extrabold" style={{ letterSpacing: "-.9px" }}>
+          {day.project_name}
+        </div>
+        {day.site_address && (
+          <div className="px-1 pt-[2px] text-[15px] font-medium" style={{ color: C.text2 }}>
+            {day.site_address}
+          </div>
+        )}
+      </div>
 
       {day.rejection_note !== null && (
-        <Notice kind="error">
-          Återsänd av admin: {day.rejection_note}
-        </Notice>
+        <div className="px-4 pt-[14px]">
+          <SoftNotice tone="stop">Återsänd av admin: {day.rejection_note}</SoftNotice>
+        </div>
       )}
 
-      <div className="flex flex-col gap-4">
-        {day.rows.map((r) => {
-          const e = edits[r.tilldelning_id]!;
-          return (
-            <section key={r.tilldelning_id} className="border-2 border-black p-4">
-              <p className="mb-3 flex flex-wrap items-baseline gap-2 text-xl font-bold">
-                {r.worker_name}
-                {/* Step 4b: placed because their people were there, not by the
-                    priority list. Saying so is why the span looks unlike
-                    anyone else's on the day. */}
-                {r.is_leader && (
-                  <span className="border border-black px-1 text-xs font-bold uppercase tracking-wide">
-                    Arbetsledare
-                  </span>
-                )}
-              </p>
-
-              <p className="mb-3 text-base text-neutral-700">
-                Stämplade {stampToTime(r.clock_in) || "—"} till {stampToTime(r.clock_out) || "—"}
-              </p>
-
-              <div className="grid grid-cols-2 gap-3">
-                <Field label="Börjar">
-                  <Input
-                    type="time"
-                    value={e.start}
-                    onChange={(ev) =>
-                      setEdits((p) => ({ ...p, [r.tilldelning_id]: { ...e, start: ev.target.value } }))
-                    }
-                  />
-                </Field>
-                <Field label="Slutar">
-                  <Input
-                    type="time"
-                    value={e.end}
-                    onChange={(ev) =>
-                      setEdits((p) => ({ ...p, [r.tilldelning_id]: { ...e, end: ev.target.value } }))
-                    }
-                  />
-                </Field>
+      {day.rows.map((r) => {
+        const e = edits[r.tilldelning_id]!;
+        return (
+          <div key={r.tilldelning_id} className="px-4 pt-[14px]">
+            <Card>
+              <div className="flex items-baseline justify-between gap-[10px]">
+                <div className="text-[18px] font-bold" style={{ letterSpacing: "-.4px" }}>
+                  {r.worker_name}
+                </div>
+                {/* The handoff draws two: stamped out, and clocked in but not
+                    out. A row with no stamp at all is a third thing and gets a
+                    quiet tag rather than an amber one -- nothing is unfinished,
+                    nobody started. */}
+                <Tag tone={r.clock_out ? "live" : r.clock_in ? "warn" : "quiet"}>
+                  {r.clock_out ? "Stämplad ut" : r.clock_in ? "Ej utstämplad" : "Ej stämplad"}
+                </Tag>
               </div>
 
-              <Field label="Timmar" hint="0 om personen inte kom.">
-                <Input
+              {/* Step 4b: placed because their people were there, not by the
+                  priority list. Saying so is why the span looks unlike anyone
+                  else's on the day. */}
+              {r.is_leader && (
+                <div className="pt-[6px]"><Tag tone="quiet">Arbetsledare</Tag></div>
+              )}
+
+              <div className="mb-[14px] mt-[2px] text-[14px] font-medium" style={{ color: C.text2 }}>
+                Stämplade {stampToTime(r.clock_in) || "—"} till {stampToTime(r.clock_out) || "—"}
+              </div>
+
+              <div className="mb-[14px] flex gap-[10px]">
+                <div className="flex-1">
+                  <SoftField label="Börjar">
+                    <SoftInput
+                      type="time"
+                      value={e.start}
+                      onChange={(ev) =>
+                        setEdits((p) => ({ ...p, [r.tilldelning_id]: { ...e, start: ev.target.value } }))
+                      }
+                    />
+                  </SoftField>
+                </div>
+                <div className="flex-1">
+                  <SoftField label="Slutar">
+                    <SoftInput
+                      type="time"
+                      value={e.end}
+                      onChange={(ev) =>
+                        setEdits((p) => ({ ...p, [r.tilldelning_id]: { ...e, end: ev.target.value } }))
+                      }
+                    />
+                  </SoftField>
+                </div>
+              </div>
+
+              <SoftField label="Timmar" help="0 om personen inte kom." big>
+                <SoftInput
                   inputMode="decimal"
                   value={e.hours}
                   onChange={(ev) =>
                     setEdits((p) => ({ ...p, [r.tilldelning_id]: { ...e, hours: ev.target.value } }))
                   }
+                  style={{ letterSpacing: "-.6px" }}
                 />
-              </Field>
-            </section>
-          );
-        })}
+              </SoftField>
+            </Card>
+          </div>
+        );
+      })}
+
+      <div className="px-4 pt-[14px]">
+        <Card>
+          <div className="flex items-baseline justify-between gap-[10px]">
+            {/* htmlFor, not a wrapping <label>: the handoff puts "Krävs" on the
+                same baseline as the label, and a <label> containing both would
+                make the marker part of the field's accessible name. */}
+            <label
+              htmlFor="vad-vi-gjorde"
+              className="text-[12px] font-bold uppercase"
+              style={{ letterSpacing: ".9px", color: C.text2 }}
+            >
+              Vad vi gjorde
+            </label>
+            {/* Krävs, in the stop ink, because it is the one field the database
+                refuses a confirmation without. */}
+            <div
+              className="text-[12px] font-bold"
+              style={{ letterSpacing: ".4px", color: C.stopInk }}
+            >
+              Krävs
+            </div>
+          </div>
+          <div className="mb-2 mt-[2px] text-[14px] font-medium" style={{ color: C.text2 }}>
+            Skrivs ut på varje rad i arbetsdagboken.
+          </div>
+          <textarea
+            id="vad-vi-gjorde"
+            rows={4}
+            value={gjorde}
+            onChange={(e) => setGjorde(e.target.value)}
+            className="w-full resize-y rounded-[10px] border-0 p-[14px] text-[16px] font-medium leading-[1.45] outline-none focus:bg-white focus:outline-2 focus:outline-[#1b2cc1]"
+            style={{ background: C.panel2, color: C.ink }}
+          />
+        </Card>
       </div>
 
-      <div className="mt-6">
-        <Field label="Vad vi gjorde" hint="Krävs. Skrivs ut på varje rad i Arbetsdagboken.">
-          <Textarea value={gjorde} onChange={(e) => setGjorde(e.target.value)} />
-        </Field>
+      <div className="px-4 pt-[14px]">
+        <div
+          className="rounded-[12px] px-4 py-[14px] text-[15px] font-semibold"
+          style={{ background: C.panel2, color: C.inkHover, textWrap: "pretty" }}
+        >
+          Bekräftat är slutgiltigt. Det går inte att ändra efteråt.
+        </div>
       </div>
 
-      <Notice kind="info">Bekräftat är slutgiltigt. Det går inte att ändra efteråt.</Notice>
-
-      <Button onClick={confirm} disabled={saving || gjorde.trim() === ""}>
-        {saving ? "Bekräftar…" : "Bekräfta dagen"}
-      </Button>
-    </Screen>
+      <div className="px-4 pt-[14px]">
+        <PrimaryButton onClick={confirm} disabled={saving || gjorde.trim() === ""}>
+          {saving ? "Bekräftar…" : "Bekräfta dagen"}
+        </PrimaryButton>
+      </div>
+    </SoftScreen>
   );
 }
 
@@ -342,7 +439,7 @@ function BekraftaFromUrl() {
 export default function Page() {
   return (
     <AuthGate>
-      <Suspense fallback={<Screen title="Bekräfta pass" back="/"><span>Laddar…</span></Screen>}>
+      <Suspense fallback={<SoftScreen title="Bekräfta pass" back="/"><span /></SoftScreen>}>
         <BekraftaFromUrl />
       </Suspense>
     </AuthGate>

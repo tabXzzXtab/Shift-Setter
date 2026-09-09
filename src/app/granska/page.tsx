@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { AuthGate } from "@/components/auth-gate";
 import { Button, Empty, Field, Input, Notice, Screen, Textarea } from "@/components/ui";
 import { getSupabase } from "@/lib/supabase/client";
@@ -45,8 +46,14 @@ type Edit = { start: string; end: string; hours: string };
  *
  * Oldest first, one day at a time, the same shape as the leader's queue. An
  * owner reviewing a fortnight of days should not have to decide where to look.
+ *
+ * A day may be ASKED FOR by name, as ?projekt=&datum=, the same way Bekräfta
+ * Pass takes one. The ask is a preference, never a permission: the day still
+ * has to be in the queue this builds, so naming one that is approved, surveyed
+ * or not yet confirmed falls back to the head of the queue rather than opening
+ * it. Nothing here decides who may write; the database does that.
  */
-function Granska() {
+function Granska({ askedProject, askedDate }: { askedProject: string | null; askedDate: string | null }) {
   const [day, setDay] = useState<Day | null | undefined>(undefined);
   const [edits, setEdits] = useState<Record<string, Edit>>({});
   const [gjorde, setGjorde] = useState("");
@@ -83,7 +90,10 @@ function Granska() {
       const queue = [...days].sort((a, b) =>
         Number(Boolean(b.flagged_as)) - Number(Boolean(a.flagged_as)) ||
         a.work_date.localeCompare(b.work_date));
-      const first = queue[0]!;
+      const first =
+        (askedProject !== null && askedDate !== null
+          ? queue.find((d) => d.project_id === askedProject && d.work_date === askedDate)
+          : undefined) ?? queue[0]!;
 
       const { data: passes, error: pErr } = await sb
         .from("pass")
@@ -148,7 +158,7 @@ function Granska() {
     })();
 
     return () => { active = false; };
-  }, [reload]);
+  }, [reload, askedProject, askedDate]);
 
   /**
    * Approve, with whatever the admin corrected. One call, because "edit and
@@ -343,10 +353,31 @@ function Granska() {
   );
 }
 
+/**
+ * The day arrives as ?projekt=&datum=. useSearchParams needs a Suspense
+ * boundary in a statically exported app -- the query string is not known when
+ * the page is prerendered, only when a browser opens it.
+ *
+ * Shape-checked before it is used: a uuid and a date, or nothing.
+ */
+function GranskaFromUrl() {
+  const q = useSearchParams();
+  const projekt = q.get("projekt");
+  const datum = q.get("datum");
+  const ok =
+    projekt !== null &&
+    datum !== null &&
+    /^[0-9a-f-]{36}$/i.test(projekt) &&
+    /^\d{4}-\d{2}-\d{2}$/.test(datum);
+  return <Granska askedProject={ok ? projekt : null} askedDate={ok ? datum : null} />;
+}
+
 export default function Page() {
   return (
     <AuthGate>
-      <Granska />
+      <Suspense fallback={<Screen title="Granska pass" back="/"><span>Laddar…</span></Screen>}>
+        <GranskaFromUrl />
+      </Suspense>
     </AuthGate>
   );
 }

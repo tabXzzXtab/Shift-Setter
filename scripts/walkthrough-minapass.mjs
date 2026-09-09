@@ -182,7 +182,7 @@ try {
   for (let i = 0; i < 3; i++) {
     if (await page.getByText("Inget att bekräfta").count()) break;
     await field(page, "Timmar").fill("8");
-    await field(page, "Vad vi gjorde").fill("La stenmjöl och packade.");
+    await page.getByLabel("Vad vi gjorde").fill("La stenmjöl och packade.");
     await page.getByRole("button", { name: "Bekräfta dagen" }).click();
     await page.waitForTimeout(2500);
   }
