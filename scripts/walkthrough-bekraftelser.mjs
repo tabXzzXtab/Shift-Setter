@@ -80,7 +80,7 @@ async function createPerson(page, name, email, role) {
   await field(page, "E-post").fill(email);
   await field(page, "Roll").selectOption(role);
   await page.getByRole("button", { name: /Kopiera inloggning/ }).click();
-  const password = /Lösenord:\s*(\S+)/.exec(await page.locator("pre").first().innerText())?.[1];
+  const password = (await page.locator("[data-password]").first().innerText()).trim();
   if (!password) fail(`no password for ${name}`);
   await page.getByRole("button", { name: "Tillverka arbetare" }).click();
   await page.getByText("Klar", { exact: false }).first().waitFor({ timeout: 20000 });

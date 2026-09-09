@@ -1,7 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Button, Field, Input, Notice, Select } from "./ui";
+import {
+  C, Card, PrimaryButton, SecondaryButton, SoftField, SoftInput, SoftNotice,
+  SoftSelect, Tag,
+} from "./soft";
 import { getSupabase } from "@/lib/supabase/client";
 
 export type CreatedWorker = { worker_id: string; name: string; email: string };
@@ -14,18 +17,38 @@ export type CreatedWorker = { worker_id: string; name: string; email: string };
  *   3. Only THEN does Tillverka Arbetare become pressable.
  *
  * The copy gates the create deliberately: an account whose credentials nobody
- * holds is an account nobody can use, and the worker has no way to ask.
+ * holds is an account nobody can use, and the worker has no way to ask. This
+ * is the one screen the handoff uses to document the disabled pattern, and the
+ * sentence under the two dead buttons is the reason they are dead.
  *
  * The same form serves the roster screen and the Snabb Pass dropdown, because
  * it is the same act: "the same form appears, the same copy-then-create
  * sequence runs, and the admin returns to the shift screen and finishes as
  * though nothing happened."
+ *
+ * WHAT IS ON SCREEN AND WHAT IS ON THE CLIPBOARD ARE NOT THE SAME SHAPE. The
+ * clipboard gets the four-line block, unchanged, because that is what gets
+ * pasted into a message. The panel shows the three things somebody reads out
+ * over a phone, with the password at 22/800 -- six digits dictated from a
+ * 15px line is how a digit gets heard wrong.
  */
 
 /** Six digits: within 6-20 characters, and typeable on a phone keypad. */
 function generatePassword(): string {
   const n = crypto.getRandomValues(new Uint32Array(1))[0]!;
   return String(100000 + (n % 900000));
+}
+
+/** 12/700 uppercase, the label on every entry in the credentials panel. */
+function EntryLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <div
+      className="text-[12px] font-bold uppercase"
+      style={{ letterSpacing: ".9px", color: C.text2 }}
+    >
+      {children}
+    </div>
+  );
 }
 
 export function NyArbetareForm({
@@ -47,9 +70,14 @@ export function NyArbetareForm({
 
   const ready = name.trim() !== "" && email.trim() !== "";
 
-  function credentialBlock(pw: string) {
+  /** The app's own front door, which is where the worker has to arrive. */
+  function loginLink() {
     const base = process.env.NEXT_PUBLIC_BASE_PATH ?? "/Shift-Setter";
-    return `Länk: ${window.location.origin}${base}/\nNamn: ${name.trim()}\nEmail: ${email.trim()}\nLösenord: ${pw}`;
+    return typeof window === "undefined" ? `${base}/` : `${window.location.origin}${base}/`;
+  }
+
+  function credentialBlock(pw: string) {
+    return `Länk: ${loginLink()}\nNamn: ${name.trim()}\nEmail: ${email.trim()}\nLösenord: ${pw}`;
   }
 
   async function copyLogin() {
@@ -100,53 +128,146 @@ export function NyArbetareForm({
 
   return (
     <div>
-      {error && <Notice kind="error">{error}</Notice>}
+      {error && <div className="pb-[14px]"><SoftNotice tone="stop">{error}</SoftNotice></div>}
 
-      <Field label="Namn">
-        <Input value={name} onChange={(e) => { setName(e.target.value); setCopied(false); }} autoComplete="off" />
-      </Field>
+      <Card radius={16} pad="p-[18px]">
+        <div className="mb-[14px]">
+          <SoftField label="Namn">
+            <SoftInput
+              placeholder="För- och efternamn"
+              value={name}
+              onChange={(e) => { setName(e.target.value); setCopied(false); }}
+              autoComplete="off"
+            />
+          </SoftField>
+        </div>
 
-      <Field label="E-post" hint="Används för att logga in. Måste inte vara en riktig brevlåda.">
-        <Input
-          type="email" value={email}
-          onChange={(e) => { setEmail(e.target.value); setCopied(false); }}
-          autoComplete="off"
-        />
-      </Field>
+        <div className={allowRoleChoice ? "mb-[14px]" : undefined}>
+          <SoftField
+            label="E-post"
+            help="Används för att logga in. Måste inte vara en riktig brevlåda."
+          >
+            <SoftInput
+              type="email"
+              placeholder="namn@bolaget.test"
+              value={email}
+              onChange={(e) => { setEmail(e.target.value); setCopied(false); }}
+              autoComplete="off"
+            />
+          </SoftField>
+        </div>
 
-      {allowRoleChoice && (
-        <Field label="Roll">
-          <Select value={role} onChange={(e) => setRole(e.target.value as typeof role)}>
-            <option value="arbetare">Arbetare</option>
-            <option value="arbetsledare">Arbetsledare</option>
-          </Select>
-        </Field>
+        {allowRoleChoice && (
+          <SoftField label="Roll">
+            <SoftSelect value={role} onChange={(e) => setRole(e.target.value as typeof role)}>
+              <option value="arbetare">Arbetare</option>
+              <option value="arbetsledare">Arbetsledare</option>
+            </SoftSelect>
+          </SoftField>
+        )}
+      </Card>
+
+      {/* The credentials, once there are any. */}
+      {password && (
+        <div className="pt-[14px]">
+          <Card radius={16} pad="p-[18px]">
+            <div className="mb-3 flex items-center justify-between gap-[10px]">
+              <div
+                className="text-[12px] font-bold uppercase"
+                style={{ letterSpacing: "1px", color: C.text2 }}
+              >
+                Inloggning
+              </div>
+              {copied && (
+                <Tag tone="live">
+                  <svg width="11" height="9" viewBox="0 0 11 9" fill="none" aria-hidden>
+                    <path d="M1 4.6 4 7.6 10 1.4" stroke={C.liveInk} strokeWidth="2.2"
+                      strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  Kopierad
+                </Tag>
+              )}
+            </div>
+
+            <div
+              data-credentials
+              className="flex flex-col gap-[10px] rounded-[10px] px-4 py-[14px]"
+              style={{ background: C.panel2 }}
+            >
+              <div>
+                <EntryLabel>Länk</EntryLabel>
+                <div className="break-all text-[15px] font-semibold">{loginLink()}</div>
+              </div>
+              <div>
+                <EntryLabel>E-post</EntryLabel>
+                <div className="break-all text-[15px] font-semibold">{email.trim()}</div>
+              </div>
+              <div>
+                <EntryLabel>Lösenord</EntryLabel>
+                {/* The one thing on this screen someone reads out loud. */}
+                <div
+                  data-password
+                  className="text-[22px] font-extrabold"
+                  style={{ letterSpacing: "1px" }}
+                >
+                  {password}
+                </div>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={copyLogin}
+              className="press-scale mt-3 h-[52px] w-full rounded-[10px] text-[16px] font-bold transition-transform duration-[110ms] hover:bg-[#dbe4f9] active:scale-[.985]"
+              style={{ background: C.panel2, color: C.inkHover }}
+            >
+              Kopiera igen
+            </button>
+          </Card>
+        </div>
       )}
 
-      <div className="mt-6 flex flex-col gap-3">
-        <Button onClick={copyLogin} disabled={!ready} variant="outline">
-          {copied ? "Kopierad ✓  Kopiera igen" : "Kopiera inloggning"}
-        </Button>
-
-        {password && (
-          <pre className="whitespace-pre-wrap border-2 border-black p-3 text-base">
-            {credentialBlock(password)}
-          </pre>
+      <div className="pt-5">
+        {/* Before there is anything to copy, this is the only live control on
+            the screen -- and it is dead too until there is a name and an
+            address to put in the block. */}
+        {!password && (
+          <div className="mb-[10px]">
+            <button
+              type="button"
+              onClick={copyLogin}
+              disabled={!ready}
+              className="press-scale flex h-14 w-full items-center justify-center rounded-[12px] text-[17px] font-bold transition-transform duration-[110ms] active:scale-[.985]"
+              style={{
+                letterSpacing: "-.2px",
+                background: ready ? C.panel2 : C.hairline,
+                color: ready ? C.inkHover : C.chevron,
+                cursor: ready ? undefined : "not-allowed",
+              }}
+            >
+              Kopiera inloggning
+            </button>
+          </div>
         )}
 
-        <Button onClick={create} disabled={!copied || saving}>
+        <PrimaryButton onClick={create} disabled={!copied || saving}>
           {saving ? "Skapar…" : "Tillverka arbetare"}
-        </Button>
+        </PrimaryButton>
 
         {!copied && (
-          <p className="text-base text-neutral-600">
+          <p
+            className="px-1 pt-3 text-[15px] font-medium"
+            style={{ color: C.text2, textWrap: "pretty" }}
+          >
             Kopiera inloggningen först. Ett konto vars uppgifter ingen har är ett
             konto ingen kan använda.
           </p>
         )}
 
         {onCancel && (
-          <Button variant="outline" onClick={onCancel}>Avbryt</Button>
+          <div className="pt-[10px]">
+            <SecondaryButton onClick={onCancel}>Avbryt</SecondaryButton>
+          </div>
         )}
       </div>
     </div>

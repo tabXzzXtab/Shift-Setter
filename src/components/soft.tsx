@@ -534,12 +534,20 @@ export function GroupedList({ rows }: { rows: { href: string; label: string }[] 
 }
 
 /** A status pill. Colour is never the only carrier -- it always has a word. */
-export function Tag({ tone, children }: { tone: "live" | "warn" | "stop" | "quiet"; children: ReactNode }) {
+export function Tag({
+  tone, children,
+}: {
+  tone: "live" | "warn" | "stop" | "quiet" | "deep";
+  children: ReactNode;
+}) {
   const pair = {
     live: [C.liveInk, C.liveBg],
     warn: [C.tagWarnInk, C.warnBg],
     stop: [C.stopInk, C.stopBg],
     quiet: [C.inkHover, C.panel2],
+    /** The handoff's Admin role tag: a step deeper than quiet, so the three
+     *  roles are told apart by weight of fill rather than by hue. */
+    deep: [C.inkHover, "#dbe4f9"],
   }[tone];
   return (
     <span

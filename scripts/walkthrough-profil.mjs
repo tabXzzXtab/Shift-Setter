@@ -206,7 +206,7 @@ try {
   await a.waitForURL((u) => u.pathname.includes("/installningar"), { timeout: 20000 });
 
   const email = required("DEMO_WORKER_EMAIL");
-  const row = a.locator("section.border-2").filter({ hasText: email }).first();
+  const row = a.locator("section[data-konto]").filter({ hasText: email }).first();
   await row.waitFor({ timeout: 20000 });
   await row.getByText("Ändra profil", { exact: true }).click();
   await a.waitForURL((u) => u.pathname.includes("/profil"), { timeout: 20000 });

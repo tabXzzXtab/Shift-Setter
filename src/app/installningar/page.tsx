@@ -3,7 +3,9 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { AuthGate } from "@/components/auth-gate";
-import { ActionLink, Empty, Notice, Screen, Select } from "@/components/ui";
+import {
+  C, EmptyState, SHADOW, SoftField, SoftNotice, SoftScreen, SoftSelect, Tag,
+} from "@/components/soft";
 import { getSupabase } from "@/lib/supabase/client";
 import { useAccount, type Role } from "@/lib/account";
 
@@ -19,6 +21,13 @@ const ROLE_LABEL: Record<Role, string> = {
   admin: "Admin",
   arbetsledare: "Arbetsledare",
   arbetare: "Arbetare",
+};
+
+/** The handoff gives each role its own fill, deepest for the one with the most. */
+const ROLE_TONE: Record<Role, "deep" | "warn" | "quiet"> = {
+  admin: "deep",
+  arbetsledare: "warn",
+  arbetare: "quiet",
 };
 
 /**
@@ -103,72 +112,134 @@ function Installningar() {
   }
 
   if (rows === null) {
-    return <Screen title="Inställningar" back="/"><span>Laddar…</span></Screen>;
+    return (
+      <SoftScreen title="Inställningar" back="/">
+        <p className="px-5 text-[15px] font-medium" style={{ color: C.text2 }}>Laddar…</p>
+      </SoftScreen>
+    );
   }
 
   return (
-    <Screen title="Inställningar" back="/">
-      {error && <Notice kind="error">{error}</Notice>}
-      {note && <Notice kind="ok">{note}</Notice>}
+    <SoftScreen title="Inställningar" back="/">
+      {(error || note) && (
+        <div className="px-4 pb-[10px] pt-[2px]">
+          {error && <SoftNotice tone="stop">{error}</SoftNotice>}
+          {note && !error && <SoftNotice tone="live">{note}</SoftNotice>}
+        </div>
+      )}
 
-      <div className="mb-8">
-        <ActionLink href="/arbetare/ny">Tillverka Konto</ActionLink>
+      {/* The one thing on this screen the list itself cannot show. 56px and
+          accent, above the list rather than in it. */}
+      <div className="px-4 pt-[2px]">
+        <Link
+          href="/arbetare/ny"
+          className="press-scale flex h-14 w-full items-center justify-center gap-[10px] rounded-[12px] text-[17px] font-extrabold transition-[transform,background] duration-150 hover:bg-[#12206b] active:scale-[.985]"
+          style={{
+            letterSpacing: "-.3px",
+            background: C.accent,
+            color: C.surface,
+            boxShadow: "0 6px 18px rgba(27,44,193,.26)",
+          }}
+        >
+          <svg width="15" height="15" viewBox="0 0 15 15" fill="none" aria-hidden>
+            <path d="M7.5 1v13M1 7.5h13" stroke={C.surface} strokeWidth="2.4" strokeLinecap="round" />
+          </svg>
+          Tillverka Konto
+        </Link>
       </div>
 
-      <h2 className="mb-3 text-sm font-bold uppercase tracking-wide">Konton</h2>
+      <div className="px-4 pt-[22px]">
+        <div
+          className="px-1 pb-[10px] text-[12px] font-bold uppercase"
+          style={{ letterSpacing: "1px", color: C.text2 }}
+        >
+          Konton
+        </div>
 
-      {rows.length === 0 && <Empty>Inga konton att visa.</Empty>}
+        {rows.length === 0 && <EmptyState>Inga konton att visa.</EmptyState>}
 
-      <div className="flex flex-col gap-4">
-        {rows.map((k) => (
-          <section key={k.id} className="border-2 border-black p-4">
-            <p className="text-xl font-bold">{k.name ?? "Namn saknas"}</p>
-            <p className="mb-1 break-all text-base">{k.email ?? "—"}</p>
-            <p className="mb-4 text-base font-bold">
-              {ROLE_LABEL[k.role]} · {k.active ? "Aktiv" : "Pausad"}
-            </p>
+        <div className="flex flex-col gap-3">
+          {rows.map((k) => (
+            <section
+              key={k.id}
+              data-konto={k.id}
+              className="rounded-[16px] px-[18px] pb-[18px] pt-4"
+              style={{ background: C.surface, boxShadow: SHADOW.group }}
+            >
+              <div className="flex items-center justify-between gap-[10px]">
+                <div className="min-w-0 truncate text-[18px] font-bold" style={{ letterSpacing: "-.4px" }}>
+                  {k.name ?? "Namn saknas"}
+                </div>
+                {/* The three roles are told apart by weight of fill, not hue --
+                    the handoff's own roleTag. Paused is a separate mark: a
+                    role and a state are two facts about one account. */}
+                <Tag tone={ROLE_TONE[k.role]}>{ROLE_LABEL[k.role]}</Tag>
+              </div>
 
-            <label className="mb-3 block">
-              <span className="mb-1 block text-sm font-bold uppercase tracking-wide">Roll</span>
-              <Select
-                value={k.role}
-                disabled={busy === k.id}
-                onChange={(e) => setRole(k.id, e.target.value as Role)}
+              <div
+                className="mb-[14px] mt-[2px] break-all text-[14px] font-medium"
+                style={{ color: C.text2 }}
               >
-                <option value="arbetare">Arbetare</option>
-                <option value="arbetsledare">Arbetsledare</option>
-                <option value="admin">Admin</option>
-              </Select>
-            </label>
+                {k.email ?? "—"}
+              </div>
 
-            <div className="flex flex-col gap-2">
+              <div className="mb-[14px]">
+                <Tag tone={k.active ? "live" : "stop"}>{k.active ? "Aktiv" : "Pausad"}</Tag>
+              </div>
+
+              <div className="mb-[14px]">
+                <SoftField label="Roll">
+                  <SoftSelect
+                    value={k.role}
+                    disabled={busy === k.id}
+                    onChange={(e) => setRole(k.id, e.target.value as Role)}
+                  >
+                    <option value="arbetare">Arbetare</option>
+                    <option value="arbetsledare">Arbetsledare</option>
+                    <option value="admin">Admin</option>
+                  </SoftSelect>
+                </SoftField>
+              </div>
+
+              {/* Two 48px halves and the pause below them, which is the shape
+                  the handoff gives an account row -- except that nothing here
+                  deletes: an account is paused, never removed, so the red
+                  square that would sit at the end has nothing to do. */}
+              <div className="mb-[10px] flex gap-[10px]">
+                <Link
+                  href={`/konto?id=${k.id}`}
+                  className="press-scale flex h-12 flex-1 items-center justify-center rounded-[10px] text-[15px] font-bold transition-transform duration-[110ms] hover:bg-[#dbe4f9] active:scale-[.985]"
+                  style={{ background: C.panel2, color: C.inkHover }}
+                >
+                  Ändra konto
+                </Link>
+                <Link
+                  href={`/profil?id=${k.id}`}
+                  className="press-scale flex h-12 flex-1 items-center justify-center rounded-[10px] text-[15px] font-bold transition-transform duration-[110ms] hover:bg-[#dbe4f9] active:scale-[.985]"
+                  style={{ background: C.panel2, color: C.inkHover }}
+                >
+                  Ändra profil
+                </Link>
+              </div>
+
               <button
                 type="button"
                 onClick={() => setActive(k.id, !k.active)}
                 disabled={busy === k.id}
-                className="flex min-h-[56px] w-full items-center justify-center border-2 border-black px-4 text-lg font-bold disabled:opacity-30"
+                className="press-scale flex h-12 w-full items-center justify-center rounded-[10px] text-[15px] font-bold transition-transform duration-[110ms] active:scale-[.985] disabled:opacity-40"
+                style={
+                  k.active
+                    ? { background: C.stopBg, color: C.stopInk }
+                    : { background: C.panel2, color: C.inkHover }
+                }
               >
                 {k.active ? "Pausa kontot" : "Aktivera kontot"}
               </button>
-
-              <Link
-                href={`/konto?id=${k.id}`}
-                className="flex min-h-[56px] w-full items-center justify-center border-2 border-black px-4 text-lg font-bold"
-              >
-                Ändra konto
-              </Link>
-
-              <Link
-                href={`/profil?id=${k.id}`}
-                className="flex min-h-[56px] w-full items-center justify-center border-2 border-black px-4 text-lg font-bold"
-              >
-                Ändra profil
-              </Link>
-            </div>
-          </section>
-        ))}
+            </section>
+          ))}
+        </div>
       </div>
-    </Screen>
+    </SoftScreen>
   );
 }
 

@@ -159,11 +159,16 @@ function Profil({ askedId }: { askedId: string | null }) {
         </div>
       )}
 
-      {/* The role tag the handoff puts on this screen for a foreman. It is read
-          from the account rather than assumed, so an admin editing somebody
-          else's profile still sees whose it is. */}
+      {/* The role tag the handoff puts on this screen -- amber for a foreman,
+          the deep fill for an admin. It is read from the account rather than
+          assumed, so an admin editing somebody else's profile still sees whose
+          it is. An arbetare gets none: a tag that every worker wears on their
+          own profile tells them nothing they did not know. */}
       {account?.role === "arbetsledare" && (
         <div className="px-4 pt-1"><Tag tone="warn">Arbetsledare</Tag></div>
+      )}
+      {account?.role === "admin" && (
+        <div className="px-4 pt-1"><Tag tone="deep">Admin</Tag></div>
       )}
 
       {CARDS.map((card, i) => (

@@ -3,7 +3,10 @@
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { AuthGate } from "@/components/auth-gate";
-import { Button, Field, Input, Notice, Screen, Select } from "@/components/ui";
+import {
+  C, Card, PrimaryButton, SoftField, SoftInput, SoftNotice, SoftScreen,
+  SoftSelect, Tag,
+} from "@/components/soft";
 import { getSupabase } from "@/lib/supabase/client";
 import { useAccount, type Role } from "@/lib/account";
 
@@ -13,6 +16,13 @@ const ROLE_LABEL: Record<Role, string> = {
   admin: "Admin",
   arbetsledare: "Arbetsledare",
   arbetare: "Arbetare",
+};
+
+/** The handoff gives each role its own fill, deepest for the one with the most. */
+const ROLE_TONE: Record<Role, "deep" | "warn" | "quiet"> = {
+  admin: "deep",
+  arbetsledare: "warn",
+  arbetare: "quiet",
 };
 
 /**
@@ -104,68 +114,108 @@ function Konto({ askedId }: { askedId: string | null }) {
     if (row.id === account?.id) reload();
   }
 
-  if (!row) return <Screen title="Konto" back="/"><span>Laddar…</span></Screen>;
+  if (!row) {
+    return (
+      <SoftScreen title="Konto" back="/">
+        <p className="px-5 text-[15px] font-medium" style={{ color: C.text2 }}>Laddar…</p>
+      </SoftScreen>
+    );
+  }
 
   return (
-    <Screen title="Konto" back={isAdmin && row.id !== account?.id ? "/installningar" : "/"}>
-      {error && <Notice kind="error">{error}</Notice>}
-      {note && <Notice kind="ok">{note}</Notice>}
+    <SoftScreen title="Konto" back={isAdmin && row.id !== account?.id ? "/installningar" : "/"}>
+      {(error || note) && (
+        <div className="px-4 pb-[10px] pt-[2px]">
+          {error && <SoftNotice tone="stop">{error}</SoftNotice>}
+          {note && !error && <SoftNotice tone="live">{note}</SoftNotice>}
+        </div>
+      )}
+
+      {/* The account card the handoff draws: who this is, at 22/800, with the
+          role beside it as a tag rather than as another line of prose. */}
+      <div className="px-4 pt-[2px]">
+        <Card radius={16} pad="p-[18px]">
+          <div className="mb-[14px] flex items-center justify-between gap-[10px]">
+            <div
+              className="text-[12px] font-bold uppercase"
+              style={{ letterSpacing: "1px", color: C.text2 }}
+            >
+              Konto
+            </div>
+            <Tag tone={ROLE_TONE[row.role]}>{ROLE_LABEL[row.role]}</Tag>
+          </div>
+
+          <div className="text-[22px] font-extrabold" style={{ letterSpacing: "-.7px" }}>
+            {row.name ?? "Namn saknas"}
+          </div>
+          <div
+            className={`break-all text-[15px] font-medium ${isAdmin ? "mb-4" : ""}`}
+            style={{ color: C.text2 }}
+          >
+            {row.email ?? "—"}
+          </div>
+
+          {/* Editable for the admin only. Not a permission check: worker.name
+              and worker.email are locked against a non-admin by
+              app.tg_worker_self_edit_guard(), and the login address lives in
+              auth.users where the browser cannot reach it at all. This screen
+              only declines to draw a field nobody would be allowed to save. */}
+          {isAdmin && (
+            <>
+              <div className="mb-[14px]">
+                <SoftField label="Namn">
+                  <SoftInput value={name} onChange={(e) => setName(e.target.value)} />
+                </SoftField>
+              </div>
+              <SoftField label="E-post" help="Det här är inloggningen.">
+                <SoftInput
+                  type="email"
+                  inputMode="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
+              </SoftField>
+            </>
+          )}
+        </Card>
+      </div>
 
       {isAdmin ? (
         <>
-          <Field label="Namn">
-            <Input value={name} onChange={(e) => setName(e.target.value)} />
-          </Field>
-          <Field label="E-post" hint="Det här är inloggningen.">
-            <Input
-              type="email"
-              inputMode="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-          </Field>
-          <Button onClick={save} disabled={busy || !name.trim() || !email.trim()}>
-            {busy ? "Sparar…" : "Spara"}
-          </Button>
+          <div className="px-4 pt-[22px]">
+            <PrimaryButton onClick={save} disabled={busy || !name.trim() || !email.trim()}>
+              {busy ? "Sparar…" : "Spara"}
+            </PrimaryButton>
+          </div>
 
-          <div className="mt-8">
-            <label className="block">
-              <span className="mb-1 block text-sm font-bold uppercase tracking-wide">Roll</span>
-              <Select
-                value={row.role}
-                disabled={busy}
-                onChange={(e) => setRole(e.target.value as Role)}
-              >
-                <option value="arbetare">Arbetare</option>
-                <option value="arbetsledare">Arbetsledare</option>
-                <option value="admin">Admin</option>
-              </Select>
-            </label>
+          {/* Its own card, 26px down: changing what somebody may do is a
+              different act from correcting their name, and the Spara above
+              does not save it -- the selector writes on change. */}
+          <div className="px-4 pt-[26px]">
+            <Card radius={16} pad="p-[18px]">
+              <SoftField label="Roll">
+                <SoftSelect
+                  value={row.role}
+                  disabled={busy}
+                  onChange={(e) => setRole(e.target.value as Role)}
+                >
+                  <option value="arbetare">Arbetare</option>
+                  <option value="arbetsledare">Arbetsledare</option>
+                  <option value="admin">Admin</option>
+                </SoftSelect>
+              </SoftField>
+            </Card>
           </div>
         </>
       ) : (
-        <dl className="text-base">
-          <div className="flex justify-between gap-3 border-t-2 border-black py-3">
-            <dt>Namn</dt>
-            <dd className="text-right font-bold">{row.name ?? "—"}</dd>
-          </div>
-          <div className="flex justify-between gap-3 border-t-2 border-black py-3">
-            <dt>E-post</dt>
-            <dd className="break-all text-right font-bold">{row.email ?? "—"}</dd>
-          </div>
-          <div className="flex justify-between gap-3 border-y-2 border-black py-3">
-            <dt>Roll</dt>
-            <dd className="text-right font-bold">{ROLE_LABEL[row.role]}</dd>
-          </div>
-        </dl>
-      )}
-
-      {!isAdmin && (
-        <p className="mt-4 text-base text-neutral-600">
+        <p
+          className="px-5 pt-[14px] text-[15px] font-medium"
+          style={{ color: C.text2, textWrap: "pretty" }}
+        >
           Namn och e-post ändras av administratören.
         </p>
       )}
-    </Screen>
+    </SoftScreen>
   );
 }
 
@@ -181,7 +231,7 @@ function KontoFromUrl() {
 export default function Page() {
   return (
     <AuthGate>
-      <Suspense fallback={<Screen title="Konto" back="/"><span>Laddar…</span></Screen>}>
+      <Suspense fallback={<SoftScreen title="Konto" back="/"><span /></SoftScreen>}>
         <KontoFromUrl />
       </Suspense>
     </AuthGate>

@@ -149,7 +149,7 @@ try {
     fail("Tillverka Konto is not at the top of Inställningar");
   }
 
-  const konton = page.locator("section.border-2");
+  const konton = page.locator("section[data-konto]");
   const k = await konton.count();
   if (k === 0) fail("the Konton list is empty -- it must at least hold the admin signed in");
   const one = await konton.first().innerText();

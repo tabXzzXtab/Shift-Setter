@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { AuthGate } from "@/components/auth-gate";
-import { Button, Notice, Screen } from "@/components/ui";
+import { C, Card, PrimaryButton, SoftNotice, SoftScreen } from "@/components/soft";
 import { NyArbetareForm } from "@/components/ny-arbetare";
 
 /**
@@ -15,28 +15,53 @@ function NyArbetare() {
 
   if (done) {
     return (
-      <Screen title="Klar" back="/">
-        <Notice kind="ok">{done.name} skapad.</Notice>
-        <pre className="mb-6 whitespace-pre-wrap border-2 border-black p-3 text-base">
-          {done.block}
-        </pre>
-        <p className="mb-6 text-base">
+      <SoftScreen title="Klar" back="/">
+        <div className="px-4 pt-[2px]">
+          <SoftNotice tone="live">{done.name} skapad.</SoftNotice>
+        </div>
+
+        <div className="px-4 pt-[14px]">
+          <Card radius={16} pad="p-[18px]">
+            <div
+              className="mb-3 text-[12px] font-bold uppercase"
+              style={{ letterSpacing: "1px", color: C.text2 }}
+            >
+              Inloggning att lämna över
+            </div>
+            {/* A <pre>, because this is the block that went to the clipboard:
+                its line breaks are the format, and a proportional wrap turns a
+                password into a guess. */}
+            <pre
+              className="whitespace-pre-wrap rounded-[10px] p-[14px] text-[15px] font-semibold"
+              style={{ background: C.panel2, fontFamily: "inherit" }}
+            >
+              {done.block}
+            </pre>
+          </Card>
+        </div>
+
+        <p className="px-5 pt-[14px] text-[15px] font-medium" style={{ color: C.text2 }}>
           Ge blocket till arbetaren. Det visas inte igen.
         </p>
-        <Button onClick={() => { setDone(null); setKey((k) => k + 1); }}>
-          Skapa en till
-        </Button>
-      </Screen>
+
+        <div className="px-4 pt-[22px]">
+          <PrimaryButton onClick={() => { setDone(null); setKey((k) => k + 1); }}>
+            Skapa en till
+          </PrimaryButton>
+        </div>
+      </SoftScreen>
     );
   }
 
   return (
-    <Screen title="Ny arbetare" back="/">
-      <NyArbetareForm
-        key={key}
-        onCreated={(w, block) => setDone({ name: w.name, block })}
-      />
-    </Screen>
+    <SoftScreen title="Ny arbetare" back="/">
+      <div className="px-4 pt-[2px]">
+        <NyArbetareForm
+          key={key}
+          onCreated={(w, block) => setDone({ name: w.name, block })}
+        />
+      </div>
+    </SoftScreen>
   );
 }
 
