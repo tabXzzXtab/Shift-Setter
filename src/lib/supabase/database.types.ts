@@ -618,6 +618,97 @@ export type Database = {
           },
         ]
       }
+      personal_event: {
+        Row: {
+          all_day: boolean
+          colour: string
+          created_at: string
+          description: string | null
+          end_time: string | null
+          event_date: string
+          id: string
+          owner_id: string
+          start_time: string | null
+          title: string
+        }
+        Insert: {
+          all_day?: boolean
+          colour?: string
+          created_at?: string
+          description?: string | null
+          end_time?: string | null
+          event_date: string
+          id?: string
+          owner_id: string
+          start_time?: string | null
+          title: string
+        }
+        Update: {
+          all_day?: boolean
+          colour?: string
+          created_at?: string
+          description?: string | null
+          end_time?: string | null
+          event_date?: string
+          id?: string
+          owner_id?: string
+          start_time?: string | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "personal_event_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "account"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "personal_event_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "account_directory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      personal_event_viewer: {
+        Row: {
+          account_id: string
+          event_id: string
+        }
+        Insert: {
+          account_id: string
+          event_id: string
+        }
+        Update: {
+          account_id?: string
+          event_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "personal_event_viewer_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "account"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "personal_event_viewer_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "account_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "personal_event_viewer_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "personal_event"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profile: {
         Row: {
           account_id: string
@@ -1471,6 +1562,7 @@ export type Database = {
         | "day_unconfirmed"
         | "day_flagged"
         | "leader_replaced"
+        | "pass_closed"
       offer_state: "offered" | "accepted" | "declined" | "withdrawn"
       release_reason:
         | "removed_by_leader"
@@ -1630,6 +1722,7 @@ export const Constants = {
         "day_unconfirmed",
         "day_flagged",
         "leader_replaced",
+        "pass_closed",
       ],
       offer_state: ["offered", "accepted", "declined", "withdrawn"],
       release_reason: [

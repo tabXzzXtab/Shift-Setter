@@ -121,6 +121,18 @@ column pass_offer.pass_id uuid NOT NULL
 column pass_offer.responded_at timestamp with time zone
 column pass_offer.state offer_state NOT NULL DEFAULT 'offered'::offer_state
 column pass_offer.worker_id uuid NOT NULL
+column personal_event.all_day boolean NOT NULL DEFAULT false
+column personal_event.colour text NOT NULL DEFAULT '#1b2cc1'::text
+column personal_event.created_at timestamp with time zone NOT NULL DEFAULT now()
+column personal_event.description text
+column personal_event.end_time time without time zone
+column personal_event.event_date date NOT NULL
+column personal_event.id uuid NOT NULL DEFAULT gen_random_uuid()
+column personal_event.owner_id uuid NOT NULL
+column personal_event.start_time time without time zone
+column personal_event.title text NOT NULL
+column personal_event_viewer.account_id uuid NOT NULL
+column personal_event_viewer.event_id uuid NOT NULL
 column profile.account_id uuid NOT NULL
 column profile.adress text
 column profile.anhorig_namn text
@@ -250,6 +262,14 @@ constr pass_offer FOREIGN KEY (pass_id) REFERENCES pass(id) ON DELETE CASCADE
 constr pass_offer FOREIGN KEY (worker_id) REFERENCES worker(id) ON DELETE CASCADE
 constr pass_offer PRIMARY KEY (id)
 constr pass_offer UNIQUE (pass_id, worker_id)
+constr personal_event CHECK (((all_day AND (start_time IS NULL) AND (end_time IS NULL)) OR ((NOT all_day) AND (start_time IS NOT NULL) AND (end_time IS NOT NULL) AND (end_time > start_time))))
+constr personal_event CHECK ((btrim(title) <> ''::text))
+constr personal_event CHECK ((colour = ANY (ARRAY['#1b2cc1'::text, '#0f6f7a'::text, '#6c3fc5'::text, '#1f7a3d'::text, '#8a5300'::text, '#8e1d15'::text, '#0a5ea8'::text, '#7a3f8f'::text])))
+constr personal_event FOREIGN KEY (owner_id) REFERENCES account(id) ON DELETE CASCADE
+constr personal_event PRIMARY KEY (id)
+constr personal_event_viewer FOREIGN KEY (account_id) REFERENCES account(id) ON DELETE CASCADE
+constr personal_event_viewer FOREIGN KEY (event_id) REFERENCES personal_event(id) ON DELETE CASCADE
+constr personal_event_viewer PRIMARY KEY (event_id, account_id)
 constr profile FOREIGN KEY (account_id) REFERENCES account(id) ON DELETE CASCADE
 constr profile FOREIGN KEY (updated_by) REFERENCES account(id)
 constr profile PRIMARY KEY (account_id)
@@ -303,6 +323,9 @@ index  CREATE INDEX notification_unread_idx ON public.notification USING btree (
 index  CREATE INDEX pass_date_idx ON public.pass USING btree (work_date) WHERE (deleted_at IS NULL)
 index  CREATE INDEX pass_offer_open_idx ON public.pass_offer USING btree (worker_id) WHERE (state = 'offered'::offer_state)
 index  CREATE INDEX pass_project_date_idx ON public.pass USING btree (project_id, work_date) WHERE (deleted_at IS NULL)
+index  CREATE INDEX personal_event_date ON public.personal_event USING btree (event_date)
+index  CREATE INDEX personal_event_owner_date ON public.personal_event USING btree (owner_id, event_date)
+index  CREATE INDEX personal_event_viewer_account ON public.personal_event_viewer USING btree (account_id)
 index  CREATE INDEX project_day_flagged_idx ON public.project_day USING btree (flagged_as, work_date) WHERE (flagged_as IS NOT NULL)
 index  CREATE INDEX project_day_survey_idx ON public.project_day USING btree (project_id, work_date) WHERE (confirmed_via = 'bristsurvey'::confirmation_source)
 index  CREATE INDEX project_leader_account_idx ON public.project_leader USING btree (account_id)
@@ -322,6 +345,8 @@ index  CREATE UNIQUE INDEX pass_block_pkey ON public.pass_block USING btree (pas
 index  CREATE UNIQUE INDEX pass_offer_pass_id_worker_id_key ON public.pass_offer USING btree (pass_id, worker_id)
 index  CREATE UNIQUE INDEX pass_offer_pkey ON public.pass_offer USING btree (id)
 index  CREATE UNIQUE INDEX pass_pkey ON public.pass USING btree (id)
+index  CREATE UNIQUE INDEX personal_event_pkey ON public.personal_event USING btree (id)
+index  CREATE UNIQUE INDEX personal_event_viewer_pkey ON public.personal_event_viewer USING btree (event_id, account_id)
 index  CREATE UNIQUE INDEX profile_pkey ON public.profile USING btree (account_id)
 index  CREATE UNIQUE INDEX project_day_pkey ON public.project_day USING btree (project_id, work_date)
 index  CREATE UNIQUE INDEX project_leader_pkey ON public.project_leader USING btree (project_id, account_id)
@@ -359,6 +384,10 @@ policy pass_offer.pass_offer_leader_write [ALL] USING((EXISTS ( SELECT 1
    FROM pass p
   WHERE ((p.id = pass_offer.pass_id) AND app.leads_project(p.project_id)))))
 policy pass_offer.pass_offer_select [SELECT] USING((app.is_staff() OR (worker_id = app.current_worker_id()))) CHECK(-)
+policy personal_event.personal_event_select [SELECT] USING(((owner_id = ( SELECT auth.uid() AS uid)) OR app.sees_personal_event(id))) CHECK(-)
+policy personal_event.personal_event_write [ALL] USING((owner_id = ( SELECT auth.uid() AS uid))) CHECK((owner_id = ( SELECT auth.uid() AS uid)))
+policy personal_event_viewer.personal_event_viewer_select [SELECT] USING(((account_id = ( SELECT auth.uid() AS uid)) OR app.owns_personal_event(event_id))) CHECK(-)
+policy personal_event_viewer.personal_event_viewer_write [ALL] USING(app.owns_personal_event(event_id)) CHECK(app.owns_personal_event(event_id))
 policy profile.profile_self_or_admin [ALL] USING(((account_id = ( SELECT auth.uid() AS uid)) OR app.is_admin())) CHECK(((account_id = ( SELECT auth.uid() AS uid)) OR app.is_admin()))
 policy project.project_admin_write [ALL] USING((app.is_admin() AND (deleted_at IS NULL))) CHECK((app.is_admin() AND (deleted_at IS NULL)))
 policy project.project_staff_select [SELECT] USING(((deleted_at IS NULL) AND (app.leads_project(id) OR app.holds_a_day(id)))) CHECK(-)
@@ -387,6 +416,8 @@ rls    pass_batch enabled=t
 rls    pass_batch_handpick enabled=t
 rls    pass_block enabled=t
 rls    pass_offer enabled=t
+rls    personal_event enabled=t
+rls    personal_event_viewer enabled=t
 rls    profile enabled=t
 rls    project enabled=t
 rls    project_day enabled=t
@@ -426,8 +457,10 @@ func   app.holds_the_day(p_project uuid, p_work_date date) md5=8d2d52c980559183f
 func   app.is_admin() md5=3d4f4a5b9492b42ec49925b7895a09c5
 func   app.is_staff() md5=2e999136779c7d843714a9924d1dc8fc
 func   app.leads_project(p_project uuid) md5=f1d9360a0c4753413b5ac7fa20a587db
+func   app.owns_personal_event(p_event uuid) md5=53a2a7184e8ff014bc28b9ddef92da47
 func   app.pass_end_at(p_date date, p_start time without time zone, p_end time without time zone) md5=5cbed15c09406f178bd3175eac1980f4
 func   app.pass_start_at(p_date date, p_start time without time zone) md5=9fa0f40882eca98efe820667c724d176
+func   app.sees_personal_event(p_event uuid) md5=feda599a5891e5e7c8ed2d8f4a2c7e92
 func   app.stockholm_today() md5=8b086d188d946a11d35cafa583ec6465
 func   app.sync_leader_day(p_project uuid, p_date date) md5=fdfa86e5df28983f095da5f7d84414a5
 func   app.take_leader_off(p_tilldelning uuid) md5=a6cec3a6842e253b2c4fa868f68e1b7a
@@ -680,6 +713,8 @@ grant  DELETE on pass_batch to authenticated
 grant  DELETE on pass_batch_handpick to authenticated
 grant  DELETE on pass_block to authenticated
 grant  DELETE on pass_offer to authenticated
+grant  DELETE on personal_event to authenticated
+grant  DELETE on personal_event_viewer to authenticated
 grant  DELETE on profile to anon
 grant  DELETE on profile to authenticated
 grant  DELETE on project to authenticated
@@ -706,6 +741,8 @@ grant  INSERT on pass_batch to authenticated
 grant  INSERT on pass_batch_handpick to authenticated
 grant  INSERT on pass_block to authenticated
 grant  INSERT on pass_offer to authenticated
+grant  INSERT on personal_event to authenticated
+grant  INSERT on personal_event_viewer to authenticated
 grant  INSERT on profile to anon
 grant  INSERT on profile to authenticated
 grant  INSERT on project to authenticated
@@ -732,6 +769,8 @@ grant  REFERENCES on pass_batch to authenticated
 grant  REFERENCES on pass_batch_handpick to authenticated
 grant  REFERENCES on pass_block to authenticated
 grant  REFERENCES on pass_offer to authenticated
+grant  REFERENCES on personal_event to authenticated
+grant  REFERENCES on personal_event_viewer to authenticated
 grant  REFERENCES on profile to anon
 grant  REFERENCES on profile to authenticated
 grant  REFERENCES on project to authenticated
@@ -759,6 +798,8 @@ grant  SELECT on pass_batch to authenticated
 grant  SELECT on pass_batch_handpick to authenticated
 grant  SELECT on pass_block to authenticated
 grant  SELECT on pass_offer to authenticated
+grant  SELECT on personal_event to authenticated
+grant  SELECT on personal_event_viewer to authenticated
 grant  SELECT on profile to anon
 grant  SELECT on profile to authenticated
 grant  SELECT on project to authenticated
@@ -785,6 +826,8 @@ grant  TRIGGER on pass_batch to authenticated
 grant  TRIGGER on pass_batch_handpick to authenticated
 grant  TRIGGER on pass_block to authenticated
 grant  TRIGGER on pass_offer to authenticated
+grant  TRIGGER on personal_event to authenticated
+grant  TRIGGER on personal_event_viewer to authenticated
 grant  TRIGGER on profile to anon
 grant  TRIGGER on profile to authenticated
 grant  TRIGGER on project to authenticated
@@ -811,6 +854,8 @@ grant  TRUNCATE on pass_batch to authenticated
 grant  TRUNCATE on pass_batch_handpick to authenticated
 grant  TRUNCATE on pass_block to authenticated
 grant  TRUNCATE on pass_offer to authenticated
+grant  TRUNCATE on personal_event to authenticated
+grant  TRUNCATE on personal_event_viewer to authenticated
 grant  TRUNCATE on profile to anon
 grant  TRUNCATE on profile to authenticated
 grant  TRUNCATE on project to authenticated
@@ -837,6 +882,8 @@ grant  UPDATE on pass_batch to authenticated
 grant  UPDATE on pass_batch_handpick to authenticated
 grant  UPDATE on pass_block to authenticated
 grant  UPDATE on pass_offer to authenticated
+grant  UPDATE on personal_event to authenticated
+grant  UPDATE on personal_event_viewer to authenticated
 grant  UPDATE on profile to anon
 grant  UPDATE on profile to authenticated
 grant  UPDATE on project to authenticated
