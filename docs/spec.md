@@ -90,7 +90,7 @@ Dates are `DDMon` — day number and three-letter month, **the month abbreviatio
 
 The name carries one year, so a range crossing a year boundary is not covered by this pattern. If one arises, stop and ask.
 
-**Generating consumes the days.** Every day in the range moves to **Bekräftelse Historik** when the document is produced, whatever stage it had reached. A day that was only `leader_confirmed` goes to Historik with the rest — it does not wait for the admin's approval to get there.
+**Generating consumes the days.** Every day in the range moves to **Historik** when the document is produced, whatever stage it had reached. A day that was only `leader_confirmed` goes to Historik with the rest — it does not wait for the admin's approval to get there.
 
 **Historik shows current values, not printed ones.** If the admin edits a day at stage 2 after the document was generated, Historik reflects the new figures. The PDF does not change — it is a snapshot of the moment it was produced. The two can disagree, and that is intended: regenerating the range is how a corrected document is obtained.
 
@@ -548,9 +548,9 @@ Every `leader_confirmed` day arrives in the admin's review queue. Three outcomes
 
 **Stage 2 is review, not confirmation.** The admin cannot make a stage 1 claim about a day; he can only accept, correct, or refuse the claim a leader already made. The distinction is the point — an owner who could confirm from nothing would rubber-stamp days he was not present for. The routes that do reach `admin_confirmed` without a leader (bristsurvey, a flagged day) exist because there was no leader claim available to review, not because the admin outranks one.
 
-**An edit after generation.** If the document was already produced from the `leader_confirmed` figures and the admin then edits at stage 2, Bekräftelse Historik shows the new figures. The PDF does not change — it is a snapshot. Regenerating the range is how a corrected document is obtained.
+**An edit after generation.** If the document was already produced from the `leader_confirmed` figures and the admin then edits at stage 2, Historik shows the new figures. The PDF does not change — it is a snapshot. Regenerating the range is how a corrected document is obtained.
 
-**The screen is Granska Pass**, reached from the admin's menu rather than the landing page: the landing page is three buttons and the list (Section 7), and a queue is not a fourth thing to create. It opens on the oldest waiting day, one day at a time, the same shape as the leader's Bekräfta Pass — an owner working through a fortnight should not have to decide where to look.
+**The screen is Granska Pass**, reached from the admin's own "Att bekräfta" queue rather than from the menu: the menu entry is Bekräftelser, and a day is opened from the row that names it. It reviews one day at a time, the same shape as the leader's Bekräfta Pass — an owner working through a fortnight should not have to decide where to look. A bare visit still opens the head of the queue, flagged days first then oldest; `?projekt=&datum=` names one, as a preference and never a permission.
 
 **Rejection carries a note, and the note is mandatory.** A day sent back with no reason is a day the leader re-confirms exactly as it was. The rejected day loses its confirmation and returns to the leader's queue **flagged**, carrying the admin's words, with its text and its figures left as they were — the leader is correcting something, not retyping it.
 
@@ -558,13 +558,13 @@ Every `leader_confirmed` day arrives in the admin's review queue. Three outcomes
 
 **The last rejection stays on the day.** It is not cleared when the leader re-confirms — the leader's queue flags a day whose confirmation is gone and whose rejection is not, and the historik reads the same columns to say that a day came back once.
 
-**Bekräftelse Historik is a log, and every stage 2 act is appended to it.** The columns above hold the current state of one day and cannot hold a history: a day rejected twice keeps only the second note, and the first rejection — the one that says this leader has now been sent back twice — would disappear. So each approval and each rejection is written as its own row, with who and when, and nothing rewrites one afterwards.
+**Historik is a log, and every stage 2 act is appended to it.** The columns above hold the current state of one day and cannot hold a history: a day rejected twice keeps only the second note, and the first rejection — the one that says this leader has now been sent back twice — would disappear. So each approval and each rejection is written as its own row, with who and when, and nothing rewrites one afterwards.
 
 **A day is in the historik once it is finished with.** Two routes in, and a day can arrive by both: the admin approved it at stage 2, or an Arbetsdagbok was generated over it, which consumes a day whatever stage it had reached. **Admin and arbetsledare both read it**, scoped to the projects they are on, and both read the same definition — a leader and the owner looking at two different versions of the same log would be worse than no log.
 
 **The screen is Bekräftelser, and it holds a day before and after.** One switch, two views: **Att bekräfta** is what is still owed and **Historik** is what is settled. They were two menu entries pointing at two screens, which meant the leader had to already know which of them a day had reached in order to look for it. "Att bekräfta" is `pendingDays()` and nothing else, so this list, the Startsida's count and Bekräfta Pass cannot disagree about what is waiting; each row opens the day it names, and Bekräfta Pass takes that as a preference rather than a permission — a day not in the queue falls back to the oldest one that is.
 
-**The switch is the arbetsledare's.** Stage 1 is theirs alone, so an admin opening Bekräftelser sees the log and no switch: his outstanding work is stage 2 and it lives on Granska Pass. A queue of days the database would refuse him is not a queue.
+**Both roles get the switch, and they are not the same queue.** "Att bekräfta" is whatever is outstanding for whoever is reading it: for the arbetsledare that is stage 1, the days they stood on and have not accounted for; for the admin it is stage 2, the days a leader has already accounted for plus the flagged ones nobody could. **The admin is never offered a stage 1 day** — he cannot make that claim (invariant 4b), so a day still waiting on its leader, including one he has just sent back, is out of his queue entirely. Both views open on "Att bekräfta": what is outstanding comes before what is settled.
 
 **Once `admin_confirmed`, nothing edits it.** Not the text, not the hours, not the times, and it cannot be sent back either. PASS TIDER lives on the pass rather than on the assignment, so that wall is two guards and not one; without the second it would protect half a row.
 
@@ -709,13 +709,13 @@ Nothing here is open. Anything discovered later that is not covered is a stop-an
 
 **Two-stage confirmation**
 - Stage 1 is the leader's: clock in and out, confirm the day, write Vad Vi Gjorde, edit times, mark late. Status `leader_confirmed`.
-- Stage 2 is the admin's: approve, edit and approve, or reject back to the arbetsledare. Status on approval `admin_confirmed`. The screen is Granska Pass, in the admin's menu.
+- Stage 2 is the admin's: approve, edit and approve, or reject back to the arbetsledare. Status on approval `admin_confirmed`. The queue is Bekräftelser' "Att bekräfta"; the day itself is reviewed on Granska Pass, reached from the row that names it.
 - A rejection needs a note. The day returns to the leader flagged, keeping its text and its figures, and the rejection stays on the record after it is re-confirmed.
 - The approval is `reviewed_at` / `reviewed_by`, separate from the leader's claim, which stage 2 can never rewrite.
-- Bekräftelse Historik holds every day that is finished with — approved at stage 2 or consumed by a document — and appends every stage 2 act as its own row. Admin and arbetsledare both read it, scoped to their projects.
+- Bekräftelser' Historik holds every day that is finished with — approved at stage 2 or consumed by a document — and appends every stage 2 act as its own row. Admin and arbetsledare both read it, scoped to their projects.
 - The screen is **Bekräftelser**: one switch between Att bekräfta and Historik. The leader gets both, the admin only the log.
 - The Arbetsdagbok generates from `leader_confirmed`. Stage 2 is not a gate.
-- Generating moves the days to Bekräftelse Historik whatever their stage.
+- Generating moves the days to Historik whatever their stage.
 - A stage 2 edit after generation shows in Historik. The PDF is a snapshot and does not change.
 - A day that ran with no arbetsledare is flagged, skips stage 1, and only the admin can confirm it. Flagged harder than a day a worker covered as ansvarig: the two are distinct cases in the record, not one.
 - Generating a range with anything unconfirmed goes through three screens — the warning popup, whose job this was, then one survey question per day. A clean range skips all three and downloads.

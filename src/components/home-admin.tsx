@@ -27,9 +27,10 @@ const MENU: MenuItem[] = [
   { href: "/kalender", label: "Kalender" },
   { href: "/projekt", label: "Alla Projekt" },
   { href: "/pass", label: "Alla Pass" },
-  // Stage 2 and its log. In the menu rather than above the list: the three
-  // buttons are the things an owner creates, and a review queue is not one.
-  { href: "/granska", label: "Granska Pass" },
+  // Stage 2 AND its log, one entry. In the menu rather than above the list:
+  // the three buttons are the things an owner creates, and a review queue is
+  // not one. Granska Pass is still a page -- it is where a day is reviewed --
+  // but it is reached from the queue that names the day, not from here.
   { href: "/historik", label: "Bekräftelser" },
   { href: "/installningar", label: "Inställningar" },
 ];

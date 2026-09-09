@@ -3,8 +3,8 @@
  * Drive Bekräftelser -- the screen that used to be two.
  *
  *   the renamed menu · the Att bekräfta / Historik switch · a row that opens
- *   the day it names · the admin's version, which has no switch · a day
- *   travelling from one view to the other through stage 2.
+ *   the day it names · the admin's version of the same switch, holding stage
+ *   2 · a day travelling from one view to the other through both stages.
  *
  * THE ASSERTION WITH TEETH IS THE SECOND ROW. Two days are left unconfirmed,
  * and the run taps the NEWER one. Bekräfta Pass opens on the oldest waiting
@@ -13,9 +13,10 @@
  * be a lie on every other. The test only passes if the page opens on the day
  * that was tapped.
  *
- * The other one worth having is the admin's: stage 1 is the arbetsledare's
- * alone (invariant 4b), so an owner must not be shown a queue of days the
- * database would refuse him.
+ * The other one worth having is the admin's queue. He has one now -- stage 2,
+ * on the same screen under the same switch -- and the thing to prove is that
+ * it is stage 2 and nothing else: a day still waiting on its arbetsledare is
+ * a stage 1 claim, and the admin cannot make one (invariant 4b).
  */
 import { chromium, devices } from "playwright";
 import { mkdirSync } from "node:fs";
@@ -248,8 +249,8 @@ try {
   // first one and this fails.
   await rows.nth(1).click();
   await page.waitForURL((u) => u.pathname.includes("/bekrafta"), { timeout: 20000 });
-  const askedUrl = page.url();
-  const url = new URL(askedUrl);
+  const url = new URL(page.url());
+  const projectId = url.searchParams.get("projekt");
   if (url.searchParams.get("datum") !== newer) {
     fail(`the row carries datum=${url.searchParams.get("datum")}, expected ${newer}`);
   }
@@ -286,40 +287,116 @@ try {
 
   await signOut(page);
 
-  // ---- the admin has no switch --------------------------------------------
+  // ---- the admin's Att bekräfta is stage 2, and never stage 1 -------------
+  //
+  // THE CONTROL WITH TEETH. By now `newer` carries the leader's claim and
+  // `older` carries nobody's. The admin's queue must hold the first and must
+  // never hold the second: a day still waiting on its arbetsledare is a stage
+  // 1 claim, and the admin cannot make one -- invariant 4b, and CLAUDE.md's
+  // "the admin cannot make a stage 1 confirmation". Both halves are asserted,
+  // because a queue that simply showed everything would pass the first.
+  //
+  // Scoped to OUR project by name: the admin sees every project, so another
+  // fixture's day on the same date would otherwise read as ours.
   await signIn(page, ADMIN.email, ADMIN.password);
   await page.goto(`${BASE}/historik/`, { waitUntil: "networkidle" });
   await page.getByRole("heading", { name: "Bekräftelser" }).waitFor({ timeout: 20000 });
-  await page.waitForTimeout(1500);
-  if (await page.getByRole("button", { name: "Att bekräfta", exact: true }).count()) {
-    fail("the admin is offered Att bekräfta; stage 1 is the arbetsledare's alone");
-  }
-  log("the admin gets the log and no switch -- his queue is Granska Pass");
 
-  // ---- stage 2, and the day arrives ---------------------------------------
+  const adminAtt = page.getByRole("button", { name: "Att bekräfta", exact: true });
+  if (!(await adminAtt.count())) fail("the admin has no Att bekräfta view; stage 2 is his queue");
+  if ((await adminAtt.getAttribute("aria-pressed")) !== "true") {
+    fail("the admin's Bekräftelser does not open on Att bekräfta");
+  }
+
+  const adminRows = page.locator('a[href*="/granska"]');
+  await adminRows.first().waitFor({ timeout: 20000 });
+  const ours = (await adminRows.allInnerTexts()).filter((t) => t.includes(project));
+  if (!ours.some((t) => t.includes(heading(newer)))) {
+    await shot(page, "FAILED");
+    fail(`the day the leader confirmed is not in the admin's queue: ${JSON.stringify(ours)}`);
+  }
+  if (ours.some((t) => t.includes(heading(older)))) {
+    await shot(page, "FAILED");
+    fail(`${older} is still waiting on its arbetsledare and is in the admin's queue -- that is a stage 1 claim`);
+  }
+  await shot(page, "b5-admin-att-godkanna");
+  log("the admin's queue holds the confirmed day and not the one still owed to a leader");
+
+  // ---- stage 2, opened from the row that names the day --------------------
   //
-  // ASKED FOR BY NAME. Granska Pass opens on the oldest waiting day across
-  // every project, so whichever fixture happens to be at the head of the queue
-  // is the one a bare visit would approve -- and this test spent a run
-  // approving another walkthrough's day, going green on the admin's global log
-  // and red on the leader's scoped one. The deep link makes it OUR day or
-  // nothing; the assertion below is what proves it landed on ours.
-  const projectId = new URL(askedUrl).searchParams.get("projekt");
-  await page.goto(`${BASE}/granska/?projekt=${projectId}&datum=${newer}`, { waitUntil: "networkidle" });
+  // Granska Pass opens on the oldest waiting day across every project, so a
+  // bare visit approves whichever fixture is at the head of the queue -- this
+  // test once did exactly that, going green on the admin's global log and red
+  // on the leader's scoped one. The row carries its own day.
+  await adminRows.filter({ hasText: heading(newer) }).filter({ hasText: project }).first().click();
+  await page.waitForURL((u) => u.pathname.includes("/granska"), { timeout: 20000 });
   const godkann = page.getByRole("button", { name: /Godkänn|Bekräfta dagen/ });
   await godkann.waitFor({ timeout: 20000 });
   const head = await page.locator("main").innerText();
   if (!head.includes(project) || !head.includes(heading(newer))) {
     await shot(page, "FAILED");
-    fail(`Granska Pass opened ${JSON.stringify(head.slice(0, 140))} instead of our day`);
+    fail(`Granska Pass opened ${JSON.stringify(head.slice(0, 140))} instead of the row's own day`);
   }
   await godkann.click();
   await page.waitForTimeout(3000);
-  log("the admin opened our day by name and approved it at stage 2");
+  log("the row opens that day in Granska Pass, and the admin approves it");
 
+  // The admin's Bekräftelser opens on his queue too, so the log is one tap
+  // away rather than the landing view -- what is outstanding comes first.
   await page.goto(`${BASE}/historik/`, { waitUntil: "networkidle" });
+  await hist.click();
   await mustSee(page, project, "the approved day never reached the admin's Historik");
   log("approved at stage 2, the day is in the log");
+
+  // ---- rejection sends a day back, and the two queues swap it -------------
+  //
+  // THIS IS WHAT MAKES "THE ADMIN'S QUEUE IS STAGE 2" FALSIFIABLE. While
+  // nobody has confirmed a day it has no project_day row at all, so asserting
+  // the admin is not offered it passes for free. A REJECTED day does have a
+  // row -- stage null, the note on it, confirmed_at cleared by the guard --
+  // and it is waiting on its arbetsledare again. That is the day that would
+  // leak into the admin's queue if reviewDays() filtered on the wrong thing.
+  await signOut(page);
+  await signIn(page, L.email, L.password);
+  await page.goto(`${BASE}/bekrafta/?projekt=${projectId}&datum=${older}`, { waitUntil: "networkidle" });
+  await page.getByLabel("Vad vi gjorde").fill("Grävde för dagvatten.");
+  await page.getByRole("button", { name: "Bekräfta dagen" }).click();
+  await page.waitForTimeout(3000);
+  log(`the leader confirmed ${older} as well`);
+
+  await signOut(page);
+  await signIn(page, ADMIN.email, ADMIN.password);
+  await page.goto(`${BASE}/granska/?projekt=${projectId}&datum=${older}`, { waitUntil: "networkidle" });
+  await page.getByRole("button", { name: "Underkänn", exact: true }).click();
+  await field(page, "Varför skickas dagen tillbaka?").fill("Timmarna stämmer inte med stämplingarna.");
+  await page.getByRole("button", { name: "Skicka tillbaka till arbetsledaren" }).click();
+  await page.waitForTimeout(3000);
+  log("the admin sent it back with a reason");
+
+  await page.goto(`${BASE}/historik/`, { waitUntil: "networkidle" });
+  await page.getByRole("heading", { name: "Bekräftelser" }).waitFor({ timeout: 20000 });
+  await page.waitForTimeout(2000);
+  const left = (await page.locator('a[href*="/granska"]').allInnerTexts()).filter((t) => t.includes(project));
+  if (left.length > 0) {
+    await shot(page, "FAILED");
+    fail(`a day sent back to its arbetsledare is still in the admin's queue: ${JSON.stringify(left)}`);
+  }
+  log("the sent-back day is out of the admin's queue -- it is stage 1 again");
+
+  await signOut(page);
+  await signIn(page, L.email, L.password);
+  await page.goto(`${BASE}/historik/`, { waitUntil: "networkidle" });
+  await rows.first().waitFor({ timeout: 20000 });
+  if (!(await rows.first().innerText()).includes(heading(older))) {
+    await shot(page, "FAILED");
+    fail("the sent-back day did not return to the leader's Att bekräfta");
+  }
+  await rows.first().click();
+  await page.waitForURL((u) => u.pathname.includes("/bekrafta"), { timeout: 20000 });
+  await mustSee(page, "Timmarna stämmer inte med stämplingarna.",
+                "the leader cannot see why the day came back");
+  await shot(page, "b6-atersand");
+  log("it is back with the leader, carrying the reason the admin gave");
 
   await signOut(page);
   await signIn(page, L.email, L.password);

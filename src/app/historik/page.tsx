@@ -9,6 +9,7 @@ import {
 import { getSupabase } from "@/lib/supabase/client";
 import { hhmm, longDayHeading } from "@/lib/dates";
 import { pendingSummaries, type PendingSummary } from "@/lib/pending-days";
+import { reviewSummaries, type ReviewSummary } from "@/lib/review-days";
 import { useAccount } from "@/lib/account";
 
 type Act = { action: string; note: string | null; acted_at: string };
@@ -65,11 +66,13 @@ function Kicker({ children }: { children: React.ReactNode }) {
  * which of them a given day had already reached in order to look for it. One
  * switch says the same thing without asking.
  *
- * THE SWITCH IS THE ARBETSLEDARE'S. Stage 1 is theirs alone -- CLAUDE.md's
- * "the admin cannot make a stage 1 confirmation", invariant 4b -- so an admin
- * opening this page has no "att bekräfta" to be shown. His outstanding work is
- * stage 2 and it lives on Granska Pass. A queue of days the database would
- * refuse him is not a queue.
+ * BOTH ROLES GET THE SWITCH, AND THEY ARE NOT THE SAME QUEUE. "Att bekräfta"
+ * is whatever is outstanding for the person reading it: for the arbetsledare
+ * that is stage 1, the days they stood on and have not yet accounted for; for
+ * the admin it is stage 2, the days a leader has already accounted for and the
+ * flagged ones nobody could. The admin is never offered a stage 1 day --
+ * CLAUDE.md's "the admin cannot make a stage 1 confirmation", invariant 4b --
+ * and a queue of days the database would refuse him is not a queue.
  *
  * THE HANDOFF DOES NOT DRAW THIS SCREEN -- it predates the merge, and lists
  * "Bekräftelse historik" as one of the leader's eight. So it is composed from
@@ -79,7 +82,10 @@ function Kicker({ children }: { children: React.ReactNode }) {
  */
 function Bekraftelser() {
   const { account, loading } = useAccount();
-  const queue = account?.role === "arbetsledare";
+  const role = account?.role;
+  const isLeader = role === "arbetsledare";
+  const isAdmin = role === "admin";
+  const queue = isLeader || isAdmin;
   const [view, setView] = useState<View>("att");
 
   if (loading) {
@@ -111,8 +117,104 @@ function Bekraftelser() {
         </div>
       )}
 
-      {showing === "att" ? <AttBekrafta /> : <Historik forLeader={queue} />}
+      {showing === "att"
+        ? (isAdmin ? <AttGranska /> : <AttBekrafta />)
+        : <Historik forLeader={isLeader} />}
     </SoftScreen>
+  );
+}
+
+/**
+ * The days waiting on the ADMIN at stage 2, flagged first then oldest first.
+ *
+ * WHICH days is lib/review-days' answer and nobody else's, so this list and
+ * Granska Pass cannot disagree, and every row opens the day it names rather
+ * than dropping the owner at the head of the queue.
+ *
+ * A flagged day is called out here rather than only inside: it is the one kind
+ * of day where nobody was answerable, so it is the one an owner should be able
+ * to pick out of a list without opening anything.
+ *
+ * The hours shown are the LEADER'S FIGURES, totalled -- what the admin is
+ * being asked to approve. A flagged day has none, because nobody stated any,
+ * and it says so rather than showing a 0 that would read as a claim that
+ * nobody worked.
+ */
+function AttGranska() {
+  const [days, setDays] = useState<ReviewSummary[] | undefined>(undefined);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    void (async () => {
+      try {
+        const q = await reviewSummaries();
+        if (active) setDays(q);
+      } catch (e) {
+        if (!active) return;
+        setError(e instanceof Error ? e.message : "Kunde inte läsa dagarna.");
+        setDays([]);
+      }
+    })();
+    return () => { active = false; };
+  }, []);
+
+  if (days === undefined) {
+    return (
+      <div className="px-4 pt-[26px] text-[15px] font-medium" style={{ color: C.text2 }}>
+        Laddar…
+      </div>
+    );
+  }
+
+  return (
+    <>
+      {error && <div className="px-4 pt-[14px]"><SoftNotice tone="stop">{error}</SoftNotice></div>}
+
+      {days.length === 0 ? (
+        <div className="px-4 pt-[26px]">
+          <EmptyState headline="Inget att godkänna">
+            Dagar arbetsledarna bekräftat hamnar här.
+          </EmptyState>
+        </div>
+      ) : (
+        days.map((d) => (
+          <div key={d.key} className="px-4 pt-[14px]">
+            <Link href={`/granska?projekt=${d.project_id}&datum=${d.work_date}`} className="block">
+              <Card radius={14} className="hover:bg-[#f6f9ff]">
+                <Kicker>{longDayHeading(d.work_date)}</Kicker>
+                <div className="flex items-baseline justify-between gap-[10px]">
+                  <div className="text-[18px] font-bold" style={{ letterSpacing: "-.4px" }}>
+                    {d.project_name}
+                  </div>
+                  <div className="shrink-0 text-[15px] font-bold" style={{ color: C.accent }}>
+                    {d.hours === null ? "—" : `${hh(d.hours)} h`}
+                  </div>
+                </div>
+
+                {(d.flagged_as || d.came_back) && (
+                  <div className="flex flex-wrap gap-[6px] pt-[8px]">
+                    {d.flagged_as && (
+                      <Tag tone="warn">
+                        {d.flagged_as === "ingen_ledare" ? "Utan arbetsledare" : "Arbetare ansvarig"}
+                      </Tag>
+                    )}
+                    {d.came_back && <Tag tone="quiet">Återsänd en gång</Tag>}
+                  </div>
+                )}
+
+                <div className="mt-[6px] flex items-center justify-between gap-[10px]">
+                  <div className="text-[15px] font-medium" style={{ color: C.text2 }}>
+                    {d.workers.length > 0 ? d.workers.join(", ") : "Ingen tilldelad"}
+                  </div>
+                  <ChevronRight />
+                </div>
+              </Card>
+            </Link>
+          </div>
+        ))
+      )}
+    </>
   );
 }
 

@@ -172,7 +172,12 @@ try {
   await pop.getByRole("link", { name: "Profil", exact: true }).click();
   await page.waitForURL((u) => u.pathname.includes("/profil"), { timeout: 20000 });
   await mustSee(page, "Har du företag?", "the Profil form has no company toggle");
-  await mustSee(page, "Clearingnummer", "the Profil form is missing its bank fields");
+  // "Clearing", not "Clearingnummer": the handoff shortens the label under a
+  // card that already says Utbetalning. Asked for by role so the field is
+  // what is checked, not a string that happens to be on the page.
+  if (!(await page.getByLabel("Clearing", { exact: true }).count())) {
+    fail("the Profil form is missing its bank fields");
+  }
   await shot(page, "a5-profil");
   log("Profil shows the personal fields and the Har du företag? toggle");
 

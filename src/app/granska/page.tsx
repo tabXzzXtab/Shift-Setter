@@ -6,6 +6,7 @@ import { AuthGate } from "@/components/auth-gate";
 import { Button, Empty, Field, Input, Notice, Screen, Textarea } from "@/components/ui";
 import { getSupabase } from "@/lib/supabase/client";
 import { hhmm, longDayHeading, stampToTime } from "@/lib/dates";
+import { reviewDays } from "@/lib/review-days";
 
 type Row = {
   tilldelning_id: string;
@@ -69,27 +70,22 @@ function Granska({ askedProject, askedDate }: { askedProject: string | null; ask
     void (async () => {
       const sb = getSupabase();
 
-      // Two kinds of day, and they are not the same job.
-      //
-      // Stage 1 days carry a leader's claim and the admin reviews it. Flagged
-      // days (Step 5c) carry nothing: nobody stated what happened, so there is
-      // no claim to approve or reject and the admin writes the only account
-      // there will be. A surveyed day and an approved day are in neither list.
-      const { data: days, error: dErr } = await sb
-        .from("project_day")
-        .select("project_id, work_date, vad_vi_gjorde, rejected_at, flagged_as, stage, confirmed_at, project(name)")
-        .or("stage.eq.leader_confirmed,and(flagged_as.not.is.null,confirmed_at.is.null)")
-        .order("work_date");
+      // WHICH days are waiting is defined once, in lib/review-days, and the
+      // "Att bekräfta" list an admin opens this from reads the same function.
+      // A queue that disagrees with the page it opens is worse than no queue.
+      let queue;
+      try {
+        queue = await reviewDays();
+      } catch (e) {
+        if (!active) return;
+        setError(e instanceof Error ? e.message : "Kunde inte läsa dagarna.");
+        setDay(null);
+        return;
+      }
 
       if (!active) return;
-      if (dErr) { setError(dErr.message); setDay(null); return; }
-      if (!days || days.length === 0) { setDay(null); return; }
+      if (queue.length === 0) { setDay(null); return; }
 
-      // Flagged first, and not merely highlighted: a day nobody was answerable
-      // for is the one the owner should be looking at.
-      const queue = [...days].sort((a, b) =>
-        Number(Boolean(b.flagged_as)) - Number(Boolean(a.flagged_as)) ||
-        a.work_date.localeCompare(b.work_date));
       const first =
         (askedProject !== null && askedDate !== null
           ? queue.find((d) => d.project_id === askedProject && d.work_date === askedDate)
@@ -133,11 +129,11 @@ function Granska({ askedProject, askedDate }: { askedProject: string | null; ask
 
       setDay({
         project_id: first.project_id,
-        project_name: (first.project as { name: string } | null)?.name ?? "Projekt",
+        project_name: first.project_name,
         work_date: first.work_date,
-        vad_vi_gjorde: first.vad_vi_gjorde ?? "",
-        came_back: first.rejected_at !== null,
-        flagged_as: first.flagged_as ?? null,
+        vad_vi_gjorde: first.vad_vi_gjorde,
+        came_back: first.came_back,
+        flagged_as: first.flagged_as,
         rows,
       });
       setEdits(
@@ -152,7 +148,7 @@ function Granska({ askedProject, askedDate }: { askedProject: string | null; ask
           ]),
         ),
       );
-      setGjorde(first.vad_vi_gjorde ?? "");
+      setGjorde(first.vad_vi_gjorde);
       setNote("");
       setRejecting(false);
     })();
