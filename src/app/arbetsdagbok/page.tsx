@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { AuthGate } from "@/components/auth-gate";
 import { ArbetsdagbokDocument } from "@/components/arbetsdagbok-document";
 import {
@@ -12,6 +12,61 @@ import { addDays, hhmm, stampToTime, stockholmToday } from "@/lib/dates";
 import { Bristsurvey, fetchGaps, hasGaps, type Gaps } from "@/components/bristsurvey";
 import type { DocDay, DocPayload } from "@/lib/doc/arbetsdagbok";
 import { arbetsdagbokFilename, buildArbetsdagbokPdf } from "@/lib/doc/pdf";
+import { fel } from "@/lib/fel";
+
+/**
+ * The marker on the date rail. Filled rather than outlined, because it is not
+ * an icon the admin can press -- it is a point on a line, and an outline here
+ * would read as a third control between the two dates.
+ */
+const RailPin = () => (
+  <svg width="26" height="26" viewBox="0 0 24 24" aria-hidden focusable="false">
+    <path
+      d="M12 23.5c0 0 7.6-8.7 7.6-14.4a7.6 7.6 0 1 0-15.2 0C4.4 14.8 12 23.5 12 23.5z"
+      fill={C.accent}
+    />
+    <circle cx="12" cy="9" r="2.8" fill={C.surface} />
+  </svg>
+);
+
+/**
+ * One leg of the rail: the marker, the dashed line that reaches the next one,
+ * and the field itself at full width.
+ *
+ * The line is anchored to the INPUT, never to the row -- 13px is half a marker,
+ * 39px is half a marker plus the 26px that sits above the input's centre -- so
+ * a label that wraps to two lines moves the field and the marker together and
+ * the dashes still meet.
+ */
+function RailLeg({
+  label, first, children,
+}: {
+  label: string;
+  /** The first leg's line runs downward out of its marker; the second's runs
+   *  upward into it, across the 12px gap between them. */
+  first?: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <div className={`flex gap-[12px] ${first ? "" : "mt-[12px]"}`}>
+      <div className="relative w-[26px] shrink-0">
+        <span
+          aria-hidden
+          className={`absolute w-0 border-l-2 border-dashed ${
+            first ? "bottom-0 h-[13px]" : "-top-[12px] bottom-[39px]"
+          }`}
+          style={{ left: "12px", borderColor: C.chevron }}
+        />
+        <span className="absolute bottom-[13px] left-0">
+          <RailPin />
+        </span>
+      </div>
+      <div className="min-w-0 flex-1">
+        <SoftField label={label}>{children}</SoftField>
+      </div>
+    </div>
+  );
+}
 
 type Project = {
   id: string;
@@ -105,7 +160,7 @@ function Arbetsdagbok() {
       const found = await fetchGaps(projectId, from, to);
       if (hasGaps(found)) { setGaps(found); setBusy(false); return; }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Kunde inte läsa vad som saknas.");
+      setError(fel(e, "Kunde inte läsa vad som saknas i perioden. Ladda om sidan, eller kontakta administratören."));
       setBusy(false);
       return;
     }
@@ -125,7 +180,11 @@ function Arbetsdagbok() {
       generated_by: (await sb.auth.getUser()).data.user!.id,
     });
 
-    if (gErr) { setError(gErr.message); setBusy(false); return; }
+    if (gErr) {
+      setError(fel(gErr, "Arbetsdagboken kunde inte skapas. Kontakta administratören."));
+      setBusy(false);
+      return;
+    }
 
     const project = projects.find((p) => p.id === projectId)!;
 
@@ -227,7 +286,7 @@ function Arbetsdagbok() {
       setTimeout(() => URL.revokeObjectURL(href), 10000);
       setSaved(name);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Kunde inte skapa PDF-filen.");
+      setError(fel(e, "PDF-filen kunde inte skapas. Försök igen, eller kontakta administratören."));
     }
     setDownloading(false);
   }
@@ -299,18 +358,18 @@ function Arbetsdagbok() {
             </SoftField>
           </div>
 
-          <div className="flex gap-[10px]">
-            <div className="min-w-0 flex-1">
-              <SoftField label="Från och med">
-                <SoftInput type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
-              </SoftField>
-            </div>
-            <div className="min-w-0 flex-1">
-              <SoftField label="Till och med">
-                <SoftInput type="date" value={to} onChange={(e) => setTo(e.target.value)} />
-              </SoftField>
-            </div>
-          </div>
+          {/* From and to are one period, not two independent fields, so they are
+              drawn as a route: two markers on one dashed line. Side by side
+              they also broke the card -- a native date control keeps the width
+              its own text needs and runs out of anything narrower (SoftInput),
+              and half a phone is narrower. Down the rail each date gets the
+              full width it wanted. */}
+          <RailLeg label="Från och med" first>
+            <SoftInput type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
+          </RailLeg>
+          <RailLeg label="Till och med">
+            <SoftInput type="date" value={to} onChange={(e) => setTo(e.target.value)} />
+          </RailLeg>
         </Card>
       </div>
 

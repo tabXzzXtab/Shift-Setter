@@ -11,6 +11,7 @@ import { hhmm, longDayHeading } from "@/lib/dates";
 import { pendingSummaries, type PendingSummary } from "@/lib/pending-days";
 import { reviewSummaries, type ReviewSummary } from "@/lib/review-days";
 import { useAccount } from "@/lib/account";
+import { fel } from "@/lib/fel";
 
 type Act = { action: string; note: string | null; acted_at: string };
 
@@ -152,7 +153,7 @@ function AttGranska() {
         if (active) setDays(q);
       } catch (e) {
         if (!active) return;
-        setError(e instanceof Error ? e.message : "Kunde inte läsa dagarna.");
+        setError(fel(e, "Kunde inte läsa dagarna som väntar på godkännande. Ladda om sidan."));
         setDays([]);
       }
     })();
@@ -239,7 +240,7 @@ function AttBekrafta() {
         if (active) setWaiting(days);
       } catch (e) {
         if (!active) return;
-        setError(e instanceof Error ? e.message : "Kunde inte läsa passen.");
+        setError(fel(e, "Kunde inte läsa dagarna som väntar på dig. Ladda om sidan."));
         setWaiting([]);
       }
     })();
@@ -333,7 +334,11 @@ function Historik({ forLeader }: { forLeader: boolean }) {
         .limit(60);
 
       if (!active) return;
-      if (hErr) { setError(hErr.message); setDays([]); return; }
+      if (hErr) {
+        setError(fel(hErr, "Kunde inte läsa historiken. Ladda om sidan, eller kontakta administratören."));
+        setDays([]);
+        return;
+      }
       if (!history || history.length === 0) { setDays([]); return; }
 
       const projectIds = [...new Set(history.map((h) => h.project_id!).filter(Boolean))];

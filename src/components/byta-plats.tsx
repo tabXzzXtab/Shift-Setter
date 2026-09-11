@@ -4,6 +4,7 @@ import { useState } from "react";
 import { C, ChoiceList, EmptyState, SecondaryButton, SoftDialog, SoftNotice } from "./soft";
 import { getSupabase } from "@/lib/supabase/client";
 import { longDayHeading } from "@/lib/dates";
+import { fel } from "@/lib/fel";
 
 export type SwapOptions = {
   tilldelning: string;
@@ -62,7 +63,10 @@ export function BytaPlats({
       p_b: partner.tilldelning,
     });
     setBusy(false);
-    if (error) { setError(error.message); return; }
+    if (error) {
+      setError(fel(error, "Bytet kunde inte genomföras. Kontakta administratören."));
+      return;
+    }
     onDone(
       `${options.leader_name} och ${partner.name} har bytt plats. ` +
       `${options.leader_name} tar ${partner.project_name}.`,

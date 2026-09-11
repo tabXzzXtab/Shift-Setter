@@ -7,6 +7,7 @@ import {
 } from "@/components/soft";
 import { getSupabase } from "@/lib/supabase/client";
 import { addDays, hhmm, longDayHeading, stampToTime, stockholmToday } from "@/lib/dates";
+import { fel } from "@/lib/fel";
 
 type Shift = {
   id: string;
@@ -70,7 +71,11 @@ function MinaPass() {
         .order("work_date");
 
       if (!active) return;
-      if (error) { setError(error.message); setShifts([]); return; }
+      if (error) {
+        setError(fel(error, "Kunde inte läsa dina pass. Ladda om sidan, eller prata med din arbetsledare."));
+        setShifts([]);
+        return;
+      }
       setShifts((data ?? []) as Shift[]);
     })();
     return () => { active = false; };

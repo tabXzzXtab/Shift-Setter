@@ -6,6 +6,7 @@ import {
   C, Card, EmptyState, GroupedList, SHADOW, SignOut, SoftNotice, SoftSheet,
 } from "./soft";
 import { getSupabase } from "@/lib/supabase/client";
+import { fel } from "@/lib/fel";
 
 type Row = {
   project_id: string;
@@ -79,7 +80,11 @@ export function HomeAdmin() {
         .order("name");
 
       if (!active) return;
-      if (error) { setError(error.message); setRows([]); return; }
+      if (error) {
+        setError(fel(error, "Kunde inte läsa projekten. Ladda om sidan."));
+        setRows([]);
+        return;
+      }
       setRows((data ?? []) as Row[]);
     })();
     return () => { active = false; };

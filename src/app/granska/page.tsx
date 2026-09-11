@@ -10,6 +10,7 @@ import {
 import { getSupabase } from "@/lib/supabase/client";
 import { hhmm, longDayHeading, stampToTime } from "@/lib/dates";
 import { reviewDays } from "@/lib/review-days";
+import { fel } from "@/lib/fel";
 
 type Row = {
   /** Step 4b: an auto-assigned arbetsledare, whose span lives on their row. */
@@ -83,7 +84,7 @@ function Granska({ askedProject, askedDate }: { askedProject: string | null; ask
         queue = await reviewDays();
       } catch (e) {
         if (!active) return;
-        setError(e instanceof Error ? e.message : "Kunde inte läsa dagarna.");
+        setError(fel(e, "Kunde inte läsa dagarna som väntar på godkännande. Ladda om sidan."));
         setDay(null);
         return;
       }
@@ -103,7 +104,11 @@ function Granska({ askedProject, askedDate }: { askedProject: string | null; ask
         .eq("work_date", first.work_date);
 
       if (!active) return;
-      if (pErr) { setError(pErr.message); setDay(null); return; }
+      if (pErr) {
+        setError(fel(pErr, "Kunde inte läsa passen på dagen. Ladda om sidan."));
+        setDay(null);
+        return;
+      }
 
       const { data: assignments, error: aErr } = await sb
         .from("tilldelning")
@@ -112,7 +117,11 @@ function Granska({ askedProject, askedDate }: { askedProject: string | null; ask
         .is("released_at", null);
 
       if (!active) return;
-      if (aErr) { setError(aErr.message); setDay(null); return; }
+      if (aErr) {
+        setError(fel(aErr, "Kunde inte läsa vilka som stod på dagen. Ladda om sidan."));
+        setDay(null);
+        return;
+      }
 
       const { data: roster } = await sb.from("worker_roster").select("id, name");
       if (!active) return;
@@ -216,7 +225,10 @@ function Granska({ askedProject, askedDate }: { askedProject: string | null; ask
         });
 
     setBusy(false);
-    if (rErr) { setError(rErr.message); return; }
+    if (rErr) {
+      setError(fel(rErr, "Dagen kunde inte godkännas. Kontakta administratören."));
+      return;
+    }
     setReload((r) => r + 1);
   }
 
@@ -232,7 +244,10 @@ function Granska({ askedProject, askedDate }: { askedProject: string | null; ask
     });
 
     setBusy(false);
-    if (rErr) { setError(rErr.message); return; }
+    if (rErr) {
+      setError(fel(rErr, "Dagen kunde inte skickas tillbaka. Kontakta administratören."));
+      return;
+    }
     setReload((r) => r + 1);
   }
 

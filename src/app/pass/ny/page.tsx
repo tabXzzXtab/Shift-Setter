@@ -10,6 +10,7 @@ import { PaintCalendar } from "@/components/paint-calendar";
 import { getSupabase } from "@/lib/supabase/client";
 import { stockholmToday } from "@/lib/dates";
 import { defaultHours } from "@/lib/hours";
+import { fel } from "@/lib/fel";
 
 type Project = { id: string; name: string };
 type Worker = { id: string; name: string };
@@ -141,12 +142,20 @@ function NyttPass() {
     const { data: batch, error: bErr } = await sb
       .from("pass_batch").insert({ project_id: projectId, created_by: me })
       .select("id").single();
-    if (bErr || !batch) { setError(bErr?.message ?? "Kunde inte skapa passen."); setSaving(false); return; }
+    if (bErr || !batch) {
+      setError(fel(bErr, "Passen kunde inte skapas. Kontakta administratören."));
+      setSaving(false);
+      return;
+    }
 
     if (handpicked.length) {
       const { error: hErr } = await sb.from("pass_batch_handpick")
         .insert(handpicked.map((worker_id) => ({ batch_id: batch.id, worker_id })));
-      if (hErr) { setError(hErr.message); setSaving(false); return; }
+      if (hErr) {
+        setError(fel(hErr, "De handplockade kunde inte sparas. Kontakta administratören."));
+        setSaving(false);
+        return;
+      }
     }
 
     // Every row on every day. Each one an independent pass from here on.
@@ -164,10 +173,18 @@ function NyttPass() {
     );
 
     const { error: pErr } = await sb.from("pass").insert(toInsert);
-    if (pErr) { setError(pErr.message); setSaving(false); return; }
+    if (pErr) {
+      setError(fel(pErr, "Passen kunde inte skapas. Kontakta administratören."));
+      setSaving(false);
+      return;
+    }
 
     const { data: filled, error: fErr } = await sb.rpc("fill_passes", { p_batch: batch.id });
-    if (fErr) { setError(fErr.message); setSaving(false); return; }
+    if (fErr) {
+      setError(fel(fErr, "Passen skapades men kunde inte tillsättas. Kontakta administratören."));
+      setSaving(false);
+      return;
+    }
 
     setResult({
       passes: filled?.length ?? toInsert.length,
@@ -327,8 +344,15 @@ function NyttPass() {
         fieldset/legend, not a label: a label may only name one control, and
         wrapping a whole row of them in one makes its text part of the first
         control's accessible name.
+
+        min-w-0 because a fieldset is the one element whose UA min-width is
+        `min-content` rather than auto, and preflight does not reset it. Three
+        time fields on one row that each want more than a third of a phone
+        therefore push the fieldset -- and the page under it -- wider than the
+        screen, however hard the row itself is told to shrink. Nothing else in
+        the app needs this, because nothing else in the app is a fieldset.
       */}
-      <fieldset className="block border-0 p-0 px-4 pt-[26px]">
+      <fieldset className="block min-w-0 border-0 p-0 px-4 pt-[26px]">
         <legend
           className="px-1 pb-1 text-[12px] font-bold uppercase"
           style={{ letterSpacing: "1px", color: C.text2 }}
@@ -448,7 +472,7 @@ function NyttPass() {
         </div>
       )}
 
-      <fieldset className="block border-0 p-0 px-4 pt-[26px]">
+      <fieldset className="block min-w-0 border-0 p-0 px-4 pt-[26px]">
         <legend
           className="px-1 pb-1 text-[12px] font-bold uppercase"
           style={{ letterSpacing: "1px", color: C.text2 }}

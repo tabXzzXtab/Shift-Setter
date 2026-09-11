@@ -10,6 +10,7 @@ import {
 } from "@/components/soft";
 import { getSupabase } from "@/lib/supabase/client";
 import { useAccount } from "@/lib/account";
+import { fel } from "@/lib/fel";
 import {
   addDays, hhmm, longDayHeading, passEndAt, passStartAt, stockholmToday,
 } from "@/lib/dates";
@@ -79,7 +80,11 @@ function AllaPass({ askedProject }: { askedProject: string | null }) {
       const { data, error } = await q.order("work_date").order("start_time");
 
       if (!live) return;
-      if (error) { setError(error.message); setRows([]); return; }
+      if (error) {
+        setError(fel(error, "Kunde inte läsa passen. Ladda om sidan."));
+        setRows([]);
+        return;
+      }
       setRows((data ?? []) as unknown as Pass[]);
     })();
     return () => { live = false; };
@@ -118,7 +123,10 @@ function AllaPass({ askedProject }: { askedProject: string | null }) {
       p_hours: Number(hours.replace(",", ".")),
     });
     setBusy(false);
-    if (cErr) { setError(cErr.message); return; }
+    if (cErr) {
+      setError(fel(cErr, "Passet kunde inte stängas. Kontakta administratören."));
+      return;
+    }
     setNote(`Passet är stängt. ${hours} h är loggade på alla som stämplade in.`);
     setClosing(null);
     setReload((r) => r + 1);

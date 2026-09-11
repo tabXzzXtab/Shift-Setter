@@ -619,6 +619,12 @@ That block is the entire enforcement mechanism. The admin needs the document; on
 
 **Aggregation currently happens in the browser.** Every hours total transfers matching rows to the client. Fine at this scale; worth knowing it is O(all shifts) per page view.
 
+**Every refusal is in Swedish, and it says who can fix it.** Because the database is the only real boundary, almost every refusal in this app is a Postgres exception written for whoever is reading the migration — in English, naming a column or a stage. That is the right text in a log and the wrong text on a phone on a building site. `src/lib/fel.ts` is the one place that translates, and every message it holds answers two questions: **what happened**, in the app's words rather than the schema's, and **who can fix it** — the admin, the arbetsledare, or the reader themselves. A refusal that answers only the first leaves the reader stuck.
+
+**One table, not one per screen.** Three screens had grown their own partial translator, so the same refusal read differently depending on where you met it, and a rule added to the database got translated on whichever screen somebody happened to be working on. The database raises one sentence; the app says one thing back.
+
+**A refusal nobody anticipated is not guessed at.** It falls back to the caller's own context line — *"Passet kunde inte skapas. Kontakta administratören."* — which names the act that failed and who to ask without inventing a reason. A friendly guess about which rule fired would be worse than the honest shrug: it would send the reader to fix the wrong thing. Nothing is left in English either way.
+
 ---
 
 ## 7. Landing pages and navigation

@@ -10,6 +10,7 @@ import { getSupabase } from "@/lib/supabase/client";
 import { stockholmToday } from "@/lib/dates";
 import { defaultHours } from "@/lib/hours";
 import { useAccount } from "@/lib/account";
+import { fel } from "@/lib/fel";
 
 type Project = { id: string; name: string };
 type Worker = { id: string; name: string };
@@ -87,7 +88,11 @@ function SnabbPass() {
       p_hours: Number(hours.replace(",", ".")),
     });
 
-    if (error) { setError(error.message); setSaving(false); return; }
+    if (error) {
+      setError(fel(error, "Snabbpasset kunde inte skapas. Kontakta administratören."));
+      setSaving(false);
+      return;
+    }
 
     setDone(workers.find((w) => w.id === workerId)?.name ?? "Arbetaren");
     setSaving(false);

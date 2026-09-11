@@ -9,6 +9,7 @@ import {
   SoftNotice, SoftScreen,
 } from "@/components/soft";
 import { getSupabase } from "@/lib/supabase/client";
+import { fel } from "@/lib/fel";
 
 /**
  * Redigera projekt -- the edit page Alla Projekt sends you to.
@@ -71,25 +72,6 @@ const BESTALLAREN: FieldSpec[] = [
   { key: "bestallare_address", label: "Beställarens adress", help: "Kundens adress." },
   { key: "bestallare_orgnr", label: "Beställarens org nummer" },
 ];
-
-/**
- * The database speaks its own language and the site does not. Only the
- * refusals an admin can act on are translated; anything else arrives verbatim,
- * because a message nobody wrote is better than a friendly one that hides
- * which rule fired.
- */
-function saySwedish(message: string): string {
-  if (message.includes("active passes")) {
-    return "Projektet har aktiva pass och kan inte tas bort.";
-  }
-  if (message.includes("only an admin")) {
-    return "Bara en administratör kan ta bort ett projekt.";
-  }
-  if (message.includes("already deleted")) {
-    return "Projektet är redan borttaget.";
-  }
-  return message;
-}
 
 /** The ground, the header and a line -- the three loading and dead ends. */
 function Plain({ children }: { children: React.ReactNode }) {
@@ -169,7 +151,7 @@ function RedigeraProjekt({ id }: { id: string | null }) {
       })
       .eq("id", project.id);
 
-    if (uErr) setError(saySwedish(uErr.message));
+    if (uErr) setError(fel(uErr, "Ändringarna kunde inte sparas. Kontrollera fälten, eller kontakta administratören."));
     else setSaved(true);
     setSaving(false);
   }
@@ -184,7 +166,7 @@ function RedigeraProjekt({ id }: { id: string | null }) {
     });
 
     if (dErr) {
-      setError(saySwedish(dErr.message));
+      setError(fel(dErr, "Projektet kunde inte tas bort. Kontakta administratören."));
       setConfirming(false);
       setDeleting(false);
       return;

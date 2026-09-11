@@ -7,6 +7,7 @@ import { PaintCalendar } from "@/components/paint-calendar";
 import { getSupabase } from "@/lib/supabase/client";
 import { addDays, stockholmToday } from "@/lib/dates";
 import { useAccount } from "@/lib/account";
+import { fel } from "@/lib/fel";
 
 type Mark = boolean; // true = can work, false = cannot
 type Marks = Record<string, Mark>;
@@ -60,7 +61,10 @@ function MinKalender() {
         .gte("work_date", first)
         .lte("work_date", addDays(first, daysInMonth - 1));
       if (!active) return;
-      if (error) { setError(error.message); return; }
+      if (error) {
+        setError(fel(error, "Kunde inte läsa dina markerade dagar. Ladda om sidan."));
+        return;
+      }
       setMarks(Object.fromEntries((data ?? []).map((r) => [r.work_date, r.can_work])));
     })();
     return () => { active = false; };
@@ -97,12 +101,12 @@ function MinKalender() {
         toSet.map((work_date) => ({ worker_id: workerId, work_date, can_work: now[work_date]! })),
         { onConflict: "worker_id,work_date" },
       );
-      if (error) setError(error.message);
+      if (error) setError(fel(error, "Dagarna kunde inte markeras. Försök igen när du har nät."));
     }
     if (toClear.length) {
       const { error } = await sb.from("forval").delete()
         .eq("worker_id", workerId).in("work_date", toClear);
-      if (error) setError(error.message);
+      if (error) setError(fel(error, "Dagarna kunde inte avmarkeras. Försök igen när du har nät."));
     }
 
     setSaving(false);

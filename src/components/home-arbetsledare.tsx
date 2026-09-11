@@ -7,6 +7,7 @@ import {
   C, Card, GroupedList, SHADOW, SignOut, SoftNotice, SoftSheet,
 } from "./soft";
 import { pendingDays } from "@/lib/pending-days";
+import { fel } from "@/lib/fel";
 
 const MENU = [
   // "Arbetsdagar", not "Min Pass Kalender". The page sets AVAILABILITY -- it
@@ -58,7 +59,10 @@ export function HomeArbetsledare() {
         const days = await pendingDays();
         if (live) setWaiting(days.length);
       } catch (e) {
-        if (live) { setError(e instanceof Error ? e.message : "Kunde inte läsa passen."); setWaiting(0); }
+        if (live) {
+          setError(fel(e, "Kunde inte läsa dagarna som väntar på dig. Ladda om sidan."));
+          setWaiting(0);
+        }
       }
     })();
 

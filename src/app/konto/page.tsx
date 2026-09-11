@@ -9,6 +9,7 @@ import {
 } from "@/components/soft";
 import { getSupabase } from "@/lib/supabase/client";
 import { useAccount, type Role } from "@/lib/account";
+import { fel } from "@/lib/fel";
 
 type Konto = { id: string; name: string | null; email: string | null; role: Role; active: boolean };
 
@@ -63,7 +64,10 @@ function Konto({ askedId }: { askedId: string | null }) {
         .maybeSingle();
 
       if (!live) return;
-      if (error) { setError(error.message); return; }
+      if (error) {
+        setError(fel(error, "Kunde inte läsa kontot. Ladda om sidan."));
+        return;
+      }
       const k = (data ?? null) as Konto | null;
       setRow(k);
       setName(k?.name ?? "");
@@ -90,7 +94,11 @@ function Konto({ askedId }: { askedId: string | null }) {
       },
     );
     const body = await res.json().catch(() => ({ error: "Oväntat svar från servern." }));
-    if (!res.ok) { setError(body.error ?? "Kunde inte spara."); setBusy(false); return; }
+    if (!res.ok) {
+      setError(fel(body.error, "Kontot kunde inte sparas. Kontakta administratören."));
+      setBusy(false);
+      return;
+    }
 
     setNote("Sparat.");
     setBusy(false);
@@ -103,9 +111,7 @@ function Konto({ askedId }: { askedId: string | null }) {
     setBusy(true); setError(null); setNote(null);
     const { error } = await getSupabase().from("account").update({ role }).eq("id", row.id);
     if (error) {
-      setError(/last active admin/i.test(error.message)
-        ? "Det här är den sista aktiva administratören och kan inte degraderas."
-        : error.message);
+      setError(fel(error, "Rollen kunde inte ändras. Kontakta administratören."));
     } else {
       setNote(`Rollen ändrad till ${ROLE_LABEL[role]}.`);
     }

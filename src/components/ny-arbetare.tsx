@@ -6,6 +6,7 @@ import {
   SoftSelect, Tag,
 } from "./soft";
 import { getSupabase } from "@/lib/supabase/client";
+import { fel } from "@/lib/fel";
 
 export type CreatedWorker = { worker_id: string; name: string; email: string };
 
@@ -114,7 +115,7 @@ export function NyArbetareForm({
 
     const body = await res.json().catch(() => ({}));
     if (!res.ok) {
-      setError(body.error ?? "Kunde inte skapa arbetaren.");
+      setError(fel(body.error, "Kontot kunde inte skapas. Kontrollera e-postadressen, eller kontakta administratören."));
       setSaving(false);
       return;
     }

@@ -243,8 +243,34 @@ try {
   await deleteButton(page, P).waitFor({ timeout: 20000 });
   await deleteButton(page, P).click();
   await mustSee(page, "Passet har redan börjat", "a started pass was deleted");
+
+  // ---- and the refusal is in Swedish ------------------------------------
+  //
+  // THE REFUSAL IS THE DATABASE'S, AND IT IS RAISED IN ENGLISH: "this shift
+  // has started and cannot be deleted; it must be confirmed". Every guard in
+  // this app is written that way, for whoever is reading the migration --
+  // which is the right text in a log and the wrong text on a phone on a
+  // building site. lib/fel.ts is what stands between the two.
+  //
+  // BOTH HALVES ARE ASSERTED. The sentence has to be the whole one, so a
+  // truncation is caught; and no word of the raised English may be on the
+  // screen, so a surface that fell back to the raw message is caught even
+  // when the Swedish happens to be there too.
+  const SWEDISH = "Passet har redan börjat. Det tas inte bort — det bekräftas.";
+  const screen = await page.locator("body").innerText();
+  if (!screen.includes(SWEDISH)) {
+    await shot(page, "FAILED");
+    fail(`the refusal is not the full Swedish sentence; screen holds ${JSON.stringify(
+      screen.split("\n").filter((l) => /passet|shift/i.test(l)).slice(0, 3))}`);
+  }
+  for (const english of ["cannot be deleted", "must be confirmed", "this shift"]) {
+    if (screen.toLowerCase().includes(english)) {
+      await shot(page, "FAILED");
+      fail(`the raw English refusal reached the screen: "${english}"`);
+    }
+  }
   await shot(page, "bo2-paborjat");
-  log("a pass that has already started cannot be deleted -- it is confirmed, not erased");
+  log("a pass that has already started cannot be deleted -- and the refusal is Swedish, with no English behind it");
 
   // ---- the admin deletes the only shift on a day --------------------------
   await openDay(page, ONE, P);

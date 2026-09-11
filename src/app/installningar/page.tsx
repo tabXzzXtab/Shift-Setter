@@ -8,6 +8,7 @@ import {
 } from "@/components/soft";
 import { getSupabase } from "@/lib/supabase/client";
 import { useAccount, type Role } from "@/lib/account";
+import { fel } from "@/lib/fel";
 
 type Konto = {
   id: string;
@@ -29,22 +30,6 @@ const ROLE_TONE: Record<Role, "deep" | "warn" | "quiet"> = {
   arbetsledare: "warn",
   arbetare: "quiet",
 };
-
-/**
- * Turn what the database refuses into something a Swedish owner can act on.
- *
- * The guards raise in English because they are addressed to whoever is reading
- * the logs. This screen is addressed to the person who pressed the button.
- */
-function saySwedish(message: string): string {
-  if (/last active admin/i.test(message)) {
-    return "Det här är den sista aktiva administratören. Kontot kan inte pausas eller ändras — gör någon annan till admin först.";
-  }
-  if (/permission denied|insufficient/i.test(message)) {
-    return "Du har inte behörighet att göra det.";
-  }
-  return message;
-}
 
 /**
  * Inställningar -- the Konton list.
@@ -80,7 +65,11 @@ function Installningar() {
         .order("name");
 
       if (!live) return;
-      if (error) { setError(error.message); setRows([]); return; }
+      if (error) {
+        setError(fel(error, "Kunde inte läsa kontona. Ladda om sidan."));
+        setRows([]);
+        return;
+      }
       setRows((data ?? []) as Konto[]);
     })();
     return () => { live = false; };
@@ -89,7 +78,7 @@ function Installningar() {
   async function setRole(id: string, role: Role) {
     setBusy(id); setError(null); setNote(null);
     const { error } = await getSupabase().from("account").update({ role }).eq("id", id);
-    if (error) setError(saySwedish(error.message));
+    if (error) setError(fel(error, "Rollen kunde inte ändras. Kontakta administratören."));
     else setNote(`Rollen ändrad till ${ROLE_LABEL[role]}.`);
     setBusy(null);
     setTick((t) => t + 1);
@@ -102,7 +91,7 @@ function Installningar() {
     // pending offers -- done by a trigger, so it happens whether the pause
     // comes from here or from anywhere else.
     const { error } = await getSupabase().from("account").update({ active }).eq("id", id);
-    if (error) setError(saySwedish(error.message));
+    if (error) setError(fel(error, "Kontot kunde inte pausas eller aktiveras. Kontakta administratören."));
     else setNote(active
       ? "Kontot är aktivt igen. Kommande pass måste tilldelas på nytt."
       : "Kontot är pausat. Pass som inte har börjat är frisläppta — pågående pass är deras sista.");

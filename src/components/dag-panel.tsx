@@ -11,6 +11,7 @@ import { getSupabase } from "@/lib/supabase/client";
 import { hhmm, longDayHeading } from "@/lib/dates";
 import { useAccount } from "@/lib/account";
 import { useMonthColour } from "@/lib/project-palette";
+import { fel } from "@/lib/fel";
 
 type Person = {
   tilldelning_id: string; worker_id: string; name: string; source: string;
@@ -95,7 +96,7 @@ export function DagPanel({ date }: { date: string }) {
     try {
       setTrade(await swapPartners(tilldelningId));
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Kunde inte läsa vilka som kan byta.");
+      setError(fel(e, "Kunde inte läsa vilka som kan byta. Ladda om sidan."));
     }
     setBusy(null);
   }
@@ -112,7 +113,7 @@ export function DagPanel({ date }: { date: string }) {
     try {
       setSwap(await replacementOptions(tilldelningId));
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Kunde inte läsa vilka som är lediga.");
+      setError(fel(e, "Kunde inte läsa vilka som är lediga. Ladda om sidan."));
     }
     setBusy(null);
   }
@@ -131,7 +132,11 @@ export function DagPanel({ date }: { date: string }) {
         .is("deleted_at", null)
         .order("start_time");
       if (!active) return;
-      if (error) { setError(error.message); setPasses([]); return; }
+      if (error) {
+        setError(fel(error, "Kunde inte läsa dagens pass. Ladda om sidan."));
+        setPasses([]);
+        return;
+      }
 
       // ONLY WHEN THE DAY LOOKS EMPTY. A day with shifts on it is not
       // cancelled however many were called off, so there is nothing to ask.
@@ -193,7 +198,7 @@ export function DagPanel({ date }: { date: string }) {
       .rpc("avboka_pass", { p_tilldelning: person.tilldelning_id });
 
     if (error) {
-      setError(error.message);
+      setError(fel(error, "Avbokningen gick inte igenom. Kontakta administratören."));
     } else {
       const v = { ...(data as unknown as Omit<Vacancy, "removed">), removed: person.name };
       if (v.replacements.length > 0) {
@@ -219,7 +224,7 @@ export function DagPanel({ date }: { date: string }) {
     const { error } = await getSupabase()
       .rpc("place_replacement", { p_pass: vacancy.pass_id, p_worker: workerId });
 
-    if (error) setError(saySwedish(error.message));
+    if (error) setError(fel(error, "Hela dagen kunde inte tas bort. Kontakta administratören."));
     else setNote(`${name} tog ${vacancy.removed}s plats.`);
 
     setVacancy(null);
@@ -240,7 +245,7 @@ export function DagPanel({ date }: { date: string }) {
         headcount: draft.headcount,
       })
       .eq("id", p.id);          // this pass, and only this pass
-    if (error) setError(error.message);
+    if (error) setError(fel(error, "Arbetsledaren kunde inte tas bort från dagen. Kontakta administratören."));
     else setNote("Passet är ändrat. Övriga pass är orörda.");
     setEditing(null);
     setDraft(null);
@@ -257,27 +262,11 @@ export function DagPanel({ date }: { date: string }) {
    * Anything unrecognised still comes through verbatim rather than being
    * swallowed by a vague apology.
    */
-  function saySwedish(message: string): string {
-    if (/has started and cannot be deleted/.test(message)) {
-      return "Passet har redan börjat och kan inte tas bort. Det ska bekräftas i stället.";
-    }
-    if (/clocked in on this shift/.test(message)) {
-      return "Någon har redan stämplat in på passet. Det kan inte tas bort.";
-    }
-    if (/only an admin may delete a shift/.test(message)) {
-      return "Bara administratören kan ta bort ett pass.";
-    }
-    if (/already deleted/.test(message)) {
-      return "Passet är redan borttaget.";
-    }
-    return message;
-  }
-
   async function cancelPass(p: PassRow) {
     setBusy(p.id);
     setError(null);
     const { error } = await getSupabase().rpc("delete_pass", { p_pass: p.id });
-    if (error) setError(saySwedish(error.message));
+    if (error) setError(fel(error, "Passet kunde inte tas bort. Kontakta administratören."));
     else setNote("Passet är borttaget. Övriga pass är orörda.");
     setReload((n) => n + 1);
     setBusy(null);

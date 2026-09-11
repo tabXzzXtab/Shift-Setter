@@ -8,6 +8,7 @@ import {
 } from "@/components/soft";
 import { getSupabase } from "@/lib/supabase/client";
 import { stockholmToday } from "@/lib/dates";
+import { fel } from "@/lib/fel";
 
 /**
  * Invariant 7: project creation is a gate, not a form.
@@ -63,7 +64,7 @@ function NyttProjekt() {
       .single();
 
     if (pErr || !project) {
-      setError(pErr?.message ?? "Kunde inte spara projektet.");
+      setError(fel(pErr, "Projektet kunde inte sparas. Kontrollera fälten, eller kontakta administratören."));
       setSaving(false);
       return;
     }
@@ -73,7 +74,7 @@ function NyttProjekt() {
       .insert({ project_id: project.id, account_id: leaderId });
 
     if (lErr) {
-      setError(`Projektet skapades men arbetsledaren kunde inte kopplas: ${lErr.message}`);
+      setError(fel(lErr, "Projektet skapades, men arbetsledaren kunde inte kopplas. Koppla den under Redigera projekt."));
       setSaving(false);
       return;
     }

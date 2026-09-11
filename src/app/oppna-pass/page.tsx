@@ -7,6 +7,7 @@ import {
 } from "@/components/soft";
 import { getSupabase } from "@/lib/supabase/client";
 import { hhmm, longDayHeading } from "@/lib/dates";
+import { fel } from "@/lib/fel";
 
 type Open = {
   pass_id: string;
@@ -52,7 +53,11 @@ function OppnaPass() {
         .select("*")
         .order("work_date");
       if (!live) return;
-      if (error) { setError(error.message); setRows([]); return; }
+      if (error) {
+        setError(fel(error, "Kunde inte läsa de öppna passen. Ladda om sidan."));
+        setRows([]);
+        return;
+      }
       setRows((data ?? []) as Open[]);
     })();
     return () => { live = false; };

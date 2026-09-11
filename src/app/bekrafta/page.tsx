@@ -10,6 +10,7 @@ import { getSupabase } from "@/lib/supabase/client";
 import { hhmm, longDayHeading, stampToTime } from "@/lib/dates";
 import { pendingDays } from "@/lib/pending-days";
 import { spanHours } from "@/lib/hours";
+import { fel } from "@/lib/fel";
 
 type Row = {
   tilldelning_id: string;
@@ -118,7 +119,7 @@ function Bekrafta({ askedProject, askedDate }: { askedProject: string | null; as
         open = await pendingDays();
       } catch (e) {
         if (!active) return;
-        setError(e instanceof Error ? e.message : "Kunde inte läsa passen.");
+        setError(fel(e, "Kunde inte läsa dagarna som väntar. Ladda om sidan, eller kontakta administratören."));
         setDay(null);
         return;
       }
@@ -140,7 +141,11 @@ function Bekrafta({ askedProject, askedDate }: { askedProject: string | null; as
         .is("released_at", null);
 
       if (!active) return;
-      if (aErr) { setError(aErr.message); setDay(null); return; }
+      if (aErr) {
+        setError(fel(aErr, "Kunde inte läsa vilka som stod på dagen. Kontakta administratören."));
+        setDay(null);
+        return;
+      }
 
       const { data: roster } = await sb.from("worker_roster").select("id, name");
       if (!active) return;
@@ -219,7 +224,11 @@ function Bekrafta({ askedProject, askedDate }: { askedProject: string | null; as
           .from("pass")
           .update({ start_time: e.start, end_time: e.end })
           .eq("id", row.pass_id);
-        if (tErr) { setError(tErr.message); setSaving(false); return; }
+        if (tErr) {
+          setError(fel(tErr, "Tiderna kunde inte sparas. Kontakta administratören."));
+          setSaving(false);
+          return;
+        }
       }
 
       // One row, one late mark, however many fields were edited.
@@ -230,7 +239,11 @@ function Bekrafta({ askedProject, askedDate }: { askedProject: string | null; as
           late: (timesChanged && !row.is_leader) || hoursChanged,
         })
         .eq("id", row.tilldelning_id);
-      if (aErr) { setError(aErr.message); setSaving(false); return; }
+      if (aErr) {
+        setError(fel(aErr, "Timmarna kunde inte sparas. Kontakta administratören."));
+        setSaving(false);
+        return;
+      }
     }
 
     // The day record and the confirmation are one write. The database refuses
@@ -251,7 +264,11 @@ function Bekrafta({ askedProject, askedDate }: { askedProject: string | null; as
       { onConflict: "project_id,work_date" },
     );
 
-    if (dErr) { setError(dErr.message); setSaving(false); return; }
+    if (dErr) {
+      setError(fel(dErr, "Dagen kunde inte bekräftas. Kontakta administratören."));
+      setSaving(false);
+      return;
+    }
 
     setSaving(false);
     setReload((r) => r + 1);

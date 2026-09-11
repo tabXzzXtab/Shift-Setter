@@ -8,6 +8,7 @@ import {
 } from "@/components/soft";
 import { getSupabase } from "@/lib/supabase/client";
 import { surveyDayHeading } from "@/lib/dates";
+import { fel } from "@/lib/fel";
 
 /** What the database says is in the way. Shaped by public.bristsurvey_gaps(). */
 export type Gaps = {
@@ -127,7 +128,7 @@ export function Bristsurvey({
       if (!hasGaps(next)) { onDone(); return; }
       setLive(next);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Kunde inte läsa vad som saknas.");
+      setError(fel(e, "Kunde inte läsa vilka dagar som saknas. Ladda om sidan."));
       setBusy(false);
     }
   }
@@ -148,7 +149,11 @@ export function Bristsurvey({
     }
     const { error: uErr } = await getSupabase()
       .from("project").update(patch).eq("id", live.project.id);
-    if (uErr) { setError(uErr.message); setBusy(false); return; }
+    if (uErr) {
+      setError(fel(uErr, "Timmarna kunde inte sparas. Kontakta administratören."));
+      setBusy(false);
+      return;
+    }
     await advance();
   }
 
@@ -164,7 +169,11 @@ export function Bristsurvey({
       p_work_date: day.work_date,
       p_text: text,
     });
-    if (sErr) { setError(sErr.message); setBusy(false); return; }
+    if (sErr) {
+      setError(fel(sErr, "Dagen kunde inte bekräftas. Kontakta administratören."));
+      setBusy(false);
+      return;
+    }
     setText("");
     await advance();
   }

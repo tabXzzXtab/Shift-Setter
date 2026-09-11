@@ -8,6 +8,7 @@ import { GroupedList, SignOut, SoftSheet } from "./soft";
 import { getSupabase } from "@/lib/supabase/client";
 import { addDays, hhmm, stockholmToday } from "@/lib/dates";
 import { stampGate } from "@/lib/geo";
+import { fel } from "@/lib/fel";
 
 type Shift = {
   id: string;
@@ -176,7 +177,7 @@ export function HomeArbetare() {
     setBusy(true);
     const { error } = await getSupabase()
       .rpc(dir === "in" ? "clock_in" : "clock_out", { p_tilldelning: shift.id });
-    if (error) setError(error.message);
+    if (error) setError(fel(error, "Stämplingen gick inte igenom. Försök igen, eller prata med din arbetsledare."));
     setBusy(false);
     setReload((r) => r + 1);
   }

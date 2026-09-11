@@ -5,6 +5,7 @@ import { AuthGate } from "@/components/auth-gate";
 import { C, SoftNotice, SoftScreen } from "@/components/soft";
 import { OfferStack, type Offer } from "@/components/offer-stack";
 import { getSupabase } from "@/lib/supabase/client";
+import { fel } from "@/lib/fel";
 
 /**
  * Acceptera Pass -- Tier 3, on its own page.
@@ -37,7 +38,11 @@ function Acceptera() {
         .select("*")
         .order("work_date");
       if (!active) return;
-      if (error) { setError(error.message); setOffers([]); return; }
+      if (error) {
+        setError(fel(error, "Kunde inte läsa dina erbjudna pass. Prata med din arbetsledare om det inte löser sig."));
+        setOffers([]);
+        return;
+      }
       setOffers((data ?? []) as Offer[]);
     })();
     return () => { active = false; };

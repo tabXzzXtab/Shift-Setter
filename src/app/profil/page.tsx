@@ -9,6 +9,7 @@ import {
 } from "@/components/soft";
 import { getSupabase } from "@/lib/supabase/client";
 import { useAccount } from "@/lib/account";
+import { fel } from "@/lib/fel";
 
 /**
  * Every text field on the form, in the order it is asked for, and now grouped
@@ -103,7 +104,11 @@ function Profil({ askedId }: { askedId: string | null }) {
       ]);
 
       if (!live) return;
-      if (pErr) { setError(pErr.message); setForm(EMPTY); return; }
+      if (pErr) {
+        setError(fel(pErr, "Kunde inte läsa profilen. Ladda om sidan."));
+        setForm(EMPTY);
+        return;
+      }
       setWho(who?.name ?? who?.email ?? null);
       // A missing row is a blank form, not an error: a profile exists the
       // moment someone first saves one.
@@ -128,7 +133,7 @@ function Profil({ askedId }: { askedId: string | null }) {
       .from("profile")
       .upsert(row as never, { onConflict: "account_id" });
 
-    if (error) setError(error.message);
+    if (error) setError(fel(error, "Profilen kunde inte sparas. Försök igen, eller kontakta administratören."));
     else setNote("Sparat.");
     setBusy(false);
   }

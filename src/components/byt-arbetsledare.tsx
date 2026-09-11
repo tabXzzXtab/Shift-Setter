@@ -7,6 +7,7 @@ import {
 import { getSupabase } from "@/lib/supabase/client";
 import { useAccount } from "@/lib/account";
 import { longDayHeading } from "@/lib/dates";
+import { fel } from "@/lib/fel";
 
 export type Options = {
   tilldelning: string;
@@ -68,7 +69,10 @@ export function BytArbetsledare({
     setError(null);
     const { error } = await fn();
     setBusy(false);
-    if (error) { setError(error.message); return; }
+    if (error) {
+      setError(fel(error, "Arbetsledaren kunde inte bytas. Kontakta administratören."));
+      return;
+    }
     onDone(said);
   }
 

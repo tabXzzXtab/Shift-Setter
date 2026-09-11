@@ -10,6 +10,7 @@ import { getSupabase } from "@/lib/supabase/client";
 import { addDays, stockholmToday } from "@/lib/dates";
 import { useAccount } from "@/lib/account";
 import { useMonthColour } from "@/lib/project-palette";
+import { fel } from "@/lib/fel";
 
 type PassRow = { id: string; project_id: string; project_name: string; work_date: string };
 
@@ -74,7 +75,11 @@ function Skiftkalender() {
         .order("work_date");
 
       if (!active) return;
-      if (error) { setError(error.message); setPasses([]); return; }
+      if (error) {
+        setError(fel(error, "Kunde inte läsa månadens pass. Ladda om sidan."));
+        setPasses([]);
+        return;
+      }
       setPasses((data ?? []).map((p) => ({
         id: p.id,
         project_id: p.project_id,
