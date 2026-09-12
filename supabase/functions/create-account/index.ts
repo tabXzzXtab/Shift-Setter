@@ -70,7 +70,25 @@ Deno.serve(async (req) => {
   const name = (body.name ?? "").trim();
   const email = (body.email ?? "").trim().toLowerCase();
   const password = body.password ?? "";
-  const role = body.role === "arbetsledare" ? "arbetsledare" : "arbetare";
+
+  /**
+   * All three roles, whitelisted, and an unknown one REFUSED.
+   *
+   * This was `body.role === "arbetsledare" ? "arbetsledare" : "arbetare"`,
+   * which had two faults. It could not make an admin at all -- and asking for
+   * one did not fail, it quietly produced an arbetare, so the interface would
+   * report success and the account would have the wrong powers with nothing to
+   * read about why. A role this function does not recognise is now a 400.
+   *
+   * Any active admin may create another. Invariant 11 guards the LAST admin
+   * against removal, demotion and pausing; it has nothing to say about adding
+   * one, and an installation with a single admin is the fragile case rather
+   * than the protected one.
+   */
+  const role = body.role ?? "arbetare";
+  if (role !== "admin" && role !== "arbetsledare" && role !== "arbetare") {
+    return json({ error: "Okänd roll." }, 400);
+  }
 
   if (!name) return json({ error: "Namn saknas." }, 400);
   if (!email) return json({ error: "E-post saknas." }, 400);

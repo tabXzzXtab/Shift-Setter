@@ -10,6 +10,9 @@ import { fel } from "@/lib/fel";
 
 export type CreatedWorker = { worker_id: string; name: string; email: string };
 
+/** The three the Edge Function accepts. It refuses anything else outright. */
+type Role = "arbetare" | "arbetsledare" | "admin";
+
 /**
  * Creating a worker creates their account. The sequence is fixed (spec §3):
  *
@@ -63,7 +66,7 @@ export function NyArbetareForm({
 }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [role, setRole] = useState<"arbetare" | "arbetsledare">("arbetare");
+  const [role, setRole] = useState<Role>("arbetare");
   const [password, setPassword] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -160,11 +163,25 @@ export function NyArbetareForm({
 
         {allowRoleChoice && (
           <SoftField label="Roll">
-            <SoftSelect value={role} onChange={(e) => setRole(e.target.value as typeof role)}>
+            <SoftSelect value={role} onChange={(e) => setRole(e.target.value as Role)}>
               <option value="arbetare">Arbetare</option>
               <option value="arbetsledare">Arbetsledare</option>
+              <option value="admin">Admin</option>
             </SoftSelect>
           </SoftField>
+        )}
+
+        {/* Said where the decision is made rather than after it, which is this
+            design's rule for anything that hands out more than it takes back.
+            An admin can do everything on this installation, including making
+            and unmaking other admins. */}
+        {allowRoleChoice && role === "admin" && (
+          <div className="pt-[14px]">
+            <SoftNotice tone="warn">
+              En admin kan allt: skapa projekt och konton, godkänna dagar och
+              ändra andras roller.
+            </SoftNotice>
+          </div>
         )}
       </Card>
 
