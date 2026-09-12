@@ -73,7 +73,7 @@ export function NyArbetareForm({
 
   /** The app's own front door, which is where the worker has to arrive. */
   function loginLink() {
-    const base = process.env.NEXT_PUBLIC_BASE_PATH ?? "/Shift-Setter";
+    const base = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
     return typeof window === "undefined" ? `${base}/` : `${window.location.origin}${base}/`;
   }
 

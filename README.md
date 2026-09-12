@@ -2,7 +2,7 @@
 
 Shift scheduling and **Arbetsdagbok** generation for a Swedish construction company.
 
-- **Live:** https://tabxzzxtab.github.io/Shift-Setter/
+- **Live:** https://app.bellaserviceab.se/
 - **Invariants and working rules:** [CLAUDE.md](CLAUDE.md) — read first
 - **Full specification:** [docs/spec.md](docs/spec.md)
 
@@ -17,7 +17,7 @@ so every security rule lives in the database.
 ```bash
 npm install
 cp .env.local.example .env.local   # then fill it in
-npm run dev                        # http://localhost:3000/Shift-Setter/
+npm run dev                        # http://localhost:3000/
 ```
 
 `.env.local` is gitignored and holds the database password and Supabase access

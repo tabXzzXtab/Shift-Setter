@@ -15,7 +15,7 @@ import * as pdfjs from "pdfjs-dist/legacy/build/pdf.mjs";
 import pg from "pg";
 import { connectionString, required } from "./env.mjs";
 
-const BASE = process.env.BASE_URL ?? "http://localhost:3000/Shift-Setter";
+const BASE = process.env.BASE_URL ?? "http://localhost:3000";
 const ART = "artifacts";
 const OUT = path.join(ART, "Arbetsdagbok-lang.pdf");
 mkdirSync(ART, { recursive: true });

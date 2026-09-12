@@ -85,9 +85,9 @@ most of this protocol has nothing to test.
       → **Ska hända:** demo data cleared, then Lena Ledare, Arvid Arbetare and
       Demoprojektet recreated with the passwords from `.env.local`.
 
-- [ ] **A6.** Run `npm run dev` and open `http://localhost:3000/Shift-Setter/`
+- [ ] **A6.** Run `npm run dev` and open `http://localhost:3000/`
       → **Ska hända:** the login screen headed **Shift Setter**. Note the
-      `/Shift-Setter` path — the bare root will not serve.
+      root — there is no longer a `/Shift-Setter` prefix.
 
 - [ ] **A7.** *(Optional)* Run the scripted browser suites — they drive the same
       ground you are about to cover by hand:
@@ -125,7 +125,7 @@ most of this protocol has nothing to test.
       Min kalender, Acceptera pass. No Bekräfta pass, no Skiftkalender, no
       project buttons.
 
-- [ ] **B5.** As Arvid, type `/Shift-Setter/kalender` straight into the address
+- [ ] **B5.** As Arvid, type `/kalender` straight into the address
       bar.
       → **Måste vägras:** the page loads but shows only a notice that the
       calendar is the company's schedule and his own shifts are under Mina pass.
@@ -465,7 +465,7 @@ day left alone.
 
 **Admin, plus Lena for M1.**
 
-- [ ] **M1.** As Lena, open `/Shift-Setter/snabb`.
+- [ ] **M1.** As Lena, open `/snabb`.
       → **Måste vägras:** *"Endast administratören kan skapa Snabb Pass."* — and
       the database would refuse her even if the screen did not.
 

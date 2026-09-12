@@ -7,17 +7,17 @@
   "orientation": "portrait",
   "background_color": "#f3f6fd",
   "theme_color": "#091540",
-  "start_url": "/Shift-Setter/",
-  "scope": "/Shift-Setter/",
+  "start_url": "/",
+  "scope": "/",
   "icons": [
     {
-      "src": "/Shift-Setter/icon-192.png",
+      "src": "/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/Shift-Setter/icon-512.png",
+      "src": "/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"

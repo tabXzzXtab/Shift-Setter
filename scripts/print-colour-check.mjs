@@ -17,7 +17,7 @@ import * as pdfjs from "pdfjs-dist/legacy/build/pdf.mjs";
 import postgres from "pg";
 import { connectionString, required } from "./env.mjs";
 
-const BASE = process.env.BASE_URL ?? "http://localhost:3000/Shift-Setter";
+const BASE = process.env.BASE_URL ?? "http://localhost:3000";
 const DATE = process.argv[2];
 if (!DATE) { console.error("usage: node scripts/print-colour-check.mjs <YYYY-MM-DD with a confirmed day>"); process.exit(1); }
 mkdirSync("artifacts", { recursive: true });

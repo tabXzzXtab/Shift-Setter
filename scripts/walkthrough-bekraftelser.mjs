@@ -23,7 +23,7 @@ import { mkdirSync } from "node:fs";
 import path from "node:path";
 import { required } from "./env.mjs";
 
-const BASE = process.env.BASE_URL ?? "http://localhost:3000/Shift-Setter";
+const BASE = process.env.BASE_URL ?? "http://localhost:3000";
 const ART = "artifacts";
 mkdirSync(ART, { recursive: true });
 

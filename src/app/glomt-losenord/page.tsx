@@ -22,10 +22,12 @@ import {
  * because there is no such answer to give.
  */
 
-// Same hardcoded value as next.config.ts, and hardcoded for the same reason:
-// deriving it from an env var lets a build that forgot the var ship a link
-// that 404s. Dev and Pages agree because neither is guessing.
-const BASE_PATH = "/Shift-Setter";
+// The app serves from the root of its own domain, so the reset link is the
+// origin plus the path. This carried "/Shift-Setter" while GitHub Pages served
+// the repo from a subpath; the prefix is gone with the subpath, and it has to
+// go from here too -- Supabase matches redirectTo against an allow list, and a
+// link to a path that no longer exists is refused rather than silently wrong.
+const BASE_PATH = "";
 
 export default function GlomtLosenordPage() {
   const [email, setEmail] = useState("");

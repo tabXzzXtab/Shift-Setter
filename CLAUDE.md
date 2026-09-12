@@ -184,7 +184,7 @@ before writing framework code.
 
 | Command | Purpose |
 |---|---|
-| `npm run dev` | Dev server — **http://localhost:3000/Shift-Setter/** (basePath, see below) |
+| `npm run dev` | Dev server — **http://localhost:3000/** |
 | `npm run build` | Static export to `out/` |
 | `npm run lint` | ESLint |
 | `npm run typecheck` | `next typegen` then `tsc --noEmit` |
@@ -240,9 +240,13 @@ without re-testing reintroduces failures that already cost days.
   `postgres.<ref>`. Session mode, **never** transaction mode (6543) — transaction
   mode drops prepared statements and session state, which breaks negative
   controls that toggle settings inside a session.
-- **`basePath` is hardcoded** to `/Shift-Setter` in `next.config.ts`, not read
-  from an env var. Pages serves from a subpath; a CI job that forgets to set the
-  var deploys green and renders a blank page.
+- **There is no `basePath` and no `assetPrefix`.** The app serves from the root
+  of its own domain, `app.bellaserviceab.se`. It carried `/Shift-Setter` while
+  GitHub Pages served the repo from a subpath of github.io; a prefix that no
+  longer matches the origin is worse than none, because every script, stylesheet
+  and icon 404s and the app hangs on its first paint showing only "Laddar…".
+  That is how it was found. `public/CNAME` carries the domain so a redeploy
+  cannot drop it.
 - **The database server's TimeZone is UTC.** Invariant 9 requires explicit
   `AT TIME ZONE 'Europe/Stockholm'`; nothing may rely on a server default.
 - **The Supabase CLI shim cannot be exec'd directly** — this project's absolute
@@ -334,7 +338,7 @@ which recreates the stable demo accounts from `.env.local` afterwards.
 
 - Repo: `tabXzzXtab/Shift-Setter` (public)
 - Supabase project: `ahujmzahjuvnlzbyyycc`, eu-west-2
-- Live: **https://tabxzzxtab.github.io/Shift-Setter/**
+- Live: **https://app.bellaserviceab.se/**
 
 ## The Arbetsdagbok has two renderers
 

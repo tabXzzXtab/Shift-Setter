@@ -21,7 +21,7 @@ import { createCanvas } from "@napi-rs/canvas";
 import * as pdfjs from "pdfjs-dist/legacy/build/pdf.mjs";
 import { required } from "./env.mjs";
 
-const BASE = process.env.BASE_URL ?? "http://localhost:3000/Shift-Setter";
+const BASE = process.env.BASE_URL ?? "http://localhost:3000";
 const [FROM, TO, PROJECT] = process.argv.slice(2);
 if (!FROM || !TO) {
   console.error("usage: node scripts/pdf-download-check.mjs <from> <to> [project name]");

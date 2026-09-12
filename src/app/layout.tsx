@@ -20,15 +20,15 @@ const inter = Inter({
 });
 
 /**
- * Every icon URL carries the basePath by hand.
+ * Icon and manifest URLs are absolute from the root of our own domain.
  *
- * Next does not prefix basePath onto metadata.icons or metadata.manifest -- it
- * does that for file-based conventions only -- so a bare "/icon-192.png" would
- * resolve to the domain root and 404 on Pages, which serves this app from
- * /Shift-Setter. It is spelled out here for the same reason next.config.ts
- * hardcodes it: a value read from an env var deploys green and renders nothing.
+ * They used to carry a "/Shift-Setter" prefix by hand, because Next does not
+ * prefix basePath onto metadata.icons or metadata.manifest -- it does that for
+ * file-based conventions only. With the app on app.bellaserviceab.se there is
+ * no prefix to carry, and the hand-written one would now be the thing that
+ * 404s every icon.
  */
-const BASE = "/Shift-Setter";
+const BASE = "";
 
 export const metadata: Metadata = {
   title: "ByggKoll",

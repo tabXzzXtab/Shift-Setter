@@ -13,14 +13,14 @@
  * Values carry a per-run stamp. A form that saved nothing would otherwise pass
  * on what the previous run left behind.
  *
- *   BASE_URL=https://tabxzzxtab.github.io/Shift-Setter node scripts/walkthrough-profil.mjs
+ *   BASE_URL=https://app.bellaserviceab.se node scripts/walkthrough-profil.mjs
  */
 import { chromium, devices } from "playwright";
 import { mkdirSync } from "node:fs";
 import path from "node:path";
 import { required } from "./env.mjs";
 
-const BASE = process.env.BASE_URL ?? "http://localhost:3000/Shift-Setter";
+const BASE = process.env.BASE_URL ?? "http://localhost:3000";
 const ART = "artifacts";
 mkdirSync(ART, { recursive: true });
 

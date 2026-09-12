@@ -19,7 +19,7 @@ import { mkdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { required } from "./env.mjs";
 
-const BASE = process.env.BASE_URL ?? "http://localhost:3000/Shift-Setter";
+const BASE = process.env.BASE_URL ?? "http://localhost:3000";
 
 /**
  * Is the fence switched on?
