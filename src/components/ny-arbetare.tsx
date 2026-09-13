@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import {
-  C, Card, PrimaryButton, SecondaryButton, SoftField, SoftInput, SoftNotice,
+  C, Card, SecondaryButton, SHADOW, SoftField, SoftInput, SoftNotice,
   SoftSelect, Tag,
 } from "./soft";
 import { getSupabase } from "@/lib/supabase/client";
@@ -84,7 +84,34 @@ export function NyArbetareForm({
     return `Länk: ${loginLink()}\nNamn: ${name.trim()}\nEmail: ${email.trim()}\nLösenord: ${pw}`;
   }
 
+  /**
+   * WHY THE REFUSAL IS STATE AND NOT A `disabled` ATTRIBUTE.
+   *
+   * A disabled button swallows the click. The browser fires nothing, so the
+   * screen cannot answer, and what the admin experiences is a control that
+   * does nothing at all -- which reads as a broken app rather than as a step
+   * they have not done yet. That is exactly how this was reported.
+   *
+   * So the button is NOT disabled at all -- not the attribute, and not
+   * aria-disabled either. Both make the press disappear: the first stops the
+   * browser firing anything, and the second stops Playwright and some
+   * assistive tech from activating it, which would hide the explanation from
+   * exactly the people most likely to need it. It is a live control that
+   * answers when pressed, muted rather than dead, and the answer is the step
+   * they have not done.
+   *
+   * The real guard is untouched: create() cannot run without a password, and
+   * the password only exists once the credentials have been put somewhere the
+   * admin can read them. This only makes the refusal audible.
+   */
+  const [blocked, setBlocked] = useState<string | null>(null);
+
   async function copyLogin() {
+    if (!ready) {
+      setBlocked("Fyll i namn och e-post först — de går med i inloggningen.");
+      return;
+    }
+    setBlocked(null);
     const pw = password ?? generatePassword();
     setPassword(pw);
     try {
@@ -94,6 +121,7 @@ export function NyArbetareForm({
       // admin is never left without it.
     }
     setCopied(true);
+    setBlocked(null);
   }
 
   async function create() {
@@ -134,13 +162,22 @@ export function NyArbetareForm({
     <div>
       {error && <div className="pb-[14px]"><SoftNotice tone="stop">{error}</SoftNotice></div>}
 
+      {/* Numbered from the first field, so the sequence is visible before the
+          admin has done anything rather than only once they are stuck. */}
+      <div
+        className="px-1 pb-[10px] text-[12px] font-bold uppercase"
+        style={{ letterSpacing: "1px", color: ready ? C.text2 : C.accent }}
+      >
+        Steg 1 av 3
+      </div>
+
       <Card radius={16} pad="p-[18px]">
         <div className="mb-[14px]">
           <SoftField label="Namn">
             <SoftInput
               placeholder="För- och efternamn"
               value={name}
-              onChange={(e) => { setName(e.target.value); setCopied(false); }}
+              onChange={(e) => { setName(e.target.value); setCopied(false); setBlocked(null); }}
               autoComplete="off"
             />
           </SoftField>
@@ -155,7 +192,7 @@ export function NyArbetareForm({
               type="email"
               placeholder="namn@bolaget.test"
               value={email}
-              onChange={(e) => { setEmail(e.target.value); setCopied(false); }}
+              onChange={(e) => { setEmail(e.target.value); setCopied(false); setBlocked(null); }}
               autoComplete="off"
             />
           </SoftField>
@@ -246,41 +283,86 @@ export function NyArbetareForm({
       )}
 
       <div className="pt-5">
-        {/* Before there is anything to copy, this is the only live control on
-            the screen -- and it is dead too until there is a name and an
-            address to put in the block. */}
+        {/*
+          THE SEQUENCE IS NUMBERED because it is not the order the screen
+          suggests on its own: the obvious move is to fill the form and press
+          the thing at the bottom, and that is the one move which cannot work.
+          The password is generated in the browser and stored nowhere readable,
+          so an account created before anybody copied it is an account nobody
+          can ever sign in to -- and the worker has no way to ask for it.
+        */}
+        <div
+          className="px-1 pb-[10px] text-[12px] font-bold uppercase"
+          style={{ letterSpacing: "1px", color: copied ? C.text2 : C.accent }}
+        >
+          {copied ? "Steg 3 av 3" : "Steg 2 av 3"}
+        </div>
+
+        {/* The refused press answers here, above the control that refused --
+            where the finger already is, not in a corner of the screen. */}
+        {blocked && (
+          <div className="pb-[10px]">
+            <SoftNotice tone="warn">{blocked}</SoftNotice>
+          </div>
+        )}
+
+        {/* STEG 2. The dominant action until it has been done: accent fill,
+            its own shadow, the one thing on the screen that looks pressable.
+            It goes quiet afterwards and Tillverka takes the accent over. */}
         {!password && (
-          <div className="mb-[10px]">
+          <div className="mb-[14px]">
             <button
               type="button"
               onClick={copyLogin}
-              disabled={!ready}
-              className="press-scale flex h-14 w-full items-center justify-center rounded-[12px] text-[17px] font-bold transition-transform duration-[110ms] active:scale-[.985]"
+              aria-describedby="skapa-hjalp"
+              className="press-scale flex h-16 w-full items-center justify-center gap-[10px] rounded-[12px] text-[20px] font-extrabold transition-[transform,background] duration-150 active:scale-[.985]"
               style={{
-                letterSpacing: "-.2px",
-                background: ready ? C.panel2 : C.hairline,
-                color: ready ? C.inkHover : C.chevron,
+                letterSpacing: "-.4px",
+                background: ready ? C.accent : C.hairline,
+                color: ready ? C.surface : C.chevron,
+                boxShadow: ready ? SHADOW.action : undefined,
                 cursor: ready ? undefined : "not-allowed",
               }}
             >
               Kopiera inloggning
             </button>
+            <p
+              id="skapa-hjalp"
+              className="px-1 pt-[10px] text-[15px] font-medium"
+              style={{ color: C.text2, textWrap: "pretty" }}
+            >
+              Lösenordet finns bara här. Kopiera det innan du skapar kontot —
+              efteråt går det inte att få fram igen.
+            </p>
           </div>
         )}
 
-        <PrimaryButton onClick={create} disabled={!copied || saving}>
+        {/* STEG 3. Inert until the credentials are in somebody's hand, and it
+            SAYS so when pressed rather than ignoring the press. */}
+        <button
+          type="button"
+          onClick={() => {
+            if (!copied) {
+              setBlocked(
+                "Kopiera inloggningen först. Ett konto vars uppgifter ingen har är ett konto ingen kan använda.",
+              );
+              return;
+            }
+            void create();
+          }}
+          disabled={saving}
+          aria-describedby="skapa-hjalp"
+          className="press-scale h-16 w-full rounded-[12px] text-[20px] font-extrabold transition-[transform,background] duration-150 active:scale-[.985]"
+          style={{
+            letterSpacing: "-.4px",
+            background: copied ? C.accent : C.hairline,
+            color: copied ? C.surface : C.chevron,
+            boxShadow: copied ? SHADOW.action : undefined,
+            cursor: copied ? undefined : "not-allowed",
+          }}
+        >
           {saving ? "Skapar…" : "Tillverka arbetare"}
-        </PrimaryButton>
-
-        {!copied && (
-          <p
-            className="px-1 pt-3 text-[15px] font-medium"
-            style={{ color: C.text2, textWrap: "pretty" }}
-          >
-            Kopiera inloggningen först. Ett konto vars uppgifter ingen har är ett
-            konto ingen kan använda.
-          </p>
-        )}
+        </button>
 
         {onCancel && (
           <div className="pt-[10px]">

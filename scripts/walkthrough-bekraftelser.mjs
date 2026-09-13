@@ -201,7 +201,11 @@ try {
   await panel.waitFor({ timeout: 20000 });
   const items = (await panel.getByRole("link").allInnerTexts())
     .map((t) => t.replace("→", "").trim()).sort();
-  const expect = ["Arbetsdagar", "Mina Pass", "Bekräftelser"].sort();
+  // "Alla projekt" joined the leader's menu with the feature that lets one
+  // create a project: they need somewhere to see it afterwards. The set is
+  // still asserted exactly rather than loosened to "contains", because what
+  // this step is for is catching an entry that should not be there.
+  const expect = ["Arbetsdagar", "Mina Pass", "Bekräftelser", "Alla projekt"].sort();
   if (JSON.stringify(items) !== JSON.stringify(expect)) {
     fail(`menu holds ${JSON.stringify(items)}, expected ${JSON.stringify(expect)}`);
   }
