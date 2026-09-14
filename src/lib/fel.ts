@@ -118,6 +118,38 @@ const TABLE: [string, string][] = [
    "Dagen är inte bekräftad av arbetsledaren än. Den kan inte skickas tillbaka."],
   ["a rejected day needs a note saying what is wrong",
    "Skriv varför dagen skickas tillbaka. Arbetsledaren ser texten."],
+  // ---- Snabb Pass, and the day it may file itself -------------------------
+  //
+  // THESE ARRIVE ALREADY IN SWEDISH, and are translated anyway. The raises
+  // carry runtime values -- a count, a date, a list of names -- and a fixed
+  // table entry cannot reproduce them, so what lands here is the sentence
+  // without its numbers. That is the right trade: the screen gates on the same
+  // four rules with the live figures in hand and says so BEFORE the admin
+  // presses anything. What reaches this table is the backstop firing, and a
+  // backstop that says the right thing plainly beats one that says nothing
+  // because nobody wrote it an entry. (The locked-day refusal below has been
+  // falling through to a generic fallback since it was written, for exactly
+  // that reason.)
+  ["och den dagen är redan bekräftad och låst",
+   "Personen har ett pass som krockar, och den dagen är redan bekräftad och låst. "
+   + "Ändra tiderna eller välj någon annan."],
+  ["En dag med fler personer på bekräftas av arbetsledaren",
+   "Det står redan pass på projektet den dagen. En dag som fler personer arbetar på "
+   + "bekräftas av arbetsledaren — stäng av \"Generera arbetsdagbok direkt\"."],
+  ["Ett pass kan bara föras rakt in i arbetsdagboken i efterhand",
+   "Dagen har inte varit än. Välj dagens datum eller tidigare, eller stäng av "
+   + "\"Generera arbetsdagbok direkt\"."],
+  ["Dagen behöver en beskrivning av vad som gjordes",
+   "Fyll i \"Vad vi gjorde\". Utan den kan dagen inte föras in i arbetsdagboken."],
+  ["Timmar saknas för",
+   "Någon på dagen saknar timmar. Varje person behöver en siffra innan dagen förs "
+   + "in i arbetsdagboken."],
+  ["has not happened yet; a Snabb Pass cannot file it in advance",
+   "Dagen har inte varit än. Arbetsdagboken beskriver arbete som är utfört."],
+  ["only an admin files a Snabb Pass day",
+   "Bara administratören kan föra in ett snabbpass i arbetsdagboken."],
+  ["it is confirmed as what it was, not as a Snabb Pass",
+   "Dagen kördes utan arbetsledare och bekräftas som en flaggad dag, inte som ett snabbpass."],
   ["a day cannot be approved with no account of what was done",
    "Dagen saknar beskrivning av vad som gjordes. Fyll i den innan du godkänner."],
   ["the day needs an account of what was done",

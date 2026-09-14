@@ -9,7 +9,13 @@
  *     copy-then-create gate, back to the shift screen to finish
  *   - the person's earlier assignment that day is released and the Snabb Pass
  *     wins -- one live assignment, never two
- *   - it still enters the confirmation queue and confirms like any other row
+ *   - EFTER bekräftelse: it enters the confirmation queue and confirms like
+ *     any other row -- what Snabb Pass always did, now one of two choices
+ *   - FÖRE bekräftelse: on a day its own pass is alone on, the admin files it
+ *     straight into the Arbetsdagbok, accepting the arbetsledare's hours on
+ *     the same screen, and the day lands in NEITHER queue
+ *   - pressing Före on a day somebody else works says why, rather than being
+ *     a control that does nothing
  */
 import { chromium, devices } from "playwright";
 import { mkdirSync } from "node:fs";
@@ -85,8 +91,11 @@ const ymd = (n) => {
   return new Date(Date.UTC(y, m - 1, d + n, 12)).toISOString().slice(0, 10);
 };
 const D = ymd(-1);   // yesterday: already over, so the day is confirmable
+// Three days back, and nothing else on it. Före bekräftelse is only offered on
+// a day its own pass is alone on, so the two routes need two days.
+const DF = ymd(-3);
 
-console.log(`\nSnabb Pass on ${D}\n`);
+console.log(`\nSnabb Pass on ${D}, filed direkt on ${DF}\n`);
 
 try {
   // ---- setup ----------------------------------------------------------------
@@ -162,8 +171,17 @@ try {
   await field(page, "Namn").fill(newName);
   await field(page, "E-post").fill(`bo.${RUN}@bella.test`);
 
+  // THE GATE IS A LIVE CONTROL, NOT A DISABLED BUTTON. A disabled button
+  // swallows the press and the screen cannot answer, which reads as broken
+  // rather than as a step not yet done -- so this asserts that the press is
+  // HEARD and refused in words, and that no account came of it.
   const create = page.getByRole("button", { name: "Tillverka arbetare" });
-  if (await create.isEnabled()) fail("Tillverka Arbetare was pressable before the login was copied");
+  await create.click();
+  await mustSee(page, "Kopiera inloggningen först",
+    "Tillverka arbetare was pressed before the login was copied and said nothing");
+  if (await page.getByText("Lösenord:").count()) {
+    fail("an account was created before anybody had its login");
+  }
   await page.getByRole("button", { name: /Kopiera inloggning/ }).click();
   await shot(page, "40-snabb-ny-arbetare");
   await create.click();
@@ -208,6 +226,65 @@ try {
   await mustSee(page, `Ada S${RUN}`, "Ada's Snabb Pass did not enter the confirmation queue");
   await shot(page, "44-snabb-i-bekrafta");
   log("both Snabb Pass rows are in the confirmation queue, like any other");
+
+  // ---- FÖRE BEKRÄFTELSE: the admin files the day themselves -----------------
+  // Everything above ran on D, which somebody else is working, so the screen
+  // offered Efter and the flow was the old one. This is the other route.
+  await signOut(page);
+  await signIn(page, required("WALKTHROUGH_ADMIN_EMAIL"), required("WALKTHROUGH_ADMIN_PASSWORD"));
+  await page.goto(`${BASE}/snabb/`, { waitUntil: "networkidle" });
+  await field(page, "Projekt").selectOption({ label: project });
+
+  // The shared day first. Före is not on offer there, and the press has to SAY
+  // so -- a control that simply does nothing reads as a broken app.
+  await field(page, "Datum").fill(D);
+  await page.getByRole("button", { name: "Före bekräftelse" }).click();
+  await mustSee(page, "bekräftas av arbetsledaren",
+    "pressing Före on a day somebody else works said nothing at all");
+  await shot(page, "45-fore-nekad");
+  log("Före is refused on a shared day, and says why on the press");
+
+  // A clean day on the same project. Changing the date clears the refusal --
+  // it was about the other day.
+  // Waited for rather than checked on the spot: the pass count for the new day
+  // is a round trip, and asserting the instant after a keystroke would be
+  // asserting that the screen is psychic rather than that it is correct.
+  await field(page, "Datum").fill(DF);
+  await page.getByText("bekräftas av arbetsledaren").first()
+    .waitFor({ state: "hidden", timeout: 20000 })
+    .catch(() => fail("the refusal about the shared day outlived the day it was about"));
+  await field(page, "Vem?").selectOption({ label: `Ada S${RUN}` });
+  await field(page, "Timmar").fill("7");
+
+  // Invariant 6 and invariant 1, both on this screen because Före closes the
+  // day and there is no later stage to supply either in.
+  await field(page, "Vad vi gjorde").fill("Akut läckage, plan 1.");
+  await field(page, `Timmar — Ledare S${RUN} (arbetsledare)`).fill("6,5");
+  await shot(page, "46-fore-formularet");
+
+  await page.getByRole("button", { name: "Skapa och för in i arbetsdagboken" }).click();
+  await mustSee(page, "Snabb Pass skapat", "the Före Snabb Pass failed");
+  await mustSee(page, "Dagen är förd till arbetsdagboken",
+    "the screen did not say the day was filed");
+  await shot(page, "47-fore-skapat");
+  log(`filed ${DF} straight into the Arbetsdagbok, with the leader's own hours accepted`);
+
+  // ---- and it is in NEITHER queue -------------------------------------------
+  // Not the admin's: it never was a stage 1 claim. Not the leader's: it is
+  // finished. Asserted on the DATE, because the leader has other days here.
+  await page.goto(`${BASE}/bekraftelser/`, { waitUntil: "networkidle" });
+  if (await page.getByText(DF, { exact: false }).count()) {
+    fail(`${DF} is in the admin's review queue; a day filed direkt never enters it`);
+  }
+  await signOut(page);
+
+  await signIn(page, L.email, L.password);
+  await page.goto(`${BASE}/bekrafta/`, { waitUntil: "networkidle" });
+  if (await page.getByText(DF, { exact: false }).count()) {
+    fail(`${DF} is waiting on the arbetsledare; a day filed direkt is already confirmed`);
+  }
+  await shot(page, "48-fore-i-ingen-ko");
+  log("the filed day is in neither queue: nobody is waiting on it");
 
   console.log("\nSNABB PASS WALKTHROUGH COMPLETE.\n");
 } finally {

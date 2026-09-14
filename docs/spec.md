@@ -194,13 +194,14 @@ The only role that can:
 
 Can also do everything an arbetsledare can, **except make a stage 1 confirmation**. That claim belongs to the leader who was on site, and reviewing a claim is not the same act as making one.
 
-Three routes put a day into `admin_confirmed` without a leader having confirmed it:
+Four routes put a day into `admin_confirmed`:
 
-- **Stage 2 approval** — a leader confirmed it and the admin signed off, with or without edits.
+- **Stage 2 approval** — a leader confirmed it and the admin signed off, with or without edits. The only one of the four with a leader's claim behind it.
 - **Bristsurvey** — the leader never confirmed, so the admin supplied the day's account himself and the registered figures stood in for confirmed ones (Section 1).
 - **A flagged day** — the day ran with a worker as ansvarig, or with nobody, so there was no leader to make the claim. Admin and only admin confirms it (Step 5c).
+- **A Snabb Pass filed *direkt*** — the admin arranged the day themselves and states the hours they agreed (Step 7). Offered only where no leader's claim is being pre-empted: one pass on the day, a date already past, an account of what was done, and an accepted figure against every arbetsledare the day places.
 
-None of the three is the admin confirming a day a leader still could have. That distinction is the pressure the whole system runs on, and it survives the second stage intact.
+None of the four is the admin confirming a day a leader still could have. That distinction is the pressure the whole system runs on, and it survives the second stage intact. The last one is the closest to the line, which is exactly why its four conditions are enforced in the database and not on the screen: a Snabb Pass on a day somebody else is working would confirm *their* hours as a side effect, because `project_day`'s key is (project, date).
 
 ### Arbetsledare — the supervisor
 
@@ -497,7 +498,16 @@ Workers clock themselves in and out. The timestamp is the server's, never the ph
 A pass that is scheduled but not started, and one that is in progress, are told apart by whether a clock-in exists, not by a separate state.
 
 **Step 7 — Snabb Pass, the escape hatch**
-**Admin only.** Bypasses the entire priority list. Requires only a name. For last-second dropouts, verbal arrangements, covering a no-show. **On paper it is an ordinary shift** — it prints in the Arbetsdagbok exactly like any other row. Only the way it enters the system differs. It still enters the confirmation queue; Snabb Pass skips the picking, never the confirming. If that person held an assignment elsewhere that day, the Snabb Pass wins and the earlier one is released.
+**Admin only.** Bypasses the entire priority list. Requires only a name. For last-second dropouts, verbal arrangements, covering a no-show. **On paper it is an ordinary shift** — it prints in the Arbetsdagbok exactly like any other row. If that person held an assignment elsewhere that day, the Snabb Pass wins and the earlier one is released.
+
+**Snabb Pass skips the picking. Whether it skips the confirming is now a choice the admin makes on the screen**, labelled *Generera arbetsdagbok direkt*:
+
+- **Efter bekräftelse** — what Snabb Pass always did. The day goes to the arbetsledare, who confirms it at stage 1, and the admin approves at stage 2. Right whenever the leader was running the day anyway. A `snabb_review` notification tells them, because a Snabb Pass is somebody added to their day without them and they should not have to notice it. This is the database default: `p_direkt` omits to false.
+- **Före bekräftelse** — the day is filed as the admin states it, straight to `admin_confirmed` with `confirmed_via = 'snabb'`, and the Arbetsdagbok can be generated the same minute. This is the case the escape hatch exists for: somebody dropped out at seven, the admin rang a replacement, that person worked alone, and there is no leader who could honestly confirm a day they were not on.
+
+**Före refuses four things, each in the database and each said in Swedish on the screen first.** It must be the only pass on that project that date — `project_day`'s key is (project, date), so filing a shared day would lock hours belonging to the leader who was about to state them, and refusing keeps a second dropout the same day bookable. The date must be today or earlier: this is the one place Step 8's "not over yet" rule gives way, and only backwards, because the Arbetsdagbok states work that was *done* and tomorrow is a plan. The day needs its "Vad Vi Gjorde" (invariant 6). And every arbetsledare the day places needs an accepted hours figure — those rows are paid, Före closes the day, and there is no later stage in which to correct them, which is why the admin types them on this screen rather than having them computed behind their back (invariant 1).
+
+`flagged_as` stays null on these days. That column records that a day ran with *nobody answerable for it*; a Snabb Pass day has whoever leads the project standing on it, and it was simply not their claim to make.
 
 **Step 8 — Confirmation, in two stages**
 
@@ -509,7 +519,7 @@ Confirmation happens twice. The leader states what happened; the admin reviews t
 
 **Stage 1 — the arbetsledare**
 
-**Trigger.** A day becomes confirmable the minute its last shift has ended. Not at midnight, not the next morning — when the final shift on that day is over by the clock.
+**Trigger.** A day becomes confirmable the minute its last shift has ended. Not at midnight, not the next morning — when the final shift on that day is over by the clock. **One exception, backwards only:** a Snabb Pass filed *direkt* (Step 7) files a date that is today or earlier without waiting for the shift's end time, because that route records an arrangement the admin already knows the whole of — they made it. A future date it still refuses.
 
 **Who.** The arbetsledare assigned to that project. Assignment is set by the admin at project creation, and a project may have several. An arbetsledare sees only the days belonging to projects they are on.
 
@@ -589,7 +599,7 @@ That block is the entire enforcement mechanism. The admin needs the document; on
 
 ## 5. Invariants — non-negotiable
 
-1. **Hours are typed by a human.** Nothing derives them. Not from clock stamps, not from the span. Unpaid lunch makes span ≠ hours the normal case. Two *prefills* exist and neither is a derivation, because a number a human must accept or correct is not a derived number: an auto-assigned leader's hours are prefilled from the workers' envelope, and **a new shift's hours are prefilled as (end − start) − 30 minutes**. A prefill stops following its source the moment someone types over it, and nothing ever recomputes it afterwards. **One exception, the bristsurvey:** on a day no leader ever confirmed, hours come from the clock span where one exists and the planned figure where it does not, with nobody typing them. That exception is the reason the survey opens behind a warning, and it exists nowhere else.
+1. **Hours are typed by a human.** Nothing derives them. Not from clock stamps, not from the span. Unpaid lunch makes span ≠ hours the normal case. Two *prefills* exist and neither is a derivation, because a number a human must accept or correct is not a derived number: an auto-assigned leader's hours are prefilled from the workers' envelope, and **a new shift's hours are prefilled as (end − start) − 30 minutes**. A prefill stops following its source the moment someone types over it, and nothing ever recomputes it afterwards. An auto-assigned leader's hours stay editable **at every stage that exists**: one route closes the day at creation — a Snabb Pass filed *direkt* (Step 7) — and there the admin accepts or corrects the figure on that screen before it is filed. What the invariant forbids is the number nobody looked at, not the number nobody looked at twice. **One exception, the bristsurvey:** on a day no leader ever confirmed, hours come from the clock span where one exists and the planned figure where it does not, with nobody typing them. That exception is the reason the survey opens behind a warning, and it exists nowhere else.
 2. **No worker holds two assignments whose hours overlap.** A morning shift and an afternoon Snabb Pass are two things that happened and print as two rows; what this forbids is being booked into two places at once, and a date was only ever a coarse stand-in for it. Back to back is not an overlap — a shift starting exactly where another ends is allowed — and spans are compared as real timestamps, so a 22:00–06:00 shift is measured against the next morning too. **One exception, arbetsledare only:** a leader auto-assigned to two projects (Step 4b) holds a day on each, and those envelopes overlap by construction, so ledare rows are exempt from the overlap test entirely. Nothing but auto-assignment creates that, and it does not extend to arbetare. **Automatic placement is still one shift per person per day**: the tier walk and Avboka's replacement list keep their own "not already working that date" filter, and only a manual, admin-made Snabb Pass may add a second non-overlapping shift.
 3. **Clock stamps are append-only evidence.** The leader may overwrite the working value; the original survives, visible and attributed.
 4. **An arbetare never writes hours or confirmation state.** A leader writes them at stage 1; the admin writes them at stage 2 and on the two routes that reach `admin_confirmed` with no leader behind them. Enforced in the database, not the interface. The worker side of this has not moved, and it is the side that matters.

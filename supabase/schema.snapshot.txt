@@ -1,8 +1,8 @@
 enum   app_role = admin,arbetsledare,arbetare
 enum   assignment_source = handplockad,forval,oppen,manuell,snabb,ledare
-enum   confirmation_source = leader,bristsurvey,worker_ansvarig,ingen_ledare
+enum   confirmation_source = leader,bristsurvey,worker_ansvarig,ingen_ledare,snabb
 enum   day_stage = leader_confirmed,admin_confirmed
-enum   notification_kind = shift_deleted,shift_offered,day_unconfirmed,day_flagged,leader_replaced,pass_closed
+enum   notification_kind = shift_deleted,shift_offered,day_unconfirmed,day_flagged,leader_replaced,pass_closed,snabb_review
 enum   offer_state = offered,accepted,declined,withdrawn
 enum   release_reason = removed_by_leader,replaced_by_snabb,shift_deleted,absent_at_confirmation,account_paused,no_workers_left,closed_early
 enum   review_action = approved,rejected
@@ -22,6 +22,8 @@ column arbetsdagbok.generated_at timestamp with time zone NOT NULL DEFAULT now()
 column arbetsdagbok.generated_by uuid NOT NULL
 column arbetsdagbok.id uuid NOT NULL DEFAULT gen_random_uuid()
 column arbetsdagbok.project_id uuid NOT NULL
+column arbetsledare_roster.id uuid
+column arbetsledare_roster.name text
 column cancelled_day.cancelled_at timestamp with time zone
 column cancelled_day.cancelled_passes integer
 column cancelled_day.project_id uuid
@@ -390,9 +392,11 @@ policy personal_event_viewer.personal_event_viewer_select [SELECT] USING(((accou
 policy personal_event_viewer.personal_event_viewer_write [ALL] USING(app.owns_personal_event(event_id)) CHECK(app.owns_personal_event(event_id))
 policy profile.profile_self_or_admin [ALL] USING(((account_id = ( SELECT auth.uid() AS uid)) OR app.is_admin())) CHECK(((account_id = ( SELECT auth.uid() AS uid)) OR app.is_admin()))
 policy project.project_admin_write [ALL] USING((app.is_admin() AND (deleted_at IS NULL))) CHECK((app.is_admin() AND (deleted_at IS NULL)))
-policy project.project_staff_select [SELECT] USING(((deleted_at IS NULL) AND (app.leads_project(id) OR app.holds_a_day(id)))) CHECK(-)
+policy project.project_staff_insert [INSERT] USING(-) CHECK((app.is_staff() AND (deleted_at IS NULL)))
+policy project.project_staff_select [SELECT] USING(((deleted_at IS NULL) AND (app.leads_project(id) OR app.holds_a_day(id) OR (created_by = ( SELECT auth.uid() AS uid))))) CHECK(-)
 policy project_day.project_day_leader [ALL] USING((app.leads_project(project_id) OR app.holds_the_day(project_id, work_date))) CHECK((app.leads_project(project_id) OR app.holds_the_day(project_id, work_date)))
 policy project_leader.project_leader_admin_write [ALL] USING(app.is_admin()) CHECK(app.is_admin())
+policy project_leader.project_leader_creator_insert [INSERT] USING(-) CHECK((app.is_staff() AND app.created_project(project_id)))
 policy project_leader.project_leader_staff_select [SELECT] USING(app.is_staff()) CHECK(-)
 policy tilldelning.tilldelning_leader_select [SELECT] USING((EXISTS ( SELECT 1
    FROM pass p
@@ -441,6 +445,8 @@ trig   no_overlapping_assignment on tilldelning -> tg_no_overlapping_assignment 
 trig   pass_delete_guard on pass -> tg_pass_delete_guard enabled=O
 trig   pass_edit_guard on pass -> tg_pass_edit_guard enabled=O
 trig   profile_touch on profile -> tg_profile_touch enabled=O
+trig   project_created_by on project -> tg_project_created_by enabled=O
+trig   project_leader_is_a_leader on project_leader -> tg_project_leader_is_a_leader enabled=O
 trig   protect_buckets_delete on storage.buckets -> protect_delete enabled=O
 trig   protect_objects_delete on storage.objects -> protect_delete enabled=O
 trig   sync_work_date on tilldelning -> tg_sync_work_date enabled=O
@@ -448,6 +454,7 @@ trig   tr_check_filters on realtime.subscription -> subscription_check_filters e
 trig   update_objects_updated_at on storage.objects -> update_updated_at_column enabled=O
 trig   worker_self_edit_guard on worker -> tg_worker_self_edit_guard enabled=O
 func   app.confirms_project(p_project uuid, p_work_date date) md5=46099961ff1935ecc58e80568426eb8b
+func   app.created_project(p_project uuid) md5=598f8bf9d52e3dfe8578a72ef447e971
 func   app.current_role() md5=9aac5306319ae740d224ff2203a64880
 func   app.current_worker_id() md5=74dddcd603933dd85350f7d4fd99efdf
 func   app.fill_pass(p_pass uuid) md5=ce17a6d7c777332276fef3842c5de8b8
@@ -470,7 +477,7 @@ func   app.tg_arbetsdagbok_guard() md5=f86304934a0a46e27e5af4b82d47bd24
 func   app.tg_assignment_write_guard() md5=f881334e120d8c970a332cb2e581f32b
 func   app.tg_block_guard() md5=b26fbbab450281b7deb537ec3212c1bd
 func   app.tg_clock_evidence() md5=6c33ff53dff91ccee095fa5abb4ec25d
-func   app.tg_confirmation_guard() md5=798d3c7463997d9229b95df274639de6
+func   app.tg_confirmation_guard() md5=bcd2fd859f43ba80534a1d0fae4787a8
 func   app.tg_handpick_is_an_arbetare() md5=ae1fa4cafeecff7403d574bc1acb9ec7
 func   app.tg_headcount_guard() md5=f670cf086f1ab865d3d818b75225c070
 func   app.tg_last_admin_guard() md5=6c4fd5dcb72f8a568c492f7139ed8c2c
@@ -480,6 +487,8 @@ func   app.tg_no_overlapping_assignment() md5=a6917b75c0aeecbf8fd19916a862ae79
 func   app.tg_pass_delete_guard() md5=91f1c76f9afd189463ca8c9f26b04390
 func   app.tg_pass_edit_guard() md5=dda07b7abfaa8f7eb519081febb29535
 func   app.tg_profile_touch() md5=2cd0a5f82ac61406b149da8b7d574ddc
+func   app.tg_project_created_by() md5=0524801edfe833eb33f991a838b4f9a0
+func   app.tg_project_leader_is_a_leader() md5=ad62ec9c666f500380fddff7feeba5d3
 func   app.tg_sync_work_date() md5=205305b41ade44114ec626dc29b463e5
 func   app.tg_worker_self_edit_guard() md5=7e933362e1f8d5f23547d75ed47b6736
 func   app.week_start(d date) md5=4a8f6c192e41cf4a14ebb5f87e671c29
@@ -495,7 +504,7 @@ func   public.clock_out(p_tilldelning uuid) md5=0cba39279e3ae3f7f67c95f6f627bfa2
 func   public.close_pass(p_pass uuid, p_hours numeric) md5=41bb50e95057bdb510bc60e731e64db9
 func   public.complete_bristsurvey(p_project uuid, p_work_date date, p_text text) md5=e511adf511d6a1b6fa953d9d1113c1c7
 func   public.confirm_flagged_day(p_project uuid, p_work_date date, p_text text, p_rows jsonb) md5=5af47daac0ae6d9807a1ffe947a807bd
-func   public.create_snabb_pass(p_project uuid, p_worker uuid, p_date date, p_start time without time zone, p_end time without time zone, p_hours numeric) md5=22f01f33b4bc25141f2245dab81e5e41
+func   public.create_snabb_pass(p_project uuid, p_worker uuid, p_date date, p_start time without time zone, p_end time without time zone, p_hours numeric, p_direkt boolean, p_text text, p_ledare jsonb) md5=a8ae060f52e975fdb7da92124cd9343d
 func   public.date_dist(date, date) md5=3983f43755ffa80d869985d91ee8e538
 func   public.decline_offer(p_pass uuid) md5=3b77c01816ffe8db5847a74c338cae38
 func   public.delete_pass(p_pass uuid) md5=18c81886a24de59bb3922d1592d90051
@@ -700,6 +709,8 @@ func   public.tstz_dist(timestamp with time zone, timestamp with time zone) md5=
 grant  DELETE on account to authenticated
 grant  DELETE on account_directory to authenticated
 grant  DELETE on arbetsdagbok to authenticated
+grant  DELETE on arbetsledare_roster to anon
+grant  DELETE on arbetsledare_roster to authenticated
 grant  DELETE on clock_edit to authenticated
 grant  DELETE on day_history to authenticated
 grant  DELETE on day_review to authenticated
@@ -728,6 +739,8 @@ grant  DELETE on worker_roster to authenticated
 grant  INSERT on account to authenticated
 grant  INSERT on account_directory to authenticated
 grant  INSERT on arbetsdagbok to authenticated
+grant  INSERT on arbetsledare_roster to anon
+grant  INSERT on arbetsledare_roster to authenticated
 grant  INSERT on clock_edit to authenticated
 grant  INSERT on day_history to authenticated
 grant  INSERT on day_review to authenticated
@@ -756,6 +769,8 @@ grant  INSERT on worker_roster to authenticated
 grant  REFERENCES on account to authenticated
 grant  REFERENCES on account_directory to authenticated
 grant  REFERENCES on arbetsdagbok to authenticated
+grant  REFERENCES on arbetsledare_roster to anon
+grant  REFERENCES on arbetsledare_roster to authenticated
 grant  REFERENCES on clock_edit to authenticated
 grant  REFERENCES on day_history to authenticated
 grant  REFERENCES on day_review to authenticated
@@ -784,6 +799,8 @@ grant  REFERENCES on worker_roster to authenticated
 grant  SELECT on account to authenticated
 grant  SELECT on account_directory to authenticated
 grant  SELECT on arbetsdagbok to authenticated
+grant  SELECT on arbetsledare_roster to anon
+grant  SELECT on arbetsledare_roster to authenticated
 grant  SELECT on cancelled_day to authenticated
 grant  SELECT on clock_edit to authenticated
 grant  SELECT on day_history to authenticated
@@ -813,6 +830,8 @@ grant  SELECT on worker_roster to authenticated
 grant  TRIGGER on account to authenticated
 grant  TRIGGER on account_directory to authenticated
 grant  TRIGGER on arbetsdagbok to authenticated
+grant  TRIGGER on arbetsledare_roster to anon
+grant  TRIGGER on arbetsledare_roster to authenticated
 grant  TRIGGER on clock_edit to authenticated
 grant  TRIGGER on day_history to authenticated
 grant  TRIGGER on day_review to authenticated
@@ -841,6 +860,8 @@ grant  TRIGGER on worker_roster to authenticated
 grant  TRUNCATE on account to authenticated
 grant  TRUNCATE on account_directory to authenticated
 grant  TRUNCATE on arbetsdagbok to authenticated
+grant  TRUNCATE on arbetsledare_roster to anon
+grant  TRUNCATE on arbetsledare_roster to authenticated
 grant  TRUNCATE on clock_edit to authenticated
 grant  TRUNCATE on day_history to authenticated
 grant  TRUNCATE on day_review to authenticated
@@ -869,6 +890,8 @@ grant  TRUNCATE on worker_roster to authenticated
 grant  UPDATE on account to authenticated
 grant  UPDATE on account_directory to authenticated
 grant  UPDATE on arbetsdagbok to authenticated
+grant  UPDATE on arbetsledare_roster to anon
+grant  UPDATE on arbetsledare_roster to authenticated
 grant  UPDATE on clock_edit to authenticated
 grant  UPDATE on day_history to authenticated
 grant  UPDATE on day_review to authenticated

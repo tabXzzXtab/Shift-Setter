@@ -54,6 +54,13 @@ export type Database = {
             referencedRelation: "account_directory"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "account_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "arbetsledare_roster"
+            referencedColumns: ["id"]
+          },
         ]
       }
       arbetsdagbok: {
@@ -91,6 +98,13 @@ export type Database = {
             columns: ["generated_by"]
             isOneToOne: false
             referencedRelation: "account_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "arbetsdagbok_generated_by_fkey"
+            columns: ["generated_by"]
+            isOneToOne: false
+            referencedRelation: "arbetsledare_roster"
             referencedColumns: ["id"]
           },
           {
@@ -153,6 +167,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "clock_edit_edited_by_fkey"
+            columns: ["edited_by"]
+            isOneToOne: false
+            referencedRelation: "arbetsledare_roster"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "clock_edit_tilldelning_id_fkey"
             columns: ["tilldelning_id"]
             isOneToOne: false
@@ -209,6 +230,13 @@ export type Database = {
             columns: ["acted_by"]
             isOneToOne: false
             referencedRelation: "account_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "day_review_acted_by_fkey"
+            columns: ["acted_by"]
+            isOneToOne: false
+            referencedRelation: "arbetsledare_roster"
             referencedColumns: ["id"]
           },
           {
@@ -310,6 +338,13 @@ export type Database = {
             referencedRelation: "account_directory"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "notification_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "arbetsledare_roster"
+            referencedColumns: ["id"]
+          },
         ]
       }
       pass: {
@@ -378,6 +413,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "pass_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "arbetsledare_roster"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "pass_deleted_by_fkey"
             columns: ["deleted_by"]
             isOneToOne: false
@@ -389,6 +431,13 @@ export type Database = {
             columns: ["deleted_by"]
             isOneToOne: false
             referencedRelation: "account_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pass_deleted_by_fkey"
+            columns: ["deleted_by"]
+            isOneToOne: false
+            referencedRelation: "arbetsledare_roster"
             referencedColumns: ["id"]
           },
           {
@@ -439,6 +488,13 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "account_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pass_batch_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "arbetsledare_roster"
             referencedColumns: ["id"]
           },
           {
@@ -670,6 +726,13 @@ export type Database = {
             referencedRelation: "account_directory"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "personal_event_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "arbetsledare_roster"
+            referencedColumns: ["id"]
+          },
         ]
       }
       personal_event_viewer: {
@@ -698,6 +761,13 @@ export type Database = {
             columns: ["account_id"]
             isOneToOne: false
             referencedRelation: "account_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "personal_event_viewer_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "arbetsledare_roster"
             referencedColumns: ["id"]
           },
           {
@@ -795,6 +865,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "profile_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: true
+            referencedRelation: "arbetsledare_roster"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "profile_updated_by_fkey"
             columns: ["updated_by"]
             isOneToOne: false
@@ -806,6 +883,13 @@ export type Database = {
             columns: ["updated_by"]
             isOneToOne: false
             referencedRelation: "account_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profile_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "arbetsledare_roster"
             referencedColumns: ["id"]
           },
         ]
@@ -866,6 +950,13 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "account_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "arbetsledare_roster"
             referencedColumns: ["id"]
           },
         ]
@@ -965,6 +1056,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "project_day_confirmed_by_fkey"
+            columns: ["confirmed_by"]
+            isOneToOne: false
+            referencedRelation: "arbetsledare_roster"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "project_day_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: false
@@ -993,6 +1091,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "project_day_rejected_by_fkey"
+            columns: ["rejected_by"]
+            isOneToOne: false
+            referencedRelation: "arbetsledare_roster"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "project_day_reviewed_by_fkey"
             columns: ["reviewed_by"]
             isOneToOne: false
@@ -1004,6 +1109,13 @@ export type Database = {
             columns: ["reviewed_by"]
             isOneToOne: false
             referencedRelation: "account_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_day_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "arbetsledare_roster"
             referencedColumns: ["id"]
           },
         ]
@@ -1037,6 +1149,13 @@ export type Database = {
             columns: ["account_id"]
             isOneToOne: false
             referencedRelation: "account_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_leader_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "arbetsledare_roster"
             referencedColumns: ["id"]
           },
           {
@@ -1160,6 +1279,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "tilldelning_released_by_fkey"
+            columns: ["released_by"]
+            isOneToOne: false
+            referencedRelation: "arbetsledare_roster"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "tilldelning_worker_id_fkey"
             columns: ["worker_id"]
             isOneToOne: false
@@ -1240,6 +1366,13 @@ export type Database = {
             referencedRelation: "account_directory"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "worker_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: true
+            referencedRelation: "arbetsledare_roster"
+            referencedColumns: ["id"]
+          },
         ]
       }
     }
@@ -1252,6 +1385,13 @@ export type Database = {
           name: string | null
           role: Database["public"]["Enums"]["app_role"] | null
           worker_id: string | null
+        }
+        Relationships: []
+      }
+      arbetsledare_roster: {
+        Row: {
+          id: string | null
+          name: string | null
         }
         Relationships: []
       }
@@ -1475,10 +1615,13 @@ export type Database = {
       create_snabb_pass: {
         Args: {
           p_date: string
+          p_direkt?: boolean
           p_end: string
           p_hours: number
+          p_ledare?: Json
           p_project: string
           p_start: string
+          p_text?: string
           p_worker: string
         }
         Returns: string
@@ -1555,6 +1698,7 @@ export type Database = {
         | "bristsurvey"
         | "worker_ansvarig"
         | "ingen_ledare"
+        | "snabb"
       day_stage: "leader_confirmed" | "admin_confirmed"
       notification_kind:
         | "shift_deleted"
@@ -1563,6 +1707,7 @@ export type Database = {
         | "day_flagged"
         | "leader_replaced"
         | "pass_closed"
+        | "snabb_review"
       offer_state: "offered" | "accepted" | "declined" | "withdrawn"
       release_reason:
         | "removed_by_leader"
@@ -1714,6 +1859,7 @@ export const Constants = {
         "bristsurvey",
         "worker_ansvarig",
         "ingen_ledare",
+        "snabb",
       ],
       day_stage: ["leader_confirmed", "admin_confirmed"],
       notification_kind: [
@@ -1723,6 +1869,7 @@ export const Constants = {
         "day_flagged",
         "leader_replaced",
         "pass_closed",
+        "snabb_review",
       ],
       offer_state: ["offered", "accepted", "declined", "withdrawn"],
       release_reason: [

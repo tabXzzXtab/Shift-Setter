@@ -3751,4 +3751,239 @@ select pg_temp.ok(
   'LEDARE.stage2_hours_stand',
   'the arbetsledare''s hours take the admin''s figure like any other row');
 
+-- ============================================================================
+-- STEP 7b -- SNABB PASS FILES ITS OWN DAY
+--
+-- Two routes out of one screen. Efter bekräftelse is what Snabb Pass always
+-- did and is asserted here because it is now a CHOICE rather than the only
+-- behaviour -- a default that stops being exercised is a default that quietly
+-- rots. Före bekräftelse closes the day itself, and the four things it
+-- refuses are the whole of why it is safe to let it.
+--
+-- Project B, well away from Project A's fixtures. leaderB leads it, so every
+-- day here gets an arbetsledare row and the leader's figure is always part of
+-- the question.
+-- ============================================================================
+
+-- ---- EFTER BEKRÄFTELSE: the day is still the arbetsledare's ---------------
+set local role authenticated;
+select pg_temp.act_as((select v from fx where k = 'admin'));
+select public.create_snabb_pass(
+  'bbbbbbbb-0000-0000-0000-00000000000b'::uuid,
+  (select id from wid where k = 'w1'),
+  app.stockholm_today() - 19, '07:00'::time, '16:00'::time, 8.00);
+reset role;
+
+select pg_temp.ok(
+  not exists (
+    select 1 from public.project_day pd
+    where pd.project_id = 'bbbbbbbb-0000-0000-0000-00000000000b'
+      and pd.work_date = app.stockholm_today() - 19),
+  'SNABB.efter_leaves_the_day_open',
+  'omitting p_direkt writes no confirmation: the day waits for the arbetsledare');
+
+select pg_temp.ok(
+  (select t.confirmed_hours is null from public.tilldelning t
+   where t.project_id = 'bbbbbbbb-0000-0000-0000-00000000000b'
+     and t.work_date = app.stockholm_today() - 19
+     and t.source = 'snabb' and t.released_at is null),
+  'SNABB.efter_states_no_hours',
+  'INVARIANT 4: on this route the admin has not made the claim, so the figure is null');
+
+select pg_temp.ok(
+  exists (
+    select 1 from public.notification n
+    where n.kind = 'snabb_review'
+      and n.account_id = (select v from fx where k = 'leaderB')
+      and (n.payload->>'work_date')::date = app.stockholm_today() - 19),
+  'SNABB.efter_tells_the_leader',
+  'a day somebody was added to without them does not wait to be noticed');
+
+-- ---- FÖRE BEKRÄFTELSE: the day is finished when the screen closes ---------
+-- The arbetsledare's figure travels with the call because there is no later
+-- stage to correct it in. 7.50 is what the admin accepted on screen, not what
+-- anything computed: the span is 07:00-15:00, so a derived number would be
+-- 7.50 too -- which is why the control that proves this asserts on the ROUTE
+-- and not on the value.
+set local role authenticated;
+select pg_temp.act_as((select v from fx where k = 'admin'));
+-- accepts(), not a bare select: with the fourth route taken out of the guard
+-- this call is REFUSED, and a bare statement would let that escape as a raw
+-- error the runner reports as "(not an assertion)" -- which tells a negative
+-- control nothing about which protection it just removed.
+select pg_temp.accepts($sn0$
+  select public.create_snabb_pass(
+    'bbbbbbbb-0000-0000-0000-00000000000b'::uuid,
+    (select id from wid where k = 'w2'),
+    app.stockholm_today() - 18, '07:00'::time, '15:00'::time, 7.50,
+    true, 'Rivning av innertak, plan 2.',
+    jsonb_build_array(
+      jsonb_build_object('worker', (select id from wid where k = 'leaderB'), 'hours', 6.25),
+      jsonb_build_object('worker', (select id from wid where k = 'leaderA'), 'hours', 5.00)))
+$sn0$, 'SNABB.fore_files_the_day');
+reset role;
+
+select pg_temp.ok(
+  (select pd.stage = 'admin_confirmed'
+      and pd.confirmed_via = 'snabb'
+      and pd.flagged_as is null
+      and pd.vad_vi_gjorde = 'Rivning av innertak, plan 2.'
+   from public.project_day pd
+   where pd.project_id = 'bbbbbbbb-0000-0000-0000-00000000000b'
+     and pd.work_date = app.stockholm_today() - 18),
+  'SNABB.fore_records_the_route',
+  'the fourth route: admin_confirmed, recorded as snabb, and NOT flagged -- the '
+  'day had an arbetsledare, it simply was not their claim to make');
+
+-- TWO LEADERS, TWO DIFFERENT ACCEPTED FIGURES, AND NEITHER IS DERIVABLE.
+-- Project B is led by both leaderA and leaderB, so the day places two paid
+-- arbetsledare rows and each one is a separate question the admin answered.
+-- 6.25 and 5.00 against a 07:00-15:00 span are neither the worker's 7.50 nor
+-- (15:00-07:00)-30min: nothing in the system could have produced either, which
+-- is exactly what makes them evidence that a human typed them.
+select pg_temp.ok(
+  (select t.confirmed_hours = 6.25 from public.tilldelning t
+   where t.project_id = 'bbbbbbbb-0000-0000-0000-00000000000b'
+     and t.work_date = app.stockholm_today() - 18
+     and t.source = 'ledare' and t.released_at is null
+     and t.worker_id = (select id from wid where k = 'leaderB'))
+  and
+  (select t.confirmed_hours = 5.00 from public.tilldelning t
+   where t.project_id = 'bbbbbbbb-0000-0000-0000-00000000000b'
+     and t.work_date = app.stockholm_today() - 18
+     and t.source = 'ledare' and t.released_at is null
+     and t.worker_id = (select id from wid where k = 'leaderA')),
+  'SNABB.fore_takes_the_leaders_accepted_hours',
+  'INVARIANT 1: each arbetsledare''s hours are the figure accepted for THEM, '
+  'never a derived one and never the same one twice');
+
+select pg_temp.ok(
+  (select t.confirmed_hours = 7.50 from public.tilldelning t
+   where t.project_id = 'bbbbbbbb-0000-0000-0000-00000000000b'
+     and t.work_date = app.stockholm_today() - 18
+     and t.source = 'snabb' and t.released_at is null),
+  'SNABB.fore_confirms_the_workers_hours',
+  'the hours the admin stated are the confirmed hours; no leader is coming');
+
+-- INVARIANT 5. The day is closed, and the project's own arbetsledare is as
+-- shut out of it as anyone -- which is the cost of this route and the reason
+-- it is offered only on a day nobody else was on.
+set local role authenticated;
+select pg_temp.act_as((select v from fx where k = 'leaderB'));
+select pg_temp.rejects($sn1$
+  update public.project_day
+  set vad_vi_gjorde = 'Något annat', confirmed_at = now(),
+      confirmed_by = (select auth.uid()), confirmed_via = 'leader'
+  where project_id = 'bbbbbbbb-0000-0000-0000-00000000000b'
+    and work_date = app.stockholm_today() - 18
+$sn1$, 'SNABB.fore_is_final_for_the_leader');
+reset role;
+
+-- ---- THE FOUR REFUSALS ----------------------------------------------------
+-- Each asserts the SWEDISH sentence, not merely that something was refused.
+-- Both the RPC and the trigger guard these, so "it raised" proves nothing
+-- about which one did it -- and the trigger raises in English, on a phone, on
+-- a building site. The message IS the assertion.
+create temporary table snabb_fore(k text, ok boolean, err text);
+grant select, insert on snabb_fore to public;
+
+set local role authenticated;
+select pg_temp.act_as((select v from fx where k = 'admin'));
+
+-- 1. A DAY SOMEBODY ELSE IS ON. project_day's key is (project, date): filing
+--    this would confirm w2's hours from the call above as a side effect.
+do $sf1$
+begin
+  perform public.create_snabb_pass(
+    'bbbbbbbb-0000-0000-0000-00000000000b'::uuid,
+    (select id from wid where k = 'w3'),
+    app.stockholm_today() - 18, '08:00'::time, '12:00'::time, 4.00,
+    true, 'Något annat.', '[]'::jsonb);
+  insert into snabb_fore values ('delad', true, null);
+exception when others then
+  insert into snabb_fore values ('delad', false, sqlerrm);
+end $sf1$;
+
+-- 2. A DAY THAT HAS NOT HAPPENED. The Arbetsdagbok states work that was done.
+do $sf2$
+begin
+  perform public.create_snabb_pass(
+    'bbbbbbbb-0000-0000-0000-00000000000b'::uuid,
+    (select id from wid where k = 'w3'),
+    app.stockholm_today() + 90, '07:00'::time, '16:00'::time, 8.00,
+    true, 'Planerat arbete.', '[]'::jsonb);
+  insert into snabb_fore values ('framtid', true, null);
+exception when others then
+  insert into snabb_fore values ('framtid', false, sqlerrm);
+end $sf2$;
+
+-- 3. NO ACCOUNT OF THE DAY. Invariant 6 -- and a confirmed day with the cell
+--    empty is a day no document can be generated from.
+do $sf3$
+begin
+  perform public.create_snabb_pass(
+    'bbbbbbbb-0000-0000-0000-00000000000b'::uuid,
+    (select id from wid where k = 'w3'),
+    app.stockholm_today() - 17, '07:00'::time, '16:00'::time, 8.00,
+    true, '   ', '[]'::jsonb);
+  insert into snabb_fore values ('tomtext', true, null);
+exception when others then
+  insert into snabb_fore values ('tomtext', false, sqlerrm);
+end $sf3$;
+
+-- 4. AN ARBETSLEDARE WITH NO ACCEPTED FIGURE. leaderB will be placed on this
+--    day by app.sync_leader_day() and that row is paid; closing the day
+--    without a figure against it locks a number nobody looked at.
+do $sf4$
+begin
+  perform public.create_snabb_pass(
+    'bbbbbbbb-0000-0000-0000-00000000000b'::uuid,
+    (select id from wid where k = 'w3'),
+    app.stockholm_today() - 17, '07:00'::time, '16:00'::time, 8.00,
+    true, 'Rivning, plan 3.', '[]'::jsonb);
+  insert into snabb_fore values ('ledarlos', true, null);
+exception when others then
+  insert into snabb_fore values ('ledarlos', false, sqlerrm);
+end $sf4$;
+reset role;
+
+select pg_temp.ok(
+  (select not ok and err like '%En dag med fler personer på bekräftas av arbetsledaren%'
+   from snabb_fore where k = 'delad'),
+  'SNABB.fore_refuses_a_shared_day',
+  'refused in Swedish, naming the reason: '
+    || coalesce((select err from snabb_fore where k = 'delad'), '(accepted)'));
+
+select pg_temp.ok(
+  (select not ok and err like '%Ett pass kan bara föras rakt in i arbetsdagboken i efterhand%'
+   from snabb_fore where k = 'framtid'),
+  'SNABB.fore_refuses_the_future',
+  'refused in Swedish, naming the reason: '
+    || coalesce((select err from snabb_fore where k = 'framtid'), '(accepted)'));
+
+select pg_temp.ok(
+  (select not ok and err like '%Dagen behöver en beskrivning av vad som gjordes%'
+   from snabb_fore where k = 'tomtext'),
+  'SNABB.fore_needs_the_day_account',
+  'refused in Swedish, naming the reason: '
+    || coalesce((select err from snabb_fore where k = 'tomtext'), '(accepted)'));
+
+select pg_temp.ok(
+  (select not ok and err like '%Timmar saknas för%'
+   from snabb_fore where k = 'ledarlos'),
+  'SNABB.fore_needs_every_leader_figure',
+  'refused in Swedish, naming who: '
+    || coalesce((select err from snabb_fore where k = 'ledarlos'), '(accepted)'));
+
+-- Nothing survived any of the four. A subtransaction rolls its own writes
+-- back, so a refused Snabb Pass must leave no pass standing -- otherwise the
+-- day it refused to file is a day carrying a shift nobody confirmed.
+select pg_temp.ok(
+  not exists (
+    select 1 from public.pass p
+    where p.project_id = 'bbbbbbbb-0000-0000-0000-00000000000b'
+      and p.work_date in (app.stockholm_today() - 17, app.stockholm_today() + 90)),
+  'SNABB.a_refused_snabb_leaves_nothing',
+  'the refusals are whole: no pass, no assignment, no half-written day');
+
 select pg_temp.ok(true, 'SUITE.complete', 'every assertion passed');

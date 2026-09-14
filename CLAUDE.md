@@ -17,8 +17,12 @@ Full specification: [docs/spec.md](docs/spec.md).
     nothing recomputes it afterwards. A number a human must accept or correct is
     not a derived number.
     An auto-assigned arbetsledare's hours are prefilled from the workers' span
-    and stay editable AT EVERY STAGE: a number a human must accept or correct is
-    not a derived number, and lunch comes off the envelope like anyone else's.
+    and stay editable AT EVERY STAGE THAT EXISTS. One route closes the day at
+    creation — a Snabb Pass filed direkt — and there the admin accepts or
+    corrects the figure on that screen before it is filed. A number a human
+    must accept or correct is not a derived number; what the invariant forbids
+    is the number nobody looked at, not the number nobody looked at twice.
+    Lunch comes off the envelope like anyone else's.
     Their TIMES are the exception, and only theirs: a leader's own span is
     read-only on Bekräfta Pass and the admin corrects it at stage 2. A person
     stating when they personally were on site, on the row that pays them, is the
@@ -49,7 +53,7 @@ Full specification: [docs/spec.md](docs/spec.md).
 3.  Clock stamps are append-only evidence. A leader may overwrite the working
     value; the original survives, visible and attributed to whoever changed it.
 4.  An arbetare never writes hours or confirmation state. A leader writes them
-    at stage 1; the admin writes them at stage 2 and on the two routes that
+    at stage 1; the admin writes them at stage 2 and on the three routes that
     reach admin_confirmed with no leader behind them. Enforced in the database,
     not the interface. The worker side has not moved.
 4b. An arbetsledare confirms the DAYS THEY STOOD ON, not the projects they
@@ -107,7 +111,7 @@ reject it back to the leader. Approval is `admin_confirmed`. **Reviewing a
 claim is not making one**, and the Arbetsdagbok generates from
 `leader_confirmed` — stage 2 is not a gate.
 
-Three routes reach `admin_confirmed`. Only the first has a leader behind it:
+Four routes reach `admin_confirmed`. Only the first has a leader behind it:
 
 - **Stage 2 approval.** A leader confirmed; the admin signed off, edits or not.
 - **Bristsurvey.** The leader never confirmed. The admin supplies the day's
@@ -117,6 +121,16 @@ Three routes reach `admin_confirmed`. Only the first has a leader behind it:
   all, so there was no leader to make the claim. Admin and only admin confirms
   it, and `flagged_as` keeps those two cases apart — a covered day and an
   unattended one are different admissions.
+- **A Snabb Pass filed direkt.** The admin arranged the day themselves — rang
+  somebody that morning, put them on site — and states the hours they agreed.
+  Offered only on a day that pass is ALONE on, a date already past, with an
+  account of what was done and an accepted figure against every arbetsledare
+  the day places. Those four are what keep it from confirming hours nobody
+  stated: `project_day`'s key is (project, date), so filing a day with a crew
+  on it would lock figures belonging to the leader who was about to state
+  them. The other mode, **Efter**, is the old behaviour unchanged — the day
+  goes to the arbetsledare and through stage 2 — and it is the database
+  default.
 
 A surveyed day is a confirmed day: it leaves the leader's queue permanently and
 never returns. `project_day.confirmed_via` records which route CLOSED the day,
@@ -129,9 +143,14 @@ from the route, and one column cannot carry both.
 
 In the database this is `app.confirms_project()` -- which deliberately does NOT
 fall back to `is_admin()` -- as distinct from `app.leads_project()`, which does.
-Do not merge them. Stage 2, the bristsurvey and flagged days are separate
-writes that reach `admin_confirmed` without passing through it. They are not a
-reason to relax it.
+Do not merge them. Stage 2, the bristsurvey, flagged days and a Snabb Pass
+filed direkt are separate writes that reach `admin_confirmed` without passing
+through it. They are not a reason to relax it.
+
+**A day filed direkt is a confirmed day**, like a surveyed one: it is in
+neither queue, and invariant 5 closes it to everybody including the project's
+own arbetsledare. That is the cost of the route, and the reason it is offered
+only where nobody else's hours are on the day.
 
 ---
 
@@ -192,11 +211,11 @@ before writing framework code.
 | `npm run types:gen` | **Regenerate `src/lib/supabase/database.types.ts`. Run after every migration.** |
 | `npm run db:sql -- --query "select 1;"` | Arbitrary SQL against the real database |
 | `npm run db:sql -- --file path/to.sql` | Same, from a file — test suites, fixtures, negative controls |
-| `npm run test:db` | Assertion suite + 52 negative controls, all rolled back |
+| `npm run test:db` | Assertion suite + 78 negative controls, all rolled back |
 | `npm run walkthrough` | Drive the whole slice in a browser; artifacts to `artifacts/` |
 | `npm run walkthrough:tiers` | Förval, the tiers and Acceptera Pass in a browser |
 | `npm run walkthrough:batch` | A month generated by **touch**, one instance edited, the cascade |
-| `npm run walkthrough:snabb` | Snabb Pass: leader creates one, admin adds an off-roster worker |
+| `npm run walkthrough:snabb` | Snabb Pass: the Före/Efter choice, an off-roster worker, a day filed direkt |
 | `npm run walkthrough:kalender` | Shift calendar: colour stripes, fixed cell height, the day page, delete rules |
 | `npm run walkthrough:brist` | Bristsurvey: the warning, whose job it was, one question per day |
 | `npm run walkthrough:admin` | Admin landing page: the three actions, the menu, the list, Inställningar |

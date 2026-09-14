@@ -106,7 +106,7 @@ const CONTROLS = [
   // ---- Snabb Pass replaces what it collides with, and nothing else --------
   ["a Snabb Pass leaves a shift it does not overlap",
    // The time predicate removed from the release: back to clearing the day.
-   perturbIn("public.create_snabb_pass(uuid,uuid,date,time,time,numeric)",
+   perturbIn("public.create_snabb_pass(uuid,uuid,date,time,time,numeric,boolean,text,jsonb)",
              "and app.pass_start_at(p.work_date, p.start_time) < app.pass_end_at(p_date, p_start, p_end)\n" +
              "    and app.pass_start_at(p_date, p_start) < app.pass_end_at(p.work_date, p.start_time, p.end_time);",
              ";"),
@@ -115,7 +115,7 @@ const CONTROLS = [
   ["a Snabb Pass never takes the arbetsledare off the day",
    // The source filter removed from the release. The ledare row is not a slot
    // and nothing about a Snabb Pass on a worker concerns it.
-   perturbIn("public.create_snabb_pass(uuid,uuid,date,time,time,numeric)",
+   perturbIn("public.create_snabb_pass(uuid,uuid,date,time,time,numeric,boolean,text,jsonb)",
              "and t.source     <> 'ledare'          -- never takes a leader off their day",
              "and true"),
    "SNABB.never_takes_the_leader_off"],
@@ -123,9 +123,59 @@ const CONTROLS = [
   ["a locked day is refused in the admin's own language",
    // The friendly check removed, so invariant 5 raises instead and the admin
    // gets the database's wording -- which is exactly what was reported.
-   perturbIn("public.create_snabb_pass(uuid,uuid,date,time,time,numeric)",
+   perturbIn("public.create_snabb_pass(uuid,uuid,date,time,time,numeric,boolean,text,jsonb)",
              "if v_stuck is not null then", "if false then"),
    "SNABB.locked_day_refused_plainly"],
+  // ---- Snabb Pass filing its own day, and the four things it refuses ------
+  //
+  // EVERY ONE OF THESE IS GUARDED TWICE -- once by the RPC in Swedish, once by
+  // app.tg_confirmation_guard() or a CHECK in English -- so removing either
+  // layer still leaves the call refused. A control asserting only "it was
+  // refused" would pass with the guard gone and prove nothing. That is why
+  // each suite assertion tests the SWEDISH SENTENCE: with the RPC's check
+  // removed the deeper layer answers instead, in the database's own words,
+  // and the assertion fails at exactly the right place.
+  ["Före is refused on a day somebody else is already on",
+   perturbIn("public.create_snabb_pass(uuid,uuid,date,time,time,numeric,boolean,text,jsonb)",
+             "if v_other > 0 then", "if false then"),
+   "SNABB.fore_refuses_a_shared_day"],
+
+  ["Före is refused on a day that has not happened",
+   perturbIn("public.create_snabb_pass(uuid,uuid,date,time,time,numeric,boolean,text,jsonb)",
+             "if p_date > app.stockholm_today() then", "if false then"),
+   "SNABB.fore_refuses_the_future"],
+
+  ["Före is refused with no account of the day",
+   perturbIn("public.create_snabb_pass(uuid,uuid,date,time,time,numeric,boolean,text,jsonb)",
+             "if p_text is null or btrim(p_text) = '' then", "if false then"),
+   "SNABB.fore_needs_the_day_account"],
+
+  ["Före is refused while an arbetsledare row has no accepted figure",
+   perturbIn("public.create_snabb_pass(uuid,uuid,date,time,time,numeric,boolean,text,jsonb)",
+             "if v_missing is not null then", "if false then"),
+   "SNABB.fore_needs_every_leader_figure"],
+
+  // INVARIANT 1. The accepted figure replaced by the worker's own hours -- the
+  // exact failure this route has to be incapable of, because Före closes the
+  // day and nobody can correct it afterwards. The fixture accepts 6.25 against
+  // a 07:00-15:00 span precisely so that neither the worker's 7.50 nor any
+  // derived number can satisfy the assertion by coincidence.
+  ["the arbetsledare's accepted hours are what gets filed",
+   perturbIn("public.create_snabb_pass(uuid,uuid,date,time,time,numeric,boolean,text,jsonb)",
+             "set confirmed_hours = (r->>'hours')::numeric",
+             "set confirmed_hours = p_hours"),
+   "SNABB.fore_takes_the_leaders_accepted_hours"],
+
+  ["the snabb route reaches admin_confirmed at all",
+   perturbIn("app.tg_confirmation_guard()",
+             "elsif new.confirmed_via = 'snabb' then", "elsif false then"),
+   "SNABB.fore_files_the_day"],
+
+  ["Efter bekräftelse tells the arbetsledare",
+   perturbIn("public.create_snabb_pass(uuid,uuid,date,time,time,numeric,boolean,text,jsonb)",
+             "'snabb_review',", "'day_flagged',"),
+   "SNABB.efter_tells_the_leader"],
+
 
   ["headcount -- exactly one winner for the last slot",
    "alter table public.tilldelning disable trigger headcount_guard",
