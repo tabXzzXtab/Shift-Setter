@@ -22,6 +22,7 @@ export type Database = {
           active: boolean
           created_at: string
           created_by: string | null
+          deleted_at: string | null
           id: string
           role: Database["public"]["Enums"]["app_role"]
         }
@@ -29,6 +30,7 @@ export type Database = {
           active?: boolean
           created_at?: string
           created_by?: string | null
+          deleted_at?: string | null
           id: string
           role?: Database["public"]["Enums"]["app_role"]
         }
@@ -36,6 +38,7 @@ export type Database = {
           active?: boolean
           created_at?: string
           created_by?: string | null
+          deleted_at?: string | null
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
         }
@@ -785,6 +788,7 @@ export type Database = {
           adress: string | null
           anhorig_namn: string | null
           anhorig_telefon: string | null
+          avatar_path: string | null
           bankgiro: string | null
           clearingnummer: string | null
           f_skatt: boolean
@@ -808,6 +812,7 @@ export type Database = {
           adress?: string | null
           anhorig_namn?: string | null
           anhorig_telefon?: string | null
+          avatar_path?: string | null
           bankgiro?: string | null
           clearingnummer?: string | null
           f_skatt?: boolean
@@ -831,6 +836,7 @@ export type Database = {
           adress?: string | null
           anhorig_namn?: string | null
           anhorig_telefon?: string | null
+          avatar_path?: string | null
           bankgiro?: string | null
           clearingnummer?: string | null
           f_skatt?: boolean
@@ -1380,6 +1386,7 @@ export type Database = {
       account_directory: {
         Row: {
           active: boolean | null
+          avatar_path: string | null
           email: string | null
           id: string | null
           name: string | null
@@ -1627,6 +1634,7 @@ export type Database = {
         Returns: string
       }
       decline_offer: { Args: { p_pass: string }; Returns: undefined }
+      delete_account: { Args: { p_account: string }; Returns: string }
       delete_pass: { Args: { p_pass: string }; Returns: undefined }
       delete_project: { Args: { p_project: string }; Returns: undefined }
       fill_passes: {

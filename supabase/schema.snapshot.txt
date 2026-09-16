@@ -9,9 +9,11 @@ enum   review_action = approved,rejected
 column account.active boolean NOT NULL DEFAULT true
 column account.created_at timestamp with time zone NOT NULL DEFAULT now()
 column account.created_by uuid
+column account.deleted_at timestamp with time zone
 column account.id uuid NOT NULL
 column account.role app_role NOT NULL DEFAULT 'arbetare'::app_role
 column account_directory.active boolean
+column account_directory.avatar_path text
 column account_directory.email text
 column account_directory.id uuid
 column account_directory.name text
@@ -139,6 +141,7 @@ column profile.account_id uuid NOT NULL
 column profile.adress text
 column profile.anhorig_namn text
 column profile.anhorig_telefon text
+column profile.avatar_path text
 column profile.bankgiro text
 column profile.clearingnummer text
 column profile.f_skatt boolean NOT NULL DEFAULT false
@@ -507,6 +510,7 @@ func   public.confirm_flagged_day(p_project uuid, p_work_date date, p_text text,
 func   public.create_snabb_pass(p_project uuid, p_worker uuid, p_date date, p_start time without time zone, p_end time without time zone, p_hours numeric, p_direkt boolean, p_text text, p_ledare jsonb) md5=a8ae060f52e975fdb7da92124cd9343d
 func   public.date_dist(date, date) md5=3983f43755ffa80d869985d91ee8e538
 func   public.decline_offer(p_pass uuid) md5=3b77c01816ffe8db5847a74c338cae38
+func   public.delete_account(p_account uuid) md5=cc6a58c374dbd3447dcfcc182acf6cf9
 func   public.delete_pass(p_pass uuid) md5=18c81886a24de59bb3922d1592d90051
 func   public.delete_project(p_project uuid) md5=d030116d7361ca4ca9f0313b20a6d04d
 func   public.fill_passes(p_batch uuid) md5=330aaf6a5229939f92d52a5049213561

@@ -679,6 +679,68 @@ const CONTROLS = [
    `alter table public.project drop constraint ` +
    `"${"project_bestallare_orgnr_check"}"`,
    "I7.blank_orgnr_rejected"],
+
+  // ---- ALLA KONTON ---------------------------------------------------------
+
+  ["alla konton -- a removed account leaves the admin's sight",
+   // The view put back the way it was before the migration. Removal still
+   // works in every other respect; the admin simply goes on seeing the people
+   // they removed, which is the whole of what the filter is for.
+   "create or replace view public.account_directory with (security_invoker = false) as " +
+   "select a.id, a.role, a.active, w.id as worker_id, " +
+   "coalesce(w.name, u.raw_user_meta_data->>'name') as name, " +
+   "coalesce(w.email, u.email::text) as email, p.avatar_path " +
+   "from public.account a " +
+   "left join public.worker w on w.account_id = a.id and w.deleted_at is null " +
+   "left join auth.users u on u.id = a.id " +
+   "left join public.profile p on p.account_id = a.id " +
+   "where app.is_admin() or a.id = (select auth.uid())",
+   "KONTO.removed_leaves_the_directory"],
+
+  ["alla konton -- history is what makes an account unerasable",
+   // The RESTRICT dropped. delete_account can no longer tell the two cases
+   // apart and erases somebody who has stood on a shift -- taking the name off
+   // hours an Arbetsdagbok already reports. Invariant 3. The function asks the
+   // constraint precisely so that it cannot be wrong about this, and this is
+   // the control that proves it is the constraint being asked.
+   "alter table public.tilldelning drop constraint tilldelning_worker_id_fkey",
+   "KONTO.history_is_shut_down"],
+
+  ["alla konton -- a shut-down account's worker is soft-deleted",
+   // INVARIANT 8. Without it the account is inactive but the worker row is
+   // still live, so every roster and every sum goes on counting them.
+   perturbIn("public.delete_account(uuid)",
+             "    update public.worker\n" +
+             "       set deleted_at = now()\n" +
+             "     where account_id = p_account and deleted_at is null;",
+             "    null;"),
+   "KONTO.history_worker_soft_deleted"],
+
+  ["alla konton -- only an admin removes an account",
+   perturbIn("public.delete_account(uuid)",
+             "if not app.is_admin() then", "if false then"),
+   "KONTO.arbetare_cannot_remove"],
+
+  ["alla konton -- nobody removes their own account",
+   perturbIn("public.delete_account(uuid)",
+             "if p_account = (select auth.uid()) then", "if false then"),
+   "KONTO.cannot_remove_self"],
+
+  ["alla konton -- a face belongs to one account",
+   // The path test dropped from the write policy, so anyone may write into
+   // anyone's folder -- including over somebody else's face.
+   "drop policy avatars_write on storage.objects; " +
+   "create policy avatars_write on storage.objects for insert to authenticated " +
+   "with check (bucket_id = 'avatars')",
+   "KONTO.avatar_foreign_upload_rejected"],
+
+  ["alla konton -- a face is not public",
+   // The read policy made permissive. Every screen still looks right; a
+   // colleague's photograph is simply readable by every logged-in person.
+   "drop policy avatars_read on storage.objects; " +
+   "create policy avatars_read on storage.objects for select to authenticated " +
+   "using (bucket_id = 'avatars')",
+   "KONTO.avatar_is_not_public"],
 ];
 
 const client = new pg.Client({

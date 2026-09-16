@@ -162,35 +162,46 @@ try {
   await shot(page, "a8-hem-projekt-actions");
   log(`Alla Projekt: ${n} rows, first reads ${JSON.stringify(first.replace(/\n/g, " | "))}, and opens the same three actions`);
 
-  // ---- Inställningar, reached from the profile icon -------------------------
+  // ---- Alla Konton, reached from the profile icon --------------------------
+  //
+  // What this used to assert was a wall: five controls and two status chips on
+  // every row. What it must hold now is the opposite -- the role as a section
+  // heading, and a row carrying nothing but who the person is. The detail of
+  // that redesign is walkthrough-konton.mjs; this is the admin's route in.
   await page.getByRole("button", { name: "Profil", exact: true }).click();
   const ipop = page.getByRole("dialog", { name: "Profil" });
   await ipop.waitFor({ timeout: 20000 });
-  await ipop.getByRole("link", { name: "Inställningar", exact: true }).click();
+  await ipop.getByRole("link", { name: "Alla Konton", exact: true }).click();
   await page.waitForURL((u) => u.pathname.includes("/installningar"), { timeout: 20000 });
-  await mustSee(page, "Konton", "Inställningar has no Konton list");
-
-  if (!(await page.getByRole("link", { name: "Tillverka Konto", exact: true }).count())) {
-    fail("Tillverka Konto is not at the top of Inställningar");
+  // The heading is drawn by the loading state too -- SoftScreen carries the
+  // title before the rows arrive -- so waiting on it proves nothing about the
+  // list. Wait for something only the LOADED screen has.
+  await page.getByRole("heading", { name: "Alla Konton" }).waitFor({ timeout: 20000 });
+  try {
+    await page.getByRole("link", { name: /Tillverka Konto/ }).waitFor({ timeout: 20000 });
+  } catch {
+    fail("Tillverka Konto is not at the top of Alla Konton");
   }
 
-  const konton = page.locator("section[data-konto]");
+  const konton = page.locator("[data-konto]");
   const k = await konton.count();
   if (k === 0) fail("the Konton list is empty -- it must at least hold the admin signed in");
   const one = await konton.first().innerText();
   if (!/@/.test(one)) fail(`a Konto row shows no email: ${JSON.stringify(one)}`);
-  if (!/(Admin|Arbetsledare|Arbetare)/.test(one)) fail(`a Konto row shows no role: ${one}`);
-  if (!/(Aktiv|Pausad)/.test(one)) fail(`a Konto row shows no active state: ${one}`);
-  await shot(page, "a3-installningar");
-  log(`Konton: ${k} accounts, first reads ${JSON.stringify(one.split("\n").slice(0, 3).join(" | "))}`);
+  await shot(page, "a3-alla-konton");
+  log(`Alla Konton: ${k} accounts, first reads ${JSON.stringify(one.split("\n").join(" | "))}`);
 
-  // Each row offers the three things it should.
-  for (const label of ["Pausa kontot", "Ändra konto", "Ändra profil"]) {
-    if (!(await konton.first().getByText(label, { exact: true }).count())) {
-      fail(`a Konto row has no "${label}"`);
-    }
+  // The role is the SECTION now, not a tag on every row.
+  if (!(await page.locator("[data-roll]").count())) fail("the list is not grouped by role");
+
+  // And everything the redesign took off a row is actually off it.
+  for (const gone of ["Aktiv", "Pausa kontot", "Ändra konto", "Ändra profil"]) {
+    if (one.includes(gone)) fail(`a Konto row still carries "${gone}"`);
   }
-  log("each account offers role, pause, Ändra konto and Ändra profil");
+  if (await konton.first().locator("select").count()) {
+    fail("a Konto row still carries the role selector");
+  }
+  log("a row is who the person is, a chevron and the delete square -- nothing else");
 
   // ---- Alla Projekt: the card IS the control -------------------------------
   //
@@ -285,17 +296,20 @@ try {
   await page.getByRole("button", { name: "Profil", exact: true }).click();
   const pop = page.getByRole("dialog", { name: "Profil" });
   await pop.waitFor({ timeout: 20000 });
-  for (const label of ["Konto", "Profil", "Inställningar"]) {
+  for (const label of ["Min profil", "Alla Konton"]) {
     if (!(await pop.getByRole("link", { name: label, exact: true }).count())) {
       await shot(page, "FAILED");
       fail(`the profile popup has no "${label}" button`);
     }
   }
   await shot(page, "a4-profil-popup");
-  log("profile icon opens Konto, Profil and Inställningar");
+  if (await pop.getByRole("link", { name: "Inställningar", exact: true }).count()) {
+    fail("the profile popup still offers Inställningar");
+  }
+  log("profile icon opens Min profil and Alla Konton -- Konto and Profil are one screen now");
 
-  await pop.getByRole("link", { name: "Profil", exact: true }).click();
-  await page.waitForURL((u) => u.pathname.includes("/profil"), { timeout: 20000 });
+  await pop.getByRole("link", { name: "Min profil", exact: true }).click();
+  await page.waitForURL((u) => u.pathname.includes("/konto"), { timeout: 20000 });
   await mustSee(page, "Har du företag?", "the Profil form has no company toggle");
   // "Clearing", not "Clearingnummer": the handoff shortens the label under a
   // card that already says Utbetalning. Asked for by role so the field is

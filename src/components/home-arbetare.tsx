@@ -466,7 +466,7 @@ export function HomeArbetare() {
 
       {open === "profile" && (
         <SoftSheet onClose={() => setOpen(null)} label="Profil">
-          <GroupedList rows={[{ href: "/konto", label: "Konto" }, { href: "/profil", label: "Profil" }]} />
+          <GroupedList rows={[{ href: "/konto", label: "Min profil" }]} />
           {/* One place signs out, whatever the screen around it looks like. */}
           <SignOut />
         </SoftSheet>

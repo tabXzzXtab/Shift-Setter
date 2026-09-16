@@ -540,9 +540,13 @@ try {
   const profile = page.getByRole("dialog", { name: "Profil" });
   await profile.waitFor({ timeout: 20000 });
 
+  // ONE row, not two. Konto and Profil were separate screens asking about one
+  // person -- the first held the name and the email, the second the phone
+  // number and the bank account -- and they are one page now. Two menu entries
+  // pointing at the same screen described a seam rather than what is there.
   const profileRows = await profile.getByRole("link").allInnerTexts();
-  if (JSON.stringify(profileRows.map((t) => t.trim())) !== JSON.stringify(["Konto", "Profil"])) {
-    fail(`the profile sheet holds ${JSON.stringify(profileRows)}, expected Konto and Profil`);
+  if (JSON.stringify(profileRows.map((t) => t.trim())) !== JSON.stringify(["Min profil"])) {
+    fail(`the profile sheet holds ${JSON.stringify(profileRows)}, expected only Min profil`);
   }
 
   // SignOut is ui.tsx's, shared with screens still in black and white, so it
@@ -564,7 +568,7 @@ try {
   }
 
   await shot(page, "w3b-profil-sheet");
-  log("the profile sheet: Konto, Profil, and a Logga ut in the new language");
+  log("the profile sheet: Min profil, and a Logga ut in the new language");
 
   await profile.getByRole("button", { name: "Stäng", exact: true }).click();
   await profile.waitFor({ state: "detached", timeout: 20000 });

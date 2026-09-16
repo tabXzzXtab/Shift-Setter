@@ -47,12 +47,16 @@ const MENU = [
 ];
 
 // Behind the profile icon, not in the hamburger. The menu is the work --
-// Kalender, the projects, the days waiting. Inställningar is this installation
+// Kalender, the projects, the days waiting. Alla Konton is this installation
 // and the people in it, which is what someone opens their own icon looking for.
+//
+// TWO ENTRIES, NOT THREE. Konto and Profil were separate screens asking about
+// one person and are now one; listing the same page twice under two names was
+// the menu describing an old seam rather than what is there. "Min profil" is
+// what that screen calls itself when it is about you.
 const PROFILE_MENU = [
-  { href: "/konto", label: "Konto" },
-  { href: "/profil", label: "Profil" },
-  { href: "/installningar", label: "Inställningar" },
+  { href: "/konto", label: "Min profil" },
+  { href: "/installningar", label: "Alla Konton" },
 ];
 
 /** Swedish decimal comma, and no trailing ",0" on a whole number. */

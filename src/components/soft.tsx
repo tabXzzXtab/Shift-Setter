@@ -3,6 +3,10 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
+// The fallback letters live with the rest of the avatar handling rather than
+// here: two copies of "what do we draw when there is no photograph" is two
+// copies that drift.
+import { initials } from "@/lib/avatar";
 
 /**
  * The handoff's design language, as components.
@@ -426,11 +430,16 @@ export function SoftSelect(props: React.SelectHTMLAttributes<HTMLSelectElement>)
  * reachable, not offered.
  */
 export function DangerButton({
-  children, onClick, disabled, full = true, solid = false,
+  children, onClick, disabled, full = true, solid = false, label,
 }: {
   children: ReactNode;
   onClick?: () => void;
   disabled?: boolean;
+  /**
+   * The accessible name. REQUIRED in practice for the square variant, which
+   * holds an icon and no text -- "button" is not a thing anyone can act on.
+   */
+  label?: string;
   /** false for the 48px square icon variant on the Konton rows. */
   full?: boolean;
   /**
@@ -449,6 +458,7 @@ export function DangerButton({
       type="button"
       onClick={onClick}
       disabled={disabled}
+      aria-label={label}
       className={`press-scale flex items-center justify-center rounded-[12px] text-[17px] font-bold transition-transform duration-[110ms] active:scale-[.985] ${
         solid ? "hover:bg-[#71170f]" : "hover:bg-[#f6d8dd]"
       } ${full ? "h-14 w-full" : "h-12 w-12 rounded-[10px]"}`}
@@ -567,6 +577,75 @@ export function Tag({
       style={{ letterSpacing: ".4px", color: pair[0], background: pair[1] }}
     >
       {children}
+    </span>
+  );
+}
+
+/**
+ * A face, or the initials standing in for one.
+ *
+ * A ROUNDED SQUARE, not a circle. Nothing else in the handoff is round --
+ * buttons are 10 to 12, cards 14 to 16, the icon button 11 -- and one circle
+ * in an app built entirely from rounded rectangles reads as an import from
+ * somewhere else. The radius is 30% of the edge, which is round enough to say
+ * "person" at 44px and still belong to the same drawing.
+ *
+ * ALWAYS THE SAME BOX, picture or not. A row whose avatar collapses when
+ * somebody has not uploaded one is a row that changes height down the list,
+ * and a list that changes height is the thing this screen was redesigned to
+ * stop being.
+ *
+ * aria-hidden and alt="": the name is always next to it. A screen reader that
+ * says "Anna Karlsson, Anna Karlsson" is worse than one that says it once.
+ */
+export function Avatar({
+  src, name, email, size = 44,
+}: {
+  src?: string | null;
+  name: string | null;
+  email?: string | null;
+  size?: number;
+}) {
+  const radius = Math.round(size * 0.3);
+  const letters = initials(name, email ?? null);
+
+  return (
+    <span
+      aria-hidden
+      className="flex shrink-0 select-none items-center justify-center overflow-hidden"
+      style={{
+        width: size,
+        height: size,
+        borderRadius: radius,
+        background: C.panel2,
+        boxShadow: `inset 0 0 0 1px ${C.hairline}`,
+      }}
+    >
+      {src ? (
+        // A signed URL from a private bucket cannot go through next/image:
+        // there is no server in a static export to do the optimising
+        // (CLAUDE.md). The browser has already downscaled it to 512px before
+        // upload, which is what the optimiser would have been for.
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={src}
+          alt=""
+          width={size}
+          height={size}
+          style={{ width: size, height: size, objectFit: "cover", display: "block" }}
+        />
+      ) : (
+        <span
+          className="font-extrabold"
+          style={{
+            color: C.inkHover,
+            fontSize: Math.round(size * 0.36),
+            letterSpacing: size > 56 ? "-.5px" : "-.2px",
+          }}
+        >
+          {letters}
+        </span>
+      )}
     </span>
   );
 }

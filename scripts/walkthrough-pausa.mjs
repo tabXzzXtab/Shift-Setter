@@ -144,12 +144,26 @@ async function dayText(page, date, project) {
   return page.locator("main").innerText();
 }
 
-/** Pausa kontot / Aktivera kontot, on the named person's card. */
+/**
+ * Pausa kontot / Aktivera kontot.
+ *
+ * It lives on the account's OWN screen now, not on the Alla Konton row. A
+ * pause is not an edit to somebody's details -- it takes every shift they have
+ * not started yet off them -- so it is something you do to one person after
+ * opening them, rather than something reachable by mis-tapping mid-scroll.
+ * Search finds them: the list is fifty people long.
+ */
 async function setActive(page, name, active) {
   await page.goto(`${BASE}/installningar/`, { waitUntil: "networkidle" });
-  const card = page.locator("section").filter({ hasText: name });
-  await card.first().waitFor({ timeout: 20000 });
-  await card.first().getByRole("button", { name: active ? "Aktivera kontot" : "Pausa kontot" }).click();
+  const search = page.getByRole("searchbox", { name: "Sök bland kontona" });
+  await search.waitFor({ timeout: 20000 });
+  await search.fill(name);
+  const row = page.locator("[data-konto]").filter({ hasText: name }).first();
+  await row.waitFor({ timeout: 20000 });
+  await row.locator("a").first().click();
+  await page.waitForURL((u) => u.searchParams.get("id"), { timeout: 20000 });
+  await page.getByRole("button", { name: active ? "Aktivera kontot" : "Pausa kontot" })
+    .click({ timeout: 20000 });
   await page.waitForTimeout(2500);
 }
 
@@ -213,8 +227,18 @@ try {
   await shot(page, "pa1-pausad");
   log(`${W.name} paused, and the screen states what that took and what it left`);
 
-  const card = await page.locator("section").filter({ hasText: W.name }).first().innerText();
-  if (!card.includes("Pausad")) fail(`the card should read Pausad: ${JSON.stringify(card)}`);
+  // Pausad survives the redesign that took away the Aktiv pill: it is the
+  // exception, and the reason somebody is getting no shifts. It reads as words
+  // on the email line now rather than as a chip.
+  await page.goto(`${BASE}/installningar/`, { waitUntil: "networkidle" });
+  const search2 = page.getByRole("searchbox", { name: "Sök bland kontona" });
+  await search2.waitFor({ timeout: 20000 });
+  await search2.fill(W.name);
+  const row = page.locator("[data-konto]").filter({ hasText: W.name }).first();
+  await row.waitFor({ timeout: 20000 });
+  const card = await row.innerText();
+  if (!card.includes("Pausad")) fail(`the row should read Pausad: ${JSON.stringify(card)}`);
+  if (card.includes("Aktiv")) fail(`the row should not say Aktiv: ${JSON.stringify(card)}`);
 
   // FUTURE: released. The slot is open again and their name is gone.
   const future = await dayText(page, FUTURE, P);

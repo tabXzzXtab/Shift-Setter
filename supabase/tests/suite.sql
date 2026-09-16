@@ -3986,4 +3986,187 @@ select pg_temp.ok(
   'SNABB.a_refused_snabb_leaves_nothing',
   'the refusals are whole: no pass, no assignment, no half-written day');
 
+-- ============================================================================
+-- ALLA KONTON -- removing an account
+--
+-- Removal is two acts and the FOREIGN KEYS choose between them: an account
+-- nothing points at is erased, an account with history is shut down with its
+-- rows intact. Invariant 3 is the reason for the second -- a confirmed day
+-- cannot name a row that has been deleted -- and invariant 8 is what makes it
+-- safe, because the soft path sets worker.deleted_at and every read already
+-- skips a deleted worker.
+--
+-- Fresh accounts rather than w1..w3: by this point in the suite every fixture
+-- worker has history, and the 'raderat' path needs one that has none.
+-- ============================================================================
+insert into fx (k, v) values
+  ('kontony',   '55555555-5555-5555-5555-555555555551'),
+  ('kontohist', '55555555-5555-5555-5555-555555555552');
+
+insert into auth.users (instance_id, id, aud, role, email, encrypted_password,
+                        email_confirmed_at, created_at, updated_at,
+                        raw_app_meta_data, raw_user_meta_data)
+select '00000000-0000-0000-0000-000000000000', v, 'authenticated', 'authenticated',
+       k || '@suite.test', '', now(), now(), now(), '{}'::jsonb,
+       jsonb_build_object('name', initcap(k))
+from fx where k in ('kontony', 'kontohist');
+
+insert into public.account (id, role, active)
+select v, 'arbetare'::public.app_role, true from fx where k in ('kontony', 'kontohist');
+
+insert into public.worker (account_id, name, email)
+select v, initcap(k), k || '.w@suite.test' from fx where k in ('kontony', 'kontohist');
+
+-- kontohist gets the one thing that makes an account unerasable: an assignment.
+-- tilldelning.worker_id is ON DELETE RESTRICT.
+insert into public.pass (id, project_id, work_date, start_time, end_time,
+                         planned_hours, headcount, created_by)
+values ('cccccccc-0000-0000-0000-000000000090',
+        'aaaaaaaa-0000-0000-0000-00000000000a', app.stockholm_today() - 60,
+        '07:00', '16:00', 8.00, 1, (select v from fx where k = 'admin'));
+
+insert into public.tilldelning (pass_id, worker_id, source, work_date)
+select 'cccccccc-0000-0000-0000-000000000090', w.id, 'forval', app.stockholm_today() - 60
+from public.worker w join fx on fx.v = w.account_id where fx.k = 'kontohist';
+
+-- The worker id is captured now: the row is about to be soft-deleted, and the
+-- assertions below still have to be able to find it.
+create temporary table konto_wid as
+select fx.k, w.id from public.worker w join fx on fx.v = w.account_id
+where fx.k in ('kontony', 'kontohist');
+grant select on konto_wid to public;
+
+select pg_temp.act_as((select v from fx where k = 'admin'));
+set local role authenticated;
+
+-- ---- an account nothing points at is genuinely erased ----------------------
+select pg_temp.ok(
+  public.delete_account((select v from fx where k = 'kontony')) = 'raderat',
+  'KONTO.unused_is_erased',
+  'an account with no history must be erased outright, not merely shut down');
+
+select pg_temp.ok(
+  not exists (select 1 from public.account where id = (select v from fx where k = 'kontony')),
+  'KONTO.unused_account_row_goes',
+  'the account row survived an erase');
+
+select pg_temp.ok(
+  not exists (select 1 from public.worker where id = (select id from konto_wid where k = 'kontony')),
+  'KONTO.unused_worker_row_goes',
+  'the worker row survived an erase');
+
+-- ---- an account with history is shut down instead --------------------------
+select pg_temp.ok(
+  public.delete_account((select v from fx where k = 'kontohist')) = 'avstangt',
+  'KONTO.history_is_shut_down',
+  'an assigned worker must not be erasable -- invariant 3 needs the row');
+
+select pg_temp.ok(
+  (select deleted_at is not null and not active
+     from public.account where id = (select v from fx where k = 'kontohist')),
+  'KONTO.history_account_is_marked',
+  'a shut-down account must be marked removed AND inactive');
+
+-- INVARIANT 8 -- from here their shifts count nowhere, in every read.
+select pg_temp.ok(
+  (select deleted_at is not null
+     from public.worker where id = (select id from konto_wid where k = 'kontohist')),
+  'KONTO.history_worker_soft_deleted',
+  'the worker must be soft-deleted so every read skips them');
+
+-- INVARIANT 3 -- and yet the hours keep the name that was on them.
+select pg_temp.ok(
+  exists (select 1 from public.tilldelning
+           where worker_id = (select id from konto_wid where k = 'kontohist')),
+  'KONTO.history_assignment_survives',
+  'the assignment must survive the removal');
+
+select pg_temp.ok(
+  not exists (select 1 from public.worker_roster
+               where id = (select id from konto_wid where k = 'kontohist')),
+  'KONTO.removed_leaves_the_roster',
+  'a removed worker must not still be pickable');
+
+-- ---- and both leave the admin's sight --------------------------------------
+select pg_temp.ok(
+  not exists (select 1 from public.account_directory
+               where id in (select v from fx where k in ('kontony', 'kontohist'))),
+  'KONTO.removed_leaves_the_directory',
+  'account_directory still lists a removed account');
+
+-- ---- who may remove --------------------------------------------------------
+select pg_temp.rejects($$
+  select public.delete_account((select v from fx where k = 'admin'))
+$$, 'KONTO.cannot_remove_self');
+
+select pg_temp.rejects($$
+  select public.delete_account((select v from fx where k = 'kontohist'))
+$$, 'KONTO.cannot_remove_twice');
+
+reset role;
+select pg_temp.act_as((select v from fx where k = 'w1'));
+set local role authenticated;
+
+select pg_temp.rejects($$
+  select public.delete_account((select v from fx where k = 'admin2'))
+$$, 'KONTO.arbetare_cannot_remove');
+
+-- An UPDATE blocked by RLS filters to zero rows rather than raising, so the
+-- refusal above is asserted on STATE as well: nothing moved.
+--
+-- reset role first. account_self_or_admin_select would filter admin2's row away
+-- from an arbetare, and a scalar subquery over no rows is NULL -- which ok()
+-- reads as a failure and which would have looked exactly like the refusal
+-- having written something.
+reset role;
+select pg_temp.ok(
+  (select deleted_at is null and active
+     from public.account where id = (select v from fx where k = 'admin2')),
+  'KONTO.refused_removal_wrote_nothing',
+  'a refused removal changed the row anyway');
+select pg_temp.act_as((select v from fx where k = 'w1'));
+set local role authenticated;
+
+-- ---- the face ---------------------------------------------------------------
+-- Keyed on the PATH, not on storage.objects.owner: the admin replacing
+-- somebody else's picture must not make the object belong to the admin.
+insert into storage.objects (bucket_id, name, owner)
+select 'avatars', (select v from fx where k = 'w1')::text || '/me.webp',
+       (select v from fx where k = 'w1');
+
+select pg_temp.ok(
+  exists (select 1 from storage.objects
+           where bucket_id = 'avatars'
+             and name = (select v from fx where k = 'w1')::text || '/me.webp'),
+  'KONTO.avatar_own_upload_accepted',
+  'a worker must be able to put up their own face');
+
+select pg_temp.rejects($$
+  insert into storage.objects (bucket_id, name, owner)
+  select 'avatars', (select v from fx where k = 'w2')::text || '/stolen.webp',
+         (select v from fx where k = 'w1')
+$$, 'KONTO.avatar_foreign_upload_rejected');
+
+-- w2 has no face of their own, so the one that exists must be invisible to
+-- them. An arbetare is not staff for anything to do with a colleague.
+reset role;
+select pg_temp.act_as((select v from fx where k = 'w2'));
+set local role authenticated;
+
+select pg_temp.ok(
+  not exists (select 1 from storage.objects where bucket_id = 'avatars'),
+  'KONTO.avatar_is_not_public',
+  'an arbetare can read a colleague''s face');
+
+reset role;
+select pg_temp.act_as((select v from fx where k = 'admin'));
+set local role authenticated;
+
+select pg_temp.ok(
+  exists (select 1 from storage.objects where bucket_id = 'avatars'),
+  'KONTO.avatar_admin_reads_all',
+  'the admin must see every face -- the Alla Konton list is built on it');
+
+reset role;
+
 select pg_temp.ok(true, 'SUITE.complete', 'every assertion passed');

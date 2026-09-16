@@ -334,6 +334,21 @@ So an account-less worker cannot exist, and no policy needs to handle one.
 
 The one account this cannot touch is the last active admin, which invariant 11 refuses to pause at all.
 
+**Removing an account** is two acts, and the FOREIGN KEYS choose between them rather than the caller. `public.delete_account()` attempts the erase and catches `foreign_key_violation`:
+
+- **An account nothing points at is genuinely deleted** — created by mistake, never worked, never confirmed, never created a project. Its worker row goes with it, and förval, offers and blocks cascade away behind it. Nothing is lost because nothing happened.
+- **An account with history is shut down instead.** `worker.deleted_at` is set (invariant 8 — their shifts now count nowhere, in every read) and the account is marked removed and inactive. The row survives, because invariant 3 wants the hours on a confirmed day to keep the name that confirmed them, and a document that names who confirmed a day cannot name a row that has been erased.
+
+Asking the constraint rather than enumerating the twelve columns that reference `account(id)` is deliberate: an enumeration would be correct today and wrong the first time a thirteenth is added.
+
+Setting `active = false` is what does the work on the second path. It fires the pause cascade above, and `app.current_role()` ends in `and a.active`, so a removed account resolves to NULL from the next request and gotcha 3 turns every helper false. **Removal implies pause, and pause was already understood by every roster, tier walk and picker** — none of them needed teaching about removal.
+
+**Invariant 11 needs nothing new.** `app.tg_last_admin_guard()` is already `before update or delete on public.account` and already handles `TG_OP = 'DELETE'`; both paths go through it. An admin also cannot remove *themselves*, which means the guard is unreachable through this route — the remover is by definition an active admin, so one always remains.
+
+`account.deleted_at` is filtered in `account_directory`, **not in a policy**: a SELECT policy carrying `deleted_at is null` makes the row fail its own policy the instant the column is set (gotcha 1, the wall `public.delete_pass()` was built against).
+
+The auth side — deleting the login, or banning it — is the `delete-account` Edge Function, because `auth.users` needs the service-role key and can never be reached from a static bundle. The **decision** is not made there; the database makes it and returns which act it performed, so the dialog can say which one happened.
+
 **Pass (the shift)**
 Project, date, start time, end time, planned hours, headcount. A pass is a *demand for people*, not a person's work. One pass with headcount 3 is one row, not three.
 
@@ -683,13 +698,54 @@ one screen — it takes `?projekt=` and Alla Projekt opens it per project as
 which shifts exist for the caller, and narrowing a list the database narrowed
 cannot widen it.
 
-**Top right:** the profile icon, and behind it **Konto**, **Profil**,
-**Inställningar** and Logga ut. Inställningar was in the hamburger and is not
-any more: the menu is what an owner *does* — the calendar, the projects, the
-days waiting — and Inställningar is this installation and the people in it,
-which is what someone opens their own icon looking for. Alla Arbetare is
-reached the same way, inside Inställningar, and **+ Ny Arbetare** lives there
-rather than on the landing page.
+**Top right:** the profile icon, and behind it **Min profil**, **Alla Konton**
+and Logga ut. Alla Konton was in the hamburger and is not any more: the menu is
+what an owner *does* — the calendar, the projects, the days waiting — and Alla
+Konton is this installation and the people in it, which is what someone opens
+their own icon looking for. **+ Tillverka Konto** lives there rather than on the
+landing page.
+
+**Two entries, not three.** Konto and Profil were separate screens asking about
+one person: the first held the name, the email and the role, the second the
+phone number, the bank account and the next of kin. They are one page now —
+`/konto` and `/profil` both render it, so no menu entry, back link or bookmark
+broke — and the pair of buttons that used to sit on every row of the accounts
+list went with the merge.
+
+#### Alla Konton
+
+Was **Inställningar**, and was a wall: every account a card carrying a role tag,
+an Aktiv pill, a role selector, two half-width buttons and a pause button. Five
+controls and two status chips, repeated down a page that ran to thirty thousand
+pixels at fifty people. Everything on it was findable and nothing was scannable.
+
+- **The role is the section heading**, not a tag on every row. Fifty chips
+  spelling out three words is fifty things to read past, and grouping answers
+  the same question better — a role change moves somebody between sections.
+- **Aktiv is gone.** It said "normal" on almost every row. **Pausad is not**: it
+  is the exception and the reason somebody is getting no shifts, so it sits on
+  the email line in the stop ink, as a word rather than as a pill. Colour is
+  never the only carrier.
+- **The role selector and the pause moved** to the account's own screen. They
+  are things you do to one person after deciding to, not things reachable by
+  mis-tapping while scrolling past them.
+- **A row is a link plus the handoff's 48×48 red square.** Two controls, the
+  second of which asks before it acts.
+- **Search**, sticky, because grouping alone still leaves a long scroll and
+  "where is Jonas" should not be answered by scrolling.
+- **Your own card sits above Tillverka Konto**, and opens the same screen every
+  other row opens. The one account an admin can always edit should not be the
+  hardest one to reach.
+
+**Profilbilder.** Every account can carry a face; each person uploads their own,
+and the admin can set one for anybody whose profile they can already edit. The
+column is `profile.avatar_path` — on `profile` rather than on `worker`, because
+an account created by `bootstrap-admin` has no worker row and the owner is
+exactly who the list puts at the top, and `avatar_path` rather than `avatar_url`
+because it holds a storage object path and the bucket is private. The browser
+downscales to a 512px square and encodes WebP before uploading: a phone photo is
+four megabytes and there is no server to resize it afterwards. A row with no
+picture draws initials in the same box, so the list never changes height.
 
 The Arbetsdagbok is not in either place. It lives inside the project (Section 1).
 

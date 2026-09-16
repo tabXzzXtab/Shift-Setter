@@ -114,10 +114,13 @@ try {
   await w.getByRole("button", { name: "Profil", exact: true }).click();
   const pop = w.getByRole("dialog", { name: "Profil" });
   await pop.waitFor({ timeout: 20000 });
-  await pop.getByRole("link", { name: "Profil", exact: true }).click();
-  await w.waitForURL((u) => u.pathname.includes("/profil"), { timeout: 20000 });
+  // "Min profil" now: Konto and Profil were one screen asking about one person
+  // under two names, and are one page. /profil still renders it, so the route
+  // below and anything anybody has bookmarked keep working.
+  await pop.getByRole("link", { name: "Min profil", exact: true }).click();
+  await w.waitForURL((u) => u.pathname.includes("/konto"), { timeout: 20000 });
   await mustSee(w, "Har du företag?", "the Profil form never rendered");
-  log("reached Profil from the profile icon");
+  log("reached Min profil from the profile icon");
 
   // Namn and e-post are locked: not shown as fields at all, and said so.
   //
@@ -201,15 +204,20 @@ try {
                          required("WALKTHROUGH_ADMIN_PASSWORD"));
   log("signed in as the admin in a second browser");
 
-  await a.getByRole("button", { name: "Meny", exact: true }).click();
-  await a.getByRole("link", { name: "Inställningar", exact: true }).click();
+  // Alla Konton lives behind the profile icon, and a row is one link now --
+  // the Ändra konto / Ändra profil pair went when the two screens became one.
+  await a.getByRole("button", { name: "Profil", exact: true }).click();
+  await a.getByRole("link", { name: "Alla Konton", exact: true }).click();
   await a.waitForURL((u) => u.pathname.includes("/installningar"), { timeout: 20000 });
 
   const email = required("DEMO_WORKER_EMAIL");
-  const row = a.locator("section[data-konto]").filter({ hasText: email }).first();
+  const search = a.getByRole("searchbox", { name: "Sök bland kontona" });
+  await search.waitFor({ timeout: 20000 });
+  await search.fill(email);
+  const row = a.locator("[data-konto]").filter({ hasText: email }).first();
   await row.waitFor({ timeout: 20000 });
-  await row.getByText("Ändra profil", { exact: true }).click();
-  await a.waitForURL((u) => u.pathname.includes("/profil"), { timeout: 20000 });
+  await row.locator("a").first().click();
+  await a.waitForURL((u) => u.pathname.includes("/konto"), { timeout: 20000 });
 
   const url = new URL(a.url());
   if (!url.searchParams.get("id")) {
