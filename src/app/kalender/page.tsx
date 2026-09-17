@@ -4,9 +4,10 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { AuthGate } from "@/components/auth-gate";
 import {
-  C, Card, EmptyState, MonthCard, monthShape, SoftNotice, SoftScreen,
+  C, Card, EmptyState, MonthCard, monthShape, Segmented, SoftNotice, SoftScreen,
 } from "@/components/soft";
 import { HANDELSE_COLUMNS, type Handelse } from "@/components/handelse";
+import { PersonligKalender } from "@/components/personlig-kalender";
 import { getSupabase } from "@/lib/supabase/client";
 import { addDays, stockholmToday } from "@/lib/dates";
 import { useAccount } from "@/lib/account";
@@ -37,6 +38,11 @@ const MAX_STRIPES = 4;
 /**
  * Skiftkalendern -- every project's shifts on one calendar.
  *
+ * THE ARBETE HALF of the calendar screen's switch. It draws a body rather than
+ * a screen: the header, the switch and the subtitle belong to the page below,
+ * because both halves share them and chrome that each half redrew for itself
+ * would move under the finger that just pressed it.
+ *
  * A day cell is a FIXED height whatever the day holds. Each project working
  * that day is one colour stripe, stacked from the top, and past the fourth they
  * become "+N". The stripes are packed per day rather than each project keeping
@@ -65,7 +71,6 @@ const MAX_STRIPES = 4;
  * is read exactly as often as the future is.
  */
 function Skiftkalender() {
-  const { account } = useAccount();
   const [month, setMonth] = useState(() => stockholmToday().slice(0, 7));
   const [passes, setPasses] = useState<PassRow[] | null>(null);
   const [events, setEvents] = useState<Handelse[]>([]);
@@ -128,19 +133,6 @@ function Skiftkalender() {
     return () => { active = false; };
   }, [first, daysInMonth]);
 
-  if (account && account.role === "arbetare") {
-    return (
-      <SoftScreen title="Skiftkalender" back="/">
-        <div className="px-4 pt-[2px]">
-          <SoftNotice tone="quiet">
-            Skiftkalendern visar hela företagets schema. Dina egna pass finns under
-            “Mina pass”.
-          </SoftNotice>
-        </div>
-      </SoftScreen>
-    );
-  }
-
   // date -> project ids working that date; and the projects on screen
   const byDate = new Map<string, Set<string>>();
   const names = new Map<string, string>();
@@ -170,11 +162,7 @@ function Skiftkalender() {
   }
 
   return (
-    <SoftScreen
-      title="Skiftkalender"
-      back="/"
-      subtitle="Tryck på en dag för att se vilka som jobbar då."
-    >
+    <>
       {error && <div className="px-4 pt-[10px]"><SoftNotice tone="stop">{error}</SoftNotice></div>}
 
       <div className="px-4 pt-[14px]">
@@ -319,6 +307,81 @@ function Skiftkalender() {
           </Card>
         </div>
       )}
+    </>
+  );
+}
+
+/**
+ * The calendar screen -- two calendars, one switch.
+ *
+ * ARBETE is the company's schedule: who is on which site. PERSONLIG is the
+ * viewer's own ärenden, and the spec is emphatic that it is NOT shift data --
+ * nothing on it makes anybody unavailable and nothing on it prints. They sit
+ * one press apart rather than on two pages because that is what makes the
+ * distinction visible: the same grid, the same chrome, two different claims.
+ *
+ * EACH HALF KEEPS ITS OWN MONTH. Paging your own diary into December should not
+ * quietly move the company's schedule with it, and coming back to a half should
+ * find it where you left it.
+ *
+ * AN ARBETARE REACHES NEITHER, and that is answered before the switch is drawn
+ * rather than on the Arbete tab alone -- offering a worker a choice between a
+ * screen they cannot have and one this page does not carry for them would be a
+ * worse refusal than the plain one. It is a courtesy either way: the pass
+ * policy already scopes the rows, so the grid would come back empty.
+ */
+type Vy = "arbete" | "personlig";
+
+function Kalender() {
+  const { account } = useAccount();
+  const [vy, setVy] = useState<Vy>("arbete");
+  const [personligMonth, setPersonligMonth] = useState(() => stockholmToday().slice(0, 7));
+  const today = stockholmToday();
+
+  if (account && account.role === "arbetare") {
+    return (
+      <SoftScreen title="Skiftkalender" back="/">
+        <div className="px-4 pt-[2px]">
+          <SoftNotice tone="quiet">
+            Skiftkalendern visar hela företagets schema. Dina egna pass finns under
+            “Mina pass”.
+          </SoftNotice>
+        </div>
+      </SoftScreen>
+    );
+  }
+
+  return (
+    <SoftScreen
+      title={vy === "arbete" ? "Skiftkalender" : "Personlig kalender"}
+      back="/"
+      subtitle={
+        vy === "arbete"
+          ? "Tryck på en dag för att se vilka som jobbar då."
+          : "Vad som annars ligger i vägen — möten, besök, ledighet."
+      }
+    >
+      <div className="px-4 pt-[14px]">
+        <Segmented
+          label="Vilken kalender"
+          value={vy}
+          onChange={setVy}
+          options={[
+            { value: "arbete", label: "Arbete" },
+            { value: "personlig", label: "Personlig" },
+          ]}
+        />
+      </div>
+
+      {vy === "arbete" ? (
+        <Skiftkalender />
+      ) : (
+        <PersonligKalender
+          month={personligMonth}
+          onMonthChange={setPersonligMonth}
+          today={today}
+        />
+      )}
     </SoftScreen>
   );
 }
@@ -326,7 +389,7 @@ function Skiftkalender() {
 export default function Page() {
   return (
     <AuthGate>
-      <Skiftkalender />
+      <Kalender />
     </AuthGate>
   );
 }
