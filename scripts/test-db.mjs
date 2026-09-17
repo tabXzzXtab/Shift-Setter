@@ -640,6 +640,110 @@ const CONTROLS = [
    "using (app.is_admin()) with check (app.is_admin())",
    "PROJEKT.no_direct_soft_delete"],
 
+  // ---- arbetsledaren skapar projekt ---------------------------------------
+  // Ten controls, because the feature is ten separate things: two policies
+  // added, one widened, one written a particular way, two triggers and the
+  // three clauses of a view. Removing any one of them has to land somewhere
+  // different from the other nine.
+
+  ["an arbetsledare creates a project at all",
+   // The insert policy dropped. project_admin_write is untouched, so the admin
+   // keeps creating and the suite lands on the leader's insert and nowhere
+   // else -- which is the whole of what this migration handed over.
+   "drop policy if exists project_staff_insert on public.project",
+   "LEDPROJ.leader_creates"],
+
+  ["a project is not created in somebody else's name",
+   // The forced authorship made a passthrough, so the id the client sent
+   // stands. created_by decides who may name a project's leaders, so a column
+   // the caller controls is a claim on somebody else's project.
+   perturbIn("app.tg_project_created_by()",
+             "new.created_by := (select auth.uid());",
+             "new.created_by := new.created_by;"),
+   "LEDPROJ.created_by_is_forced"],
+
+  ["a leader reads back the project they just made",
+   // The select policy exactly as it stood before this migration. Between the
+   // client's two statements there is no project_leader row yet, so without
+   // the created_project clause the row is invisible to its own author: the
+   // RETURNING comes back empty and the form reports failure over a project
+   // that exists.
+   "drop policy if exists project_staff_select on public.project; " +
+   "create policy project_staff_select on public.project for select " +
+   "using (deleted_at is null and (app.leads_project(id) or app.holds_a_day(id)))",
+   "LEDPROJ.creator_reads_it_back"],
+
+  ["the read-back clause tests the row, not the table",
+   // The same policy written with app.created_project(id) -- which is what it
+   // looked like first, and it passes every assertion but one. The helper is
+   // STABLE, so it sees the snapshot the command started with and cannot see
+   // the row that command is inserting: ordinary SELECTs are fine and the
+   // RETURNING clause the client actually sends raises "new row violates
+   // row-level security policy". This control is the difference between the
+   // two forms, and nothing else distinguishes them.
+   "drop policy if exists project_staff_select on public.project; " +
+   "create policy project_staff_select on public.project for select " +
+   "using (deleted_at is null and (app.leads_project(id) or app.holds_a_day(id) " +
+   "or app.created_project(id)))",
+   "LEDPROJ.insert_returns_the_row"],
+
+  ["naming a project's leaders is scoped to the project you made",
+   // The scope removed, leaving "any member of staff may add anybody to
+   // anything" -- which is what keying this on leads_project() would have come
+   // to as well.
+   "drop policy if exists project_leader_creator_insert on public.project_leader; " +
+   "create policy project_leader_creator_insert on public.project_leader " +
+   "for insert to authenticated with check (app.is_staff())",
+   "LEDPROJ.not_on_someone_elses_project"],
+
+  ["only an arbetsledare can be made responsible for a project",
+   // The role trigger dropped. It lands on the arbetare first, which is the
+   // invariant 4 half; the admin half is the assertion directly after it and
+   // rests on the same object.
+   "drop trigger project_leader_is_a_leader on public.project_leader",
+   "LEDPROJ.arbetare_cannot_be_responsible"],
+
+  ["creating a project is not editing it",
+   // The UPDATE the split withheld, handed back as a policy of its own rather
+   // than by widening project_staff_insert to FOR ALL: a FOR ALL policy's
+   // USING would widen what a leader can READ as well, and the control would
+   // land on a visibility assertion instead of on the edit.
+   "create policy project_staff_update on public.project for update to authenticated " +
+   "using (app.is_staff() and deleted_at is null) " +
+   "with check (app.is_staff() and deleted_at is null)",
+   "LEDPROJ.creator_cannot_edit"],
+
+  // The three clauses of the picker's list. It is a view and not a policy, so
+  // each clause is removed on its own -- the same reason worker_roster carries
+  // its guard in a WHERE rather than in a grant.
+
+  ["the picker's list is staff only",
+   "create or replace view public.arbetsledare_roster with (security_invoker = false) as " +
+   "select a.id, coalesce(w.name, u.raw_user_meta_data->>'name') as name " +
+   "from public.account a " +
+   "left join public.worker w on w.account_id = a.id and w.deleted_at is null " +
+   "left join auth.users u on u.id = a.id " +
+   "where a.role = 'arbetsledare' and a.active",
+   "LEDPROJ.roster_is_staff_only"],
+
+  ["the picker's list holds arbetsledare and nobody else",
+   "create or replace view public.arbetsledare_roster with (security_invoker = false) as " +
+   "select a.id, coalesce(w.name, u.raw_user_meta_data->>'name') as name " +
+   "from public.account a " +
+   "left join public.worker w on w.account_id = a.id and w.deleted_at is null " +
+   "left join auth.users u on u.id = a.id " +
+   "where a.active and app.is_staff()",
+   "LEDPROJ.roster_is_leaders_only"],
+
+  ["the picker's list skips a paused leader",
+   "create or replace view public.arbetsledare_roster with (security_invoker = false) as " +
+   "select a.id, coalesce(w.name, u.raw_user_meta_data->>'name') as name " +
+   "from public.account a " +
+   "left join public.worker w on w.account_id = a.id and w.deleted_at is null " +
+   "left join auth.users u on u.id = a.id " +
+   "where a.role = 'arbetsledare' and app.is_staff()",
+   "LEDPROJ.roster_skips_paused"],
+
   // ---- Stäng Pågående Pass ------------------------------------------------
   ["ending a running pass is the admin's alone",
    perturbIn("public.close_pass(uuid,numeric)",

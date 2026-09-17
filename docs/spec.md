@@ -182,8 +182,7 @@ Three roles. The split is by *authority*, not by seniority.
 
 The only role that can:
 
-- Create projects
-- Assign arbetsledare to a project
+- **Edit or delete a project** — creating one is not his alone any more
 - Create Snabb Pass
 - Generate the Arbetsdagbok
 - Create accounts and workers
@@ -193,6 +192,8 @@ The only role that can:
 - **Review and approve confirmed days** — stage 2 (Step 8)
 
 Can also do everything an arbetsledare can, **except make a stage 1 confirmation**. That claim belongs to the leader who was on site, and reviewing a claim is not the same act as making one.
+
+Creating a project and naming its arbetsledare are no longer his alone — a leader does both (below). What stayed his is **Redigera Projekt** and **Ta bort projekt**: an arbetsledare has INSERT on `project` and nothing else, so a project is corrected or removed by the owner. `project.created_by` records who made it, forced to the caller by a trigger and immutable afterwards, because the right to name a project's leaders is keyed on it.
 
 Four routes put a day into `admin_confirmed`:
 
@@ -206,16 +207,23 @@ None of the four is the admin confirming a day a leader still could have. That d
 ### Arbetsledare — the supervisor
 
 - Creates shifts (same as admin)
+- **Creates projects, and names the arbetsledare responsible** — a colleague, or themselves
 - Views the shift calendar
 - **Confirms days — stage 1** — the mechanism the whole system depends on
 
-An arbetsledare confirms only for **projects they are assigned to**. Assignment happens when the admin creates the project. A project may have several.
+An arbetsledare confirms only for **projects they are assigned to**. Assignment happens when the project is created, by whoever created it. A project may have several.
 
-Cannot: create projects, create Snabb Pass, delete shifts, touch accounts, or generate the document.
+**Naming somebody else does not hand the project away.** Two `project_leader` rows go in: the arbetsledare named, and the person who made it. `project_staff_select` is who leads a project, so writing only the named one would take the project off the creator's own screen the instant they submitted the form — out of Alla Projekt, out of the Skapa Pass picker, with no way to check the thing they had just made. A second leader on the project does not make two people answerable for the same day: invariant 4b reads the arbetsledare row on the DAY, and falls back to membership only where no such row exists.
+
+**The list of who can be named is its own view.** `account_directory` ends in `is_admin() or id = auth.uid()`, so a leader reading it sees one row — their own — and the choice would not exist. `arbetsledare_roster` carries the id and the name of every active arbetsledare to staff, and no email: the rule is column-level and every logged-in user is the same database role, which is the same reason `worker_roster` is a view.
+
+**Who may be made responsible is enforced in the database**, not by the picker. Only an `arbetsledare` may hold a `project_leader` row. An arbetare there would be able to confirm a day — `app.confirms_project()` is pure membership — and would be auto-placed as the day's `ledare` row; an admin there would hold the one claim the owner may never make. The trigger was written when this table gained a second writer, and it closes both.
+
+Cannot: edit or delete a project, create Snabb Pass, delete shifts, touch accounts, or generate the document.
 
 **An arbetsledare is also a worker, and is placed automatically.** Confirming is not a full-time job. Any day a worker holds a slot on one of their projects, the leader is assigned to that day — no offer, no Acceptera Pass card, no admin action. Their people are on site, so they are on site. See Step 4b.
 
-**An arbetsledare on no project** keeps access to every subpage but sees nothing in them. No days to confirm, no shifts to view. They cannot create shifts either — the project dropdown in Skapa Pass is mandatory and lists only the projects they are assigned to, so for them it is empty. Functionally they are a worker until the admin puts them on something. No special handling is needed; the scoping produces this on its own.
+**An arbetsledare on no project** keeps access to every subpage but sees nothing in them. No days to confirm, no shifts to view. They cannot create shifts either — the project dropdown in Skapa Pass is mandatory and lists only the projects they are assigned to, so for them it is empty. Functionally they are a worker until somebody puts them on something — the admin, another leader, or themselves by creating a project. No special handling is needed; the scoping produces this on its own.
 
 ### Arbetare — the worker
 
@@ -755,7 +763,7 @@ The Arbetsdagbok is not in either place. It lives inside the project (Section 1)
 
 **Landing page:**
 
-- **+ Skapa Pass**
+- **+ Skapa Pass** and **+ Nytt Projekt**, side by side — two 60px panel buttons in one row, not stacked. Both stay second-rank: the hero below them is the count of days owed, and a create button grown to match it would say the leader's job was making things. Side by side rather than one under the other because a second full-width button reads as a second hero and pushes Nästa Pass off a phone; it is the shape the admin's own landing page already uses for two creates of equal weight.
 - **Bekräfta Pass** — a hero card, and the first thing on the screen: the kicker "Väntar på dig", the COUNT of days owed at 34/800, one line saying why they matter, and the 66px action under it. A leader should see the size of the debt without pressing anything, and a number is what says that; the days themselves are named one tap away, in Bekräfta Pass and in Bekräftelser' "Att bekräfta". It was a preview list with a red dot, and both went with the redesign — three places naming the same days is two too many, and `#d62728` is not in this design's palette, so the count carries the alarm the dot was carrying. "1 dag", not "1 dagar": a screen whose whole subject is a number should not get its own number's grammar wrong.
 - **Nästa Pass** — a card for their next shift: map, project name, address, date, times. Same body as an Acceptera Pass card **minus its hours figure** — an offer prints planned hours because that is the figure being offered, while this is a day already held and invariant 10 masks its hours until an Arbetsdagbok covers the date, which a coming day never has. On a leader's auto-assigned row the number would be the pass's and not theirs in any case; the times shown are the envelope that row carries. **Read only. No accept, no deny.** A leader's days are auto-assigned (Step 4b), so there is nothing to accept, and a button that only ever agrees with what is already true teaches people to press without reading. The same card, from the same component, is on the arbetare's landing page.
 
@@ -764,10 +772,11 @@ The Arbetsdagbok is not in either place. It lives inside the project (Section 1)
 - **Arbetsdagar** — the availability calendar (`forval`), the same route and the same name the arbetare opens it under. It is not a second view of Mina Pass: Mina Pass shows the days already held, this sets the days they can be given. It was called "Min Pass Kalender", and two entries whose names both said "pass" read as the same screen twice.
 - **Mina Pass**
 - **Bekräftelser** — see Section 6.
+- **Alla projekt** — last, because it is the least daily of the four. It is in the menu at all because a leader who creates a project needs somewhere to see it that is not the form they just left. The screen is the admin's own and not a second version of it: RLS has already decided which projects exist for the caller, so for a leader it holds the sites they lead and the ones they made.
 
 **Top right:** the profile icon.
 
-Alla Projekt and Alla Arbetare are not in the leader's menu. They stay reachable from the project rows.
+Alla Arbetare is not in the leader's menu. **A project row opens only Kolla Pass for a leader** — Generera Arbetsdagbok and Redigera Projekt are the admin's, and both send an arbetsledare back to their landing page, so drawing them would put two dead controls on every row of a list that is now mostly the leader's own projects. Not a permission check: the database refuses both regardless, and this is about whether a control can do anything for the person looking at it.
 
 ### Arbetare
 

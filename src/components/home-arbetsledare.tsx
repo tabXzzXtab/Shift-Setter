@@ -20,6 +20,11 @@ const MENU = [
   // answers the same question for the leader and the owner, so this is the
   // same page the admin opens and not a second version of it.
   { href: "/historik", label: "Bekräftelser" },
+  // Last, because it is the least daily of the four -- and present at all
+  // because a leader who creates a project needs somewhere to see it. The
+  // screen is the admin's own; RLS decides which projects are in it, so for a
+  // leader it holds the sites they lead and the ones they made.
+  { href: "/projekt", label: "Alla projekt" },
 ];
 
 /**
@@ -189,18 +194,32 @@ export function HomeArbetsledare() {
         </Card>
       </div>
 
-      {/* ---- skapa pass ---------------------------------------------------- */}
-      <div className="px-4 pt-[14px]">
-        <Link
-          href="/pass/ny"
-          className="press-scale flex h-[60px] w-full items-center justify-center gap-[10px] rounded-[12px] text-[18px] font-bold transition-transform duration-[110ms] hover:bg-[#dbe4f9] active:scale-[.985]"
-          style={{ letterSpacing: "-.3px", background: C.panel2, color: C.inkHover }}
-        >
-          <svg width="15" height="15" viewBox="0 0 15 15" fill="none" aria-hidden>
-            <path d="M7.5 1v13M1 7.5h13" stroke={C.inkHover} strokeWidth="2.4" strokeLinecap="round" />
-          </svg>
-          Skapa pass
-        </Link>
+      {/* ---- skapa ---------------------------------------------------------
+          Two creates, side by side rather than stacked: the hero above is the
+          screen's one primary action, and a second full-width button under
+          Skapa Pass would read as a second hero and push Nästa Pass off a
+          phone. The pair is the shape the admin's landing page already uses
+          for two creates of equal weight.
+
+          Neither is the leader's most common act -- confirming is -- so both
+          stay secondary, and both keep the plus the handoff draws. */}
+      <div className="flex gap-[10px] px-4 pt-[14px]">
+        {[
+          { href: "/pass/ny", label: "Skapa pass" },
+          { href: "/projekt/ny", label: "Nytt projekt" },
+        ].map((a) => (
+          <Link
+            key={a.href}
+            href={a.href}
+            className="press-scale flex h-[60px] min-w-0 flex-1 items-center justify-center gap-[8px] rounded-[12px] text-[16px] font-bold transition-transform duration-[110ms] hover:bg-[#dbe4f9] active:scale-[.985]"
+            style={{ letterSpacing: "-.3px", background: C.panel2, color: C.inkHover }}
+          >
+            <svg width="13" height="13" viewBox="0 0 15 15" fill="none" aria-hidden>
+              <path d="M7.5 1v13M1 7.5h13" stroke={C.inkHover} strokeWidth="2.4" strokeLinecap="round" />
+            </svg>
+            {a.label}
+          </Link>
+        ))}
       </div>
 
       {/* ---- grouped nav --------------------------------------------------- */}

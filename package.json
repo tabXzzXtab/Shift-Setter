@@ -28,6 +28,7 @@
     "walkthrough:admin": "node scripts/walkthrough-admin.mjs",
     "walkthrough:konton": "node scripts/walkthrough-konton.mjs",
     "walkthrough:ledare": "node scripts/walkthrough-ledare.mjs",
+    "walkthrough:ledarprojekt": "node scripts/walkthrough-ledarprojekt.mjs",
     "walkthrough:arbetare": "node scripts/walkthrough-arbetare.mjs",
     "walkthrough:avboka": "node scripts/walkthrough-avboka.mjs",
     "walkthrough:profil": "node scripts/walkthrough-profil.mjs",

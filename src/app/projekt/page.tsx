@@ -4,12 +4,13 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { AuthGate } from "@/components/auth-gate";
 import { C, EmptyState, SHADOW, SoftScreen } from "@/components/soft";
+import { useAccount } from "@/lib/account";
 import { getSupabase } from "@/lib/supabase/client";
 
 type Project = { id: string; name: string; site_address: string; start_date: string };
 
 /**
- * Alla Projekt -- every project, and the three things done to one.
+ * Alla Projekt -- every project the caller can see, and what they may do to one.
  *
  * THE CARD IS THE CONTROL. Tapping a project opens its actions rather than
  * navigating: a project is not a page you read, it is a thing you generate a
@@ -27,11 +28,20 @@ type Project = { id: string; name: string; site_address: string; start_date: str
  * calendar is where shape is read, and shifts belong to the project they run
  * on.
  *
- * None of this is gated on the role here. The pages it opens do their own
- * checking and the database does the real one; a second copy of that rule in
- * a list is a second place for it to drift.
+ * A LEADER IS OFFERED KOLLA PASS AND NOTHING ELSE, and that is not a
+ * permission check -- the database is the boundary, and both of the other two
+ * refuse an arbetsledare on their own. It is that the screen became a leader's
+ * screen when Alla Projekt entered their menu: an arbetsledare creates
+ * projects now, and this is where they see them. Generera Arbetsdagbok and
+ * Redigera Projekt send them straight back to their landing page, so drawing
+ * them puts two dead controls on every row of a list that is mostly their own
+ * projects. A control that cannot do anything for the person looking at it is
+ * not a courtesy to them.
  */
 function AllaProjekt() {
+  const { account } = useAccount();
+  const isAdmin = account?.role === "admin";
+
   const [projects, setProjects] = useState<Project[] | null>(null);
   const [open, setOpen] = useState<string | null>(null);
 
@@ -113,8 +123,12 @@ function AllaProjekt() {
                       does not exist until long after the build.
                     */}
                     {[
-                      { href: `/arbetsdagbok?projekt=${p.id}`, label: "Generera Arbetsdagbok" },
-                      { href: `/projekt/redigera?id=${p.id}`, label: "Redigera Projekt" },
+                      ...(isAdmin
+                        ? [
+                            { href: `/arbetsdagbok?projekt=${p.id}`, label: "Generera Arbetsdagbok" },
+                            { href: `/projekt/redigera?id=${p.id}`, label: "Redigera Projekt" },
+                          ]
+                        : []),
                       { href: `/pass?projekt=${p.id}`, label: "Kolla Pass" },
                     ].map((a) => (
                       <Link

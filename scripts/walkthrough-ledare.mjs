@@ -4,7 +4,7 @@
  *
  *   the hero count of days owed · Skapa pass · the Nästa Pass card with a
  *   Leaflet map, the shift's span, no hours figure, and a link into the
- *   phone's own navigation · a menu of exactly three things.
+ *   phone's own navigation · a menu of exactly four things.
  *
  * THE COUNT IS THE PART WORTH TESTING HARDEST. The handoff replaced the
  * day-by-day preview and the red dot with one number, so that number is now
@@ -329,7 +329,7 @@ try {
   const items = await panel.getByRole("link").allInnerTexts();
   // Each entry carries a trailing arrow glyph; strip it to get the label.
   const got = items.map((t) => t.replace("→", "").trim()).sort();
-  const expect = ["Arbetsdagar", "Mina Pass", "Bekräftelser"].sort();
+  const expect = ["Arbetsdagar", "Mina Pass", "Bekräftelser", "Alla projekt"].sort();
   if (JSON.stringify(got) !== JSON.stringify(expect)) {
     fail(`menu holds ${JSON.stringify(got)}, expected ${JSON.stringify(expect)}`);
   }

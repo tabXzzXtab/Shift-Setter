@@ -221,6 +221,7 @@ before writing framework code.
 | `npm run walkthrough:admin` | Admin landing page: the three actions, the menu, the list, Alla Konton |
 | `npm run walkthrough:konton` | Alla Konton: the grouped rows, search, the face, and a removal end to end |
 | `npm run walkthrough:ledare` | Arbetsledare landing page: the widget, the red dot, the map card |
+| `npm run walkthrough:ledarprojekt` | An arbetsledare creates a project and names a colleague responsible |
 | `npm run walkthrough:arbetare` | Arbetare landing page: the stamp, the badge, the cards, Öppna Pass |
 | `npm run walkthrough:avboka` | Avboka Pass on a worker: Välj Utbyte, the cards, the five-day split |
 | `npm run walkthrough:bytledare` | Avboka Pass on an arbetsledare: the three routes, the flagged day |

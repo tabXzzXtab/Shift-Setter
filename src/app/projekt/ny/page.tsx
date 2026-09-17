@@ -6,6 +6,7 @@ import { AuthGate } from "@/components/auth-gate";
 import {
   C, Card, PrimaryButton, SoftField, SoftInput, SoftNotice, SoftScreen, SoftSelect,
 } from "@/components/soft";
+import { useAccount } from "@/lib/account";
 import { getSupabase } from "@/lib/supabase/client";
 import { stockholmToday } from "@/lib/dates";
 import { fel } from "@/lib/fel";
@@ -21,25 +22,55 @@ import { fel } from "@/lib/fel";
  * The assigned arbetsledare is part of creation, not an afterthought: it is the
  * per-row scope for invariant 4b, and a project with no leader can never have a
  * day confirmed, so it could never produce a document.
+ *
+ * AN ARBETSLEDARE OPENS THIS SCREEN TOO, and may name a colleague rather than
+ * themselves. Two things follow, and both are below:
+ *
+ *   The list comes from arbetsledare_roster, not account_directory. That view
+ *   ends in "is_admin() or id = auth.uid()", so a leader reading it sees one
+ *   row -- their own -- and the choice would not exist. The roster carries
+ *   names and nothing else, the way worker_roster does.
+ *
+ *   The creator is written onto the project as well. project_staff_select is
+ *   who leads a project, so handing it to somebody else would take it off the
+ *   screen of the person who just made it: gone from Alla Projekt, gone from
+ *   the Skapa Pass picker, with no way to check the thing they made. The admin
+ *   is not added -- the database refuses an admin in project_leader, because a
+ *   row there would hand the owner a stage 1 confirmation.
  */
 function NyttProjekt() {
   const router = useRouter();
+  const { account } = useAccount();
+  const me = account?.id ?? null;
+  const iAmLeader = account?.role === "arbetsledare";
+
   const [leaders, setLeaders] = useState<{ id: string; name: string | null }[]>([]);
-  const [leaderId, setLeaderId] = useState("");
+  // null means "nobody has touched the field yet", which is not the same as
+  // the empty choice: picking "Välj…" back out has to leave it empty rather
+  // than snap to the default again.
+  const [chosen, setChosen] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     getSupabase()
-      .from("account_directory")
-      .select("id, name, role")
-      .eq("role", "arbetsledare")
+      .from("arbetsledare_roster")
+      .select("id, name")
+      .order("name")
       .then(({ data }) => {
-        const rows = (data ?? []).map((d) => ({ id: d.id!, name: d.name }));
-        setLeaders(rows);
-        if (rows.length === 1) setLeaderId(rows[0]!.id);
+        setLeaders((data ?? []).map((d) => ({ id: d.id!, name: d.name })));
       });
   }, []);
+
+  // A leader creating a project is usually the one who will run it, so their
+  // own name starts in the field. It stays a field and not a label: naming
+  // somebody else is the whole point of it being a choice.
+  //
+  // Derived rather than written into state from an effect. The default depends
+  // on two things that arrive at their own pace -- the account and the roster
+  // -- and an effect that copies a computed value into state has to be kept in
+  // step with both, which is a second source of truth for the same answer.
+  const leaderId = chosen ?? (iAmLeader && me ? me : leaders.length === 1 ? leaders[0]!.id : "");
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -69,12 +100,21 @@ function NyttProjekt() {
       return;
     }
 
+    // One statement, so the named leader and the creator land together or not
+    // at all. Deduplicated: a leader who names themselves is one row, and the
+    // primary key would refuse the second.
+    const ansvariga = [...new Set(iAmLeader && me ? [leaderId, me] : [leaderId])];
+
     const { error: lErr } = await sb
       .from("project_leader")
-      .insert({ project_id: project.id, account_id: leaderId });
+      .insert(ansvariga.map((account_id) => ({ project_id: project.id, account_id })));
 
     if (lErr) {
-      setError(fel(lErr, "Projektet skapades, men arbetsledaren kunde inte kopplas. Koppla den under Redigera projekt."));
+      // Not "koppla den under Redigera projekt": that page edits the seven
+      // business fields and has never carried the arbetsledare. A project
+      // whose leader row is missing cannot have a day confirmed at all, and
+      // repairing it is the admin's.
+      setError(fel(lErr, "Projektet skapades, men arbetsledaren kunde inte kopplas. Kontakta administratören."));
       setSaving(false);
       return;
     }
@@ -135,9 +175,13 @@ function NyttProjekt() {
                 day confirmed, so it could never produce a document. */}
             <SoftField
               label="Arbetsledare"
-              help="Endast denna person kan bekräfta projektets dagar."
+              help={
+                iAmLeader
+                  ? "Personen som bekräftar projektets dagar. Du läggs till på projektet också."
+                  : "Endast denna person kan bekräfta projektets dagar."
+              }
             >
-              <SoftSelect required value={leaderId} onChange={(e) => setLeaderId(e.target.value)}>
+              <SoftSelect required value={leaderId} onChange={(e) => setChosen(e.target.value)}>
                 <option value="">Välj…</option>
                 {leaders.map((l) => (
                   <option key={l.id} value={l.id}>

@@ -3752,6 +3752,224 @@ select pg_temp.ok(
   'the arbetsledare''s hours take the admin''s figure like any other row');
 
 -- ============================================================================
+-- ARBETSLEDAREN SKAPAR PROJEKT -- who may create one, and who they may name
+--
+-- Runs last, on its own projects, so nothing above decides these assertions --
+-- and so LEDPROJ.creator_cannot_delete cannot get in front of
+-- PROJEKT.admin_only, which holds up the same refusal from the admin's side
+-- and has a negative control aimed at it.
+-- ============================================================================
+
+-- A paused arbetsledare, for the roster's last assertion. Inserted inactive
+-- rather than paused by UPDATE: the pause trigger releases future shifts and
+-- walks the tiers, and this account exists only to be absent from a list.
+insert into auth.users (instance_id, id, aud, role, email, encrypted_password,
+                        email_confirmed_at, created_at, updated_at,
+                        raw_app_meta_data, raw_user_meta_data)
+values ('00000000-0000-0000-0000-000000000000',
+        '22222222-2222-2222-2222-22222222222d', 'authenticated', 'authenticated',
+        'leaderD@suite.test', '', now(), now(), now(), '{}'::jsonb,
+        '{"name": "Pausad Ledare"}'::jsonb);
+
+insert into public.account (id, role, active)
+values ('22222222-2222-2222-2222-22222222222d', 'arbetsledare', false);
+
+set local role authenticated;
+select pg_temp.act_as((select v from fx where k = 'leaderA'));
+
+-- The whole of the new right: a leader creates a project. created_by is SENT
+-- as the admin's id, the way a client that wanted to claim somebody else's
+-- authorship would send it.
+select pg_temp.accepts($lp$
+  insert into public.project (id, name, site_address, bestallare_address,
+                              bestallare_bolag, bestallare_orgnr, services,
+                              start_date, created_by)
+  values ('9c9c9c9c-0000-0000-0000-00000000000a', 'Ledarens projekt',
+          'Ledargatan 1', 'Kundgatan 21', 'Kund L AB', '556788-4444', 'Bygg',
+          app.stockholm_today(), '11111111-1111-1111-1111-111111111111')
+$lp$, 'LEDPROJ.leader_creates');
+
+-- Read as the OWNER, before anything reads it as the leader. created_by
+-- decides who may name the project's leaders, so the assertion that it is the
+-- caller's must not itself depend on RLS -- otherwise removing the trigger
+-- would land on the read below instead of here.
+reset role;
+
+select pg_temp.ok(
+  (select created_by from public.project
+   where id = '9c9c9c9c-0000-0000-0000-00000000000a')
+    = (select v from fx where k = 'leaderA'),
+  'LEDPROJ.created_by_is_forced',
+  'the caller sent the admin''s id; authorship is the caller''s and nothing else');
+
+set local role authenticated;
+select pg_temp.act_as((select v from fx where k = 'leaderA'));
+
+-- The row comes back to the person who made it, WITH NO LEADER ROW ON IT YET.
+-- That is the state the client is in between its two statements, and PostgREST
+-- inserts with RETURNING -- RLS re-applies the SELECT policy to the row an
+-- INSERT produces, so without this the creator would get nothing back and the
+-- form would report failure over a project that exists.
+select pg_temp.ok(
+  (select count(*) from public.project
+   where id = '9c9c9c9c-0000-0000-0000-00000000000a') = 1,
+  'LEDPROJ.creator_reads_it_back',
+  'a leader must be able to read back the project they just created');
+
+-- And through RETURNING itself, which is the shape the client actually sends.
+--
+-- A policy that looks the row up instead of reading it off the row fails HERE
+-- and passes everything above: the helper is STABLE and cannot see the row its
+-- own command is inserting. The refusal is caught and renamed rather than left
+-- to escape, because an assertion that arrives as a raw error tells a negative
+-- control nothing about which protection it removed.
+do $lp$
+declare
+  v_id uuid;
+begin
+  begin
+    insert into public.project (name, site_address, bestallare_address,
+                                bestallare_bolag, bestallare_orgnr, services,
+                                start_date)
+    values ('Ledarens andra projekt', 'Ledargatan 3', 'Kundgatan 23', 'Kund M AB',
+            '556788-5555', 'Service', app.stockholm_today())
+    returning id into v_id;
+  exception when others then
+    if sqlerrm like 'ASSERT_FAIL:%' then raise; end if;
+    raise exception 'ASSERT_FAIL:LEDPROJ.insert_returns_the_row: %', sqlerrm;
+  end;
+
+  perform pg_temp.ok(v_id is not null, 'LEDPROJ.insert_returns_the_row',
+    'the insert''s RETURNING clause came back empty -- the client gets no id');
+end $lp$;
+
+-- Naming somebody else responsible is the second half of the change.
+select pg_temp.accepts($lp$
+  insert into public.project_leader (project_id, account_id)
+  select '9c9c9c9c-0000-0000-0000-00000000000a'::uuid, v from fx where k = 'leaderB'
+$lp$, 'LEDPROJ.names_another_leader');
+
+-- And the creator goes on it too, or they hand a project away and lose sight
+-- of it the moment they submit the form.
+select pg_temp.accepts($lp$
+  insert into public.project_leader (project_id, account_id)
+  select '9c9c9c9c-0000-0000-0000-00000000000a'::uuid, v from fx where k = 'leaderA'
+$lp$, 'LEDPROJ.creator_joins_too');
+
+-- INVARIANT 4 -- an arbetare never writes hours or confirmation state.
+-- app.confirms_project() is pure membership of this table, so a worker's
+-- account id in it would make them able to confirm a day, and
+-- app.sync_leader_day() would auto-place them as the day's 'ledare' row.
+select pg_temp.rejects($lp$
+  insert into public.project_leader (project_id, account_id)
+  select '9c9c9c9c-0000-0000-0000-00000000000a'::uuid, v from fx where k = 'w1'
+$lp$, 'LEDPROJ.arbetare_cannot_be_responsible');
+
+-- Creating is not editing. RLS FILTERS an UPDATE to zero rows rather than
+-- raising, so this is asserted on state.
+update public.project set name = 'Omdopt av ledaren'
+where id = '9c9c9c9c-0000-0000-0000-00000000000a';
+
+reset role;
+
+select pg_temp.ok(
+  (select name from public.project
+   where id = '9c9c9c9c-0000-0000-0000-00000000000a') = 'Ledarens projekt',
+  'LEDPROJ.creator_cannot_edit',
+  'a leader may create a project; Redigera Projekt stays the admin''s');
+
+set local role authenticated;
+select pg_temp.act_as((select v from fx where k = 'leaderA'));
+
+-- Nor deleting it. public.delete_project() keeps its is_admin() refusal, and
+-- having made the thing is not a route around it.
+select pg_temp.rejects(
+  $lp$select public.delete_project('9c9c9c9c-0000-0000-0000-00000000000a')$lp$,
+  'LEDPROJ.creator_cannot_delete');
+
+reset role;
+set local role authenticated;
+select pg_temp.act_as((select v from fx where k = 'admin'));
+
+-- An admin's project, so the scope below is about who CREATED it and not
+-- about who leads it.
+select pg_temp.accepts($lp$
+  insert into public.project (id, name, site_address, bestallare_address,
+                              bestallare_bolag, bestallare_orgnr, services,
+                              start_date)
+  values ('9c9c9c9c-0000-0000-0000-00000000000c', 'Adminens projekt',
+          'Adminsgatan 1', 'Kundgatan 25', 'Kund N AB', '556788-6666', 'Bygg',
+          app.stockholm_today())
+$lp$, 'LEDPROJ.admin_still_creates');
+
+-- THE ADMIN CANNOT BE MADE RESPONSIBLE FOR A PROJECT, and this is the one the
+-- doctrine rests on: app.confirms_project() is membership of this table and
+-- deliberately does not fall back to is_admin(), but it never checked that a
+-- member was not one. A row here would hand the owner a stage 1 confirmation,
+-- which is the single thing he may never make.
+select pg_temp.rejects($lp$
+  insert into public.project_leader (project_id, account_id)
+  select '9c9c9c9c-0000-0000-0000-00000000000c'::uuid, v from fx where k = 'admin'
+$lp$, 'LEDPROJ.admin_cannot_be_responsible');
+
+-- Authorship is a record of what happened, not a field.
+select pg_temp.rejects($lp$
+  update public.project set created_by = (select v from fx where k = 'admin')
+  where id = '9c9c9c9c-0000-0000-0000-00000000000a'
+$lp$, 'LEDPROJ.authorship_is_immutable');
+
+reset role;
+set local role authenticated;
+select pg_temp.act_as((select v from fx where k = 'leaderA'));
+
+-- Scoped to what the caller MADE, not to what they lead. leaderA may not add
+-- anybody to a project the admin created -- including themselves.
+select pg_temp.rejects($lp$
+  insert into public.project_leader (project_id, account_id)
+  select '9c9c9c9c-0000-0000-0000-00000000000c'::uuid, v from fx where k = 'leaderA'
+$lp$, 'LEDPROJ.not_on_someone_elses_project');
+
+-- ---- the picker's list ----------------------------------------------------
+-- account_directory shows a leader themselves and nobody else, so choosing who
+-- is responsible needs a list of its own.
+select pg_temp.ok(
+  (select count(*) from public.arbetsledare_roster r
+   join fx on fx.v = r.id where fx.k = 'leaderB') = 1,
+  'LEDPROJ.roster_names_other_leaders',
+  'a leader must be able to name a colleague, or half this change does not exist');
+
+select pg_temp.ok(
+  (select count(*) from public.arbetsledare_roster r
+   join fx on fx.v = r.id where fx.k not like 'leader%') = 0,
+  'LEDPROJ.roster_is_leaders_only',
+  'no admin and no arbetare in the list of people who can be made responsible');
+
+select pg_temp.ok(
+  (select count(*) from public.arbetsledare_roster
+   where id = '22222222-2222-2222-2222-22222222222d') = 0,
+  'LEDPROJ.roster_skips_paused',
+  'a paused leader cannot log in, so a project handed to them could not be confirmed');
+
+-- Names for scheduling, staff only -- the same rule worker_roster carries.
+select pg_temp.act_as((select v from fx where k = 'w1'));
+select pg_temp.ok(
+  (select count(*) from public.arbetsledare_roster) = 0,
+  'LEDPROJ.roster_is_staff_only', 'an arbetare reads no roster at all');
+
+-- An arbetare creates nothing. is_staff() is what the insert policy asks, and
+-- a worker is not staff.
+select pg_temp.rejects($lp$
+  insert into public.project (name, site_address, bestallare_address,
+                              bestallare_bolag, bestallare_orgnr, services,
+                              start_date)
+  values ('Arbetarens projekt', 'Fel gata 1', 'Kundgatan 27', 'Kund O AB',
+          '556788-7777', 'Bygg', app.stockholm_today())
+$lp$, 'LEDPROJ.arbetare_cannot_create');
+
+reset role;
+
+
+-- ============================================================================
 -- STEP 7b -- SNABB PASS FILES ITS OWN DAY
 --
 -- Two routes out of one screen. Efter bekräftelse is what Snabb Pass always
