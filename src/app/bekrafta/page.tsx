@@ -4,7 +4,8 @@ import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { AuthGate } from "@/components/auth-gate";
 import {
-  C, Card, PrimaryButton, SHADOW, SoftField, SoftInput, SoftNotice, SoftScreen, Tag,
+  C, Card, PrimaryButton, SHADOW, SoftField, SoftInput, SoftNotice, SoftScreen,
+  SoftSelect, Tag,
 } from "@/components/soft";
 import { getSupabase } from "@/lib/supabase/client";
 import { hhmm, longDayHeading, stampToTime } from "@/lib/dates";
@@ -28,6 +29,86 @@ type Row = {
    *  moving everybody's shift. */
   is_leader: boolean;
 };
+
+/**
+ * TIMMAR IS TYPED AS HOURS AND MINUTES, AND STORED AS DECIMAL HOURS.
+ *
+ * `confirmed_hours` is `numeric(4,2)`, and it stays that way: every other
+ * screen, the Arbetsdagbok and the PDF read a decimal and print "7,5 h". This
+ * is a change to the one field where the figure is ENTERED, not to what is
+ * kept or shown anywhere else.
+ *
+ * The field it replaces already accepted a decimal -- it was `inputMode
+ * ="decimal"` parsed through `Number(s.replace(",", "."))`, so "7,5" worked.
+ * What it could not do is stop "7,15" from meaning seven hours and nine
+ * minutes. A leader whose worker arrived a quarter past writes the quarter the
+ * way they say it out loud, and the app silently agreed with a different
+ * number. Two fields make that unsayable rather than merely discouraged.
+ *
+ * The quarter hour is the grain because it is the grain the business bills in.
+ * Anything else has to arrive from somewhere else, which is what QUARTERS
+ * below is careful about.
+ */
+const QUARTERS = [0, 15, 30, 45];
+
+/** Minutes, as the select's value and label -- always two digits. */
+const mm = (n: number) => String(n).padStart(2, "0");
+
+/**
+ * A stored decimal, split into the two fields that edit it.
+ *
+ * Through minutes rather than through the decimal, because 8.08 is not 8
+ * hours and 4.8 minutes to anybody: it is the two-decimal column's way of
+ * holding 8 hours and 5. Rounding to whole minutes here is what makes the
+ * split reversible.
+ */
+function splitHours(decimal: number): { h: string; m: string } {
+  const total = Math.max(0, Math.round(decimal * 60));
+  return { h: String(Math.floor(total / 60)), m: String(total % 60) };
+}
+
+/**
+ * The two fields, back to the decimal the column stores.
+ *
+ * Rounded to two places because `numeric(4,2)` rounds to two places: doing it
+ * here means the figure this screen shows and the figure the database keeps
+ * are the same number, rather than agreeing to within a rounding the browser
+ * never saw. The four quarters are exact at two decimals (0, .25, .5, .75), so
+ * this only ever bites a value that came from somewhere else.
+ */
+function joinHours(h: string, m: string): number {
+  // An EMPTY hours field is not zero. `Number("")` is 0, and letting that
+  // through would turn a field somebody cleared and has not refilled into the
+  // deliberate statement "this person did not come" -- which is a claim about
+  // a human being, made here by an accident of JavaScript.
+  if (h.trim() === "") return NaN;
+  const hours = Number(h.replace(",", ".").trim());
+  const minutes = Number(m);
+  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return NaN;
+  return Math.round((Math.max(0, hours) * 60 + minutes) / 60 * 100) / 100;
+}
+
+/**
+ * The minute options for one row: the four quarters, plus whatever the row
+ * arrived carrying if that was not one of them.
+ *
+ * A pass created with an odd span, or an hours figure an admin typed by hand,
+ * reaches this screen off the quarter grid. Snapping it to the nearest quarter
+ * would change a number nobody asked to change and nobody would see change --
+ * which is the thing invariant 1 exists to forbid. So the odd value is offered
+ * as itself, stays selected until the leader picks another, and disappears the
+ * moment they do.
+ */
+function minuteOptions(current: string): number[] {
+  const n = Number(current);
+  return Number.isFinite(n) && !QUARTERS.includes(n)
+    ? [...QUARTERS, n].sort((a, b) => a - b)
+    : QUARTERS;
+}
+
+/** Swedish decimal comma, so the readout matches what every other screen prints. */
+const decimalLabel = (n: number) =>
+  Number.isFinite(n) ? String(n).replace(".", ",") : "—";
 
 type Day = {
   project_id: string;
@@ -96,7 +177,9 @@ function LockedField({ label, value }: { label: string; value: string }) {
  */
 function Bekrafta({ askedProject, askedDate }: { askedProject: string | null; askedDate: string | null }) {
   const [day, setDay] = useState<Day | null | undefined>(undefined);
-  const [edits, setEdits] = useState<Record<string, { start: string; end: string; hours: string }>>({});
+  const [edits, setEdits] = useState<
+    Record<string, { start: string; end: string; h: string; m: string }>
+  >({});
   const [gjorde, setGjorde] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -192,7 +275,7 @@ function Bekrafta({ askedProject, askedDate }: { askedProject: string | null; as
               end: r.end,
               // A figure already typed is the one to correct. Only a day that
               // has never been confirmed falls back to the planned number.
-              hours: String(r.confirmed_hours ?? r.planned_hours).replace(".", ","),
+              ...splitHours(r.confirmed_hours ?? r.planned_hours),
             },
           ]),
         ),
@@ -211,9 +294,15 @@ function Bekrafta({ askedProject, askedDate }: { askedProject: string | null; as
 
     for (const row of day.rows) {
       const e = edits[row.tilldelning_id]!;
-      const hours = Number(e.hours.replace(",", "."));
+      const hours = joinHours(e.h, e.m);
       const timesChanged = e.start !== row.start || e.end !== row.end;
-      const hoursChanged = hours !== (row.confirmed_hours ?? row.planned_hours);
+      // COMPARED IN WHOLE MINUTES, not as two decimals. A row that arrived
+      // holding 8.08 splits to 8 h 05 and joins back to 8.08, but going the
+      // long way round through 8.0833 would make an untouched field look
+      // edited -- and `late` is a mark against the person on the row, not a
+      // note about floating point.
+      const before = row.confirmed_hours ?? row.planned_hours;
+      const hoursChanged = Math.round(hours * 60) !== Math.round(before * 60);
 
       // A leader's span is read-only on this screen, so it cannot have moved --
       // and this says so rather than relying on two strings still being equal.
@@ -310,6 +399,21 @@ function Bekrafta({ askedProject, askedDate }: { askedProject: string | null; as
       </SoftScreen>
     );
   }
+
+  /**
+   * Every row carries a figure the column will accept.
+   *
+   * Checked across the whole day rather than per card: confirm() writes every
+   * row in one pass, so one unfillable row is the whole day refused. A row
+   * whose edits have not loaded yet counts as not ok, which is the honest
+   * answer for a figure that does not exist.
+   */
+  const hoursOk = day.rows.every((r) => {
+    const e = edits[r.tilldelning_id];
+    if (!e) return false;
+    const n = joinHours(e.h, e.m);
+    return Number.isFinite(n) && n >= 0 && n <= 24;
+  });
 
   return (
     <SoftScreen title="Bekräfta pass" back="/">
@@ -426,16 +530,69 @@ function Bekrafta({ askedProject, askedDate }: { askedProject: string | null; as
                 </div>
               )}
 
-              <SoftField label="Timmar" help="0 om personen inte kom." big>
-                <SoftInput
-                  inputMode="decimal"
-                  value={e.hours}
-                  onChange={(ev) =>
-                    setEdits((p) => ({ ...p, [r.tilldelning_id]: { ...e, hours: ev.target.value } }))
-                  }
-                  style={{ letterSpacing: "-.6px" }}
-                />
-              </SoftField>
+              {/*
+                TWO FIELDS, ONE FIGURE. Both stay 60px and 26/800 -- on a
+                confirmation screen the hours are the biggest thing in the
+                card, and splitting them is not a reason to make them quieter.
+                min-w-0 on the row and on both columns, because a flex child
+                defaults to min-content and a select showing "45" will
+                otherwise push the row wider than the card.
+              */}
+              <div className="flex min-w-0 gap-[10px]">
+                <div className="min-w-0 flex-1">
+                  <SoftField label="Timmar" big>
+                    <SoftInput
+                      inputMode="numeric"
+                      value={e.h}
+                      onChange={(ev) =>
+                        setEdits((p) => ({
+                          ...p,
+                          [r.tilldelning_id]: { ...e, h: ev.target.value.replace(/[^\d]/g, "") },
+                        }))
+                      }
+                      style={{ letterSpacing: "-.6px" }}
+                    />
+                  </SoftField>
+                </div>
+                <div className="min-w-0 flex-1">
+                  {/* A select, so the quarter is picked rather than typed.
+                      Sized inline rather than through SoftField's `big`, which
+                      reaches for an <input> and cannot see a <select>. */}
+                  <SoftField label="Minuter">
+                    <SoftSelect
+                      value={e.m}
+                      onChange={(ev) =>
+                        setEdits((p) => ({
+                          ...p,
+                          [r.tilldelning_id]: { ...e, m: ev.target.value },
+                        }))
+                      }
+                      style={{
+                        height: 60,
+                        fontSize: 26,
+                        fontWeight: 800,
+                        letterSpacing: "-.6px",
+                      }}
+                    >
+                      {minuteOptions(e.m).map((n) => (
+                        <option key={n} value={String(n)}>{mm(n)}</option>
+                      ))}
+                    </SoftSelect>
+                  </SoftField>
+                </div>
+              </div>
+
+              {/*
+                WHAT WILL ACTUALLY BE STORED, in the decimal every other screen
+                prints. The two fields are how the figure is said out loud; the
+                column keeps one number, and this is where the leader sees the
+                two agree before it is final.
+              */}
+              <div className="mt-[6px] text-[14px] font-medium" style={{ color: C.text2 }}>
+                {Number.isFinite(joinHours(e.h, e.m))
+                  ? `Blir ${decimalLabel(joinHours(e.h, e.m))} h. 0 timmar och 00 minuter om personen inte kom.`
+                  : "Fyll i ett antal timmar."}
+              </div>
             </Card>
           </div>
         );
@@ -487,9 +644,26 @@ function Bekrafta({ askedProject, askedDate }: { askedProject: string | null; as
       </div>
 
       <div className="px-4 pt-[14px]">
-        <PrimaryButton onClick={confirm} disabled={saving || gjorde.trim() === ""}>
+        {/*
+          THE CHECK CONSTRAINT, SAID BEFORE THE PRESS. `confirmed_hours` is
+          numeric(4,2) check (>= 0 and <= 24), so a blank field or 25 hours is
+          refused by the database whatever this screen sends. The button is
+          disabled for the same two cases so nobody is told no after filling a
+          form in -- the gate is the courtesy, the constraint is the boundary.
+        */}
+        <PrimaryButton
+          onClick={confirm}
+          disabled={saving || gjorde.trim() === "" || !hoursOk}
+        >
           {saving ? "Bekräftar…" : "Bekräfta dagen"}
         </PrimaryButton>
+        {!hoursOk && (
+          <div className="pt-[10px]">
+            <SoftNotice tone="warn">
+              Varje person behöver ett antal timmar mellan 0 och 24.
+            </SoftNotice>
+          </div>
+        )}
       </div>
     </SoftScreen>
   );

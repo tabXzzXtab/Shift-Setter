@@ -287,9 +287,21 @@ try {
 
   // Their HOURS are still theirs: lunch comes off the envelope and nobody else
   // knows how long it was (invariant 1).
-  if (!(await ledareRow.locator('input[inputmode="decimal"]').count())) {
+  //
+  // TWO CONTROLS NOW. TIMMAR is entered as hours and minutes and stored as the
+  // same decimal as before, so the claim to assert is that BOTH halves of the
+  // figure are the leader's to set -- a screen that locked the minutes would
+  // charge a late worker a full quarter and would still have passed a check
+  // that only looked for one editable field.
+  const ledareHours = ledareRow.locator('label:has(span:text-is("Timmar")) input');
+  const ledareMinutes = ledareRow.locator('label:has(span:text-is("Minuter")) select');
+  if (!(await ledareHours.count()) || !(await ledareMinutes.count())) {
     await shot(page, "FAILED");
     fail("the arbetsledare cannot type their own hours -- invariant 1");
+  }
+  if (!(await ledareHours.first().isEditable()) || !(await ledareMinutes.first().isEnabled())) {
+    await shot(page, "FAILED");
+    fail("the arbetsledare's hours are on screen but not editable -- invariant 1");
   }
 
   // A worker's row is untouched: two time fields, as before.
