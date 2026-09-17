@@ -18,3 +18,40 @@
   .animate-livedot { animation: none; }
   .press-scale:active { transform: none; }
 }
+
+/*
+ * Native date and time controls, made to fit the box they are given.
+ *
+ * SoftInput's wrapper already guarantees they cannot escape it -- this is the
+ * other half: it makes them not want to. Left to itself iOS Safari sizes the
+ * value area to the widest string the device locale can produce ("Sep 9, 2026"
+ * is wider than "2026-09-09"), and the shadow parts below carry a min-width
+ * that `width: 100%` on the input does not reach. Zeroing them lets the value
+ * shrink with its field instead of being cropped by the wrapper.
+ *
+ * These are the shadow parts of a control we do not otherwise style, so they
+ * live here rather than in a component: there is no element to hang them on.
+ */
+input[type="date"],
+input[type="time"],
+input[type="datetime-local"] {
+  -webkit-appearance: none;
+  appearance: none;
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* iOS collapses the whole value into one part; desktop WebKit and Chromium
+   split it into an edit with a wrapper around the fields. All three. */
+input::-webkit-date-and-time-value {
+  min-width: 0;
+  width: 100%;
+  margin: 0;
+  text-align: left;
+}
+
+input::-webkit-datetime-edit,
+input::-webkit-datetime-edit-fields-wrapper {
+  min-width: 0;
+  padding: 0;
+}

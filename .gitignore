@@ -47,6 +47,13 @@ next-env.d.ts
 *.zip
 artifacts/
 
+# Reference photography and captured screens -- megabytes of JPEG/PNG that are
+# working material, not product. The repo is public and git history is
+# permanent, so an accidental `git add -A` here would publish a customer's
+# photographs for good. The handoff in handoff/ is the tracked design source.
+design/
+screenshots/
+
 # Throwaway logins, one per role, minted with the service-role key. Kept out of
 # the repo on purpose: it is a local convenience, not part of the product, and
 # an accidental `git add -A` should not put a credential-minting script for the

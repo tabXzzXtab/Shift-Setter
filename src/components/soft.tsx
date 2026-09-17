@@ -368,9 +368,53 @@ export function SoftField({
   );
 }
 
-/** The input itself, so every field on every screen is the same object. */
+/**
+ * The input itself, so every field on every screen is the same object.
+ *
+ * A native date or time control is the one input that will not obey the box it
+ * is handed. iOS Safari draws it at the intrinsic width of its own value and
+ * lets that run past a narrower parent -- which is how the Snabb Pass card
+ * broke on a phone: the two time fields painted over the 10px between them and
+ * out through the card's right edge, and the date beside them did the same.
+ * `appearance: none` is not enough on its own, because the width it hands back
+ * is still the one the control's own shadow tree asked for.
+ *
+ * SO THE BOX IS NO LONGER THE INPUT'S TO DECIDE. A picker gets a wrapper that
+ * owns the fill, the radius, the 52px and the focus ring, and clips whatever
+ * the control draws inside it. A control that ignores the width it was given
+ * can then only be cropped -- it cannot move anything else on the screen. The
+ * ring moves to the wrapper with it (`focus-within`), carrying the same
+ * declarations the input would have had, because an outline on a clipped child
+ * is a clipped outline.
+ *
+ * Every other input still is its own box: nothing else on these screens is
+ * drawn by the browser rather than by us.
+ */
 export function SoftInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
   const { className = "", style, ...rest } = props;
+  const picker = rest.type === "date" || rest.type === "time" || rest.type === "datetime-local";
+
+  if (picker) {
+    return (
+      <span
+        className="flex h-[52px] w-full min-w-0 overflow-hidden rounded-[10px] outline-none focus-within:bg-white focus-within:outline-2 focus-within:outline-[#1b2cc1]"
+        style={{ background: C.panel2 }}
+      >
+        <input
+          {...rest}
+          className={`h-full w-full min-w-0 border-0 bg-transparent px-[14px] text-[16px] font-semibold outline-none ${className}`}
+          style={{
+            color: C.ink,
+            WebkitAppearance: "none",
+            appearance: "none",
+            display: "block",
+            ...style,
+          }}
+        />
+      </span>
+    );
+  }
+
   return (
     <input
       {...rest}

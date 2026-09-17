@@ -126,6 +126,7 @@ const CONTROLS = [
    perturbIn("public.create_snabb_pass(uuid,uuid,date,time,time,numeric,boolean,text,jsonb)",
              "if v_stuck is not null then", "if false then"),
    "SNABB.locked_day_refused_plainly"],
+
   // ---- Snabb Pass filing its own day, and the four things it refuses ------
   //
   // EVERY ONE OF THESE IS GUARDED TWICE -- once by the RPC in Swedish, once by
@@ -175,7 +176,6 @@ const CONTROLS = [
    perturbIn("public.create_snabb_pass(uuid,uuid,date,time,time,numeric,boolean,text,jsonb)",
              "'snabb_review',", "'day_flagged',"),
    "SNABB.efter_tells_the_leader"],
-
 
   ["headcount -- exactly one winner for the last slot",
    "alter table public.tilldelning disable trigger headcount_guard",

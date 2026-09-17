@@ -69,7 +69,13 @@ type PassRow = {
  * Editing a pass here edits THAT pass. A batch generates independent rows, not
  * a series, so changing this Tuesday cannot reach the next one.
  */
-export function DagPanel({ date }: { date: string }) {
+export function DagPanel({ date, heading = true }: {
+  date: string;
+  /** False where the SCREEN already names the day above its own controls --
+   *  the day page puts the heading over the admin's three actions, and the
+   *  same string again here would be the second time in four inches. */
+  heading?: boolean;
+}) {
   const { account } = useAccount();
   const colourOf = useMonthColour(date.slice(0, 7));
   const [passes, setPasses] = useState<PassRow[] | null>(null);
@@ -362,12 +368,14 @@ export function DagPanel({ date }: { date: string }) {
           because every other screen sets it at 12/700, and the same string at
           22/800 shouts. The picker directly above already says which day this
           is in full. */}
-      <p
-        className="mb-[14px] px-1 text-[12px] font-bold uppercase"
-        style={{ letterSpacing: "1px", color: C.text2 }}
-      >
-        {longDayHeading(date)}
-      </p>
+      {heading && (
+        <p
+          className="mb-[14px] px-1 text-[12px] font-bold uppercase"
+          style={{ letterSpacing: "1px", color: C.text2 }}
+        >
+          {longDayHeading(date)}
+        </p>
+      )}
 
       {/*
         THE PROJECT TABS. Only when there is a choice to make -- with one

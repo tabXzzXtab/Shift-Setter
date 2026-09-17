@@ -210,11 +210,50 @@ export async function buildArbetsdagbokPdf(payload: DocPayload): Promise<Uint8Ar
 
   // ---- page 2 onward: the day tables, nothing else ------------------------
   let page = addPage(ctx);
-  let cursor = PAGE_H - CONTENT_TOP;
+
+  const TOP = PAGE_H - CONTENT_TOP;
+  const FLOOR = PAGE_H - CONTENT_BOTTOM;   // content stops here, clear of the footer
+  let cursor = TOP;
 
   const HEAD_SIZE = 9;
   const CELL_SIZE = 9.5;
   const DATE_SIZE = 12.5;
+  const LINE_H = CELL_SIZE * 1.35;
+  const HEADING_H = DATE_SIZE * 1.4 + mm(3);
+  const HEAD_H = HEAD_SIZE * 1.35 + CELL_PAD_Y * 2;
+  const COL_HEADS = ["Arbetare", "Pass Timmar", "Pass Tider", "Vad Vi Gjorde"];
+
+  const breakPage = () => {
+    page = addPage(ctx);
+    cursor = TOP;
+  };
+
+  /**
+   * The date, then the column band. Drawn again at the top of every page a day
+   * continues onto: a table whose columns are labelled only on the page it
+   * started on cannot be read from page two, and a bare repeat of the date
+   * reads as a second entry for the same day rather than the rest of one.
+   */
+  const openDay = (date: string, continued: boolean) => {
+    page.drawText(winAnsi(continued ? `${date} (forts.)` : date), {
+      x: MARGIN_X, y: cursor - DATE_SIZE, size: DATE_SIZE, font: bold, color: INK_HEAD,
+    });
+    cursor -= HEADING_H;
+
+    // Header band, drawn as a filled rectangle -- not a background.
+    page.drawRectangle({
+      x: MARGIN_X, y: cursor - HEAD_H, width: CONTENT_W, height: HEAD_H, color: BAND_HEAD,
+    });
+    let x = MARGIN_X;
+    COL_HEADS.forEach((h, i) => {
+      page.drawText(h, {
+        x: x + CELL_PAD_X, y: cursor - CELL_PAD_Y - HEAD_SIZE, size: HEAD_SIZE,
+        font: bold, color: INK_COLHEAD,
+      });
+      x += COL_W[i]!;
+    });
+    cursor -= HEAD_H;
+  };
 
   for (const day of payload.days) {
     const cols = [
@@ -229,56 +268,67 @@ export async function buildArbetsdagbokPdf(payload: DocPayload): Promise<Uint8Ar
     const wrapped = day.rows.map((_, i) =>
       cols.map((c, ci) => wrap(c[i] ?? "", font, CELL_SIZE, COL_W[ci]! - CELL_PAD_X * 2)),
     );
-    const rowHeights = wrapped.map(
-      (r) => Math.max(...r.map((lines) => lines.length)) * (CELL_SIZE * 1.35) + CELL_PAD_Y * 2,
-    );
-    const headH = HEAD_SIZE * 1.35 + CELL_PAD_Y * 2;
-    const blockH = mm(5) + DATE_SIZE * 1.4 + headH + rowHeights.reduce((a, b) => a + b, 0) + mm(9);
+    const rowLines = wrapped.map((r) => Math.max(...r.map((lines) => lines.length)));
+    const rowHeights = rowLines.map((n) => n * LINE_H + CELL_PAD_Y * 2);
+    const blockH = HEADING_H + HEAD_H + rowHeights.reduce((a, b) => a + b, 0);
 
-    if (cursor - blockH < PAGE_H - CONTENT_BOTTOM && cursor < PAGE_H - CONTENT_TOP - 1) {
-      page = addPage(ctx);
-      cursor = PAGE_H - CONTENT_TOP;
-    }
+    /**
+     * Where a day fits on no page at all it is SPLIT rather than drawn past the
+     * bottom of the sheet. Drawing past it does not merely look wrong: rows
+     * below the page edge are in the file and in no reader, so a day with
+     * enough workers on it filed a document that was silently missing them.
+     *
+     * A split day still may not START so far down a page that only its heading
+     * lands there, so an oversized one needs room for the heading, the band and
+     * one line of a row. Anything that fits on a page needs the whole block.
+     */
+    const startNeed = Math.min(blockH, HEADING_H + HEAD_H + LINE_H + CELL_PAD_Y * 2);
+    const need = blockH > TOP - FLOOR ? startNeed : blockH;
+    if (cursor - need < FLOOR && cursor < TOP - 1) breakPage();
 
-    page.drawText(winAnsi(day.date), {
-      x: MARGIN_X, y: cursor - DATE_SIZE, size: DATE_SIZE, font: bold, color: INK_HEAD,
-    });
-    cursor -= DATE_SIZE * 1.4 + mm(3);
+    openDay(day.date, false);
 
-    // Header band, drawn as a filled rectangle -- not a background.
-    page.drawRectangle({
-      x: MARGIN_X, y: cursor - headH, width: CONTENT_W, height: headH, color: BAND_HEAD,
-    });
-    let x = MARGIN_X;
-    ["Arbetare", "Pass Timmar", "Pass Tider", "Vad Vi Gjorde"].forEach((h, i) => {
-      page.drawText(h, {
-        x: x + CELL_PAD_X, y: cursor - CELL_PAD_Y - HEAD_SIZE, size: HEAD_SIZE,
-        font: bold, color: INK_COLHEAD,
-      });
-      x += COL_W[i]!;
-    });
-    cursor -= headH;
+    for (let i = 0; i < day.rows.length; i++) {
+      const lines = rowLines[i]!;
+      let from = 0;                        // first wrapped line not yet drawn
 
-    day.rows.forEach((_, i) => {
-      const h = rowHeights[i]!;
-      if (i % 2 === 0) {
-        page.drawRectangle({
-          x: MARGIN_X, y: cursor - h, width: CONTENT_W, height: h, color: BAND_ZEBRA,
-        });
-      }
-      let cx = MARGIN_X;
-      wrapped[i]!.forEach((lines, ci) => {
-        lines.forEach((ln, li) => {
-          page.drawText(ln, {
-            x: cx + CELL_PAD_X,
-            y: cursor - CELL_PAD_Y - CELL_SIZE - li * (CELL_SIZE * 1.35),
-            size: CELL_SIZE, font, color: INK,
+      while (from < lines) {
+        // How many lines still fit above the footer. Never a partial one: a row
+        // is cut BETWEEN its lines, never through one.
+        const room = Math.floor((cursor - FLOOR - CELL_PAD_Y * 2) / LINE_H);
+        if (room < 1) {
+          breakPage();
+          openDay(day.date, true);
+          continue;
+        }
+
+        const take = Math.min(lines - from, room);
+        const h = take * LINE_H + CELL_PAD_Y * 2;
+
+        // The stripe follows the ROW, not the fragment, so a row split across a
+        // page boundary carries the same fill onto both halves.
+        if (i % 2 === 0) {
+          page.drawRectangle({
+            x: MARGIN_X, y: cursor - h, width: CONTENT_W, height: h, color: BAND_ZEBRA,
           });
+        }
+
+        let cx = MARGIN_X;
+        wrapped[i]!.forEach((cell, ci) => {
+          cell.slice(from, from + take).forEach((ln, li) => {
+            page.drawText(ln, {
+              x: cx + CELL_PAD_X,
+              y: cursor - CELL_PAD_Y - CELL_SIZE - li * LINE_H,
+              size: CELL_SIZE, font, color: INK,
+            });
+          });
+          cx += COL_W[ci]!;
         });
-        cx += COL_W[ci]!;
-      });
-      cursor -= h;
-    });
+
+        cursor -= h;
+        from += take;
+      }
+    }
 
     cursor -= mm(9);
   }

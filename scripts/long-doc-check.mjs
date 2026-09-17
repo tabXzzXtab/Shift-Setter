@@ -77,10 +77,34 @@ if (Number(existing[0]?.days ?? 0) < DAYS) {
     with admin as (
       select a.id from public.account a where a.role = 'admin' and a.active limit 1
     ),
-    -- Four workers, so each day's table is four rows and the document runs long.
+    days as (
+      -- Ended days only: a day is not confirmable until its last shift is over,
+      -- and the survey is the thing being driven here.
+      select app.stockholm_today() - g as d from generate_series($1::int, 1, -1) g
+    ),
+    /*
+     * Four workers, so each day's table is four rows and the document runs
+     * long -- and four who are FREE on every date in the window, ordered so a
+     * reseed picks the same four.
+     *
+     * Taking "the first four" was the bug: invariant 2 gives a worker one
+     * assignment per date, so the moment another fixture or a walkthrough put
+     * those four on any date in this window, seeding raised
+     * tilldelning_one_per_worker_per_day and the check died in its own setup
+     * instead of on its subject. An unordered limit was the other half -- it
+     * picked a different four on every reseed.
+     */
     hands as (
-      select w.id, row_number() over (order by w.created_at) as n
-      from public.worker w where w.deleted_at is null limit 4
+      select w.id from public.worker w
+      where w.deleted_at is null
+        and not exists (
+          select 1 from public.tilldelning t
+          where t.worker_id = w.id
+            and t.work_date in (select d from days)
+            and t.released_at is null
+        )
+      order by w.created_at, w.id
+      limit 4
     ),
     proj as (
       insert into public.project (name, site_address, bestallare_address,
@@ -89,11 +113,6 @@ if (Number(existing[0]?.days ?? 0) < DAYS) {
       select $2, 'Kontrollgatan 1', 'Kundvägen 4', 'Kontroll AB', '556000-0000',
              'Kontroll', app.stockholm_today() - $1::int, (select id from admin)
       returning id
-    ),
-    days as (
-      -- Ended days only: a day is not confirmable until its last shift is over,
-      -- and the survey is the thing being driven here.
-      select app.stockholm_today() - g as d from generate_series($1::int, 1, -1) g
     ),
     made as (
       insert into public.pass (project_id, work_date, start_time, end_time,

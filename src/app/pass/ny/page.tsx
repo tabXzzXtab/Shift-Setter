@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { AuthGate } from "@/components/auth-gate";
 import {
   C, Card, PrimaryButton, SecondaryButton, SHADOW, SoftField, SoftInput,
@@ -61,10 +62,21 @@ const newRow = (): Row => ({
  * Editing or cancelling a Tuesday must leave every other Tuesday alone, so
  * there is no series object to accidentally edit through.
  */
-function NyttPass() {
+function NyttPass({ asked }: { asked: string | null }) {
   const [step, setStep] = useState<"days" | "detail">("days");
-  const [month, setMonth] = useState(() => stockholmToday().slice(0, 7));
-  const [days, setDays] = useState<string[]>([]);
+  // The day page hands the date over in ?datum=, so the picker opens on the
+  // month the admin was already looking at instead of on today's.
+  const [month, setMonth] = useState(() => (asked ?? stockholmToday()).slice(0, 7));
+  /**
+   * PRESELECTED ONLY IF IT HAS NOT HAPPENED. The picker draws a past day
+   * transparent whether or not it is chosen, so a past date arriving here
+   * already ticked would show an unmarked calendar over a count of 1 -- the
+   * screen contradicting itself about what it is about to create. The month
+   * still opens where the admin was; the day is simply theirs to pick.
+   */
+  const [days, setDays] = useState<string[]>(
+    asked && asked >= stockholmToday() ? [asked] : [],
+  );
 
   const [projects, setProjects] = useState<Project[]>([]);
   const [workers, setWorkers] = useState<Worker[]>([]);
@@ -537,10 +549,25 @@ function NyttPass() {
   );
 }
 
+/**
+ * The day arrives as ?datum=. useSearchParams needs a Suspense boundary in a
+ * statically exported app -- the query string is not known when the page is
+ * prerendered, only when a browser opens it.
+ *
+ * Shape-checked before it is used, exactly as Öppna dag checks it: anything
+ * that is not a date must not reach the picker's selection or its month.
+ */
+function NyttPassFromUrl() {
+  const asked = useSearchParams().get("datum");
+  return <NyttPass asked={asked && /^\d{4}-\d{2}-\d{2}$/.test(asked) ? asked : null} />;
+}
+
 export default function Page() {
   return (
     <AuthGate>
-      <NyttPass />
+      <Suspense fallback={<SoftScreen title="Vilka dagar?" back="/"><span /></SoftScreen>}>
+        <NyttPassFromUrl />
+      </Suspense>
     </AuthGate>
   );
 }

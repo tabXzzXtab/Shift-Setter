@@ -6,6 +6,7 @@ import { AuthGate } from "@/components/auth-gate";
 import {
   C, Card, EmptyState, MonthCard, monthShape, SoftNotice, SoftScreen,
 } from "@/components/soft";
+import { HANDELSE_COLUMNS, type Handelse } from "@/components/handelse";
 import { getSupabase } from "@/lib/supabase/client";
 import { addDays, stockholmToday } from "@/lib/dates";
 import { useAccount } from "@/lib/account";
@@ -13,6 +14,16 @@ import { useMonthColour } from "@/lib/project-palette";
 import { fel } from "@/lib/fel";
 
 type PassRow = { id: string; project_id: string; project_name: string; work_date: string };
+
+/**
+ * How many ärende dots a day cell draws.
+ *
+ * They share the day-number line rather than taking one of their own: three
+ * 6px dots and a 13px numeral fit inside the 20px that line already spends, so
+ * the cell stays the fixed 64px whatever the day holds. A fourth would cost a
+ * stripe, and a stripe is the thing this calendar is for.
+ */
+const MAX_DOTS = 3;
 
 /**
  * How many projects a day cell draws before it stops drawing them.
@@ -57,6 +68,7 @@ function Skiftkalender() {
   const { account } = useAccount();
   const [month, setMonth] = useState(() => stockholmToday().slice(0, 7));
   const [passes, setPasses] = useState<PassRow[] | null>(null);
+  const [events, setEvents] = useState<Handelse[]>([]);
   const [error, setError] = useState<string | null>(null);
   const colourOf = useMonthColour(month);
 
@@ -90,6 +102,32 @@ function Skiftkalender() {
     return () => { active = false; };
   }, [first, daysInMonth]);
 
+  /**
+   * The month's ärenden -- a SECOND read rather than a join, because they are a
+   * second kind of fact. Nothing about a pass is derived from one and nothing
+   * about one is derived from a pass; they merely land on the same date.
+   *
+   * There is no viewer clause here. RLS on personal_event returns the owner's
+   * rows and the rows they were named on, so what a leader sees on this grid is
+   * what the policy hands them -- the admin's other ärenden are not fetched and
+   * filtered, they never arrive. A failed read is left silent: an ärende is a
+   * note on a day, and a stop notice over the whole schedule because a note
+   * could not be read would be the smaller thing shouting down the larger one.
+   */
+  useEffect(() => {
+    let active = true;
+    void (async () => {
+      const { data } = await getSupabase()
+        .from("personal_event")
+        .select(HANDELSE_COLUMNS)
+        .gte("event_date", first)
+        .lte("event_date", addDays(first, daysInMonth - 1))
+        .order("event_date");
+      if (active) setEvents((data ?? []) as Handelse[]);
+    })();
+    return () => { active = false; };
+  }, [first, daysInMonth]);
+
   if (account && account.role === "arbetare") {
     return (
       <SoftScreen title="Skiftkalender" back="/">
@@ -118,6 +156,19 @@ function Skiftkalender() {
   /** The projects working one day, in the order their stripes stack. */
   const projectsOn = (date: string) => [...(byDate.get(date) ?? [])].sort(byName);
 
+  // All-day first, then by start, so a day's dots read the same every time.
+  const eventsByDate = new Map<string, Handelse[]>();
+  for (const e of events) {
+    if (!eventsByDate.has(e.event_date)) eventsByDate.set(e.event_date, []);
+    eventsByDate.get(e.event_date)!.push(e);
+  }
+  for (const list of eventsByDate.values()) {
+    list.sort((a, b) =>
+      Number(b.all_day) - Number(a.all_day) ||
+      (a.start_time ?? "").localeCompare(b.start_time ?? "") ||
+      a.title.localeCompare(b.title, "sv"));
+  }
+
   return (
     <SoftScreen
       title="Skiftkalender"
@@ -144,25 +195,56 @@ function Skiftkalender() {
               const shown = here.length <= MAX_STRIPES ? here : here.slice(0, MAX_STRIPES - 1);
               const hidden = here.length - shown.length;
               const isToday = date === today;
+              const arenden = eventsByDate.get(date) ?? [];
 
               return (
                 <Link
                   key={date}
                   href={`/dag?datum=${date}`}
                   data-date={date}
-                  aria-label={`${day}, ${here.length} projekt`}
+                  data-arenden={arenden.length}
+                  aria-label={
+                    `${day}, ${here.length} projekt`
+                    + (arenden.length === 0
+                      ? ""
+                      : arenden.length === 1 ? ", 1 ärende" : `, ${arenden.length} ärenden`)
+                  }
                   className="flex h-16 flex-col overflow-hidden rounded-[8px] text-left"
                   style={{
                     background: isToday ? C.surface : "#f8faff",
                     boxShadow: isToday ? `inset 0 0 0 2px ${C.ink}` : undefined,
                   }}
                 >
-                  <span
-                    className={`block pb-[3px] pl-[6px] pt-1 text-[13px] leading-none ${
-                      isToday ? "font-extrabold" : "font-bold"
-                    }`}
-                  >
-                    {day}
+                  {/*
+                    THE DOTS SHARE THE DAY NUMBER'S LINE, and they are ROUND.
+                    A stripe is a full-bleed rectangle below the numeral and
+                    says a site is working; an ärende is a dot beside it and
+                    says nothing about who is where. Both draw from the same
+                    eight colours, so shape and position are what tell them
+                    apart -- colour alone would make an ärende read as a ninth
+                    project.
+                  */}
+                  <span className="flex items-center justify-between gap-[3px] pb-[3px] pl-[6px] pr-[5px] pt-1">
+                    <span
+                      className={`text-[13px] leading-none ${
+                        isToday ? "font-extrabold" : "font-bold"
+                      }`}
+                    >
+                      {day}
+                    </span>
+                    {arenden.length > 0 && (
+                      <span className="flex shrink-0 items-center gap-[2px]">
+                        {arenden.slice(0, MAX_DOTS).map((e) => (
+                          <span
+                            key={e.id}
+                            title={e.title}
+                            data-arende-dot
+                            className="block h-[6px] w-[6px] rounded-full"
+                            style={{ background: e.colour }}
+                          />
+                        ))}
+                      </span>
+                    )}
                   </span>
 
                   <span className="flex flex-col gap-[2px] px-[3px] pb-[3px]">
@@ -173,6 +255,11 @@ function Skiftkalender() {
                         <span
                           key={pid}
                           title={names.get(pid)}
+                          // Named as a stripe, because a cell now draws two
+                          // kinds of coloured span and "the ones with a style
+                          // attribute" stopped meaning "the projects" the day
+                          // ärende dots arrived.
+                          data-stripe={names.get(pid)}
                           className="block h-[5px] rounded-[2px]"
                           style={{ background: colour }}
                         />

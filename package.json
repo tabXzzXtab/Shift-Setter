@@ -23,6 +23,7 @@
     "demo:accounts": "node scripts/demo-accounts.mjs",
     "demo:reset": "npm run db:sql -- --file supabase/maintenance/reset-demo-data.sql && npm run demo:accounts",
     "check:pdf-download": "node scripts/pdf-download-check.mjs",
+    "check:pdf-split": "node scripts/pdf-split-check.mjs",
     "walkthrough:kalender": "node scripts/walkthrough-kalender.mjs",
     "walkthrough:brist": "node scripts/walkthrough-brist.mjs",
     "walkthrough:admin": "node scripts/walkthrough-admin.mjs",
@@ -40,7 +41,8 @@
     "walkthrough:geofence": "node scripts/walkthrough-geofence.mjs",
     "walkthrough:nastapass": "node scripts/walkthrough-nastapass.mjs",
     "walkthrough:stangpass": "node scripts/walkthrough-stangpass.mjs",
-    "walkthrough:bekraftelser": "node scripts/walkthrough-bekraftelser.mjs"
+    "walkthrough:bekraftelser": "node scripts/walkthrough-bekraftelser.mjs",
+    "walkthrough:arende": "node scripts/walkthrough-arende.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.113.0",

@@ -7,9 +7,14 @@
  * The walkthroughs create workers with generated passwords and the maintenance
  * reset deletes every non-admin account, so anyone handed a login from a test
  * run finds it gone the next time the demo data is cleared. This creates one
- * arbetsledare and one arbetare with FIXED credentials, plus a project with the
- * leader assigned, and is idempotent -- re-running it resets the passwords back
- * to the known values rather than failing.
+ * admin, one arbetsledare and one arbetare with FIXED credentials, plus a
+ * project with the leader assigned, and is idempotent -- re-running it resets
+ * the passwords back to the known values rather than failing.
+ *
+ * The admin survives the reset on its own -- that statement deletes non-admins
+ * only -- but nothing pins its PASSWORD, and a login that outlives the wipe
+ * with an unknown password is not a login. So it is ensured here with the
+ * other two rather than left to whatever last wrote it.
  *
  * Credentials come from .env.local, which is gitignored. This repository is
  * public; a working login committed to it is a working login for anyone.
@@ -22,9 +27,13 @@ import { required, ROOT } from "./env.mjs";
 const url = required("NEXT_PUBLIC_SUPABASE_URL");
 const ref = required("SUPABASE_PROJECT_REF");
 
+// An admin holds no shifts, so it gets no worker row -- the same shape
+// scripts/bootstrap-admin.mjs creates. The other two are workers as well as
+// accounts (spec Section 2: an arbetsledare is a worker).
 const PEOPLE = [
-  { key: "DEMO_LEADER", role: "arbetsledare", name: "Lena Ledare" },
-  { key: "DEMO_WORKER", role: "arbetare", name: "Arvid Arbetare" },
+  { key: "DEMO_ADMIN", role: "admin", name: "Demo Admin", worker: false },
+  { key: "DEMO_LEADER", role: "arbetsledare", name: "Lena Ledare", worker: true },
+  { key: "DEMO_WORKER", role: "arbetare", name: "Arvid Arbetare", worker: true },
 ];
 
 // Fetched for this run only, never written to .env.local: it must never reach
@@ -42,7 +51,7 @@ const admin = createClient(url, service, { auth: { persistSession: false } });
 
 const { data: list } = await admin.auth.admin.listUsers({ perPage: 1000 });
 
-async function ensure({ key, role, name }) {
+async function ensure({ key, role, name, worker }) {
   const email = required(`${key}_EMAIL`);
   const password = required(`${key}_PASSWORD`);
   const existing = list?.users.find((u) => u.email?.toLowerCase() === email.toLowerCase());
@@ -61,15 +70,19 @@ async function ensure({ key, role, name }) {
     .from("account").upsert({ id, role, active: true }, { onConflict: "id" });
   if (aErr) { console.error(`${email} account: ${aErr.message}`); process.exit(1); }
 
-  // Every worker has an account; not every account has a worker. Both of these
-  // hold shifts -- an arbetsledare is also a worker (spec Section 2).
-  const { data: w } = await admin.from("worker").select("id").eq("account_id", id).maybeSingle();
-  let workerId = w?.id;
-  if (!workerId) {
-    const { data: made, error: wErr } = await admin
-      .from("worker").insert({ account_id: id, name, email }).select("id").single();
-    if (wErr) { console.error(`${email} worker: ${wErr.message}`); process.exit(1); }
-    workerId = made.id;
+  // Every worker has an account; not every account has a worker. The leader
+  // and the arbetare hold shifts -- an arbetsledare is also a worker (spec
+  // Section 2) -- and the admin does not.
+  let workerId = null;
+  if (worker) {
+    const { data: w } = await admin.from("worker").select("id").eq("account_id", id).maybeSingle();
+    workerId = w?.id ?? null;
+    if (!workerId) {
+      const { data: made, error: wErr } = await admin
+        .from("worker").insert({ account_id: id, name, email }).select("id").single();
+      if (wErr) { console.error(`${email} worker: ${wErr.message}`); process.exit(1); }
+      workerId = made.id;
+    }
   }
 
   console.log(`  ${role.padEnd(13)} ${email}`);
@@ -77,8 +90,11 @@ async function ensure({ key, role, name }) {
 }
 
 console.log("\nDemo logins:");
-const [leader] = await Promise.all([ensure(PEOPLE[0])]);
-await ensure(PEOPLE[1]);
+// Sequential, so the printed order matches PEOPLE rather than whichever call
+// resolved first -- this output is read by a person handing the logins over.
+const ensured = new Map();
+for (const person of PEOPLE) ensured.set(person.role, await ensure(person));
+const leader = ensured.get("arbetsledare");
 
 // A project for them to work on, with the leader assigned -- without that the
 // leader's project dropdown is empty and they can do nothing at all.

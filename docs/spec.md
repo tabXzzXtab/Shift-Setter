@@ -48,6 +48,27 @@ No cover elements repeat. Each page carries only the logo, the title, the day bl
 
 Day blocks are ordered by date. Within a day, one row per person per shift.
 
+**A day block is kept whole where it fits, and split where it cannot.**
+`page-break-inside: avoid` is the intent, not an absolute: a day with enough
+people on it, or with a long enough "Vad Vi Gjorde", is taller than any page,
+and a block that fits nowhere has to break somewhere. It breaks at the bottom
+margin, clear of the footer, and resumes under the header on the next page with
+the date repeated as `<datum> (forts.)` and the column band drawn again above
+the continued rows. The marker matters: a bare repeat of the date reads as a
+second entry for the same day rather than the rest of one.
+
+The cut falls between wrapped lines, never through one, and a row split across
+the boundary carries its zebra fill onto both halves. A day is never begun so
+far down a page that only its heading lands there — the heading, the column
+band and one line of a row are the least that may start one.
+
+This is not cosmetic. Before it existed an oversized day was drawn as a single
+block, so its last rows printed over the footer and then past the bottom edge,
+into coordinates no reader displays: the document was filed missing workers,
+silently, on exactly the days that had the most of them. `npm run
+check:pdf-split` is the guard, and it asserts presence before geometry —
+a document that has dropped half its rows is geometrically clean.
+
 | Column | Contents |
 |---|---|
 | ARBETARE | Worker name |
@@ -265,6 +286,45 @@ Visible to admin and arbetsledare. Not to arbetare — they see their own shifts
 
 A leader gets buttons where a worker gets a trash icon because a leader is never simply absent. Somebody has to be answerable for the day, and the choice of who cannot be skipped.
 
+### The admin's three actions on a day
+
+Above the shifts, and **only for the admin**, Öppna Dag carries the three things an owner does to a day. The page reads: the date, the three actions, then the shifts.
+
+- **Tilldela Ärende** — writes an ärende on this day (below). It is the accent button because it is the only one of the three that happens on this screen; the other two are doors.
+- **Snabb Pass** → `/snabb?datum=`
+- **Skapa Pass** → `/pass/ny?datum=`
+
+**The date travels with the link.** Both destinations shape-check it and open on that day rather than on today — pressing the 3rd and then typing "3rd" again is the step that gets skipped once and puts a shift on the wrong day. Skapa Pass preselects the day only if it has not happened yet: its picker draws a past day transparent whether or not it is chosen, so a past date arriving already ticked would show an unmarked calendar over a count of 1.
+
+Admin-gated because two of the three are — the database refuses a Snabb Pass from anybody else. An arbetsledare opening this page gets the day, not the controls; an ärende they were **named on** still shows, because being told about a day is not the same as arranging one.
+
+### Ärenden — what else is in the way
+
+An **ärende** is a note on a day: a site visit, a meeting with a bestallare, a week off. It answers "what else is in the way", where the rest of the calendar answers "who is where".
+
+**IT IS NOT SHIFT DATA AND MUST NEVER BECOME IT.** Nothing in the tier walk, the overlap test, the confirmation queues or the Arbetsdagbok reads it. An ärende on a day makes nobody unavailable and prints nowhere. It lives in `personal_event`, which holds no key pointing at `pass`, `tilldelning` or `project_day` — a column on `pass` would eventually be read by something that reads `pass`, and the document would gain a row nobody worked.
+
+Captured when one is written:
+
+| Field | |
+|---|---|
+| Titel | Required. Trimmed before it is checked, as the constraint trims before it compares. |
+| Beskrivning | Optional. |
+| Datum | Prefilled with the day that was tapped, editable. |
+| Hela dagen | **Default on.** Off reveals Starttid and Sluttid. |
+| Färg | One of eight — the project-chip palette, the same eight the check constraint permits. A picker, never a field to type into, so an unacceptable colour is unreachable rather than merely refused. |
+| Vem kan se detta? | Any number of accounts, **arbetsledare sorted to the top** and each shown with its role. |
+
+**All day carries no times; a timed ärende carries both, and ends after it starts.** One check constraint keeps the two shapes out of one row, because "all day" is a different claim from "a long day". The form cannot reach a state that violates it: the time fields are not merely hidden when Hela dagen is on, they are submitted as NULL.
+
+**Who sees one is a list, not a role.** "Everyone with role arbetsledare" is wrong the day a second admin exists or a leader leaves, and a boolean "private" makes sharing all-or-nothing. So visibility is rows in `personal_event_viewer`, and the picker merely **sorts** arbetsledare to the top because they are who these are usually about. The owner always sees their own and cannot be taken off the list.
+
+**An admin who did not write it does not see it.** `is_admin()` is deliberately absent from the read policy: the admin's reach over shift data is not a reach over somebody else's diary, and "personlig" would mean nothing if it were.
+
+**On the shift calendar an ärende is a round dot beside the day number**, in the colour it was given — never a stripe. A stripe is a full-bleed bar below the numeral and says a site is working; both draw from the same eight colours, so shape and position are what tell them apart. Three dots fit; past that the cell stops drawing them, exactly as stripes cap at four. The cell stays the fixed 64px either way.
+
+Öppna Dag lists the day's ärenden **below the shifts, in their own section**, and draws nothing at all on a day with none. Only the owner is offered Ta bort — and that is a courtesy, not the boundary: `personal_event_write` is `owner_id = auth.uid()` in both the USING and the WITH CHECK.
+
 ### Mina Pass — the leader's day list
 
 **One page, not two.** It opens on what is coming: future shifts, grouped by day. Scrolling back brings up the current day and then the past ones, in the same list and the same shape. A leader running several projects gets a project filter to narrow it to one at a time.
@@ -407,6 +467,8 @@ Every row applies to every selected day. Two rows across twelve days generates t
 **Hours are prefilled as (end − start) − 30 minutes**, thirty being the ordinary unpaid break. Start time, end time and hours are three independent fields: changing a time re-suggests the hours only while nobody has typed their own, and once the leader enters a figure it is theirs and the times stop touching it. The number that is stored is the one in the field, never a recomputation — the real break is often longer than half an hour, and that is exactly why the field is editable. The same prefill applies to a Snabb Pass.
 
 The leader may **hand-pick** workers during creation. This does not assign them. It marks them as top-ranked *for this batch*.
+
+**Only an arbetare can be hand-picked.** The list fills the slots a pass *demanded*, and an arbetsledare never occupies one — Step 4b places them on the day, and that row was never a slot the pass asked for. It is not merely a tidier list: Step 4b skips a leader who already holds an ordinary assignment that date, so hand-picking one onto a worker slot is exactly how a day loses the person answerable for it, and a leader hand-picking themselves does it to their own day. The rule is about who is named, not who is asking — it is the same for the admin, and enforced by a trigger on `pass_batch_handpick` rather than by the list. Förval and Tier 3 are untouched: a leader who marks a day can still be ranked onto a slot, and that gap is Step 5c's to record.
 
 **Step 3 — Exclusion filter, before anything else**
 A worker who already holds an assignment on that date is invisible for that date. Not rankable, not offered, not a fallback — even if hand-picked. Nobody is ever on two projects the same day; the address and the directives have to be unambiguous.
@@ -757,7 +819,9 @@ picture draws initials in the same box, so the list never changes height.
 
 The Arbetsdagbok is not in either place. It lives inside the project (Section 1).
 
-**The menu slides down from the top.** The background darkens behind it. Tapping outside closes it. It arrives from the top because that is where the button is, and a panel that appears somewhere other than the thing you pressed makes people hunt for it.
+**The admin's menu slides down from the top.** The background darkens behind it. Tapping outside closes it. It arrives from the top because that is where the button is, and a panel that appears somewhere other than the thing you pressed makes people hunt for it.
+
+**The redesigned roles open a bottom sheet instead**, which is what a menu is in the handoff: it rises from the bottom edge over a scrim, a 38x4 grab handle above the rows and a 56px Stäng under them, closed by the scrim, by Escape or by that button. It comes from the bottom because that is where a thumb already is, and the scrim leaves the page underneath legible as the place you will come back to rather than blacking it out. The admin's menu moves when the admin's screens do; two menu shapes for one release is the cost of migrating a role at a time, and one app with a blue sheet on one landing page and a black panel on another, forever, is what it buys.
 
 ### Arbetsledare
 
@@ -782,6 +846,12 @@ Alla Arbetare is not in the leader's menu. **A project row opens only Kolla Pass
 
 **Not finalised.** Untouched, as it stands: Hem (own shifts, own confirmed hours this month, clock control) · Min kalender (förval) · Acceptera Pass · Min profil.
 
+**Hamburger menu**, top left: **Öppna Pass** — the one route that is not already a grouped row on the startsida itself. Mina Pass and Arbetsdagar are on the page, so putting them in the menu too would name them twice.
+
+**Top right:** the profile icon, and behind it **Konto**, **Profil** and Logga ut.
+
+Both are the bottom sheet described above.
+
 ## 8. Decisions — all settled
 
 Nothing here is open. Anything discovered later that is not covered is a stop-and-ask, never a guess.
@@ -798,6 +868,7 @@ Nothing here is open. Anything discovered later that is not covered is a stop-an
 **Assignment**
 - Fastanställd: removed entirely.
 - Hand-picked is a ranking modifier on förval, never a grant. No warning when a pick has not marked a day — not marking it means they cannot work it.
+- Only an arbetare may be hand-picked. An arbetsledare is placed by Step 4b, and picking one onto a worker slot is what takes them off the day they were meant to lead.
 - Tier 1 is ordered the same way as Tier 2: fewest shifts that week first, each lateness mark pushing one position down, ties random.
 - Acceptera Pass skips anyone who marked the day can't-work. An explicit no is not asked again.
 - A shortfall between total slots and pre-pickers is flagged to the leader at creation.
@@ -874,7 +945,7 @@ Source lives at `docs/docmaker-template/`. It is a single string-template module
 
 **The header repeats on every page**, like the footer. Logo and the word "Arbetsdagbok", nothing else. The current template renders it once after the cover, so pages 3 onward lose it — that is a bug to fix in the port, not behaviour to keep.
 
-**The export is a direct download, not a print dialog** (Section 1). Whatever produces the file still has to reproduce this paging behaviour exactly: the repeating header and footer, the reserved 30mm band, day blocks that do not split across a page break. The print CSS above is the specification of the page, not merely instructions to a browser's print command.
+**The export is a direct download, not a print dialog** (Section 1). Whatever produces the file still has to reproduce this paging behaviour exactly: the repeating header and footer, the reserved 30mm band, and day blocks that split only when they fit on no page at all — see "Page 2 onward" above for what a split page looks like. The print CSS above is the specification of the page, not merely instructions to a browser's print command.
 
 **Brand palette**, from the app chrome: navy `#1f2b40`, gold `#e0a83a`. Document colours: text `#1a1a1a`, headings `#111`, header row `#FBEFD8`, zebra `#FDF9F1`, header text `#303c54`, footer `#767676`, footer rule `#cfcfcf`. Display font Georgia; document font Segoe UI / Arial, 10.5pt base.
 

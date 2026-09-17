@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { AuthGate } from "@/components/auth-gate";
 import {
   C, Card, PrimaryButton, Segmented, SoftField, SoftInput, SoftNotice, SoftScreen,
@@ -67,13 +68,17 @@ const NEW = "__ny__";
  * handoff's rule for it: an override is explained where the decision is made,
  * not reported once it has happened.
  */
-function SnabbPass() {
+function SnabbPass({ asked }: { asked: string | null }) {
   const { account } = useAccount();
   const [projects, setProjects] = useState<Project[]>([]);
   const [workers, setWorkers] = useState<Worker[]>([]);
   const [projectId, setProjectId] = useState("");
   const [workerId, setWorkerId] = useState("");
-  const [date, setDate] = useState(stockholmToday());
+  // The day page hands the date over in ?datum= so the admin does not press a
+  // day and then type it again. Today when it did not, which is what somebody
+  // arriving from the menu wants. Editable either way: every gate on this
+  // screen is computed from `date`, not from where it came from.
+  const [date, setDate] = useState(asked ?? stockholmToday());
   const [start, setStart] = useState("07:00");
   const [end, setEnd] = useState("16:00");
   const [hours, setHours] = useState(() => defaultHours("07:00", "16:00"));
@@ -538,10 +543,26 @@ function SnabbPass() {
   );
 }
 
+/**
+ * The day arrives as ?datum=. useSearchParams needs a Suspense boundary in a
+ * statically exported app -- the query string is not known when the page is
+ * prerendered, only when a browser opens it.
+ *
+ * Shape-checked before it is used, exactly as Öppna dag checks it: the value
+ * reaches a date input, a where-clause and every gate on this screen, and
+ * anything that is not a date belongs in none of them.
+ */
+function SnabbFromUrl() {
+  const asked = useSearchParams().get("datum");
+  return <SnabbPass asked={asked && /^\d{4}-\d{2}-\d{2}$/.test(asked) ? asked : null} />;
+}
+
 export default function Page() {
   return (
     <AuthGate>
-      <SnabbPass />
+      <Suspense fallback={<SoftScreen title="Snabb Pass" back="/"><span /></SoftScreen>}>
+        <SnabbFromUrl />
+      </Suspense>
     </AuthGate>
   );
 }

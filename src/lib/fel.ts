@@ -120,6 +120,7 @@ const TABLE: [string, string][] = [
    "Dagen är inte bekräftad av arbetsledaren än. Den kan inte skickas tillbaka."],
   ["a rejected day needs a note saying what is wrong",
    "Skriv varför dagen skickas tillbaka. Arbetsledaren ser texten."],
+
   // ---- Snabb Pass, and the day it may file itself -------------------------
   //
   // THESE ARRIVE ALREADY IN SWEDISH, and are translated anyway. The raises
@@ -235,6 +236,20 @@ const TABLE: [string, string][] = [
   ["does not exist", "Det du försökte ändra finns inte längre."],
   ["no worker record for this account", "Kontot saknar en arbetarprofil. Kontakta administratören."],
   ["not your project", "Projektet är inte ditt."],
+
+  // ---- ärenden, which are not shift data ----------------------------------
+  //
+  // MATCHED ON THE CONSTRAINT NAME, not on a raise. These three are CHECK
+  // constraints, so what arrives is Postgres's own sentence with the
+  // constraint's name quoted inside it -- and the name is the only part of it
+  // that says which rule fired. Above the generic "violates check constraint"
+  // line for that reason: the broad entry would otherwise swallow all three
+  // and answer "Uppgifterna går inte ihop" to three different questions.
+  ["personal_event_title_not_blank", "Ärendet behöver en titel."],
+  ["personal_event_times_match_all_day",
+   "Ett ärende är antingen hela dagen, eller har både starttid och sluttid med "
+   + "sluttiden efter starttiden."],
+  ["personal_event_colour_in_palette", "Den färgen finns inte. Välj en av de åtta."],
 
   // ---- generic Postgres, last ---------------------------------------------
   ["duplicate key value", "Det finns redan en post med de uppgifterna."],

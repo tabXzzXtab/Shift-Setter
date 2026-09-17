@@ -1,32 +1,36 @@
 /**
- * A colour per project, for the shift calendar.
+ * The handoff's project-chip palette, and a project's place in it.
  *
- * This is the one place colour is allowed. Everywhere else is black and white
- * because styling before function is noise -- here the colour IS the function:
- * it is what lets a leader see at a glance that Tuesday is two different sites.
+ * Colour carries meaning on the calendar: it is what lets a leader see at a
+ * glance that Tuesday is two different sites. A FIXED palette rather than a
+ * hashed hue -- hashing gives you neighbouring greens sooner or later, and two
+ * projects that look alike on a calendar is precisely the failure this is meant
+ * to prevent.
  *
- * A fixed palette rather than a hashed hue. Hashing gives you neighbouring
- * greens sooner or later, and two projects that look alike on a calendar is
- * precisely the failure this is meant to prevent.
+ * THESE EIGHT ARE ALSO THE EIGHT `personal_event_colour_in_palette` PERMITS.
+ * The Personlig calendar's swatch picker offers this list and nothing else, so
+ * a colour the check constraint would reject cannot be chosen in the first
+ * place. If the list here and the list in the constraint ever diverge, the
+ * picker starts offering a value the database refuses -- keep them together.
  *
  * Assignment is by the project's position in a stable sorted list, so a project
  * keeps its colour between visits. With more projects than colours the palette
- * wraps -- at which point the label on the bar is what tells them apart, which
- * is why every run of days carries one.
+ * wraps -- at which point the legend under the grid is what tells them apart,
+ * which is why the calendar always carries one.
  */
-const PALETTE = [
-  "#1f77b4", // blue
-  "#d62728", // red
-  "#2ca02c", // green
-  "#9467bd", // purple
-  "#e07b00", // orange
-  "#8c564b", // brown
-  "#c934a0", // magenta
-  "#0f8f96", // teal
+export const CHIP_PALETTE = [
+  "#1b2cc1", // accent blue
+  "#0f6f7a", // teal
+  "#6c3fc5", // violet
+  "#1f7a3d", // green
+  "#8a5300", // amber
+  "#8e1d15", // red
+  "#0a5ea8", // steel blue
+  "#7a3f8f", // plum
 ] as const;
 
 export function projectColour(index: number): string {
-  return PALETTE[index % PALETTE.length]!;
+  return CHIP_PALETTE[index % CHIP_PALETTE.length]!;
 }
 
 /** Stable index for a project id, given the sorted list of ids on screen. */

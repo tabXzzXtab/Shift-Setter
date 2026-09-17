@@ -245,7 +245,10 @@ try {
         date: el.getAttribute("data-date"),
         height: Math.round(r.height),
         projects: Number(/,\s*(\d+)\s+projekt/.exec(el.getAttribute("aria-label") ?? "")?.[1] ?? -1),
-        stripes: [...el.querySelectorAll("span[style]")]
+        // span[data-stripe], not span[style]: a cell also draws ärende dots,
+        // which carry a background colour and are not projects. Selecting on
+        // "has an inline style" counted those as sites working that day.
+        stripes: [...el.querySelectorAll("span[data-stripe]")]
           .map((s) => getComputedStyle(s).backgroundColor)
           .filter((c) => c && c !== "rgba(0, 0, 0, 0)"),
         overflow: Number(/\+(\d+)/.exec(el.innerText)?.[1] ?? 0),
@@ -267,8 +270,8 @@ try {
    */
   const calendarColours = await page.evaluate(() =>
     Object.fromEntries(
-      [...document.querySelectorAll("[data-date] span[title]")]
-        .map((s) => [s.getAttribute("title"), getComputedStyle(s).backgroundColor]),
+      [...document.querySelectorAll("[data-date] span[data-stripe]")]
+        .map((s) => [s.getAttribute("data-stripe"), getComputedStyle(s).backgroundColor]),
     ),
   );
 
