@@ -70,7 +70,9 @@ function AllaPass({ askedProject }: { askedProject: string | null }) {
     void (async () => {
       let q = getSupabase()
         .from("pass")
-        .select("id, work_date, start_time, end_time, headcount, project_id, project(name)")
+        // The plain FK, named: pass carries M1's composite one too, and an
+        // unhinted embed is ambiguous. See pendingDays() for the whole reason.
+        .select("id, work_date, start_time, end_time, headcount, project_id, project!pass_project_id_fkey(name)")
         .is("deleted_at", null)
         .gte("work_date", from)
         .lte("work_date", to);

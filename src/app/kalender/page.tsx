@@ -85,7 +85,9 @@ function Skiftkalender() {
     void (async () => {
       const { data, error } = await getSupabase()
         .from("pass")
-        .select("id, project_id, work_date, project(name)")
+        // The plain FK, named: pass carries M1's composite one too, and an
+        // unhinted embed is ambiguous. See pendingDays() for the whole reason.
+        .select("id, project_id, work_date, project!pass_project_id_fkey(name)")
         .is("deleted_at", null)
         .gte("work_date", first)
         .lte("work_date", addDays(first, daysInMonth - 1))

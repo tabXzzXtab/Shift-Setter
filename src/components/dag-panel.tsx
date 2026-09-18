@@ -133,7 +133,9 @@ export function DagPanel({ date, heading = true }: {
       const sb = getSupabase();
       const { data: rows, error } = await sb
         .from("pass")
-        .select("id, project_id, start_time, end_time, planned_hours, headcount, project(name)")
+        // The plain FK, named: pass carries M1's composite one too, and an
+        // unhinted embed is ambiguous. See pendingDays() for the whole reason.
+        .select("id, project_id, start_time, end_time, planned_hours, headcount, project!pass_project_id_fkey(name)")
         .eq("work_date", date)
         .is("deleted_at", null)
         .order("start_time");

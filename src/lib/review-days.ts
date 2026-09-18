@@ -41,7 +41,9 @@ export async function reviewDays(): Promise<ReviewDay[]> {
 
   const { data, error } = await sb
     .from("project_day")
-    .select("project_id, work_date, vad_vi_gjorde, rejected_at, flagged_as, stage, confirmed_at, project(name)")
+    // The plain FK, named: project_day carries M1's composite one too, and an
+    // unhinted embed is ambiguous. See pendingDays() for the whole reason.
+    .select("project_id, work_date, vad_vi_gjorde, rejected_at, flagged_as, stage, confirmed_at, project!project_day_project_id_fkey(name)")
     .or("stage.eq.leader_confirmed,and(flagged_as.not.is.null,confirmed_at.is.null)")
     .order("work_date");
 

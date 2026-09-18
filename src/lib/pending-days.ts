@@ -57,9 +57,26 @@ export type PendingDay = {
 export async function pendingDays(): Promise<PendingDay[]> {
   const sb = getSupabase();
 
+  /*
+   * THE FK HINT IS NOT DECORATION. M1 gave every tenant-scoped table a second
+   * foreign key to its parent -- `(project_id, tenant_id) references
+   * project(id, tenant_id)` alongside the original `project_id references
+   * project(id)` -- so that a row can never point at a project belonging to
+   * another tenant. Two relationships between the same pair of tables is two
+   * ways to embed, and PostgREST refuses to choose: `project(...)` answers
+   * 300 Multiple Choices, which is not an error status the client treats as
+   * one, so the request simply came back without rows and this queue reported
+   * that it could not read the days.
+   *
+   * Naming the constraint says which of the two to join on. It is the plain
+   * one; the composite exists to constrain writes, not to be travelled.
+   * Removing the hint puts every arbetsledare back in front of "Kunde inte
+   * läsa dagarna som väntar", so it stays until the tenant column stops
+   * carrying its own foreign key.
+   */
   const { data: passes, error } = await sb
     .from("pass")
-    .select("id, project_id, work_date, start_time, end_time, planned_hours, project(name, site_address)")
+    .select("id, project_id, work_date, start_time, end_time, planned_hours, project!pass_project_id_fkey(name, site_address)")
     .is("deleted_at", null)
     .order("work_date");
 
