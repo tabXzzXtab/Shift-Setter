@@ -78,6 +78,53 @@ insert into fx (k, v) values
 -- RLS tests below run as authenticated and anon.
 grant select on fx to public;
 
+-- ============================================================================
+-- THE SUITE'S TENANT IS BELLA SERVICE AB'S, AND THAT IS NOT LAZINESS.
+--
+-- M1 put a NOT NULL tenant_id on all 19 RLS tables and then dropped the column
+-- defaults, so an INSERT that forgets one fails loudly instead of quietly
+-- joining a real tenant. That is right for the application, and it breaks all
+-- 147 fixture inserts below -- none of which knew tenants existed. Rather than
+-- thread a tenant_id through 147 statements, the columns get a default back
+-- FOR THE DURATION OF THIS TRANSACTION. ALTER TABLE is transactional and
+-- test-db.mjs rolls the whole file back, so the live defaults are untouched --
+-- the same reason this suite can pause the real admin accounts a few
+-- statements from here.
+--
+-- THE FIXTURES JOIN THE CLIENT'S TENANT RATHER THAN GETTING ONE OF THEIR OWN,
+-- because a tenant of their own does not survive contact with the tier walk.
+-- app.fill_pass() draws its last tier straight "from public.worker" with no
+-- project and no tenant filter, so a suite pass is offered to any of the 96
+-- real workers in this database. Put the fixtures in their own tenant and that
+-- offer is a pass_offer row whose tenant disagrees with its worker's --
+-- pass_offer_tenant_matches_worker rejects it, and the suite dies at a fixture
+-- rather than at an assertion. That is exactly how this was found.
+--
+-- So the composite keys have surfaced something that was already true and
+-- invisible: THIS SUITE HAS NEVER BEEN ISOLATED FROM LIVE DATA. Its tier
+-- assertions have always been able to see real workers. M1 must not change
+-- that, so the fixtures sit where they have effectively always sat.
+--
+-- IT PROVES NOTHING ABOUT ISOLATION, and it is not meant to. M1 makes
+-- tenant_id structural; M2 makes it load-bearing, and M2 owes this file a
+-- second tenant, a tenant-scoped fill_pass, and a new class of negative
+-- control -- tenant B reaching for tenant A's rows and getting nothing.
+-- ============================================================================
+
+do $suite_tenant$
+declare t text;
+begin
+  foreach t in array array[
+    'account', 'worker', 'profile', 'project', 'project_leader', 'project_day',
+    'pass', 'pass_batch', 'pass_batch_handpick', 'pass_block', 'pass_offer',
+    'tilldelning', 'forval', 'clock_edit', 'day_review', 'arbetsdagbok',
+    'notification', 'personal_event', 'personal_event_viewer']
+  loop
+    execute format('alter table public.%I alter column tenant_id set default %L',
+                   t, '2f9a6d15-4c83-4e71-9a2b-5d07e3b8c164');
+  end loop;
+end $suite_tenant$;
+
 insert into auth.users (instance_id, id, aud, role, email, encrypted_password,
                         email_confirmed_at, created_at, updated_at,
                         raw_app_meta_data, raw_user_meta_data)
