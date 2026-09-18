@@ -4387,4 +4387,135 @@ select pg_temp.ok(
 
 reset role;
 
+
+-- ============================================================================
+-- PUSH TOKEN -- one row per DEVICE, and it belongs to whoever signed in last
+--
+-- The frontend half of push notifications. Nothing sends anything yet; what is
+-- asserted here is who a handset is addressed to, because that is the half
+-- that can put one person's shifts on another person's screen.
+--
+-- Driven as the real roles throughout: every rule below is either a SECURITY
+-- DEFINER function reading auth.uid(), or RLS -- and neither fires for a
+-- caller RLS does not apply to.
+-- ============================================================================
+
+-- w1 registers a handset.
+set local role authenticated;
+select pg_temp.act_as((select v from fx where k = 'w1'));
+select public.register_push_token('device-token-shared', 'ios');
+reset role;
+
+select pg_temp.ok(
+  (select account_id from public.push_token where token = 'device-token-shared')
+    = (select v from fx where k = 'w1'),
+  'PUSH.registers_to_the_caller',
+  'the token is filed against whoever called, not against anybody named');
+
+-- THE SHARED SITE PHONE. w2 signs in on the same handset, and the row MOVES.
+-- Key this on (account_id, token) instead and both rows survive, so the phone
+-- in w2's hand goes on buzzing with w1's shifts. That is what this asserts.
+set local role authenticated;
+select pg_temp.act_as((select v from fx where k = 'w2'));
+select public.register_push_token('device-token-shared', 'android');
+reset role;
+
+select pg_temp.ok(
+  (select count(*) from public.push_token where token = 'device-token-shared') = 1,
+  'PUSH.one_row_per_device',
+  'a second account registering the same handset left two rows behind');
+
+select pg_temp.ok(
+  (select account_id from public.push_token where token = 'device-token-shared')
+    = (select v from fx where k = 'w2'),
+  'PUSH.device_moves_to_last_signer',
+  'the handset still belongs to the person who had it before');
+
+-- AND w1 SIGNING OUT ELSEWHERE MUST NOT SILENCE IT. The delete is scoped to
+-- the caller's own row, so a person signing out on their own phone cannot
+-- unregister a site phone somebody else is now holding.
+set local role authenticated;
+select pg_temp.act_as((select v from fx where k = 'w1'));
+select public.forget_push_token('device-token-shared');
+reset role;
+
+select pg_temp.ok(
+  (select account_id from public.push_token where token = 'device-token-shared')
+    = (select v from fx where k = 'w2'),
+  'PUSH.forget_is_scoped_to_the_caller',
+  'signing out somewhere else unregistered a handset that had moved on');
+
+-- The owner signing out does hand it back.
+set local role authenticated;
+select pg_temp.act_as((select v from fx where k = 'w2'));
+select public.forget_push_token('device-token-shared');
+reset role;
+
+select pg_temp.ok(
+  not exists (select 1 from public.push_token where token = 'device-token-shared'),
+  'PUSH.owner_hands_the_device_back',
+  'signing out left the handset registered');
+
+-- NOBODY READS OR WRITES THE TABLE FROM A BROWSER. No grant and no policy, so
+-- a logged-in user reaches it only through the two functions.
+--
+-- A REJECTION, NOT AN EMPTY READ, and the difference is the point. Elsewhere
+-- in this schema a forbidden read FILTERS to zero rows, because a select
+-- policy is what scopes it. Here the table carries no grant at all, so the
+-- read never gets as far as a policy: Postgres refuses the table outright.
+-- That is the stronger of the two and it is what this asserts -- an empty
+-- count would also have passed against a table that merely had nothing in it.
+set local role authenticated;
+select pg_temp.act_as((select v from fx where k = 'w1'));
+select public.register_push_token('device-token-private', 'ios');
+
+select pg_temp.rejects($$
+  select count(*) from public.push_token
+$$, 'PUSH.no_direct_read');
+
+select pg_temp.rejects($$
+  insert into public.push_token (token, account_id, platform)
+  values ('device-token-forged', (select v from fx where k = 'w2'), 'ios')
+$$, 'PUSH.no_direct_insert');
+reset role;
+
+-- The platform has to be one the app can actually register on.
+set local role authenticated;
+select pg_temp.act_as((select v from fx where k = 'w1'));
+select pg_temp.rejects($$
+  select public.register_push_token('device-token-web', 'web')
+$$, 'PUSH.platform_must_be_known');
+reset role;
+
+-- A SIGNED-OUT CALLER CANNOT REACH THE FUNCTION AT ALL.
+--
+-- Asserted on the grant rather than by calling it, and that is not a shortcut.
+-- Postgres hands EXECUTE on a new function to PUBLIC by default and anon is a
+-- member of PUBLIC, so the outer door is the grant; calling it would raise
+-- "permission denied for function", which pg_temp.rejects() deliberately
+-- treats as the WRONG reason -- that phrase is how a policy with a missing
+-- grant on schema app announces itself (CLAUDE.md, gotcha 2), and the helper
+-- refuses to let it pass for a guard doing its job.
+select pg_temp.ok(
+  not has_function_privilege('anon', 'public.register_push_token(text, text)', 'execute')
+  and not has_function_privilege('anon', 'public.forget_push_token(text)', 'execute'),
+  'PUSH.anon_cannot_register',
+  'a signed-out caller can execute the push token functions');
+
+-- AND THE INNER GUARD, for the caller who does get through the door.
+--
+-- authenticated holds EXECUTE, so a request carrying a role but no usable
+-- token reaches the function body -- which is where auth.uid() being null has
+-- to be a refusal rather than a row filed against nobody. The claims have to
+-- be cleared first: act_as() sets request.jwt.claims for the whole
+-- transaction, so without this auth.uid() still returns the last person
+-- tested and the function files a row happily.
+select set_config('request.jwt.claims', '{}', true);
+set local role authenticated;
+select pg_temp.rejects($$
+  select public.register_push_token('device-token-nobody', 'ios')
+$$, 'PUSH.needs_a_signed_in_account');
+reset role;
+
+
 select pg_temp.ok(true, 'SUITE.complete', 'every assertion passed');

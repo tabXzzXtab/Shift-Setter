@@ -753,6 +753,14 @@ export function SignOut() {
       type="button"
       onClick={async () => {
         const { getSupabase } = await import("@/lib/supabase/client");
+        // BEFORE the session goes. forget_push_token() deletes the caller's
+        // own row, so once signOut() has run there is no auth.uid() left to
+        // scope the delete to and the handset would keep its registration.
+        // A no-op in a browser, and it never throws -- a sign-out that failed
+        // because a token could not be filed away would strand somebody
+        // signed in.
+        const { forgetToken } = await import("@/lib/push");
+        await forgetToken();
         await getSupabase().auth.signOut();
         router.replace("/login");
       }}

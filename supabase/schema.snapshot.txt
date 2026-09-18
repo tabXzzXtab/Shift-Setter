@@ -194,6 +194,10 @@ column project_hours.start_date date
 column project_leader.account_id uuid NOT NULL
 column project_leader.assigned_at timestamp with time zone NOT NULL DEFAULT now()
 column project_leader.project_id uuid NOT NULL
+column push_token.account_id uuid NOT NULL
+column push_token.platform text NOT NULL
+column push_token.token text NOT NULL
+column push_token.updated_at timestamp with time zone NOT NULL DEFAULT now()
 column tilldelning.clock_in timestamp with time zone
 column tilldelning.clock_in_original timestamp with time zone
 column tilldelning.clock_out timestamp with time zone
@@ -303,6 +307,10 @@ constr project_day PRIMARY KEY (project_id, work_date)
 constr project_leader FOREIGN KEY (account_id) REFERENCES account(id) ON DELETE CASCADE
 constr project_leader FOREIGN KEY (project_id) REFERENCES project(id) ON DELETE CASCADE
 constr project_leader PRIMARY KEY (project_id, account_id)
+constr push_token CHECK ((btrim(token) <> ''::text))
+constr push_token CHECK ((platform = ANY (ARRAY['ios'::text, 'android'::text])))
+constr push_token FOREIGN KEY (account_id) REFERENCES account(id) ON DELETE CASCADE
+constr push_token PRIMARY KEY (token)
 constr tilldelning CHECK ((((released_at IS NULL) AND (released_reason IS NULL)) OR ((released_at IS NOT NULL) AND (released_reason IS NOT NULL))))
 constr tilldelning CHECK (((confirmed_hours >= (0)::numeric) AND (confirmed_hours <= (24)::numeric)))
 constr tilldelning CHECK (((own_start IS NULL) = (own_end IS NULL)))
@@ -334,6 +342,7 @@ index  CREATE INDEX personal_event_viewer_account ON public.personal_event_viewe
 index  CREATE INDEX project_day_flagged_idx ON public.project_day USING btree (flagged_as, work_date) WHERE (flagged_as IS NOT NULL)
 index  CREATE INDEX project_day_survey_idx ON public.project_day USING btree (project_id, work_date) WHERE (confirmed_via = 'bristsurvey'::confirmation_source)
 index  CREATE INDEX project_leader_account_idx ON public.project_leader USING btree (account_id)
+index  CREATE INDEX push_token_account ON public.push_token USING btree (account_id)
 index  CREATE INDEX tilldelning_date_active_idx ON public.tilldelning USING btree (work_date, worker_id) WHERE (released_at IS NULL)
 index  CREATE INDEX tilldelning_pass_idx ON public.tilldelning USING btree (pass_id) WHERE (released_at IS NULL)
 index  CREATE INDEX tilldelning_worker_idx ON public.tilldelning USING btree (worker_id)
@@ -356,6 +365,7 @@ index  CREATE UNIQUE INDEX profile_pkey ON public.profile USING btree (account_i
 index  CREATE UNIQUE INDEX project_day_pkey ON public.project_day USING btree (project_id, work_date)
 index  CREATE UNIQUE INDEX project_leader_pkey ON public.project_leader USING btree (project_id, account_id)
 index  CREATE UNIQUE INDEX project_pkey ON public.project USING btree (id)
+index  CREATE UNIQUE INDEX push_token_pkey ON public.push_token USING btree (token)
 index  CREATE UNIQUE INDEX tilldelning_one_leader_row_per_project_day ON public.tilldelning USING btree (worker_id, work_date, project_id) WHERE ((released_at IS NULL) AND (source = 'ledare'::assignment_source))
 index  CREATE UNIQUE INDEX tilldelning_pkey ON public.tilldelning USING btree (id)
 index  CREATE UNIQUE INDEX worker_account_id_key ON public.worker USING btree (account_id)
@@ -429,6 +439,7 @@ rls    profile enabled=t
 rls    project enabled=t
 rls    project_day enabled=t
 rls    project_leader enabled=t
+rls    push_token enabled=t
 rls    tilldelning enabled=t
 rls    worker enabled=t
 trig   account_pause on account -> tg_account_pause enabled=O
@@ -516,6 +527,7 @@ func   public.delete_project(p_project uuid) md5=d030116d7361ca4ca9f0313b20a6d04
 func   public.fill_passes(p_batch uuid) md5=330aaf6a5229939f92d52a5049213561
 func   public.float4_dist(real, real) md5=1491a162a165d9bd567fbac3c9d1dd2d
 func   public.float8_dist(double precision, double precision) md5=1c6ca5056a910a22941735008e6a75c1
+func   public.forget_push_token(p_token text) md5=8e84c8af4c2332caf644508a77643716
 func   public.forval_coverage(p_dates date[]) md5=413a413884b1fb318a370f1e9359337f
 func   public.gbt_bit_compress(internal) md5=31f34def849731302ee00e721401f01e
 func   public.gbt_bit_consistent(internal, bit, smallint, oid, internal) md5=878550d7e83f71fce0c49f44e350fedb
@@ -702,6 +714,7 @@ func   public.leave_day_unsupervised(p_tilldelning uuid) md5=d2d5b2c0260dc0626d3
 func   public.make_worker_ansvarig(p_tilldelning uuid, p_worker uuid) md5=6a1333b5816d7dc768c00bbce23b42ee
 func   public.oid_dist(oid, oid) md5=98f1ff8d3c8373653d6d3a2e298a7eba
 func   public.place_replacement(p_pass uuid, p_worker uuid) md5=e449b122190431d9a0cf9e717d96abe0
+func   public.register_push_token(p_token text, p_platform text) md5=17368a97548e0ea29a7f3c5cb9ba7886
 func   public.reject_day(p_project uuid, p_work_date date, p_note text) md5=5e4ec66b9ad25be694015c2db8afa0d2
 func   public.release_assignment(p_tilldelning uuid, p_reason release_reason) md5=1983347acadd4f94439618837e894b64
 func   public.replace_leader(p_tilldelning uuid, p_worker uuid) md5=a279675035fb73084464d85f437abf82

@@ -1180,6 +1180,49 @@ export type Database = {
           },
         ]
       }
+      push_token: {
+        Row: {
+          account_id: string
+          platform: string
+          token: string
+          updated_at: string
+        }
+        Insert: {
+          account_id: string
+          platform: string
+          token: string
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string
+          platform?: string
+          token?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "push_token_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "account"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "push_token_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "account_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "push_token_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "arbetsledare_roster"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tilldelning: {
         Row: {
           clock_in: string | null
@@ -1647,6 +1690,7 @@ export type Database = {
           slots: number
         }[]
       }
+      forget_push_token: { Args: { p_token: string }; Returns: undefined }
       forval_coverage: {
         Args: { p_dates: string[] }
         Returns: {
@@ -1668,6 +1712,10 @@ export type Database = {
       }
       place_replacement: {
         Args: { p_pass: string; p_worker: string }
+        Returns: undefined
+      }
+      register_push_token: {
+        Args: { p_platform: string; p_token: string }
         Returns: undefined
       }
       reject_day: {

@@ -87,6 +87,46 @@ const CONTROLS = [
    "using (owner_id = (select auth.uid())) with check (true)",
    "PERSONAL.cannot_create_in_another_name"],
 
+  ["push token -- a handset belongs to whoever signed in last",
+   // The primary key moved off the token and onto (account_id, token), which
+   // is the shape that looks perfectly reasonable in review: every account
+   // keeps its own registration for the device it uses. On a shared site
+   // phone it means two live rows for one handset, and the person holding it
+   // receives the other one's shifts.
+   //
+   // THE FUNCTION MOVES WITH IT. Perturbing the key alone makes the upsert die
+   // on its own ON CONFLICT clause, which fails the run somewhere that says
+   // nothing about who owns a handset. The composite world has to be
+   // internally consistent or the control is testing a typo.
+   "alter table public.push_token drop constraint push_token_pkey; " +
+   "alter table public.push_token add primary key (account_id, token); " +
+   "create or replace function public.register_push_token(p_token text, p_platform text) " +
+   "returns void language plpgsql security definer set search_path = '' as $ctl$ " +
+   "declare v_account uuid := (select auth.uid()); begin " +
+   "if v_account is null then raise exception 'not signed in' using errcode = 'insufficient_privilege'; end if; " +
+   "insert into public.push_token (token, account_id, platform, updated_at) " +
+   "values (btrim(p_token), v_account, p_platform, now()) " +
+   "on conflict (account_id, token) do update set platform = excluded.platform, updated_at = now(); " +
+   "end $ctl$",
+   "PUSH.one_row_per_device"],
+
+  ["push token -- signing out elsewhere cannot silence a handset that moved on",
+   // The delete widened to the token alone. Still deletes the right row in the
+   // ordinary case, which is why it needs a control: it only misbehaves once a
+   // device has changed hands.
+   "create or replace function public.forget_push_token(p_token text) " +
+   "returns void language sql security definer set search_path = '' as " +
+   "$$ delete from public.push_token where token = btrim(p_token) $$",
+   "PUSH.forget_is_scoped_to_the_caller"],
+
+  ["push token -- device tokens are not readable from a browser",
+   // A select policy that looks like every other one in the schema. Nothing
+   // else about the feature changes; what changes is that a logged-in user can
+   // enumerate the addresses of other people's phones.
+   "create policy push_token_select on public.push_token for select to authenticated using (true); " +
+   "grant select on public.push_token to authenticated",
+   "PUSH.no_direct_read"],
+
   ["invariant 2 -- no two assignments whose hours overlap",
    // The index this used to drop is gone: invariant 2 is a no-overlap rule
    // now, and a trigger is what holds it up.

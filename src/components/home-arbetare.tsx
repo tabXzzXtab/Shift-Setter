@@ -103,6 +103,51 @@ export function HomeArbetare() {
   const [note, setNote] = useState<string | null>(null);
   const [reload, setReload] = useState(0);
   const [open, setOpen] = useState<"menu" | "profile" | null>(null);
+  /** Shown only where the OS has actually refused. See the effect below. */
+  const [pushDenied, setPushDenied] = useState(false);
+
+  /**
+   * ASK FOR NOTIFICATIONS, ONCE, ON THE SCREEN THAT NEEDS THEM.
+   *
+   * The worker is the role a push is FOR -- a shift offered, a shift taken
+   * away, a day that needs clocking out. So the ask happens here rather than
+   * at login: a system dialog on the login screen asks somebody to agree to
+   * something before they have seen what it is for.
+   *
+   * ONCE EVER, and the OS is the one keeping count. iOS shows its dialog a
+   * single time per install and returns the standing answer silently
+   * afterwards; asking again is not rude, it is simply a no-op. So there is no
+   * flag to remember and nothing to get out of step with the real setting --
+   * `prompt` means it has never been answered, and that is the only state that
+   * asks.
+   *
+   * A DENIAL CANNOT BE UNDONE FROM HERE. Once refused, only Settings can
+   * change it, so the panel below explains where to go instead of offering a
+   * button that would do nothing. It is drawn from the live permission state
+   * rather than from a stored flag, so it disappears by itself the moment
+   * somebody turns notifications back on.
+   *
+   * All of this no-ops in a browser: checkPermission() answers "unavailable"
+   * off a native platform, which is neither "prompt" nor "denied".
+   */
+  useEffect(() => {
+    let live = true;
+    void (async () => {
+      const { checkPermission, requestPermission, registerToken } = await import("@/lib/push");
+      let state = await checkPermission();
+      if (!live) return;
+
+      if (state === "prompt") {
+        state = await requestPermission();
+        if (!live) return;
+        // Newly granted: file the handset now rather than waiting for the next
+        // time this screen mounts.
+        if (state === "granted") void registerToken();
+      }
+      setPushDenied(state === "denied");
+    })();
+    return () => { live = false; };
+  }, []);
 
   useEffect(() => {
     let live = true;
@@ -414,6 +459,32 @@ export function HomeArbetare() {
           ))}
         </div>
       </div>
+
+      {/* ---- 3b. notiser är avstängda --------------------------------------
+          SUBTLE, AND NOT A CALL TO ACTION. The app cannot reopen the OS
+          dialog, so there is no button here that could work -- a tapped
+          "Tillåt" that did nothing would be worse than the quiet line. It sits
+          in the panel fill rather than an amber warn: nothing is wrong, a
+          setting is simply off, and the day's work is unaffected. It goes away
+          on its own when the setting changes, because it is drawn from the
+          live permission rather than from anything remembered. */}
+      {pushDenied && (
+        <div className="px-4 pt-[26px]">
+          <div
+            data-push-denied
+            className="rounded-[14px] px-4 py-[14px]"
+            style={{ background: PANEL, color: TEXT_2 }}
+          >
+            <div className="text-[15px] font-bold" style={{ color: INK, letterSpacing: "-.2px" }}>
+              Notiser är avstängda
+            </div>
+            <div className="mt-[2px] text-[14px] font-medium" style={{ textWrap: "pretty" }}>
+              Du får inga aviseringar om nya pass eller ändringar. Slå på dem
+              för ByggKoll i telefonens inställningar.
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ---- 4. nästa pass ------------------------------------------------ */}
       {/* The same card the arbetsledare gets, from the same component and the
