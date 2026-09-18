@@ -853,6 +853,8 @@ Alla Arbetare is not in the leader's menu. **A project row opens only Kolla Pass
 
 **Hamburger menu**, top left: **Öppna Pass** — the one route that is not already a grouped row on the startsida itself. Mina Pass and Arbetsdagar are on the page, so putting them in the menu too would name them twice.
 
+**One card per question.** The startsida asks two: where you are next, and what you are being asked to take. **Nästa pass** shows the single shift whose end is still ahead of now, and **Acceptera pass** shows the single offer by the same test — no count beside the label and no slabs behind the card, because both of those said "there are more of these" about a section that now holds one. The test matters on the offer: `my_offer` applies none to the date, so an unanswered offer stays on the list after its day has gone, and leading with the oldest row would put a shift from last week where "nästa" should be. Answering the card refetches and the next offer takes its place — nothing becomes unreachable, it arrives one at a time. **Acceptera Pass, the screen, is unchanged**: the whole queue, its count, and the stack behind the front card.
+
 **Top right:** the profile icon, and behind it **Konto**, **Profil** and Logga ut.
 
 Both are the bottom sheet described above.

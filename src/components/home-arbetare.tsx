@@ -6,7 +6,7 @@ import { SoftNastaPass } from "./nasta-pass-card";
 import { OfferStack, type Offer } from "./offer-stack";
 import { GroupedList, SignOut, SoftSheet } from "./soft";
 import { getSupabase } from "@/lib/supabase/client";
-import { addDays, hhmm, stockholmToday } from "@/lib/dates";
+import { addDays, hhmm, passEndAt, stockholmToday } from "@/lib/dates";
 import { stampGate } from "@/lib/geo";
 import { fel } from "@/lib/fel";
 
@@ -95,6 +95,8 @@ const Chevron = () => (
 export function HomeArbetare() {
   const [shift, setShift] = useState<Shift | null | undefined>(undefined);
   const [offers, setOffers] = useState<Offer[] | null>(null);
+  /** Stamped when the offers arrive; see `front` below. */
+  const [now, setNow] = useState(() => Date.now());
   const [notes, setNotes] = useState<Note[]>([]);
   const [busy, setBusy] = useState(false);
   /** Waiting on the phone's position and the site's coordinates. */
@@ -164,7 +166,11 @@ export function HomeArbetare() {
           .gte("work_date", addDays(today, -1))
           .lte("work_date", today)
           .order("work_date"),
-        sb.from("my_offer").select("*").order("work_date"),
+        // Earliest day, then earliest start. The tiebreak is load-bearing now
+        // that the startsida shows ONE offer: two offers on the same date have
+        // to be ordered by something, and "nästa" means the one that starts
+        // first. Same rule as the next-shift card, for the same reason.
+        sb.from("my_offer").select("*").order("work_date").order("start_time"),
         sb.from("notification").select("id, kind, payload").is("read_at", null)
           .order("created_at", { ascending: false }),
       ]);
@@ -179,6 +185,7 @@ export function HomeArbetare() {
       setShift(running ?? fresh ?? null);
 
       setOffers((offered ?? []) as Offer[]);
+      setNow(Date.now());
       setNotes((unread ?? []).map((n) => ({
         id: n.id,
         kind: n.kind,
@@ -255,7 +262,24 @@ export function HomeArbetare() {
   }
 
   const clockedIn = Boolean(shift?.clock_in && !shift.clock_out);
-  const front = offers?.[0] ?? null;
+  /**
+   * The next offer that has not already been and gone.
+   *
+   * my_offer applies no test to the date at all -- an offer nobody answered
+   * stays on it after its day has passed. That was survivable while this
+   * section was a queue with a count on it and the stale ones sat behind the
+   * front card; it is not, now that the front card IS the section. The test is
+   * the END of the span, the same one the next-shift card above uses, so a
+   * shift running right now still counts as the next thing to answer.
+   *
+   * `now` is taken with the rows rather than read during render -- render has
+   * to be pure, and this screen refetches on every answer and every mount, so
+   * the two are never far apart. An offer going stale between two paints
+   * changes nothing a thumb can reach.
+   */
+  const front =
+    offers?.find((o) => passEndAt(o.work_date, o.start_time, o.end_time).getTime() > now)
+    ?? null;
   const waiting = busy || checking;
 
   /** Filled variant. Ink when clocked in, accent when out -- handoff §2. */
@@ -496,6 +520,10 @@ export function HomeArbetare() {
 
       {/* ---- 5. acceptera pass -------------------------------------------- */}
       <div className="px-4 pt-[26px]">
+        {/* No count beside the label any more. This screen answers "what is
+            next", once per section: the next shift above, the next offer here.
+            A number saying 31 more made the section a queue to work through,
+            and a phone on a building site is not where that belongs. */}
         <div className="flex items-baseline justify-between px-1 pb-[10px]">
           <div
             className="text-[12px] font-bold uppercase"
@@ -503,19 +531,20 @@ export function HomeArbetare() {
           >
             Acceptera pass
           </div>
-          {offers && offers.length > 0 && (
-            <div className="text-[12px] font-bold" style={{ color: ACCENT }}>
-              {offers.length} till
-            </div>
-          )}
         </div>
 
         {offers === null && <EmptyPanel>Laddar…</EmptyPanel>}
         {offers !== null && !front && <EmptyPanel>Inga pass att svara på.</EmptyPanel>}
 
+        {/* ONE OFFER, THE MOST UPCOMING ONE. The stack behind the card is what
+            drew the others, so it is handed a list of one and draws none of
+            them. Answering the card refetches, and the next offer takes its
+            place -- nothing becomes unreachable, it simply arrives one at a
+            time. The card itself is untouched, and Acceptera Pass still shows
+            the whole queue. */}
         {front && (
           <OfferStack
-            offers={offers ?? []}
+            offers={[front]}
             busy={waiting}
             onRespond={respond}
           />

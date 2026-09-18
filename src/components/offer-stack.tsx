@@ -28,8 +28,14 @@ const SHADOW_SLAB = "0 6px 16px rgba(9,21,64,.06)";
  * "shuffle me", and the only thing the cards behind need to say is "there are
  * more of these". They are aria-hidden: a 24px sliver cannot show a project
  * name, and reading out two cards nobody can act on would make the list longer
- * for the people it is hardest for. The count beside the section label is what
- * tells everyone how many are waiting.
+ * for the people it is hardest for.
+ *
+ * THE SLABS ARE DRAWN ONLY WHERE THERE IS IN FACT MORE THAN ONE. Handed a
+ * single offer they would be saying "there are more of these" about nothing,
+ * and the arbetare's startsida now hands them exactly one: that screen shows
+ * the next shift and the next offer, one apiece, and Acceptera Pass is where a
+ * queue is a queue. Where several do come through -- that page -- the slabs and
+ * the count beside the section label are unchanged.
  *
  * ONE DEFINITION OF THE CARD, used by the arbetare's startsida and by Acceptera
  * Pass itself, so the same offer cannot look like two different things
@@ -54,19 +60,24 @@ export function OfferStack({
 
   return (
     <div className="relative">
-      {/* The stack illusion: two slabs behind the card, nothing more. */}
-      <div
-        data-stack-slab="deep"
-        className="absolute bottom-[-7px] left-[14px] right-[14px] h-6 rounded-[14px] opacity-55"
-        style={{ background: C.surface, boxShadow: SHADOW_SLAB }}
-        aria-hidden
-      />
-      <div
-        data-stack-slab="near"
-        className="absolute bottom-[-4px] left-[7px] right-[7px] h-6 rounded-[14px] opacity-80"
-        style={{ background: C.surface, boxShadow: SHADOW_SLAB }}
-        aria-hidden
-      />
+      {/* The stack illusion: two slabs behind the card, nothing more -- and
+          nothing at all behind a card that is the only one there is. */}
+      {offers.length > 1 && (
+        <>
+          <div
+            data-stack-slab="deep"
+            className="absolute bottom-[-7px] left-[14px] right-[14px] h-6 rounded-[14px] opacity-55"
+            style={{ background: C.surface, boxShadow: SHADOW_SLAB }}
+            aria-hidden
+          />
+          <div
+            data-stack-slab="near"
+            className="absolute bottom-[-4px] left-[7px] right-[7px] h-6 rounded-[14px] opacity-80"
+            style={{ background: C.surface, boxShadow: SHADOW_SLAB }}
+            aria-hidden
+          />
+        </>
+      )}
 
       <div
         data-offer-card="front"
