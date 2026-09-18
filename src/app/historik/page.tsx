@@ -99,8 +99,21 @@ function Bekraftelser() {
 
   const showing: View = queue ? view : "historik";
 
+  // THE NOTE BELONGS TO THE TITLE, NOT TO THE LIST. It says what the view
+  // being looked at means, so it is read before the days rather than found
+  // under them -- an explanation that follows the thing it explains is one
+  // nobody needed by the time they reach it. Only the leader is told, and only
+  // on Historik, which is the tab the sentence is about.
   return (
-    <SoftScreen title="Bekräftelser" back="/">
+    <SoftScreen
+      title="Bekräftelser"
+      back="/"
+      subtitle={
+        isLeader && showing === "historik"
+          ? "Dagar du bekräftat visas här när admin har godkänt dem."
+          : undefined
+      }
+    >
       {/* Both states always visible, the current one on the white thumb. A
           control that hides the thing it switches to makes people press it to
           find out. */}
@@ -120,7 +133,7 @@ function Bekraftelser() {
 
       {showing === "att"
         ? (isAdmin ? <AttGranska /> : <AttBekrafta />)
-        : <Historik forLeader={isLeader} />}
+        : <Historik />}
     </SoftScreen>
   );
 }
@@ -314,10 +327,10 @@ function AttBekrafta() {
  * A DAY THE LEADER HAS JUST CONFIRMED IS IN NEITHER VIEW. day_history takes a
  * day once it is finished with -- approved at stage 2 or consumed by a
  * document -- so between the leader's claim and the admin's sign-off the day
- * is out of the leader's queue and not yet in the log. The note says so rather
- * than letting the day appear to have been lost.
+ * is out of the leader's queue and not yet in the log. The note under the
+ * title says so rather than letting the day appear to have been lost.
  */
-function Historik({ forLeader }: { forLeader: boolean }) {
+function Historik() {
   const [days, setDays] = useState<Day[] | undefined>(undefined);
   const [error, setError] = useState<string | null>(null);
 
@@ -425,14 +438,6 @@ function Historik({ forLeader }: { forLeader: boolean }) {
   return (
     <>
       {error && <div className="px-4 pt-[14px]"><SoftNotice tone="stop">{error}</SoftNotice></div>}
-
-      {forLeader && (
-        <div className="px-4 pt-[14px]">
-          <div className="px-1 text-[15px] font-medium" style={{ color: C.text2, textWrap: "pretty" }}>
-            Dagar du bekräftat visas här när admin har godkänt dem.
-          </div>
-        </div>
-      )}
 
       {days.length === 0 ? (
         <div className="px-4 pt-[14px]">
