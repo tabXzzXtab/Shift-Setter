@@ -8,11 +8,21 @@
  * THE CALLER IS A MACHINE, NOT A PERSON. Every other function in this folder
  * resolves a user from their token and reads their role from the database.
  * This one is the opposite: it is called on behalf of the system, and the only
- * credential that may call it is the service-role key. A push is addressed to
- * an account the caller NAMES, so a function that accepted a logged-in user
- * would let any worker put arbitrary text on any other worker's lock screen.
- * There is no role that would make that safe, which is why the check is the
- * key itself rather than a lookup.
+ * credential that may call it is PUSH_CALLER_SECRET. A push is addressed to an
+ * account the caller NAMES, so a function that accepted a logged-in user would
+ * let any worker put arbitrary text on any other worker's lock screen. There is
+ * no role that would make that safe, which is why the check is a shared secret
+ * rather than a lookup.
+ *
+ * A DEDICATED SECRET, NOT THE SERVICE-ROLE KEY. This compared against
+ * SUPABASE_SERVICE_ROLE_KEY first, which tied the door to whichever key format
+ * the platform injects -- and those have diverged. The runtime supplies the
+ * newer sb_secret_ form, which the functions gateway refuses outright ("Invalid
+ * API key") before a request ever reaches this code, while the legacy JWT the
+ * CLI hands out arrives here and does not match. The credential the check
+ * demanded was one that no caller could present. The service role is still read
+ * below -- it is what gets past RLS on push_token -- but it no longer opens the
+ * door.
  *
  * FCM v1, NOT THE LEGACY ENDPOINT. Google removed the legacy HTTP API and its
  * "server key" in June 2024. v1 authenticates with a service-account JSON and
@@ -208,12 +218,21 @@ Deno.serve(async (req) => {
 
   const url = Deno.env.get("SUPABASE_URL")!;
   const service = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const callerSecret = Deno.env.get("PUSH_CALLER_SECRET");
   const rawServiceAccount = Deno.env.get("FCM_SERVICE_ACCOUNT");
 
-  // The service-role key, and nothing else. Deployed with --no-verify-jwt like
-  // its neighbours, so this comparison is the entire door.
+  // Fail closed, and say so. An unset secret must refuse everybody rather than
+  // be compared against -- sameSecret would read .length off undefined, throw
+  // inside the handler, and answer 500, which reads as a broken function rather
+  // than an unconfigured one.
+  if (!callerSecret) return json({ error: "PUSH_CALLER_SECRET is not set" }, 500);
+
+  // That secret, and nothing else. Deployed with --no-verify-jwt like its
+  // neighbours, so this comparison is the entire door.
   const presented = (req.headers.get("Authorization") ?? "").replace(/^Bearer\s+/i, "").trim();
-  if (!presented || !sameSecret(presented, service)) return json({ error: "Unauthorized" }, 401);
+  if (!presented || !sameSecret(presented, callerSecret)) {
+    return json({ error: "Unauthorized" }, 401);
+  }
 
   if (!rawServiceAccount) return json({ error: "FCM_SERVICE_ACCOUNT is not set" }, 500);
   let sa: ServiceAccount;
