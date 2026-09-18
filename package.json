@@ -45,6 +45,10 @@
     "walkthrough:arende": "node scripts/walkthrough-arende.mjs"
   },
   "dependencies": {
+    "@capacitor/android": "^8.5.2",
+    "@capacitor/cli": "^8.5.2",
+    "@capacitor/core": "^8.5.2",
+    "@capacitor/ios": "^8.5.2",
     "@supabase/supabase-js": "^2.113.0",
     "leaflet": "^1.9.4",
     "next": "16.3.4",

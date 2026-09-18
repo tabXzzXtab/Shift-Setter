@@ -24,6 +24,14 @@ const eslintConfig = defineConfig([
     "**/design_handoff*/**",
     "**/handoff/**",
     "Swedish construction shift scheduler redesign*/**",
+    // The Capacitor native shells. `cap add` writes an Xcode and a Gradle
+    // tree and COPIES THE BUILT EXPORT INTO BOTH -- minified bundles, plus
+    // Capacitor's own runtime JS. None of it is ours and none of it is
+    // built from here; linting it turned verify red with 130 errors the
+    // moment the folders appeared, exactly as the handoff bundle did. They
+    // are gitignored too, but .gitignore does not reach ESLint.
+    "ios/**",
+    "android/**",
   ]),
 ]);
 
