@@ -32,6 +32,7 @@
     "walkthrough:ledarprojekt": "node scripts/walkthrough-ledarprojekt.mjs",
     "walkthrough:arbetare": "node scripts/walkthrough-arbetare.mjs",
     "walkthrough:avboka": "node scripts/walkthrough-avboka.mjs",
+    "walkthrough:boka": "node scripts/walkthrough-boka.mjs",
     "walkthrough:profil": "node scripts/walkthrough-profil.mjs",
     "walkthrough:minapass": "node scripts/walkthrough-minapass.mjs",
     "walkthrough:bytledare": "node scripts/walkthrough-byt-ledare.mjs",
