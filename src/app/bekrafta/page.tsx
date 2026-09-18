@@ -8,7 +8,7 @@ import {
   SoftSelect, Tag,
 } from "@/components/soft";
 import { getSupabase } from "@/lib/supabase/client";
-import { hhmm, longDayHeading, stampToTime } from "@/lib/dates";
+import { hhmm, longDayHeading, passEndAt, stampToTime } from "@/lib/dates";
 import { pendingDays } from "@/lib/pending-days";
 import { spanHours } from "@/lib/hours";
 import { fel } from "@/lib/fel";
@@ -187,6 +187,26 @@ function Bekrafta({ askedProject, askedDate }: { askedProject: string | null; as
   // Everything settles after an await: no synchronous setState in the effect
   // body. `reload` is how confirming asks for the next day.
   const [reload, setReload] = useState(0);
+
+  /**
+   * The clock, re-read once a minute.
+   *
+   * A row is editable from the moment its shift has ended, and "has ended" is
+   * a fact about the time of day rather than about this render. A leader with
+   * the screen open while a shift runs out would otherwise sit in front of a
+   * card that stays dimmed until they reload -- and reloading is the thing
+   * they would have to guess at, because nothing on screen says the state is
+   * stale.
+   *
+   * A minute is the grain because the shifts are: end_time is HH:MM, so
+   * nothing here can change more often than that, and a faster timer would
+   * re-render the form under somebody's thumb for nothing.
+   */
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const tick = setInterval(() => setNow(Date.now()), 60_000);
+    return () => clearInterval(tick);
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -445,12 +465,33 @@ function Bekrafta({ askedProject, askedDate }: { askedProject: string | null; as
 
       {day.rows.map((r) => {
         const e = edits[r.tilldelning_id]!;
+        /**
+         * IS THIS PERSON'S SHIFT STILL RUNNING?
+         *
+         * Measured on the ROW's own span, not the day's. A worker's row is the
+         * pass's times; an auto-assigned leader's is their own envelope, which
+         * runs from the first arrival to the last departure across the day's
+         * shifts -- so a leader can still be on site after the shift that
+         * brought this day into the queue has ended, and their row is the one
+         * this actually dims. passEndAt is the same function the queue uses,
+         * so a 22:00-06:00 night shift ends tomorrow morning here too rather
+         * than reading as sixteen hours ago.
+         */
+        const endsAt = passEndAt(day.work_date, r.start, r.end);
+        const running = endsAt.getTime() > now;
         return (
           <div
             key={r.tilldelning_id}
             data-row={r.is_leader ? "ledare" : "arbetare"}
+            data-running={running ? "1" : "0"}
             className="px-4 pt-[14px]"
           >
+            {/* Dimmed rather than hidden, and the fields are disabled rather
+                than removed: the leader should see that the person is there
+                and that their turn has not come, not wonder where they went.
+                Colour alone never carries it -- "Klar HH:MM" below says in
+                words what the dimming says at a glance. */}
+            <div style={running ? { opacity: 0.4 } : undefined}>
             <Card>
               <div className="flex items-baseline justify-between gap-[10px]">
                 <div className="text-[18px] font-bold" style={{ letterSpacing: "-.4px" }}>
@@ -502,6 +543,7 @@ function Bekrafta({ askedProject, askedDate }: { askedProject: string | null; as
                       <SoftField label="Börjar">
                         <SoftInput
                           type="time"
+                          disabled={running}
                           value={e.start}
                           onChange={(ev) =>
                             setEdits((p) => ({ ...p, [r.tilldelning_id]: { ...e, start: ev.target.value } }))
@@ -513,6 +555,7 @@ function Bekrafta({ askedProject, askedDate }: { askedProject: string | null; as
                       <SoftField label="Slutar">
                         <SoftInput
                           type="time"
+                          disabled={running}
                           value={e.end}
                           onChange={(ev) =>
                             setEdits((p) => ({ ...p, [r.tilldelning_id]: { ...e, end: ev.target.value } }))
@@ -543,6 +586,7 @@ function Bekrafta({ askedProject, askedDate }: { askedProject: string | null; as
                   <SoftField label="Timmar" big>
                     <SoftInput
                       inputMode="numeric"
+                      disabled={running}
                       value={e.h}
                       onChange={(ev) =>
                         setEdits((p) => ({
@@ -560,6 +604,7 @@ function Bekrafta({ askedProject, askedDate }: { askedProject: string | null; as
                       reaches for an <input> and cannot see a <select>. */}
                   <SoftField label="Minuter">
                     <SoftSelect
+                      disabled={running}
                       value={e.m}
                       onChange={(ev) =>
                         setEdits((p) => ({
@@ -589,11 +634,14 @@ function Bekrafta({ askedProject, askedDate }: { askedProject: string | null; as
                 two agree before it is final.
               */}
               <div className="mt-[6px] text-[14px] font-medium" style={{ color: C.text2 }}>
-                {Number.isFinite(joinHours(e.h, e.m))
-                  ? `Blir ${decimalLabel(joinHours(e.h, e.m))} h. 0 timmar och 00 minuter om personen inte kom.`
-                  : "Fyll i ett antal timmar."}
+                {running
+                  ? `Klar ${e.end}`
+                  : Number.isFinite(joinHours(e.h, e.m))
+                    ? `Blir ${decimalLabel(joinHours(e.h, e.m))} h. 0 timmar och 00 minuter om personen inte kom.`
+                    : "Fyll i ett antal timmar."}
               </div>
             </Card>
+            </div>
           </div>
         );
       })}
