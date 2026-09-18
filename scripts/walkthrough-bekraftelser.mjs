@@ -309,9 +309,48 @@ try {
     await shot(page, "FAILED");
     fail("a worker's row lost its time fields; only the leader's own row is locked");
   }
-  await mustSee(page, "Dina tider ändras av admin när dagen godkänns.",
-                "nothing tells the leader who can change their times");
+  // ---- and the card says it by being locked, not by explaining itself -----
+  //
+  // THE COPY IS GONE ON PURPOSE, so this asserts its absence rather than
+  // quietly dropping the check. The three things a leader's card used to
+  // carry -- a role pill naming what the row already is, a stamp reading for
+  // somebody who cannot stamp, and a sentence about who edits the span -- were
+  // all saying what the locked fields above already say. A screen that grew
+  // any of them back would pass every assertion before this one.
+  const ledareAfter = await ledareRow.innerText();
+  for (const gone of ["Arbetsledare", "Stämplade", "Dina tider ändras"]) {
+    if (ledareAfter.includes(gone)) {
+      await shot(page, "FAILED");
+      fail(`the leader's card is explaining itself again: "${gone}" is back on the row`);
+    }
+  }
   log("the leader's span is read-only and their hours are not; worker rows are untouched");
+
+  // ---- an unstamped worker is a press, not a chip -------------------------
+  //
+  // The row that nobody clocked is the one question this screen exists to ask,
+  // and it is now the only mark on a card. A chip saying "Ej stämplad" said
+  // the same thing and could not be answered.
+  const unstamped = page.getByRole("button", { name: /^Jobbade .* inte idag?$/ });
+  if (!(await unstamped.count())) {
+    await shot(page, "FAILED");
+    fail("no unstamped worker carries the red mark that asks whether they came");
+  }
+  await unstamped.first().click();
+  await mustSee(page, "Fortsätter du loggas inga timmar för personen",
+                "the mark writes zero hours without asking");
+  await page.getByRole("button", { name: "Avbryt" }).click();
+  await page.waitForTimeout(300);
+  log("an unstamped worker carries the red mark, and it asks before it answers");
+
+  // The chips and the helper line the mark replaced are gone from the screen.
+  for (const gone of ["Ej stämplad", "Stämplad ut", "Krävs", "slutgiltigt", "om personen inte kom"]) {
+    if ((await page.getByText(gone, { exact: false }).count())) {
+      await shot(page, "FAILED");
+      fail(`"${gone}" is back on Bekräfta Pass`);
+    }
+  }
+  log("the stamp chips, Krävs and the finality notice are gone");
 
   // ---- confirming moves a day off one view without putting it on the other -
   await page.getByLabel("Vad vi gjorde").fill("Stenläggning, norra sidan.");

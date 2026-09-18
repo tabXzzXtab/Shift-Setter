@@ -14,9 +14,29 @@
   50%      { opacity: .35; transform: scale(.82); }
 }
 
+/*
+ * The running-shift bar on Bekrafta Pass, arriving from above the fold.
+ *
+ * The bar is the only thing on that screen that appears without being asked
+ * for, so it has to read as an arrival rather than as something that was
+ * always there and went unnoticed -- a leader who opens a day while a shift is
+ * still running is being told a fact that changes what they should do next.
+ */
+@keyframes slidedown {
+  from { transform: translateY(-130%); opacity: 0; }
+  to   { transform: translateY(0);     opacity: 1; }
+}
+
+.animate-slidedown {
+  animation: slidedown 260ms cubic-bezier(.2, .8, .3, 1) both;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-livedot { animation: none; }
   .press-scale:active { transform: none; }
+  /* The bar still appears -- only its travel is dropped. It carries
+     information, so it is not decoration the way the pulse is. */
+  .animate-slidedown { animation: none; }
 }
 
 /*

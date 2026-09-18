@@ -5,8 +5,9 @@ import { useSearchParams } from "next/navigation";
 import { AuthGate } from "@/components/auth-gate";
 import {
   C, Card, EmptyState, PrimaryButton, SecondaryButton, SoftField, SoftInput,
-  SoftNotice, SoftScreen, SoftTextarea, Tag,
+  SoftNotice, SoftScreen, SoftTextarea,
 } from "@/components/soft";
+import { EjStampladMark, JobbadeInteDialog } from "@/components/jobbade-inte";
 import { getSupabase } from "@/lib/supabase/client";
 import { hhmm, longDayHeading, stampToTime } from "@/lib/dates";
 import { reviewDays } from "@/lib/review-days";
@@ -69,6 +70,9 @@ function Granska({ askedProject, askedDate }: { askedProject: string | null; ask
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [reload, setReload] = useState(0);
+
+  /** The row whose "did they not come" question is open, if any. */
+  const [asking, setAsking] = useState<Row | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -334,31 +338,41 @@ function Granska({ askedProject, askedDate }: { askedProject: string | null; ask
             className="px-4 pt-[14px]"
           >
             <Card>
-              <div className="text-[18px] font-bold" style={{ letterSpacing: "-.4px" }}>
-                {r.worker_name}
+              <div className="flex items-center justify-between gap-[10px]">
+                <div className="min-w-0 text-[18px] font-bold" style={{ letterSpacing: "-.4px" }}>
+                  {r.worker_name}
+                </div>
+                {/* The same mark as Bekräfta Pass, for the same reason: a row
+                    with no stamp on either end is the one the admin has to
+                    decide about, and pressing it asks the only question it
+                    raises. Never on a leader's row -- an arbetsledare is
+                    placed rather than clocked, so the mark would be permanent
+                    and would mean nothing. */}
+                {!r.is_leader && !r.clock_in && !r.clock_out && (
+                  <EjStampladMark
+                    name={r.worker_name}
+                    disabled={busy}
+                    onClick={() => setAsking(r)}
+                  />
+                )}
               </div>
 
               {/* THIS IS THE ONLY SCREEN THAT EDITS A LEADER'S SPAN. It is
                   read-only on Bekräfta Pass, because a person stating when
                   they were personally on site, on the row that pays them, is
-                  the conflict of interest the two stages exist to hold. The
-                  tag says whose row this is, and the line under it says which
-                  span is being corrected -- their own envelope, not the pass,
-                  so moving it moves nobody else. */}
-              {r.is_leader && (
-                <div className="pt-[6px]"><Tag tone="quiet">Arbetsledare</Tag></div>
-              )}
+                  the conflict of interest the two stages exist to hold. So a
+                  leader's line says WHICH span is about to move -- their own
+                  envelope, not the pass, so correcting one moves nobody else.
 
-              {/* The stamps are CONTEXT, not the figure. They are read-only
-                  copy here and typed hours sit below them, because nothing in
-                  this app derives an hour from a clock (invariant 1). */}
+                  A worker's line is their stamps, which are CONTEXT and not
+                  the figure: typed hours sit below them, because nothing in
+                  this app derives an hour from a clock (invariant 1). A leader
+                  has no stamps to show and never will, so their card says the
+                  thing that is true of it instead of a pair of dashes. */}
               <div className="mb-[14px] mt-[2px] text-[14px] font-medium" style={{ color: C.text2 }}>
-                Stämplade {stampToTime(r.clock_in) || "—"} till {stampToTime(r.clock_out) || "—"}
-                {r.is_leader && (
-                  <span className="mt-[2px] block">
-                    Arbetsledarens egna tider. Ändras här och flyttar inte passet.
-                  </span>
-                )}
+                {r.is_leader
+                  ? "Arbetsledarens egna tider. Ändras här och flyttar inte passet."
+                  : `Stämplade ${stampToTime(r.clock_in) || "—"} till ${stampToTime(r.clock_out) || "—"}`}
               </div>
 
               <div className="mb-[14px] flex gap-[10px]">
@@ -386,7 +400,9 @@ function Granska({ askedProject, askedDate }: { askedProject: string | null; ask
                 </div>
               </div>
 
-              <SoftField label="Timmar" help="0 om personen inte kom." big>
+              {/* No helper: "0 om personen inte kom" is the question the red
+                  mark above now asks, and answering it writes the figure. */}
+              <SoftField label="Timmar" big>
                 <SoftInput
                   inputMode="decimal"
                   value={e.hours}
@@ -403,21 +419,17 @@ function Granska({ askedProject, askedDate }: { askedProject: string | null; ask
 
       <div className="px-4 pt-[14px]">
         <Card>
-          <div className="flex items-baseline justify-between gap-[10px]">
-            {/* htmlFor, not a wrapping <label>: the handoff puts the marker on
-                the same baseline as the label, and a <label> containing both
-                would make it part of the field's accessible name. */}
-            <label
-              htmlFor="vad-vi-gjorde"
-              className="text-[12px] font-bold uppercase"
-              style={{ letterSpacing: ".9px", color: C.text2 }}
-            >
-              Vad vi gjorde
-            </label>
-            <div className="text-[12px] font-bold" style={{ letterSpacing: ".4px", color: C.stopInk }}>
-              Krävs
-            </div>
-          </div>
+          {/* ONE ASTERISK, inside the label -- the same marker Bekräfta Pass
+              uses, in the same place. "Krävs" across the card put the screen's
+              only required field in the stop ink, which read as a fault rather
+              than as a rule. */}
+          <label
+            htmlFor="vad-vi-gjorde"
+            className="block text-[12px] font-bold uppercase"
+            style={{ letterSpacing: ".9px", color: C.text2 }}
+          >
+            Vad vi gjorde <span style={{ color: C.stopInk }}>*</span>
+          </label>
           <div className="mb-2 mt-[2px] text-[14px] font-medium" style={{ color: C.text2 }}>
             {day.flagged_as
               ? "Din redogörelse. Skrivs ut på varje rad i arbetsdagboken."
@@ -430,14 +442,6 @@ function Granska({ askedProject, askedDate }: { askedProject: string | null; ask
             onChange={(e) => setGjorde(e.target.value)}
           />
         </Card>
-      </div>
-
-      <div className="px-4 pt-[14px]">
-        <SoftNotice tone="quiet">
-          {day.flagged_as
-            ? "Bekräftat är slutgiltigt. Efter det ändras ingenting."
-            : "Godkänt är slutgiltigt. Efter det ändras ingenting."}
-        </SoftNotice>
       </div>
 
       <div className="px-4 pt-[14px]">
@@ -473,6 +477,28 @@ function Granska({ askedProject, askedDate }: { askedProject: string | null; ask
             </Card>
           )}
         </div>
+      )}
+
+      {/*
+        THE ANSWER IS A FIGURE, NOT A WRITE. Confirming fills the row's hours
+        with zero and leaves it there, editable, exactly as if the admin had
+        typed it. Nothing reaches the database until Godkänn, and this changes
+        neither what that sends nor who may send it -- approve_day still routes
+        a leader's span by the row's own source, and reviewing a claim is still
+        not making one.
+      */}
+      {asking && (
+        <JobbadeInteDialog
+          name={asking.worker_name}
+          onCancel={() => setAsking(null)}
+          onConfirm={() => {
+            setEdits((p) => ({
+              ...p,
+              [asking.tilldelning_id]: { ...p[asking.tilldelning_id]!, hours: "0" },
+            }));
+            setAsking(null);
+          }}
+        />
       )}
     </SoftScreen>
   );

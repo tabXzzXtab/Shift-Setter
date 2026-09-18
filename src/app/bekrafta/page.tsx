@@ -7,6 +7,7 @@ import {
   C, Card, PrimaryButton, SHADOW, SoftField, SoftInput, SoftNotice, SoftScreen,
   SoftSelect, Tag,
 } from "@/components/soft";
+import { EjStampladMark, JobbadeInteDialog } from "@/components/jobbade-inte";
 import { getSupabase } from "@/lib/supabase/client";
 import { hhmm, longDayHeading, passEndAt, stampToTime } from "@/lib/dates";
 import { pendingDays } from "@/lib/pending-days";
@@ -106,10 +107,6 @@ function minuteOptions(current: string): number[] {
     : QUARTERS;
 }
 
-/** Swedish decimal comma, so the readout matches what every other screen prints. */
-const decimalLabel = (n: number) =>
-  Number.isFinite(n) ? String(n).replace(".", ",") : "—";
-
 type Day = {
   project_id: string;
   project_name: string;
@@ -183,6 +180,20 @@ function Bekrafta({ askedProject, askedDate }: { askedProject: string | null; as
   const [gjorde, setGjorde] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+
+  /** The row whose "did they not come" question is open, if any. */
+  const [asking, setAsking] = useState<Row | null>(null);
+
+  /**
+   * The running-shift bar, once dismissed, stays dismissed FOR THAT DAY.
+   *
+   * Reset when a day loads rather than never: confirming one day hands the
+   * leader the next one, and a bar silenced on Tuesday must not silence the
+   * same warning about Wednesday. The minute timer re-renders this screen
+   * sixty times an hour, so anything that forgot the dismissal would put the
+   * bar back under the leader's thumb while they typed.
+   */
+  const [barGone, setBarGone] = useState(false);
 
   // Everything settles after an await: no synchronous setState in the effect
   // body. `reload` is how confirming asks for the next day.
@@ -301,6 +312,7 @@ function Bekrafta({ askedProject, askedDate }: { askedProject: string | null; as
         ),
       );
       setGjorde(first.vad_vi_gjorde);
+      setBarGone(false);
     })();
 
     return () => { active = false; };
@@ -435,8 +447,53 @@ function Bekrafta({ askedProject, askedDate }: { askedProject: string | null; as
     return Number.isFinite(n) && n >= 0 && n <= 24;
   });
 
+  /**
+   * IS ANYBODY STILL ON SITE?
+   *
+   * Asked across the whole day, on each row's own span, because the leader is
+   * being told about the day rather than about a card -- and an arbetsledare's
+   * envelope can outlast every shift inside it.
+   */
+  const dayRunning = day.rows.some(
+    (r) => passEndAt(day.work_date, r.start, r.end).getTime() > now,
+  );
+
   return (
     <SoftScreen title="Bekräfta pass" back="/">
+      {/*
+        THE ONE THING ON THIS SCREEN NOBODY ASKED FOR.
+        
+        A leader who opens a day while somebody is still working can fill the
+        whole form in and press nothing, because the rows that matter are
+        disabled -- and the reason sits below the fold, in the dimming of a
+        card they have not scrolled to. The bar says it where the eye already
+        is, and closes because it is a notice and not a gate.
+      */}
+      {dayRunning && !barGone && (
+        <div className="animate-slidedown fixed inset-x-0 top-0 z-40 px-4 pt-[10px]">
+          <div
+            className="mx-auto flex max-w-[520px] items-center gap-[10px] rounded-[12px] py-[13px] pl-4 pr-[6px]"
+            style={{ background: C.warnBg, color: C.warnInk, boxShadow: SHADOW.hero }}
+            role="status"
+          >
+            <span className="min-w-0 flex-1 text-[15px] font-bold" style={{ letterSpacing: "-.2px" }}>
+              Passet är fortfarande pågående
+            </span>
+            <button
+              type="button"
+              aria-label="Stäng"
+              onClick={() => setBarGone(true)}
+              className="press-scale flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-[9px] transition-transform duration-[110ms] active:scale-[.92]"
+            >
+              <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden>
+                <path d="M1.2 1.2 11.8 11.8M11.8 1.2 1.2 11.8" stroke={C.warnInk}
+                  strokeWidth="2" strokeLinecap="round" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      )}
+
       {error && <div className="px-4 pb-[10px] pt-[2px]"><SoftNotice tone="stop">{error}</SoftNotice></div>}
 
       {/* Day kicker, project at 26/800, the site under it. */}
@@ -489,33 +546,51 @@ function Bekrafta({ askedProject, askedDate }: { askedProject: string | null; as
             {/* Dimmed rather than hidden, and the fields are disabled rather
                 than removed: the leader should see that the person is there
                 and that their turn has not come, not wonder where they went.
-                Colour alone never carries it -- "Klar HH:MM" below says in
-                words what the dimming says at a glance. */}
+                The bar at the top of the screen says in words what the dimming
+                says at a glance. */}
             <div style={running ? { opacity: 0.4 } : undefined}>
             <Card>
-              <div className="flex items-baseline justify-between gap-[10px]">
-                <div className="text-[18px] font-bold" style={{ letterSpacing: "-.4px" }}>
+              <div className="flex items-center justify-between gap-[10px]">
+                <div className="min-w-0 text-[18px] font-bold" style={{ letterSpacing: "-.4px" }}>
                   {r.worker_name}
                 </div>
-                {/* The handoff draws two: stamped out, and clocked in but not
-                    out. A row with no stamp at all is a third thing and gets a
-                    quiet tag rather than an amber one -- nothing is unfinished,
-                    nobody started. */}
-                <Tag tone={r.clock_out ? "live" : r.clock_in ? "warn" : "quiet"}>
-                  {r.clock_out ? "Stämplad ut" : r.clock_in ? "Ej utstämplad" : "Ej stämplad"}
-                </Tag>
+                {/*
+                  A STAMPED-OUT ROW SAYS NOTHING, because there is nothing to
+                  say: it is the ordinary case, and a chip repeating it on
+                  every card was the loudest thing on a screen whose subject is
+                  the hours. What is left are the two rows that are not
+                  ordinary.
+
+                  Clocked in and not out is unfinished, and stays a word --
+                  somebody worked and forgot the other end, which is a
+                  different fact from not having come.
+
+                  No stamp at all is the question this screen exists to ask,
+                  and it is now the press that asks it. Never on a leader's
+                  row: an arbetsledare has nothing to stamp with (they are
+                  placed, not clocked), so a mark there would be permanent and
+                  would mean nothing.
+                */}
+                {!r.is_leader && r.clock_in && !r.clock_out && (
+                  <Tag tone="warn">Ej utstämplad</Tag>
+                )}
+                {!r.is_leader && !r.clock_in && !r.clock_out && (
+                  <EjStampladMark
+                    name={r.worker_name}
+                    disabled={running}
+                    onClick={() => setAsking(r)}
+                  />
+                )}
               </div>
 
-              {/* Step 4b: placed because their people were there, not by the
-                  priority list. Saying so is why the span looks unlike anyone
-                  else's on the day. */}
-              {r.is_leader && (
-                <div className="pt-[6px]"><Tag tone="quiet">Arbetsledare</Tag></div>
+              {/* The stamps are a WORKER's row only. A leader never made one
+                  and never will, so "Stämplade — till —" on their card was a
+                  blank pretending to be a reading. */}
+              {!r.is_leader && (
+                <div className="mb-[14px] mt-[2px] text-[14px] font-medium" style={{ color: C.text2 }}>
+                  Stämplade {stampToTime(r.clock_in) || "—"} till {stampToTime(r.clock_out) || "—"}
+                </div>
               )}
-
-              <div className="mb-[14px] mt-[2px] text-[14px] font-medium" style={{ color: C.text2 }}>
-                Stämplade {stampToTime(r.clock_in) || "—"} till {stampToTime(r.clock_out) || "—"}
-              </div>
 
               {/*
                 A LEADER'S OWN TIMES ARE NOT THEIRS TO SET HERE, and their
@@ -531,7 +606,7 @@ function Bekrafta({ askedProject, askedDate }: { askedProject: string | null; as
                 leader is the one who was there, and correcting them is the
                 whole job of this screen.
               */}
-              <div className="mb-[14px] flex gap-[10px]">
+              <div className={`mb-[14px] flex gap-[10px] ${r.is_leader ? "mt-[14px]" : ""}`}>
                 {r.is_leader ? (
                   <>
                     <div className="min-w-0 flex-1"><LockedField label="Börjar" value={e.start} /></div>
@@ -566,12 +641,6 @@ function Bekrafta({ askedProject, askedDate }: { askedProject: string | null; as
                   </>
                 )}
               </div>
-
-              {r.is_leader && (
-                <div className="mb-[14px] mt-[-6px] text-[14px] font-medium" style={{ color: C.text2 }}>
-                  Dina tider ändras av admin när dagen godkänns.
-                </div>
-              )}
 
               {/*
                 TWO FIELDS, ONE FIGURE. Both stay 60px and 26/800 -- on a
@@ -628,18 +697,22 @@ function Bekrafta({ askedProject, askedDate }: { askedProject: string | null; as
               </div>
 
               {/*
-                WHAT WILL ACTUALLY BE STORED, in the decimal every other screen
-                prints. The two fields are how the figure is said out loud; the
-                column keeps one number, and this is where the leader sees the
-                two agree before it is final.
+                ONLY WHEN THERE IS NOTHING TO STORE.
+                
+                The line used to run under every card on every render: the
+                decimal the two fields add up to, the end time on a running
+                row, and the note about zero hours. None of the three was news.
+                The decimal repeated the fields above it, the end time repeated
+                the Slutar field beside it, and the zero-hours note is now the
+                question the red mark asks. What survives is the one state the
+                leader cannot see for themselves -- a figure the column will
+                not take.
               */}
-              <div className="mt-[6px] text-[14px] font-medium" style={{ color: C.text2 }}>
-                {running
-                  ? `Klar ${e.end}`
-                  : Number.isFinite(joinHours(e.h, e.m))
-                    ? `Blir ${decimalLabel(joinHours(e.h, e.m))} h. 0 timmar och 00 minuter om personen inte kom.`
-                    : "Fyll i ett antal timmar."}
-              </div>
+              {!Number.isFinite(joinHours(e.h, e.m)) && (
+                <div className="mt-[6px] text-[14px] font-medium" style={{ color: C.text2 }}>
+                  Fyll i ett antal timmar.
+                </div>
+              )}
             </Card>
             </div>
           </div>
@@ -648,26 +721,23 @@ function Bekrafta({ askedProject, askedDate }: { askedProject: string | null; as
 
       <div className="px-4 pt-[14px]">
         <Card>
-          <div className="flex items-baseline justify-between gap-[10px]">
-            {/* htmlFor, not a wrapping <label>: the handoff puts "Krävs" on the
-                same baseline as the label, and a <label> containing both would
-                make the marker part of the field's accessible name. */}
-            <label
-              htmlFor="vad-vi-gjorde"
-              className="text-[12px] font-bold uppercase"
-              style={{ letterSpacing: ".9px", color: C.text2 }}
-            >
-              Vad vi gjorde
-            </label>
-            {/* Krävs, in the stop ink, because it is the one field the database
-                refuses a confirmation without. */}
-            <div
-              className="text-[12px] font-bold"
-              style={{ letterSpacing: ".4px", color: C.stopInk }}
-            >
-              Krävs
-            </div>
-          </div>
+          {/*
+            ONE ASTERISK, and it is inside the label.
+
+            "Krävs" sat on the far side of the card in the stop ink, which made
+            the only required field on the screen look like the only thing
+            wrong with it. The asterisk says the same thing in the place every
+            form has said it, and being part of the label means a screen reader
+            reaches it with the field rather than as a stray word at the end of
+            the row.
+          */}
+          <label
+            htmlFor="vad-vi-gjorde"
+            className="block text-[12px] font-bold uppercase"
+            style={{ letterSpacing: ".9px", color: C.text2 }}
+          >
+            Vad vi gjorde <span style={{ color: C.stopInk }}>*</span>
+          </label>
           <div className="mb-2 mt-[2px] text-[14px] font-medium" style={{ color: C.text2 }}>
             Skrivs ut på varje rad i arbetsdagboken.
           </div>
@@ -680,15 +750,6 @@ function Bekrafta({ askedProject, askedDate }: { askedProject: string | null; as
             style={{ background: C.panel2, color: C.ink }}
           />
         </Card>
-      </div>
-
-      <div className="px-4 pt-[14px]">
-        <div
-          className="rounded-[12px] px-4 py-[14px] text-[15px] font-semibold"
-          style={{ background: C.panel2, color: C.inkHover, textWrap: "pretty" }}
-        >
-          Bekräftat är slutgiltigt. Det går inte att ändra efteråt.
-        </div>
       </div>
 
       <div className="px-4 pt-[14px]">
@@ -713,6 +774,27 @@ function Bekrafta({ askedProject, askedDate }: { askedProject: string | null; as
           </div>
         )}
       </div>
+
+      {/*
+        THE ANSWER IS A FIGURE, NOT A WRITE. Confirming fills the row's hours
+        with zero and leaves it there, editable, exactly as if the leader had
+        typed it -- which is what invariant 1 asks of every number on this
+        screen. Nothing reaches the database until "Bekräfta dagen", and this
+        changes neither what that sends nor who may send it.
+      */}
+      {asking && (
+        <JobbadeInteDialog
+          name={asking.worker_name}
+          onCancel={() => setAsking(null)}
+          onConfirm={() => {
+            setEdits((p) => ({
+              ...p,
+              [asking.tilldelning_id]: { ...p[asking.tilldelning_id]!, h: "0", m: "0" },
+            }));
+            setAsking(null);
+          }}
+        />
+      )}
     </SoftScreen>
   );
 }
