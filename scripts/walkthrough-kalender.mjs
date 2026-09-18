@@ -96,7 +96,40 @@ async function createProject(page, name, leaderLabel, today) {
   await page.getByRole("button", { name: "Skapa projekt" }).click();
   await page.waitForURL((u) => u.pathname.endsWith("/projekt/"), { timeout: 20000 });
 }
+/**
+ * Page the calendar to a month, whichever of the three grids is on screen.
+ *
+ * Every one of them draws ONE month and opens on today's -- /kalender/ holds
+ * `useState(stockholmToday().slice(0, 7))`, and PaintCalendar takes a single
+ * `month` prop. So [data-date] exists only for the month being shown, and a
+ * date outside it is not a cell that is slow to arrive, it is a cell that is
+ * not there at all. Walking the pager is what makes next month reachable.
+ *
+ * The month is read off the first cell rather than off the heading: the cells
+ * are what gets tapped, so they are what has to be in the right month.
+ */
+async function showMonth(page, month) {
+  const firstCell = page.locator("[data-date]").first();
+  await firstCell.waitFor({ timeout: 20000 });
+  for (let hop = 0; ; hop++) {
+    const shown = (await firstCell.getAttribute("data-date"))?.slice(0, 7);
+    if (shown === month) return;
+    if (hop === 12) fail(`the calendar would not page from ${shown} to ${month}`);
+    await page
+      .getByRole("button", { name: month < shown ? "Föregående månad" : "Nästa månad" })
+      .click();
+    // The grid re-renders in place, so waiting on a cell would pass instantly
+    // against the month being left. Wait for the month itself to turn over.
+    await page.waitForFunction(
+      (m) => document.querySelector("[data-date]")?.getAttribute("data-date")?.slice(0, 7) !== m,
+      shown,
+      { timeout: 20000 },
+    );
+  }
+}
+
 async function tapDay(page, date) {
+  await showMonth(page, date.slice(0, 7));
   const cell = page.locator(`[data-date="${date}"]`);
   await cell.waitFor({ timeout: 20000 });
   await cell.scrollIntoViewIfNeeded();
@@ -174,17 +207,27 @@ const ONGOING = ymd(-1);   // already started: cannot be deleted
  * 375px gap. Starting at a fixed offset made this a test that passed or failed
  * by the day of the week it was run on, which is worse than no test.
  *
- * Searched forward rather than computed, so the month guard below is satisfied
- * by construction on every date it can be satisfied at all.
+ * Searched forward rather than computed. The run must sit inside ONE calendar
+ * month, because its four cells are measured off a single grid.
+ *
+ * YESTERDAY IS NOT PART OF THAT ANY MORE. It used to be: the run had to share
+ * a month with it, because every view opened on today's month and nothing
+ * paged them. From about the 20th that is unsatisfiable -- the next Monday
+ * with three days behind it is in next month -- and the guard aborted before
+ * the browser opened, on 178 days of the year. showMonth pages to whatever
+ * month a date is in, so the run is free to land in next month and yesterday
+ * is free to stay where it is.
  */
 const isMonday = (d) => new Date(`${d}T12:00:00Z`).getUTCDay() === 1;
 const RUN_A = (() => {
   for (let n = 8; n <= 40; n++) {
     if (!isMonday(ymd(n))) continue;
     const run = [ymd(n), ymd(n + 1), ymd(n + 2), ymd(n + 3)];
-    if (new Set([...run, ONGOING].map((d) => d.slice(0, 7))).size === 1) return run;
+    if (new Set(run.map((d) => d.slice(0, 7))).size === 1) return run;
   }
-  fail("no Monday-anchored run fits in one calendar month with yesterday; the calendar would need paging");
+  // A month holds at least four Mondays and at most one of them can fall in
+  // its last three days, so this is unreachable. A guard, not a hope.
+  fail("no Monday-anchored run fits inside a single calendar month within 40 days");
 })();
 const RUN_B = [RUN_A[2], RUN_A[3]];
 
@@ -228,7 +271,11 @@ try {
   log(`generated a four-day run on Alfa, a two-day run on Beta, three more on ${BUSY}, and one past day`);
 
   // ---- the calendar --------------------------------------------------------
+  // The run may be in next month, and the legend under the grid names the
+  // projects of the month ON SCREEN. Beta works only on the run, so asserting
+  // before paging would read as "the calendar does not show Beta".
   await page.goto(`${BASE}/kalender/`, { waitUntil: "networkidle" });
+  await showMonth(page, BUSY.slice(0, 7));
   await mustSee(page, A, "the calendar does not show Alfa");
   await mustSee(page, B, "the calendar does not show Beta");
 
