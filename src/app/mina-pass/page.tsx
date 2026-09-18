@@ -5,6 +5,7 @@ import { AuthGate } from "@/components/auth-gate";
 import {
   C, Card, EmptyState, SHADOW, Segmented, SoftNotice, SoftScreen,
 } from "@/components/soft";
+import { Tillganglighet } from "@/components/tillganglighet";
 import { getSupabase } from "@/lib/supabase/client";
 import { addDays, hhmm, longDayHeading, stampToTime, stockholmToday } from "@/lib/dates";
 import { fel } from "@/lib/fel";
@@ -25,7 +26,7 @@ type Shift = {
   filed: boolean;
 };
 
-type View = "lista" | "kalender";
+type View = "kommande" | "kalender" | "tillganglighet";
 
 /**
  * What the Timmar line says, and it is three things rather than two.
@@ -44,16 +45,22 @@ function hoursLine(s: Shift): string {
 }
 
 /**
- * Mina Pass -- every shift this worker holds, as a list or as a calendar.
+ * Mina Pass -- every shift this worker holds, and the days they can be given.
  *
- * The list is the default because it answers "where am I tomorrow" without
- * counting squares. The calendar answers "how much did I work in October",
- * which is a different question and a worse list.
+ * THREE TABS, TWO SUBJECTS. Kommande Pass and Kalender are the same rows read
+ * two ways: the list answers "where am I tomorrow" without counting squares,
+ * the grid answers "how much did I work in October", and both read the same
+ * rows so they cannot disagree. Tillgänglighet is the other subject -- not
+ * days held but days offerable -- and it used to be its own page, Arbetsdagar,
+ * one line further down the same menu. A leader deciding whether to say yes to
+ * a week is reading both halves at once, and two menu entries made that a
+ * round trip through the hamburger.
  *
- * Both read the same rows, so they cannot disagree.
+ * Nothing about what any tab does has changed. The availability calendar is
+ * <Tillganglighet/>, the same component /min-kalender renders.
  */
 function MinaPass() {
-  const [view, setView] = useState<View>("lista");
+  const [view, setView] = useState<View>("kommande");
   const [shifts, setShifts] = useState<Shift[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -91,7 +98,7 @@ function MinaPass() {
 
   return (
     <SoftScreen title="Mina pass" back="/">
-      {/* Both states always visible, the current one on a white thumb. A switch
+      {/* All three always visible, the current one on a white thumb. A switch
           that hides the thing it switches to makes people press it to find out. */}
       <div className="px-4 pt-[2px]">
         <Segmented
@@ -99,19 +106,20 @@ function MinaPass() {
           value={view}
           onChange={setView}
           options={[
-            { value: "lista" as View, label: "Lista" },
+            { value: "kommande" as View, label: "Kommande Pass" },
             { value: "kalender" as View, label: "Kalender" },
+            { value: "tillganglighet" as View, label: "Tillgänglighet" },
           ]}
         />
       </div>
 
       {error && <div className="px-4 pt-[14px]"><SoftNotice tone="stop">{error}</SoftNotice></div>}
 
-      {view === "lista" ? (
-        <Lista shifts={shifts} today={today} />
-      ) : (
-        <Kalender shifts={shifts} today={today} />
-      )}
+      {view === "kommande" && <Lista shifts={shifts} today={today} />}
+      {view === "kalender" && <Kalender shifts={shifts} today={today} />}
+      {/* The tab that is not about held days at all. It loads its own rows,
+          from forval, and knows nothing about the shifts above it. */}
+      {view === "tillganglighet" && <Tillganglighet hint />}
     </SoftScreen>
   );
 }

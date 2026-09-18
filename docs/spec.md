@@ -331,6 +331,12 @@ Captured when one is written:
 
 Splitting the future off from the past would mean choosing between two pages before you know what you are looking for, and what a leader wants is nearly always the shift on one side or the other of right now.
 
+**Three tabs, on the Segmented control Bekräftelser and Kalender already use.** **Kommande Pass** is the list above and the default on open. **Kalender** is the same rows as a month grid — every day holding a shift gets the same pale fill and the same accent dot, and which project it was is answered by the day section below rather than by a legend. **Tillgänglighet** is the availability calendar that writes `forval`, which was the separate Arbetsdagar page until it moved in here.
+
+The third tab is a different subject from the first two and that is the point: Kommande Pass and Kalender are days already held, Tillgänglighet is days offerable. They sat one line apart in the same hamburger menu, under two names whose only job was to say they were not each other, and a leader weighing whether to say yes to a week reads both halves at once. Nothing about what any tab does changed in the move — same component, same rows, same writes.
+
+Three thumbs take a 360px phone's share of the track from ~150px to ~104px, which "Tillgänglighet" does not fit at 15px. `Segmented` therefore drops to 13px from three options upward, chosen from the option count rather than a prop: the caller cannot see the width it is being drawn at.
+
 Reached from the leader's hamburger menu (Section 7).
 
 ## 3. Entities
@@ -833,10 +839,9 @@ The Arbetsdagbok is not in either place. It lives inside the project (Section 1)
 
 **Hamburger menu**, top left:
 
-- **Arbetsdagar** — the availability calendar (`forval`), the same route and the same name the arbetare opens it under. It is not a second view of Mina Pass: Mina Pass shows the days already held, this sets the days they can be given. It was called "Min Pass Kalender", and two entries whose names both said "pass" read as the same screen twice.
-- **Mina Pass**
+- **Mina Pass** — three tabs: Kommande Pass, Kalender, Tillgänglighet. **Arbetsdagar is not a separate entry.** The availability calendar (`forval`) is the third tab, and the menu row it used to have is gone. It was its own line for as long as its name had to explain that it was not the other calendar — it was called "Min Pass Kalender" before that, and two entries whose names both said "pass" read as the same screen twice. The route `/min-kalender` still exists and still renders the same component, because the arbetare's landing page opens it as a grouped row.
 - **Bekräftelser** — see Section 6.
-- **Alla projekt** — last, because it is the least daily of the four. It is in the menu at all because a leader who creates a project needs somewhere to see it that is not the form they just left. The screen is the admin's own and not a second version of it: RLS has already decided which projects exist for the caller, so for a leader it holds the sites they lead and the ones they made.
+- **Alla projekt** — last, because it is the least daily of the three. It is in the menu at all because a leader who creates a project needs somewhere to see it that is not the form they just left. The screen is the admin's own and not a second version of it: RLS has already decided which projects exist for the caller, so for a leader it holds the sites they lead and the ones they made.
 
 **Top right:** the profile icon.
 
@@ -920,7 +925,7 @@ Nothing here is open. Anything discovered later that is not covered is a stop-an
 - Payload fields renamed on port: `hours`, `passTider`, `vadViGjorde`.
 - Öppna Dag opens from the calendar only. No standalone page, no landing-page button.
 - The Arbetsdagbok lives inside the project. Direct download, no print dialog, named `20Jul-28Aug-2026-demoprojektet.pdf` — capitalised month, lowercased project slug.
-- Mina Pass is one page: future shifts by default, scroll back for the current day and the past.
+- Mina Pass is one page: future shifts by default, scroll back for the current day and the past. It carries the leader's availability calendar as a third tab; Arbetsdagar is no longer a menu entry of its own.
 - Landing pages and hamburger menus are settled for admin and arbetsledare (Section 7). The arbetare landing is not finalised.
 
 ## 8b. The DocMaker template port

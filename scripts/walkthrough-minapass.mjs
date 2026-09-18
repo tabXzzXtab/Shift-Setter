@@ -1,10 +1,12 @@
 #!/usr/bin/env node
 /**
- * Mina Pass, both views.
+ * Mina Pass, all three tabs.
  *
- *   Lista    -- grouped by day, future first, past above it
- *   Kalender -- days worked filled, two projects told apart by FILL and not by
- *               colour, tapping a day opening that day's shifts
+ *   Kommande Pass  -- grouped by day, future first, past above it
+ *   Kalender       -- days worked filled, two projects told apart by FILL and
+ *                     not by colour, tapping a day opening that day's shifts
+ *   Tillgänglighet -- the availability calendar that was the Arbetsdagar page,
+ *                     rendered from the same component /min-kalender still uses
  *
  * The hours line is the part worth testing hardest, because invariant 10 lives
  * on it: a figure appears only once an Arbetsdagbok covering the day has been
@@ -196,12 +198,16 @@ try {
 
   const toggle = page.getByRole("group", { name: "Visa som" });
   await toggle.waitFor({ timeout: 20000 });
-  const lista = toggle.getByRole("button", { name: "Lista", exact: true });
+  const lista = toggle.getByRole("button", { name: "Kommande Pass", exact: true });
   const kalender = toggle.getByRole("button", { name: "Kalender", exact: true });
-  if ((await lista.getAttribute("aria-pressed")) !== "true") {
-    fail("Lista is not the default view");
+  const tillganglighet = toggle.getByRole("button", { name: "Tillgänglighet", exact: true });
+  if ((await toggle.getByRole("button").count()) !== 3) {
+    fail("the toggle does not offer exactly three tabs");
   }
-  log("the toggle offers Lista and Kalender, and Lista is the default");
+  if ((await lista.getAttribute("aria-pressed")) !== "true") {
+    fail("Kommande Pass is not the default tab");
+  }
+  log("the toggle offers Kommande Pass, Kalender and Tillgänglighet, and Kommande Pass is the default");
 
   for (const p of [P1, P2]) {
     await mustSee(page, p, `the list does not show ${p}`);
@@ -278,6 +284,35 @@ try {
     "the day panel must apply invariant 10 exactly as the list does");
   await shot(page, "m2-kalender");
   log("tapping a day opens that day's shift, with the same hours rule as the list");
+
+  // ---- TILLGÄNGLIGHET ------------------------------------------------------
+  // The Arbetsdagar page, now the third tab. Asserting on the mode switch and
+  // the autosave line rather than on the word the tab button itself carries --
+  // that would match whether the panel rendered or not, which is exactly the
+  // substring trap this project has been caught by before.
+  await tillganglighet.click();
+  await page.waitForTimeout(600);
+
+  await page.getByRole("group", { name: "Vad en tryckning betyder" })
+    .waitFor({ timeout: 20000 });
+  await mustSee(page, "Sparas automatiskt",
+    "the availability tab must say it autosaves");
+  await mustSee(page, "Inte sagt",
+    "the availability tab must carry its three-state legend");
+  if (await page.getByText("Väntar på arbetsdagbok").count()) {
+    fail("the availability tab is still drawing the shift list under it");
+  }
+  await shot(page, "m3-tillganglighet");
+  log("the third tab is the availability calendar, with its mode switch and legend");
+
+  // Same component, same screen: the standalone route the arbetare still opens
+  // has to render what the tab rendered, or the merge made two calendars.
+  await page.goto(`${BASE}/min-kalender/`, { waitUntil: "networkidle" });
+  await page.getByRole("group", { name: "Vad en tryckning betyder" })
+    .waitFor({ timeout: 20000 });
+  await mustSee(page, "Sparas automatiskt",
+    "/min-kalender must still render the same availability calendar");
+  log("/min-kalender still opens the same calendar, from the same component");
 
   console.log("\nMINA PASS COMPLETE.\n");
 } finally {

@@ -10,17 +10,19 @@ import { pendingDays } from "@/lib/pending-days";
 import { fel } from "@/lib/fel";
 
 const MENU = [
-  // "Arbetsdagar", not "Min Pass Kalender". The page sets AVAILABILITY -- it
-  // writes forval -- and Mina Pass's Kalender tab shows the days already held.
-  // Two calendars whose names both said "pass" read as the same screen twice,
-  // and this is the name the arbetare already opens the very same route under.
-  { href: "/min-kalender", label: "Arbetsdagar" },
+  // ONE ENTRY, NOT TWO. Arbetsdagar -- the availability calendar that writes
+  // forval -- is the Tillgänglighet tab of Mina Pass now, beside the days
+  // already held. It was a separate row for as long as its name had to explain
+  // that it was not the other calendar; a leader weighing whether to say yes to
+  // a week reads both halves at once, and making that a round trip through the
+  // hamburger is what the merge removes. The route still exists, because the
+  // arbetare's landing page opens it as a grouped row.
   { href: "/mina-pass", label: "Mina Pass" },
   // Both roles read the log, scoped to the projects they are on -- day_history
   // answers the same question for the leader and the owner, so this is the
   // same page the admin opens and not a second version of it.
   { href: "/historik", label: "Bekräftelser" },
-  // Last, because it is the least daily of the four -- and present at all
+  // Last, because it is the least daily of the three -- and present at all
   // because a leader who creates a project needs somewhere to see it. The
   // screen is the admin's own; RLS decides which projects are in it, so for a
   // leader it holds the sites they lead and the ones they made.

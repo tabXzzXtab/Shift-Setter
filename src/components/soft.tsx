@@ -288,7 +288,18 @@ export function MonthCard({
   );
 }
 
-/** A 4px-padded #e7edfb track; the active option is a white thumb, radius 9. */
+/**
+ * A 4px-padded #e7edfb track; the active option is a white thumb, radius 9.
+ *
+ * TWO DENSITIES, chosen by how many options there are rather than by a prop.
+ * A third thumb takes a 360px phone's share of the track from ~150px to ~104px,
+ * and "Tillgänglighet" at 15px does not fit that -- it wraps to two lines and
+ * spills out of the 44px height. So three or more drop to 13px and lose their
+ * horizontal padding, which is enough for the longest label this app has. It
+ * is not a prop because the caller cannot see the width it is being drawn at,
+ * and a switch that fits on one screen and breaks on the next is worse than
+ * one size the component picks for itself.
+ */
 export function Segmented<T extends string>({
   options, value, onChange, label,
 }: {
@@ -297,6 +308,8 @@ export function Segmented<T extends string>({
   onChange: (v: T) => void;
   label: string;
 }) {
+  const tight = options.length > 2;
+
   return (
     <div
       role="group"
@@ -313,11 +326,11 @@ export function Segmented<T extends string>({
             aria-current={on ? "page" : undefined}
             aria-pressed={on}
             onClick={() => onChange(o.value)}
-            className={`flex h-11 flex-1 items-center justify-center rounded-[9px] text-[15px] ${
-              on ? "font-bold" : "font-semibold"
-            }`}
+            className={`flex h-11 min-w-0 flex-1 items-center justify-center whitespace-nowrap rounded-[9px] ${
+              tight ? "px-[2px] text-[13px]" : "text-[15px]"
+            } ${on ? "font-bold" : "font-semibold"}`}
             style={{
-              letterSpacing: "-.1px",
+              letterSpacing: tight ? "-.2px" : "-.1px",
               background: on ? C.surface : "transparent",
               color: on ? C.ink : C.text2,
               boxShadow: on ? "0 1px 3px rgba(9,21,64,.10)" : undefined,
