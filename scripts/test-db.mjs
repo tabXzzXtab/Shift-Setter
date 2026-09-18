@@ -464,6 +464,26 @@ const CONTROLS = [
    perturb("and not f.can_work", "and false"),
    "TIER3.no_offer_when_cant_work"],
 
+  ["a decline is this worker's own answer, and reversible",
+   // The gate put back the way it was: `offered` only. Öppna Pass then lists
+   // the shift they turned down and refuses to book it -- the state this
+   // change exists to end, and the state a passing suite must not tolerate.
+   perturbIn("public.accept_offer(uuid)",
+             "and o.state in ('offered', 'declined')) then",
+             "and o.state = 'offered') then"),
+   "OPPNA.a_decline_can_be_taken_back"],
+
+  ["a shift nobody offered you is not yours to book",
+   // The other direction: the gate stops asking WHOSE offer it is, so any
+   // open row on the pass lets anybody in and the tier walk's ranking becomes
+   // advisory. Two lines, because `where o.pass_id = p_pass` alone appears
+   // again in the close-out below.
+   perturbIn("public.accept_offer(uuid)",
+             "where o.pass_id = p_pass and o.worker_id = v_worker\n"
+               + "                   and o.state in ('offered', 'declined')) then",
+             "where o.pass_id = p_pass) then"),
+   "OPPNA.never_offered_is_still_refused"],
+
   ["the five-day cutoff on the cascade",
    // Inside five days nothing fires automatically. Move the cutoff to zero and
    // the near case starts cascading, which is exactly what it must not do.

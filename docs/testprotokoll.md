@@ -259,6 +259,18 @@ company schedule by URL.
       → **Ska hända:** *"Passet är ditt."*, the card is gone, and the shift is
       now in his Mina pass.
 
+- [ ] **G3b.** As Bertil, press **Neka** on a card, then open **Öppna Pass** from
+      the menu and find that same shift.
+      → **Ska hända:** it is still listed, and **Boka Pass** takes it —
+      *"Passet är ditt."*, the card goes, and it is in his Mina pass. Turning a
+      shift down is an answer, not a bar.
+
+- [ ] **G3c.** In Öppna Pass, press **Boka Pass** on a shift Bertil was never
+      offered — one on a day he marked **Kan inte jobba**, so the tier walk
+      never asked him.
+      → **Måste vägras:** *"Passet erbjuds inte längre till dig."* and the card
+      stays. Booking does not step around the ranking.
+
 - [ ] **G4.** Open the same last open slot as Bertil *and* as Cecilia, then press
       **Ta passet** in both within a second.
       → **Måste vägras:** exactly one gets *"Passet är ditt."*; the other gets

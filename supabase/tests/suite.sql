@@ -1507,6 +1507,101 @@ select pg_temp.ok(
   'TIER3.queue_closes_when_full',
   'once headcount is met the pass vanishes from every other queue');
 
+-- ---- Öppna Pass: ett nej går att ångra -------------------------------------
+-- Every card on Öppna Pass carries Boka Pass, and it presses this same
+-- accept_offer. That screen lists the openings this worker turned down ON
+-- PURPOSE -- a decline answers the question, it does not block the pass -- so
+-- their own Neka cannot be the thing that stops them taking it back. A shift
+-- the tier walk never offered them is a different matter: booking past the
+-- ranking would make förval, lateness and can't-work advisory.
+
+-- Two more days. Nobody pre-picks either, and w1 marks both can't-work, so
+-- the walk offers them around and never to w1 -- which is what makes w1 the
+-- worker who was never asked.
+insert into public.forval (worker_id, work_date, can_work)
+select w.id, d.d, false
+from public.worker w join fx on fx.v = w.account_id,
+     (values (app.stockholm_today() + 23), (app.stockholm_today() + 24)) as d(d)
+where fx.k = 'w1';
+
+insert into public.pass_batch (id, project_id, created_by)
+select 'ffffffff-0000-0000-0000-0000000000b1', 'aaaaaaaa-0000-0000-0000-00000000000a',
+       (select v from fx where k = 'leaderA');
+
+insert into public.pass (id, project_id, batch_id, work_date, start_time, end_time,
+                         planned_hours, headcount, created_by)
+select x.id::uuid, 'aaaaaaaa-0000-0000-0000-00000000000a'::uuid,
+       'ffffffff-0000-0000-0000-0000000000b1'::uuid,
+       x.d, '07:00'::time, '16:00'::time, 8.00, 1::smallint,
+       (select v from fx where k = 'leaderA')
+from (values ('eeeeeeee-0000-0000-0000-000000000005', app.stockholm_today() + 23),
+             ('eeeeeeee-0000-0000-0000-000000000006', app.stockholm_today() + 24)) as x(id, d);
+
+set local role authenticated;
+select pg_temp.act_as((select v from fx where k = 'leaderA'));
+select public.fill_passes('ffffffff-0000-0000-0000-0000000000b1');
+reset role;
+
+-- Tuesday: w2 says no, and means it at the time.
+set local role authenticated;
+select pg_temp.act_as((select v from fx where k = 'w2'));
+select public.decline_offer('eeeeeeee-0000-0000-0000-000000000005');
+reset role;
+
+select pg_temp.ok(
+  (select o.state = 'declined' from public.pass_offer o
+   join public.worker w on w.id = o.worker_id join fx on fx.v = w.account_id
+   where o.pass_id = 'eeeeeeee-0000-0000-0000-000000000005' and fx.k = 'w2'),
+  'OPPNA.neka_is_recorded',
+  'Neka answers the card and leaves the row declined, with the slot still open');
+
+-- Wednesday: their plans changed. The pass is on Öppna Pass, and Boka Pass
+-- presses accept_offer.
+set local role authenticated;
+select pg_temp.act_as((select v from fx where k = 'w2'));
+select pg_temp.accepts(
+  $boka$select public.accept_offer('eeeeeeee-0000-0000-0000-000000000005')$boka$,
+  'OPPNA.a_decline_can_be_taken_back');
+reset role;
+
+select pg_temp.ok(
+  (select count(*) = 1 from public.tilldelning t
+   join public.worker w on w.id = t.worker_id join fx on fx.v = w.account_id
+   where t.pass_id = 'eeeeeeee-0000-0000-0000-000000000005' and fx.k = 'w2'
+     and t.released_at is null and t.source = 'oppen'),
+  'OPPNA.booking_assigns_like_any_other',
+  'a pass booked from the list is an ordinary oppen assignment, not a special one');
+
+select pg_temp.ok(
+  (select o.state = 'accepted' from public.pass_offer o
+   join public.worker w on w.id = o.worker_id join fx on fx.v = w.account_id
+   where o.pass_id = 'eeeeeeee-0000-0000-0000-000000000005' and fx.k = 'w2'),
+  'OPPNA.taking_it_back_answers_the_offer',
+  'the row that read declined now reads accepted -- one answer per offer, the last one');
+
+-- And the worker nobody asked is still refused. The MESSAGE is checked, not
+-- merely the refusal: invariant 2 would refuse a double booking here too, and
+-- a control that passed on the wrong guard would prove nothing.
+create temporary table boka_call(ok boolean, err text);
+grant select, insert on boka_call to public;
+
+set local role authenticated;
+select pg_temp.act_as((select v from fx where k = 'w1'));
+do $boka$
+begin
+  perform public.accept_offer('eeeeeeee-0000-0000-0000-000000000006');
+  insert into boka_call values (true, null);
+exception when others then
+  insert into boka_call values (false, sqlerrm);
+end $boka$;
+reset role;
+
+select pg_temp.ok(
+  (select not ok and err like '%not offered to you%' from boka_call),
+  'OPPNA.never_offered_is_still_refused',
+  'a shift the tier walk never offered is not bookable: '
+    || coalesce((select err from boka_call), '(the statement was accepted)'));
+
 -- ============================================================================
 -- THE VACANCY CASCADE -- Step 5b
 --

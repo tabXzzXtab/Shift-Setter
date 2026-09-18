@@ -38,11 +38,17 @@ type Toast = { tone: "live" | "stop"; text: string };
  * invariant 2 is the partial unique index underneath it. A refusal comes back
  * as itself, through `fel()`, rather than as a guess made here.
  *
- * WHAT THAT MEANS FOR A SHIFT NOBODY OFFERED THIS WORKER: `accept_offer`
- * requires a `pass_offer` row still in `offered`, and this list is not
- * filtered on one -- it shows every opening, including those already declined
- * or never offered. Pressing Boka Pass on one of those is refused, and the
- * refusal says so in Swedish. The button does not pretend otherwise.
+ * A DECLINE IS NOT A BAR, AND NEVER HAVING BEEN ASKED IS. `accept_offer`
+ * takes a `pass_offer` row in `offered` OR in `declined`, so the Wednesday
+ * this worker said no to on Tuesday is theirs to book here -- their own Neka
+ * is the one answer they are entitled to give again. `withdrawn` is the
+ * system's word rather than theirs (the pass filled, the shift was called
+ * off, Avboka took them off it and blocked them), and a pass the tier walk
+ * never offered them has no row at all: both are refused, because booking
+ * past the ranking would make förval, lateness and can't-work advisory. This
+ * list is filtered on none of that -- it shows every opening -- so a refusal
+ * is possible on a card that is drawn, and it says so in Swedish rather than
+ * being guessed at here.
  *
  * Days this worker is already working are left out however many places are
  * open on them: invariant 2 means they could not take one, and a list of
