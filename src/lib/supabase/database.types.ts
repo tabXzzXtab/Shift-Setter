@@ -36,7 +36,7 @@ export type Database = {
           id: string
           role?: Database["public"]["Enums"]["app_role"]
           super_admin?: boolean
-          tenant_id: string
+          tenant_id?: string
         }
         Update: {
           active?: boolean
@@ -94,7 +94,7 @@ export type Database = {
           generated_by: string
           id?: string
           project_id: string
-          tenant_id: string
+          tenant_id?: string
         }
         Update: {
           covered?: unknown
@@ -174,7 +174,7 @@ export type Database = {
           id?: never
           new_value?: string | null
           old_value?: string | null
-          tenant_id: string
+          tenant_id?: string
           tilldelning_id: string
         }
         Update: {
@@ -257,7 +257,7 @@ export type Database = {
           id?: never
           note?: string | null
           project_id: string
-          tenant_id: string
+          tenant_id?: string
           work_date: string
         }
         Update: {
@@ -332,7 +332,7 @@ export type Database = {
         }
         Insert: {
           can_work: boolean
-          tenant_id: string
+          tenant_id?: string
           updated_at?: string
           work_date: string
           worker_id: string
@@ -399,7 +399,7 @@ export type Database = {
           kind: Database["public"]["Enums"]["notification_kind"]
           payload?: Json
           read_at?: string | null
-          tenant_id: string
+          tenant_id?: string
         }
         Update: {
           account_id?: string
@@ -476,7 +476,7 @@ export type Database = {
           planned_hours: number
           project_id: string
           start_time: string
-          tenant_id: string
+          tenant_id?: string
           work_date: string
         }
         Update: {
@@ -587,7 +587,7 @@ export type Database = {
           created_by: string
           id?: string
           project_id: string
-          tenant_id: string
+          tenant_id?: string
         }
         Update: {
           created_at?: string
@@ -656,7 +656,7 @@ export type Database = {
         }
         Insert: {
           batch_id: string
-          tenant_id: string
+          tenant_id?: string
           worker_id: string
         }
         Update: {
@@ -726,7 +726,7 @@ export type Database = {
         Insert: {
           blocked_at?: string
           pass_id: string
-          tenant_id: string
+          tenant_id?: string
           worker_id: string
         }
         Update: {
@@ -810,7 +810,7 @@ export type Database = {
           pass_id: string
           responded_at?: string | null
           state?: Database["public"]["Enums"]["offer_state"]
-          tenant_id: string
+          tenant_id?: string
           worker_id: string
         }
         Update: {
@@ -905,7 +905,7 @@ export type Database = {
           id?: string
           owner_id: string
           start_time?: string | null
-          tenant_id: string
+          tenant_id?: string
           title: string
         }
         Update: {
@@ -968,7 +968,7 @@ export type Database = {
         Insert: {
           account_id: string
           event_id: string
-          tenant_id: string
+          tenant_id?: string
         }
         Update: {
           account_id?: string
@@ -1074,7 +1074,7 @@ export type Database = {
           postnummer?: string | null
           stad?: string | null
           telefon?: string | null
-          tenant_id: string
+          tenant_id?: string
           updated_at?: string
           updated_by?: string | null
         }
@@ -1191,7 +1191,7 @@ export type Database = {
           services: string
           site_address: string
           start_date: string
-          tenant_id: string
+          tenant_id?: string
         }
         Update: {
           bestallare_address?: string
@@ -1276,7 +1276,7 @@ export type Database = {
           reviewed_at?: string | null
           reviewed_by?: string | null
           stage?: Database["public"]["Enums"]["day_stage"] | null
-          tenant_id: string
+          tenant_id?: string
           vad_vi_gjorde?: string | null
           work_date: string
         }
@@ -1426,7 +1426,7 @@ export type Database = {
           account_id: string
           assigned_at?: string
           project_id: string
-          tenant_id: string
+          tenant_id?: string
         }
         Update: {
           account_id?: string
@@ -1605,7 +1605,7 @@ export type Database = {
           released_by?: string | null
           released_reason?: Database["public"]["Enums"]["release_reason"] | null
           source: Database["public"]["Enums"]["assignment_source"]
-          tenant_id: string
+          tenant_id?: string
           work_date: string
           worker_id: string
         }
@@ -1746,7 +1746,7 @@ export type Database = {
           name: string
           personnummer?: string | null
           phone?: string | null
-          tenant_id: string
+          tenant_id?: string
         }
         Update: {
           account_id?: string

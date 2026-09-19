@@ -49,10 +49,12 @@ Deno.serve(async (req) => {
 
   const admin = createClient(url, service, { auth: { persistSession: false } });
 
-  // Role from the database, never the JWT.
+  // Role from the database, never the JWT. The TENANT comes from the same row
+  // and for the same reason: it is a fact about the caller that the caller
+  // does not get to assert.
   const { data: acct } = await admin
     .from("account")
-    .select("role, active")
+    .select("role, active, tenant_id")
     .eq("id", user.id)
     .maybeSingle();
 
@@ -117,14 +119,39 @@ Deno.serve(async (req) => {
     return json({ error: reason }, status);
   };
 
+  /**
+   * tenant_id IS SENT, and it cannot be left to the column default.
+   *
+   * Every table carries a NOT NULL tenant_id defaulting to
+   * app.current_tenant_id(), which reads the caller's own account row. That
+   * works for the browser and is the right answer there. It does NOT work
+   * here: this client holds the service-role key and has no auth.uid() at all,
+   * so the default resolves to NULL and the insert fails on the not-null
+   * constraint. Nothing about a service-role connection says which tenant it
+   * is acting for.
+   *
+   * THE NEW ACCOUNT JOINS THE ADMIN WHO CREATED IT. That is the only tenant
+   * this function can mean: an admin creating a worker is staffing their own
+   * company, and a client's admin must not be able to place somebody inside
+   * another client's. Sending the caller's tenant rather than accepting one
+   * from the request body is what keeps that from being a parameter.
+   *
+   * Onboarding a whole new company is the one case that writes into a tenant
+   * that is not the caller's, and that is create-tenant's job, not this one's.
+   */
   const { error: acctErr } = await admin
     .from("account")
-    .insert({ id: uid, role, active: true, created_by: user.id });
+    .insert({
+      id: uid, role, active: true, created_by: user.id, tenant_id: acct.tenant_id,
+    });
   if (acctErr) return undo(acctErr.message);
 
+  // The same tenant, and the composite key worker_tenant_matches_account
+  // refuses any other: a worker row whose tenant disagrees with its account's
+  // cannot exist.
   const { data: worker, error: workerErr } = await admin
     .from("worker")
-    .insert({ account_id: uid, name, email })
+    .insert({ account_id: uid, name, email, tenant_id: acct.tenant_id })
     .select("id")
     .single();
   if (workerErr) {

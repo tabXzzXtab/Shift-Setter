@@ -14,7 +14,7 @@ column account.deleted_at timestamp with time zone
 column account.id uuid NOT NULL
 column account.role app_role NOT NULL DEFAULT 'arbetare'::app_role
 column account.super_admin boolean NOT NULL DEFAULT false
-column account.tenant_id uuid NOT NULL
+column account.tenant_id uuid NOT NULL DEFAULT app.current_tenant_id()
 column account_directory.active boolean
 column account_directory.avatar_path text
 column account_directory.email text
@@ -27,7 +27,7 @@ column arbetsdagbok.generated_at timestamp with time zone NOT NULL DEFAULT now()
 column arbetsdagbok.generated_by uuid NOT NULL
 column arbetsdagbok.id uuid NOT NULL DEFAULT gen_random_uuid()
 column arbetsdagbok.project_id uuid NOT NULL
-column arbetsdagbok.tenant_id uuid NOT NULL
+column arbetsdagbok.tenant_id uuid NOT NULL DEFAULT app.current_tenant_id()
 column arbetsledare_roster.id uuid
 column arbetsledare_roster.name text
 column cancelled_day.cancelled_at timestamp with time zone
@@ -41,7 +41,7 @@ column clock_edit.field text NOT NULL
 column clock_edit.id bigint NOT NULL
 column clock_edit.new_value timestamp with time zone
 column clock_edit.old_value timestamp with time zone
-column clock_edit.tenant_id uuid NOT NULL
+column clock_edit.tenant_id uuid NOT NULL DEFAULT app.current_tenant_id()
 column clock_edit.tilldelning_id uuid NOT NULL
 column day_history.confirmed_at timestamp with time zone
 column day_history.confirmed_by_name text
@@ -62,10 +62,10 @@ column day_review.action review_action NOT NULL
 column day_review.id bigint NOT NULL
 column day_review.note text
 column day_review.project_id uuid NOT NULL
-column day_review.tenant_id uuid NOT NULL
+column day_review.tenant_id uuid NOT NULL DEFAULT app.current_tenant_id()
 column day_review.work_date date NOT NULL
 column forval.can_work boolean NOT NULL
-column forval.tenant_id uuid NOT NULL
+column forval.tenant_id uuid NOT NULL DEFAULT app.current_tenant_id()
 column forval.updated_at timestamp with time zone NOT NULL DEFAULT now()
 column forval.work_date date NOT NULL
 column forval.worker_id uuid NOT NULL
@@ -96,7 +96,7 @@ column notification.id uuid NOT NULL DEFAULT gen_random_uuid()
 column notification.kind notification_kind NOT NULL
 column notification.payload jsonb NOT NULL DEFAULT '{}'::jsonb
 column notification.read_at timestamp with time zone
-column notification.tenant_id uuid NOT NULL
+column notification.tenant_id uuid NOT NULL DEFAULT app.current_tenant_id()
 column open_pass.end_time time without time zone
 column open_pass.headcount smallint
 column open_pass.pass_id uuid
@@ -117,26 +117,26 @@ column pass.id uuid NOT NULL DEFAULT gen_random_uuid()
 column pass.planned_hours numeric(4,2) NOT NULL
 column pass.project_id uuid NOT NULL
 column pass.start_time time without time zone NOT NULL
-column pass.tenant_id uuid NOT NULL
+column pass.tenant_id uuid NOT NULL DEFAULT app.current_tenant_id()
 column pass.work_date date NOT NULL
 column pass_batch.created_at timestamp with time zone NOT NULL DEFAULT now()
 column pass_batch.created_by uuid NOT NULL
 column pass_batch.id uuid NOT NULL DEFAULT gen_random_uuid()
 column pass_batch.project_id uuid NOT NULL
-column pass_batch.tenant_id uuid NOT NULL
+column pass_batch.tenant_id uuid NOT NULL DEFAULT app.current_tenant_id()
 column pass_batch_handpick.batch_id uuid NOT NULL
-column pass_batch_handpick.tenant_id uuid NOT NULL
+column pass_batch_handpick.tenant_id uuid NOT NULL DEFAULT app.current_tenant_id()
 column pass_batch_handpick.worker_id uuid NOT NULL
 column pass_block.blocked_at timestamp with time zone NOT NULL DEFAULT now()
 column pass_block.pass_id uuid NOT NULL
-column pass_block.tenant_id uuid NOT NULL
+column pass_block.tenant_id uuid NOT NULL DEFAULT app.current_tenant_id()
 column pass_block.worker_id uuid NOT NULL
 column pass_offer.id uuid NOT NULL DEFAULT gen_random_uuid()
 column pass_offer.offered_at timestamp with time zone NOT NULL DEFAULT now()
 column pass_offer.pass_id uuid NOT NULL
 column pass_offer.responded_at timestamp with time zone
 column pass_offer.state offer_state NOT NULL DEFAULT 'offered'::offer_state
-column pass_offer.tenant_id uuid NOT NULL
+column pass_offer.tenant_id uuid NOT NULL DEFAULT app.current_tenant_id()
 column pass_offer.worker_id uuid NOT NULL
 column personal_event.all_day boolean NOT NULL DEFAULT false
 column personal_event.colour text NOT NULL DEFAULT '#1b2cc1'::text
@@ -147,11 +147,11 @@ column personal_event.event_date date NOT NULL
 column personal_event.id uuid NOT NULL DEFAULT gen_random_uuid()
 column personal_event.owner_id uuid NOT NULL
 column personal_event.start_time time without time zone
-column personal_event.tenant_id uuid NOT NULL
+column personal_event.tenant_id uuid NOT NULL DEFAULT app.current_tenant_id()
 column personal_event.title text NOT NULL
 column personal_event_viewer.account_id uuid NOT NULL
 column personal_event_viewer.event_id uuid NOT NULL
-column personal_event_viewer.tenant_id uuid NOT NULL
+column personal_event_viewer.tenant_id uuid NOT NULL DEFAULT app.current_tenant_id()
 column profile.account_id uuid NOT NULL
 column profile.adress text
 column profile.anhorig_namn text
@@ -172,7 +172,7 @@ column profile.organisationsnummer text
 column profile.postnummer text
 column profile.stad text
 column profile.telefon text
-column profile.tenant_id uuid NOT NULL
+column profile.tenant_id uuid NOT NULL DEFAULT app.current_tenant_id()
 column profile.updated_at timestamp with time zone NOT NULL DEFAULT now()
 column profile.updated_by uuid
 column project.bestallare_address text NOT NULL
@@ -187,7 +187,7 @@ column project.name text NOT NULL
 column project.services text NOT NULL
 column project.site_address text NOT NULL
 column project.start_date date NOT NULL
-column project.tenant_id uuid NOT NULL
+column project.tenant_id uuid NOT NULL DEFAULT app.current_tenant_id()
 column project_day.ansvarig_worker_id uuid
 column project_day.confirmed_at timestamp with time zone
 column project_day.confirmed_by uuid
@@ -201,7 +201,7 @@ column project_day.rejection_note text
 column project_day.reviewed_at timestamp with time zone
 column project_day.reviewed_by uuid
 column project_day.stage day_stage
-column project_day.tenant_id uuid NOT NULL
+column project_day.tenant_id uuid NOT NULL DEFAULT app.current_tenant_id()
 column project_day.vad_vi_gjorde text
 column project_day.work_date date NOT NULL
 column project_hours.hours numeric
@@ -212,7 +212,7 @@ column project_hours.start_date date
 column project_leader.account_id uuid NOT NULL
 column project_leader.assigned_at timestamp with time zone NOT NULL DEFAULT now()
 column project_leader.project_id uuid NOT NULL
-column project_leader.tenant_id uuid NOT NULL
+column project_leader.tenant_id uuid NOT NULL DEFAULT app.current_tenant_id()
 column push_token.account_id uuid NOT NULL
 column push_token.platform text NOT NULL
 column push_token.token text NOT NULL
@@ -240,7 +240,7 @@ column tilldelning.released_at timestamp with time zone
 column tilldelning.released_by uuid
 column tilldelning.released_reason release_reason
 column tilldelning.source assignment_source NOT NULL
-column tilldelning.tenant_id uuid NOT NULL
+column tilldelning.tenant_id uuid NOT NULL DEFAULT app.current_tenant_id()
 column tilldelning.work_date date NOT NULL
 column tilldelning.worker_id uuid NOT NULL
 column worker.account_id uuid NOT NULL
@@ -255,7 +255,7 @@ column worker.late_marks integer NOT NULL DEFAULT 0
 column worker.name text NOT NULL
 column worker.personnummer text
 column worker.phone text
-column worker.tenant_id uuid NOT NULL
+column worker.tenant_id uuid NOT NULL DEFAULT app.current_tenant_id()
 column worker_roster.id uuid
 column worker_roster.late_marks integer
 column worker_roster.name text
