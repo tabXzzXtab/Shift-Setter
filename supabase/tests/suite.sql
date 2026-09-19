@@ -114,11 +114,12 @@ grant select on fx to public;
 do $suite_tenant$
 declare t text;
 begin
-  foreach t in array array[
-    'account', 'worker', 'profile', 'project', 'project_leader', 'project_day',
-    'pass', 'pass_batch', 'pass_batch_handpick', 'pass_block', 'pass_offer',
-    'tilldelning', 'forval', 'clock_edit', 'day_review', 'arbetsdagbok',
-    'notification', 'personal_event', 'personal_event_viewer']
+  -- ONLY TWO NOW. M1c dropped the default from the other seventeen and gave
+  -- them a trigger that derives tenant_id from the parent row, so a fixture
+  -- insert gets its tenant from the project or the account it hangs off
+  -- rather than from this scaffolding. account and project have no parent, so
+  -- they still need telling.
+  foreach t in array array['account', 'project']
   loop
     execute format('alter table public.%I alter column tenant_id set default %L',
                    t, '2f9a6d15-4c83-4e71-9a2b-5d07e3b8c164');
@@ -4657,6 +4658,112 @@ set local role authenticated;
 select pg_temp.rejects($$
   select public.register_push_token('device-token-nobody', 'ios')
 $$, 'PUSH.needs_a_signed_in_account');
+reset role;
+
+
+-- ============================================================================
+-- TENANT -- a row's tenant comes from its PARENT, not from whoever wrote it.
+--
+-- M1c's whole reason for existing. Korperation operates the product from its
+-- own tenancy; a client's data lives in theirs. When an operator writes onto a
+-- client's project, the row belongs to the CLIENT -- and a column default
+-- naming the caller gets that exactly backwards, which is how every admin
+-- write in the live database came to fail at a composite key.
+-- ============================================================================
+
+reset role;
+select set_config('request.jwt.claims', '{}', true);
+
+insert into public.tenant (id, name, org_nr, account_type)
+values ('66666666-6666-6666-6666-666666666666', 'Suite Operator AB', '556000-0666', 'owner');
+
+insert into auth.users (instance_id, id, aud, role, email, encrypted_password,
+                        email_confirmed_at, created_at, updated_at,
+                        raw_app_meta_data, raw_user_meta_data)
+values ('00000000-0000-0000-0000-000000000000',
+        '66666666-6666-6666-6666-66666666666a', 'authenticated', 'authenticated',
+        'operator@suite.test', '', now(), now(), now(), '{}'::jsonb, '{}'::jsonb);
+
+-- A super admin is the one account that can cross tenancies, so nothing inside
+-- the app mints one -- not even the single writer, without saying so.
+select pg_temp.rejects($rej$
+  insert into public.account (id, role, active, tenant_id, super_admin)
+  values ('66666666-6666-6666-6666-66666666666a', 'admin', true,
+          '66666666-6666-6666-6666-666666666666', true)
+$rej$, 'TENANT.super_admin_is_not_self_service');
+
+-- So the fixture goes in the way the migration put the real ones in: with the
+-- guard deliberately off, by the single writer, and back on immediately.
+alter table public.account disable trigger account_super_admin_insert_guard;
+insert into public.account (id, role, active, tenant_id, super_admin)
+values ('66666666-6666-6666-6666-66666666666a', 'admin', true,
+        '66666666-6666-6666-6666-666666666666', true);
+alter table public.account enable trigger account_super_admin_insert_guard;
+
+-- A project belonging to the CLIENT, created by the client's own admin.
+set local role authenticated;
+select pg_temp.act_as((select v from fx where k = 'admin'));
+insert into public.project (id, name, site_address, bestallare_address,
+                            bestallare_bolag, bestallare_orgnr, services, start_date)
+values ('66666666-0000-0000-0000-0000000000aa', 'Tenantprojektet', 'Gata 66',
+        'Kund 66', 'Bolag AB', '556000-0066', 'Bygg', app.stockholm_today());
+
+-- The operator now writes onto it, from outside the tenancy that owns it.
+select pg_temp.act_as('66666666-6666-6666-6666-66666666666a');
+
+insert into public.pass (id, project_id, work_date, start_time, end_time,
+                         planned_hours, headcount, created_by)
+values ('66666666-0000-0000-0000-0000000000bb',
+        '66666666-0000-0000-0000-0000000000aa',
+        app.stockholm_today() + 120, '08:00', '16:00', 7.5, 1,
+        '66666666-6666-6666-6666-66666666666a');
+
+select pg_temp.ok(
+  (select p.tenant_id from public.pass p
+    where p.id = '66666666-0000-0000-0000-0000000000bb')
+  = (select pr.tenant_id from public.project pr
+      where pr.id = '66666666-0000-0000-0000-0000000000aa'),
+  'TENANT.derives_from_parent',
+  'a pass the operator wrote must carry its project''s tenant, not the operator''s');
+
+-- Naming a tenant the parent disagrees with is a claim about isolation. It is
+-- refused rather than quietly corrected, so the attempt is visible.
+select pg_temp.rejects($rej$
+  insert into public.pass (project_id, work_date, start_time, end_time,
+                           planned_hours, headcount, created_by, tenant_id)
+  values ('66666666-0000-0000-0000-0000000000aa',
+          app.stockholm_today() + 121, '08:00', '16:00', 7.5, 1,
+          '66666666-6666-6666-6666-66666666666a',
+          '66666666-6666-6666-6666-666666666666')
+$rej$, 'TENANT.rejects_a_forged_tenant');
+
+-- Sending the RIGHT tenant is not punished for being explicit.
+select pg_temp.accepts($acc$
+  insert into public.pass (project_id, work_date, start_time, end_time,
+                           planned_hours, headcount, created_by, tenant_id)
+  values ('66666666-0000-0000-0000-0000000000aa',
+          app.stockholm_today() + 122, '08:00', '16:00', 7.5, 1,
+          '66666666-6666-6666-6666-66666666666a',
+          (select tenant_id from public.project
+            where id = '66666666-0000-0000-0000-0000000000aa'))
+$acc$, 'TENANT.an_explicit_matching_tenant_is_fine');
+
+-- A notification belongs to the tenant of the person being TOLD, never the
+-- teller. Written as the owner because notification has no insert policy at
+-- all: every one is written by a SECURITY DEFINER function, which is exactly
+-- the position this reproduces.
+reset role;
+insert into public.notification (id, account_id, kind, payload)
+values ('66666666-0000-0000-0000-0000000000cc',
+        (select v from fx where k = 'w1'), 'shift_offered', '{}'::jsonb);
+
+select pg_temp.ok(
+  (select n.tenant_id from public.notification n
+    where n.id = '66666666-0000-0000-0000-0000000000cc')
+  = (select a.tenant_id from public.account a where a.id = (select v from fx where k = 'w1')),
+  'TENANT.notification_follows_the_recipient',
+  'a notification belongs to the tenant of the person being told, not the teller');
+
 reset role;
 
 

@@ -27,7 +27,7 @@ column arbetsdagbok.generated_at timestamp with time zone NOT NULL DEFAULT now()
 column arbetsdagbok.generated_by uuid NOT NULL
 column arbetsdagbok.id uuid NOT NULL DEFAULT gen_random_uuid()
 column arbetsdagbok.project_id uuid NOT NULL
-column arbetsdagbok.tenant_id uuid NOT NULL DEFAULT app.current_tenant_id()
+column arbetsdagbok.tenant_id uuid NOT NULL
 column arbetsledare_roster.id uuid
 column arbetsledare_roster.name text
 column cancelled_day.cancelled_at timestamp with time zone
@@ -41,7 +41,7 @@ column clock_edit.field text NOT NULL
 column clock_edit.id bigint NOT NULL
 column clock_edit.new_value timestamp with time zone
 column clock_edit.old_value timestamp with time zone
-column clock_edit.tenant_id uuid NOT NULL DEFAULT app.current_tenant_id()
+column clock_edit.tenant_id uuid NOT NULL
 column clock_edit.tilldelning_id uuid NOT NULL
 column day_history.confirmed_at timestamp with time zone
 column day_history.confirmed_by_name text
@@ -62,10 +62,10 @@ column day_review.action review_action NOT NULL
 column day_review.id bigint NOT NULL
 column day_review.note text
 column day_review.project_id uuid NOT NULL
-column day_review.tenant_id uuid NOT NULL DEFAULT app.current_tenant_id()
+column day_review.tenant_id uuid NOT NULL
 column day_review.work_date date NOT NULL
 column forval.can_work boolean NOT NULL
-column forval.tenant_id uuid NOT NULL DEFAULT app.current_tenant_id()
+column forval.tenant_id uuid NOT NULL
 column forval.updated_at timestamp with time zone NOT NULL DEFAULT now()
 column forval.work_date date NOT NULL
 column forval.worker_id uuid NOT NULL
@@ -96,7 +96,7 @@ column notification.id uuid NOT NULL DEFAULT gen_random_uuid()
 column notification.kind notification_kind NOT NULL
 column notification.payload jsonb NOT NULL DEFAULT '{}'::jsonb
 column notification.read_at timestamp with time zone
-column notification.tenant_id uuid NOT NULL DEFAULT app.current_tenant_id()
+column notification.tenant_id uuid NOT NULL
 column open_pass.end_time time without time zone
 column open_pass.headcount smallint
 column open_pass.pass_id uuid
@@ -117,26 +117,26 @@ column pass.id uuid NOT NULL DEFAULT gen_random_uuid()
 column pass.planned_hours numeric(4,2) NOT NULL
 column pass.project_id uuid NOT NULL
 column pass.start_time time without time zone NOT NULL
-column pass.tenant_id uuid NOT NULL DEFAULT app.current_tenant_id()
+column pass.tenant_id uuid NOT NULL
 column pass.work_date date NOT NULL
 column pass_batch.created_at timestamp with time zone NOT NULL DEFAULT now()
 column pass_batch.created_by uuid NOT NULL
 column pass_batch.id uuid NOT NULL DEFAULT gen_random_uuid()
 column pass_batch.project_id uuid NOT NULL
-column pass_batch.tenant_id uuid NOT NULL DEFAULT app.current_tenant_id()
+column pass_batch.tenant_id uuid NOT NULL
 column pass_batch_handpick.batch_id uuid NOT NULL
-column pass_batch_handpick.tenant_id uuid NOT NULL DEFAULT app.current_tenant_id()
+column pass_batch_handpick.tenant_id uuid NOT NULL
 column pass_batch_handpick.worker_id uuid NOT NULL
 column pass_block.blocked_at timestamp with time zone NOT NULL DEFAULT now()
 column pass_block.pass_id uuid NOT NULL
-column pass_block.tenant_id uuid NOT NULL DEFAULT app.current_tenant_id()
+column pass_block.tenant_id uuid NOT NULL
 column pass_block.worker_id uuid NOT NULL
 column pass_offer.id uuid NOT NULL DEFAULT gen_random_uuid()
 column pass_offer.offered_at timestamp with time zone NOT NULL DEFAULT now()
 column pass_offer.pass_id uuid NOT NULL
 column pass_offer.responded_at timestamp with time zone
 column pass_offer.state offer_state NOT NULL DEFAULT 'offered'::offer_state
-column pass_offer.tenant_id uuid NOT NULL DEFAULT app.current_tenant_id()
+column pass_offer.tenant_id uuid NOT NULL
 column pass_offer.worker_id uuid NOT NULL
 column personal_event.all_day boolean NOT NULL DEFAULT false
 column personal_event.colour text NOT NULL DEFAULT '#1b2cc1'::text
@@ -147,11 +147,11 @@ column personal_event.event_date date NOT NULL
 column personal_event.id uuid NOT NULL DEFAULT gen_random_uuid()
 column personal_event.owner_id uuid NOT NULL
 column personal_event.start_time time without time zone
-column personal_event.tenant_id uuid NOT NULL DEFAULT app.current_tenant_id()
+column personal_event.tenant_id uuid NOT NULL
 column personal_event.title text NOT NULL
 column personal_event_viewer.account_id uuid NOT NULL
 column personal_event_viewer.event_id uuid NOT NULL
-column personal_event_viewer.tenant_id uuid NOT NULL DEFAULT app.current_tenant_id()
+column personal_event_viewer.tenant_id uuid NOT NULL
 column profile.account_id uuid NOT NULL
 column profile.adress text
 column profile.anhorig_namn text
@@ -172,7 +172,7 @@ column profile.organisationsnummer text
 column profile.postnummer text
 column profile.stad text
 column profile.telefon text
-column profile.tenant_id uuid NOT NULL DEFAULT app.current_tenant_id()
+column profile.tenant_id uuid NOT NULL
 column profile.updated_at timestamp with time zone NOT NULL DEFAULT now()
 column profile.updated_by uuid
 column project.bestallare_address text NOT NULL
@@ -201,7 +201,7 @@ column project_day.rejection_note text
 column project_day.reviewed_at timestamp with time zone
 column project_day.reviewed_by uuid
 column project_day.stage day_stage
-column project_day.tenant_id uuid NOT NULL DEFAULT app.current_tenant_id()
+column project_day.tenant_id uuid NOT NULL
 column project_day.vad_vi_gjorde text
 column project_day.work_date date NOT NULL
 column project_hours.hours numeric
@@ -212,7 +212,7 @@ column project_hours.start_date date
 column project_leader.account_id uuid NOT NULL
 column project_leader.assigned_at timestamp with time zone NOT NULL DEFAULT now()
 column project_leader.project_id uuid NOT NULL
-column project_leader.tenant_id uuid NOT NULL DEFAULT app.current_tenant_id()
+column project_leader.tenant_id uuid NOT NULL
 column push_token.account_id uuid NOT NULL
 column push_token.platform text NOT NULL
 column push_token.token text NOT NULL
@@ -240,7 +240,7 @@ column tilldelning.released_at timestamp with time zone
 column tilldelning.released_by uuid
 column tilldelning.released_reason release_reason
 column tilldelning.source assignment_source NOT NULL
-column tilldelning.tenant_id uuid NOT NULL DEFAULT app.current_tenant_id()
+column tilldelning.tenant_id uuid NOT NULL
 column tilldelning.work_date date NOT NULL
 column tilldelning.worker_id uuid NOT NULL
 column worker.account_id uuid NOT NULL
@@ -255,7 +255,7 @@ column worker.late_marks integer NOT NULL DEFAULT 0
 column worker.name text NOT NULL
 column worker.personnummer text
 column worker.phone text
-column worker.tenant_id uuid NOT NULL DEFAULT app.current_tenant_id()
+column worker.tenant_id uuid NOT NULL
 column worker_roster.id uuid
 column worker_roster.late_marks integer
 column worker_roster.name text
@@ -268,27 +268,27 @@ constr account UNIQUE (id, tenant_id)
 constr arbetsdagbok CHECK ((lower_inc(covered) AND (NOT upper_inc(covered)) AND (NOT isempty(covered))))
 constr arbetsdagbok FOREIGN KEY (generated_by) REFERENCES account(id)
 constr arbetsdagbok FOREIGN KEY (project_id) REFERENCES project(id) ON DELETE CASCADE
-constr arbetsdagbok FOREIGN KEY (project_id, tenant_id) REFERENCES project(id, tenant_id)
+constr arbetsdagbok FOREIGN KEY (project_id, tenant_id) REFERENCES project(id, tenant_id) DEFERRABLE
 constr arbetsdagbok FOREIGN KEY (tenant_id) REFERENCES tenant(id)
 constr arbetsdagbok PRIMARY KEY (id)
 constr clock_edit CHECK ((field = ANY (ARRAY['clock_in'::text, 'clock_out'::text])))
 constr clock_edit FOREIGN KEY (edited_by) REFERENCES account(id)
 constr clock_edit FOREIGN KEY (tenant_id) REFERENCES tenant(id)
 constr clock_edit FOREIGN KEY (tilldelning_id) REFERENCES tilldelning(id) ON DELETE CASCADE
-constr clock_edit FOREIGN KEY (tilldelning_id, tenant_id) REFERENCES tilldelning(id, tenant_id)
+constr clock_edit FOREIGN KEY (tilldelning_id, tenant_id) REFERENCES tilldelning(id, tenant_id) DEFERRABLE
 constr clock_edit PRIMARY KEY (id)
 constr day_review CHECK (((action <> 'rejected'::review_action) OR ((note IS NOT NULL) AND (btrim(note) <> ''::text))))
 constr day_review FOREIGN KEY (acted_by) REFERENCES account(id)
-constr day_review FOREIGN KEY (project_id, tenant_id) REFERENCES project(id, tenant_id)
+constr day_review FOREIGN KEY (project_id, tenant_id) REFERENCES project(id, tenant_id) DEFERRABLE
 constr day_review FOREIGN KEY (project_id, work_date) REFERENCES project_day(project_id, work_date) ON DELETE CASCADE
 constr day_review FOREIGN KEY (tenant_id) REFERENCES tenant(id)
 constr day_review PRIMARY KEY (id)
 constr forval FOREIGN KEY (tenant_id) REFERENCES tenant(id)
 constr forval FOREIGN KEY (worker_id) REFERENCES worker(id) ON DELETE CASCADE
-constr forval FOREIGN KEY (worker_id, tenant_id) REFERENCES worker(id, tenant_id)
+constr forval FOREIGN KEY (worker_id, tenant_id) REFERENCES worker(id, tenant_id) DEFERRABLE
 constr forval PRIMARY KEY (worker_id, work_date)
 constr notification FOREIGN KEY (account_id) REFERENCES account(id) ON DELETE CASCADE
-constr notification FOREIGN KEY (account_id, tenant_id) REFERENCES account(id, tenant_id)
+constr notification FOREIGN KEY (account_id, tenant_id) REFERENCES account(id, tenant_id) DEFERRABLE
 constr notification FOREIGN KEY (tenant_id) REFERENCES tenant(id)
 constr notification PRIMARY KEY (id)
 constr pass CHECK (((headcount >= 1) AND (headcount <= 99)))
@@ -297,51 +297,51 @@ constr pass FOREIGN KEY (batch_id) REFERENCES pass_batch(id) ON DELETE SET NULL
 constr pass FOREIGN KEY (created_by) REFERENCES account(id)
 constr pass FOREIGN KEY (deleted_by) REFERENCES account(id)
 constr pass FOREIGN KEY (project_id) REFERENCES project(id) ON DELETE CASCADE
-constr pass FOREIGN KEY (project_id, tenant_id) REFERENCES project(id, tenant_id)
+constr pass FOREIGN KEY (project_id, tenant_id) REFERENCES project(id, tenant_id) DEFERRABLE
 constr pass FOREIGN KEY (tenant_id) REFERENCES tenant(id)
 constr pass PRIMARY KEY (id)
 constr pass UNIQUE (id, tenant_id)
 constr pass_batch FOREIGN KEY (created_by) REFERENCES account(id)
 constr pass_batch FOREIGN KEY (project_id) REFERENCES project(id) ON DELETE CASCADE
-constr pass_batch FOREIGN KEY (project_id, tenant_id) REFERENCES project(id, tenant_id)
+constr pass_batch FOREIGN KEY (project_id, tenant_id) REFERENCES project(id, tenant_id) DEFERRABLE
 constr pass_batch FOREIGN KEY (tenant_id) REFERENCES tenant(id)
 constr pass_batch PRIMARY KEY (id)
 constr pass_batch UNIQUE (id, tenant_id)
 constr pass_batch_handpick FOREIGN KEY (batch_id) REFERENCES pass_batch(id) ON DELETE CASCADE
-constr pass_batch_handpick FOREIGN KEY (batch_id, tenant_id) REFERENCES pass_batch(id, tenant_id)
+constr pass_batch_handpick FOREIGN KEY (batch_id, tenant_id) REFERENCES pass_batch(id, tenant_id) DEFERRABLE
 constr pass_batch_handpick FOREIGN KEY (tenant_id) REFERENCES tenant(id)
 constr pass_batch_handpick FOREIGN KEY (worker_id) REFERENCES worker(id) ON DELETE CASCADE
-constr pass_batch_handpick FOREIGN KEY (worker_id, tenant_id) REFERENCES worker(id, tenant_id)
+constr pass_batch_handpick FOREIGN KEY (worker_id, tenant_id) REFERENCES worker(id, tenant_id) DEFERRABLE
 constr pass_batch_handpick PRIMARY KEY (batch_id, worker_id)
 constr pass_block FOREIGN KEY (pass_id) REFERENCES pass(id) ON DELETE CASCADE
-constr pass_block FOREIGN KEY (pass_id, tenant_id) REFERENCES pass(id, tenant_id)
+constr pass_block FOREIGN KEY (pass_id, tenant_id) REFERENCES pass(id, tenant_id) DEFERRABLE
 constr pass_block FOREIGN KEY (tenant_id) REFERENCES tenant(id)
 constr pass_block FOREIGN KEY (worker_id) REFERENCES worker(id) ON DELETE CASCADE
-constr pass_block FOREIGN KEY (worker_id, tenant_id) REFERENCES worker(id, tenant_id)
+constr pass_block FOREIGN KEY (worker_id, tenant_id) REFERENCES worker(id, tenant_id) DEFERRABLE
 constr pass_block PRIMARY KEY (pass_id, worker_id)
 constr pass_offer FOREIGN KEY (pass_id) REFERENCES pass(id) ON DELETE CASCADE
-constr pass_offer FOREIGN KEY (pass_id, tenant_id) REFERENCES pass(id, tenant_id)
+constr pass_offer FOREIGN KEY (pass_id, tenant_id) REFERENCES pass(id, tenant_id) DEFERRABLE
 constr pass_offer FOREIGN KEY (tenant_id) REFERENCES tenant(id)
 constr pass_offer FOREIGN KEY (worker_id) REFERENCES worker(id) ON DELETE CASCADE
-constr pass_offer FOREIGN KEY (worker_id, tenant_id) REFERENCES worker(id, tenant_id)
+constr pass_offer FOREIGN KEY (worker_id, tenant_id) REFERENCES worker(id, tenant_id) DEFERRABLE
 constr pass_offer PRIMARY KEY (id)
 constr pass_offer UNIQUE (pass_id, worker_id)
 constr personal_event CHECK (((all_day AND (start_time IS NULL) AND (end_time IS NULL)) OR ((NOT all_day) AND (start_time IS NOT NULL) AND (end_time IS NOT NULL) AND (end_time > start_time))))
 constr personal_event CHECK ((btrim(title) <> ''::text))
 constr personal_event CHECK ((colour = ANY (ARRAY['#1b2cc1'::text, '#0f6f7a'::text, '#6c3fc5'::text, '#1f7a3d'::text, '#8a5300'::text, '#8e1d15'::text, '#0a5ea8'::text, '#7a3f8f'::text])))
 constr personal_event FOREIGN KEY (owner_id) REFERENCES account(id) ON DELETE CASCADE
-constr personal_event FOREIGN KEY (owner_id, tenant_id) REFERENCES account(id, tenant_id)
+constr personal_event FOREIGN KEY (owner_id, tenant_id) REFERENCES account(id, tenant_id) DEFERRABLE
 constr personal_event FOREIGN KEY (tenant_id) REFERENCES tenant(id)
 constr personal_event PRIMARY KEY (id)
 constr personal_event UNIQUE (id, tenant_id)
 constr personal_event_viewer FOREIGN KEY (account_id) REFERENCES account(id) ON DELETE CASCADE
-constr personal_event_viewer FOREIGN KEY (account_id, tenant_id) REFERENCES account(id, tenant_id)
+constr personal_event_viewer FOREIGN KEY (account_id, tenant_id) REFERENCES account(id, tenant_id) DEFERRABLE
 constr personal_event_viewer FOREIGN KEY (event_id) REFERENCES personal_event(id) ON DELETE CASCADE
-constr personal_event_viewer FOREIGN KEY (event_id, tenant_id) REFERENCES personal_event(id, tenant_id)
+constr personal_event_viewer FOREIGN KEY (event_id, tenant_id) REFERENCES personal_event(id, tenant_id) DEFERRABLE
 constr personal_event_viewer FOREIGN KEY (tenant_id) REFERENCES tenant(id)
 constr personal_event_viewer PRIMARY KEY (event_id, account_id)
 constr profile FOREIGN KEY (account_id) REFERENCES account(id) ON DELETE CASCADE
-constr profile FOREIGN KEY (account_id, tenant_id) REFERENCES account(id, tenant_id)
+constr profile FOREIGN KEY (account_id, tenant_id) REFERENCES account(id, tenant_id) DEFERRABLE
 constr profile FOREIGN KEY (tenant_id) REFERENCES tenant(id)
 constr profile FOREIGN KEY (updated_by) REFERENCES account(id)
 constr profile PRIMARY KEY (account_id)
@@ -366,15 +366,15 @@ constr project_day CHECK (((reviewed_at IS NULL) OR (stage = 'admin_confirmed'::
 constr project_day FOREIGN KEY (ansvarig_worker_id) REFERENCES worker(id)
 constr project_day FOREIGN KEY (confirmed_by) REFERENCES account(id)
 constr project_day FOREIGN KEY (project_id) REFERENCES project(id) ON DELETE CASCADE
-constr project_day FOREIGN KEY (project_id, tenant_id) REFERENCES project(id, tenant_id)
+constr project_day FOREIGN KEY (project_id, tenant_id) REFERENCES project(id, tenant_id) DEFERRABLE
 constr project_day FOREIGN KEY (rejected_by) REFERENCES account(id)
 constr project_day FOREIGN KEY (reviewed_by) REFERENCES account(id)
 constr project_day FOREIGN KEY (tenant_id) REFERENCES tenant(id)
 constr project_day PRIMARY KEY (project_id, work_date)
 constr project_leader FOREIGN KEY (account_id) REFERENCES account(id) ON DELETE CASCADE
-constr project_leader FOREIGN KEY (account_id, tenant_id) REFERENCES account(id, tenant_id)
+constr project_leader FOREIGN KEY (account_id, tenant_id) REFERENCES account(id, tenant_id) DEFERRABLE
 constr project_leader FOREIGN KEY (project_id) REFERENCES project(id) ON DELETE CASCADE
-constr project_leader FOREIGN KEY (project_id, tenant_id) REFERENCES project(id, tenant_id)
+constr project_leader FOREIGN KEY (project_id, tenant_id) REFERENCES project(id, tenant_id) DEFERRABLE
 constr project_leader FOREIGN KEY (tenant_id) REFERENCES tenant(id)
 constr project_leader PRIMARY KEY (project_id, account_id)
 constr push_token CHECK ((btrim(token) <> ''::text))
@@ -390,7 +390,7 @@ constr tilldelning CHECK (((confirmed_hours >= (0)::numeric) AND (confirmed_hour
 constr tilldelning CHECK (((own_start IS NULL) = (own_end IS NULL)))
 constr tilldelning CHECK (((own_start IS NULL) OR (source = 'ledare'::assignment_source)))
 constr tilldelning FOREIGN KEY (pass_id) REFERENCES pass(id) ON DELETE CASCADE
-constr tilldelning FOREIGN KEY (pass_id, tenant_id) REFERENCES pass(id, tenant_id)
+constr tilldelning FOREIGN KEY (pass_id, tenant_id) REFERENCES pass(id, tenant_id) DEFERRABLE
 constr tilldelning FOREIGN KEY (project_id) REFERENCES project(id)
 constr tilldelning FOREIGN KEY (released_by) REFERENCES account(id)
 constr tilldelning FOREIGN KEY (tenant_id) REFERENCES tenant(id)
@@ -401,7 +401,7 @@ constr worker CHECK ((btrim(email) <> ''::text))
 constr worker CHECK ((btrim(name) <> ''::text))
 constr worker CHECK ((late_marks >= 0))
 constr worker FOREIGN KEY (account_id) REFERENCES account(id) ON DELETE RESTRICT
-constr worker FOREIGN KEY (account_id, tenant_id) REFERENCES account(id, tenant_id)
+constr worker FOREIGN KEY (account_id, tenant_id) REFERENCES account(id, tenant_id) DEFERRABLE
 constr worker FOREIGN KEY (tenant_id) REFERENCES tenant(id)
 constr worker PRIMARY KEY (id)
 constr worker UNIQUE (account_id)
@@ -550,6 +550,23 @@ rls    push_token enabled=t
 rls    tenant enabled=t
 rls    tilldelning enabled=t
 rls    worker enabled=t
+trig   aa_tenant_from_parent on arbetsdagbok -> tg_tenant_from_parent enabled=O
+trig   aa_tenant_from_parent on clock_edit -> tg_tenant_from_parent enabled=O
+trig   aa_tenant_from_parent on day_review -> tg_tenant_from_parent enabled=O
+trig   aa_tenant_from_parent on forval -> tg_tenant_from_parent enabled=O
+trig   aa_tenant_from_parent on notification -> tg_tenant_from_parent enabled=O
+trig   aa_tenant_from_parent on pass -> tg_tenant_from_parent enabled=O
+trig   aa_tenant_from_parent on pass_batch -> tg_tenant_from_parent enabled=O
+trig   aa_tenant_from_parent on pass_batch_handpick -> tg_tenant_from_parent enabled=O
+trig   aa_tenant_from_parent on pass_block -> tg_tenant_from_parent enabled=O
+trig   aa_tenant_from_parent on pass_offer -> tg_tenant_from_parent enabled=O
+trig   aa_tenant_from_parent on personal_event -> tg_tenant_from_parent enabled=O
+trig   aa_tenant_from_parent on personal_event_viewer -> tg_tenant_from_parent enabled=O
+trig   aa_tenant_from_parent on profile -> tg_tenant_from_parent enabled=O
+trig   aa_tenant_from_parent on project_day -> tg_tenant_from_parent enabled=O
+trig   aa_tenant_from_parent on project_leader -> tg_tenant_from_parent enabled=O
+trig   aa_tenant_from_parent on tilldelning -> tg_tenant_from_parent enabled=O
+trig   aa_tenant_from_parent on worker -> tg_tenant_from_parent enabled=O
 trig   account_pause on account -> tg_account_pause enabled=O
 trig   account_super_admin_guard on account -> tg_super_admin_guard enabled=O
 trig   account_super_admin_insert_guard on account -> tg_super_admin_insert_guard enabled=O
@@ -582,7 +599,7 @@ func   app.created_project(p_project uuid) md5=598f8bf9d52e3dfe8578a72ef447e971
 func   app.current_role() md5=9aac5306319ae740d224ff2203a64880
 func   app.current_tenant_id() md5=65de499f783c72eefae33d36a6bbedc4
 func   app.current_worker_id() md5=74dddcd603933dd85350f7d4fd99efdf
-func   app.fill_pass(p_pass uuid) md5=ce17a6d7c777332276fef3842c5de8b8
+func   app.fill_pass(p_pass uuid) md5=bbb0bbebb1a48b4fd9f488ada98d90f0
 func   app.flag_day(p_tilldelning uuid, p_flag confirmation_source, p_worker uuid) md5=0adb6220d986f91660bef798807d598f
 func   app.holds_a_day(p_project uuid) md5=25945fb19cc7aa025b4298ef1be3e393
 func   app.holds_the_day(p_project uuid, p_work_date date) md5=8d2d52c980559183f43acfc52f409b1c
@@ -618,6 +635,7 @@ func   app.tg_project_leader_is_a_leader() md5=ad62ec9c666f500380fddff7feeba5d3
 func   app.tg_super_admin_guard() md5=c835d63f2d851bed08cd84c8360480fe
 func   app.tg_super_admin_insert_guard() md5=1b7d486dda2928a8e4e1f42b7fc9886c
 func   app.tg_sync_work_date() md5=205305b41ade44114ec626dc29b463e5
+func   app.tg_tenant_from_parent() md5=97c4126edaaa84cb950a88db798c8ed7
 func   app.tg_worker_self_edit_guard() md5=7e933362e1f8d5f23547d75ed47b6736
 func   app.week_start(d date) md5=4a8f6c192e41cf4a14ebb5f87e671c29
 func   public.accept_offer(p_pass uuid) md5=b61779007879aeb3d108d6c3e0aaceba

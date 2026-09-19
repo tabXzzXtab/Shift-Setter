@@ -46,6 +46,56 @@ const perturb = (find, replace) => perturbIn("app.fill_pass(uuid)", find, replac
 
 /** Each control: disable one protection, name the assertion that must then fail. */
 const CONTROLS = [
+  ["tenant -- a child row takes its parent's tenant, not the writer's",
+   // THE CALLER WINS OVER THE PARENT -- precisely the rule that broke every
+   // admin write on the live database, reinstated inside the trigger rather
+   // than by restoring the old column default.
+   //
+   // The first version of this control DID restore the default, and it failed
+   // at the wrong place: the suite inserts passes during fixture setup with no
+   // acting user, so app.current_tenant_id() was NULL there and the suite died
+   // on a not-null constraint long before reaching this assertion. The
+   // coalesce keeps those fixture inserts working -- they fall through to the
+   // parent exactly as today -- and changes the answer only for a caller who
+   // HAS a tenant of their own and is writing onto somebody else's row. That
+   // is the one case this assertion is about.
+   //
+   // The composite key goes too: with the wrong tenant derived, it catches the
+   // row first and the suite would die on a foreign key instead of reaching
+   // the assertion. Disabling half a protection tests the other half.
+   async (client) => {
+     const def = await perturbIn(
+       "app.tg_tenant_from_parent()",
+       "  new.tenant_id := v_tenant;",
+       "  new.tenant_id := coalesce(app.current_tenant_id(), v_tenant);")(client);
+     return def + "; alter table public.pass drop constraint pass_tenant_matches_project";
+   },
+   "TENANT.derives_from_parent"],
+
+  ["tenant -- a forged tenant_id is refused, not quietly corrected",
+   // Only the mismatch check removed; the derivation still runs. So the forged
+   // row is silently rewritten to the parent's tenant and the insert SUCCEEDS
+   // -- which is the failure mode worth having a control for. A guard that
+   // corrects an attempt without reporting it looks identical to one that
+   // never saw it.
+   perturbIn("app.tg_tenant_from_parent()",
+             "if new.tenant_id is not null and new.tenant_id <> v_tenant then",
+             "if false then"),
+   "TENANT.rejects_a_forged_tenant"],
+
+  ["tenant -- a notification belongs to the person being told",
+   // Same shape as the first, on the other parent kind: derived from the
+   // recipient's account rather than from a project. Without it the operator's
+   // own tenancy is stamped on a message to somebody else's worker.
+   "alter table public.notification disable trigger aa_tenant_from_parent; " +
+   "alter table public.notification alter column tenant_id set default app.current_tenant_id(); " +
+   "alter table public.notification drop constraint notification_tenant_matches_account",
+   "TENANT.notification_follows_the_recipient"],
+
+  ["tenant -- a super admin cannot be minted from inside the app",
+   "alter table public.account disable trigger account_super_admin_insert_guard",
+   "TENANT.super_admin_is_not_self_service"],
+
   ["stage 2 -- a leader's times go to the leader's row",
    // The routing forced down the OLD path: every corrected span written to the
    // pass. The leader's own_start then never moves, which is the gap this
