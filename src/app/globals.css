@@ -31,12 +31,33 @@
   animation: slidedown 260ms cubic-bezier(.2, .8, .3, 1) both;
 }
 
+/*
+ * The onboarding PIN gate refusing a code.
+ *
+ * MOTION IS NOT THE MESSAGE HERE, it is the fastest copy of it. A shake says
+ * "that was wrong" before anything is read, but it says nothing to a screen
+ * reader and nothing at all under reduced motion, so the gate prints the
+ * refusal as text as well and this only gets there first.
+ */
+@keyframes shake {
+  0%, 100%     { transform: translateX(0); }
+  15%, 45%, 75% { transform: translateX(-7px); }
+  30%, 60%, 90% { transform: translateX(7px); }
+}
+
+.animate-shake {
+  animation: shake 420ms cubic-bezier(.36, .07, .19, .97) both;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-livedot { animation: none; }
   .press-scale:active { transform: none; }
   /* The bar still appears -- only its travel is dropped. It carries
      information, so it is not decoration the way the pulse is. */
   .animate-slidedown { animation: none; }
+  /* The shake goes entirely. It is the one signal on the gate that carries no
+     words, which is why the refusal is written out beside it -- see above. */
+  .animate-shake { animation: none; }
 }
 
 /*
