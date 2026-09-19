@@ -71,11 +71,42 @@ async function signOut(p) {
   await p.waitForURL(/login/, { timeout: 20000 });
 }
 
+/**
+ * Page the calendar to a month, whichever grid is on screen.
+ *
+ * Every grid draws ONE month and opens on today's, so `[data-date]` exists
+ * only for the month being shown: a date outside it is not a cell that is slow
+ * to arrive, it is a cell that is not there. Without this the run breaks for
+ * the last twelve days of every month, when today+12 is already next month --
+ * the same fault walkthrough-kalender was fixed for in 04c415e, and the same
+ * helper, deliberately unchanged so the two cannot drift.
+ */
+async function showMonth(p, month) {
+  const firstCell = p.locator("[data-date]").first();
+  await firstCell.waitFor({ timeout: 20000 });
+  for (let hop = 0; ; hop++) {
+    const shown = (await firstCell.getAttribute("data-date"))?.slice(0, 7);
+    if (shown === month) return;
+    if (hop === 12) await fail(`the calendar would not page from ${shown} to ${month}`);
+    await p
+      .getByRole("button", { name: month < shown ? "Föregående månad" : "Nästa månad" })
+      .click();
+    // The grid re-renders in place, so waiting on a cell would pass instantly
+    // against the month being left. Wait for the month itself to turn over.
+    await p.waitForFunction(
+      (m) => document.querySelector("[data-date]")?.getAttribute("data-date")?.slice(0, 7) !== m,
+      shown,
+      { timeout: 20000 },
+    );
+  }
+}
+
 /** Read before tapping: the availability gesture is a toggle. */
 async function markCannot(p, date) {
   const marked = () => p.locator(`[data-date="${date}"][aria-label*="kan inte"]`);
   for (let attempt = 1; attempt <= 3; attempt++) {
     await p.goto(`${BASE}/min-kalender/`, { waitUntil: "networkidle" });
+    await showMonth(p, date.slice(0, 7));
     await p.locator(`[data-date="${date}"]`).waitFor({ timeout: 20000 });
     await p.waitForTimeout(800);
     if (await marked().count()) return;
@@ -92,6 +123,7 @@ async function markCannot(p, date) {
 async function makePass(p, project, date, hours) {
   await p.goto(`${BASE}/pass/ny/`, { waitUntil: "networkidle" });
   await p.getByText("Vilka dagar?").waitFor({ timeout: 20000 });
+  await showMonth(p, date.slice(0, 7));
   const cell = p.locator(`[data-date="${date}"]`);
   await cell.waitFor({ timeout: 20000 });
   await cell.scrollIntoViewIfNeeded();
@@ -112,19 +144,6 @@ const db = new pg.Client({
 });
 await db.connect();
 
-// RERUNNABLE. A previous run leaves Arvid holding D_TAKE, and invariant 2 then
-// hides the whole day from open_pass -- the next run would fail at "not
-// offered" for a reason that has nothing to do with the screen. Scoped to this
-// worker, these two dates, and projects this script made.
-for (const table of ["pass_offer", "tilldelning"]) {
-  await db.query(
-    `delete from public.${table} x
-      using public.worker w, public.pass p, public.project pr
-      where x.worker_id = w.id and w.email = $1
-        and x.pass_id = p.id and p.project_id = pr.id and pr.name like 'Boka %'`,
-    [required("DEMO_WORKER_EMAIL")]);
-}
-
 const browser = await chromium.launch();
 const ctx = await browser.newContext({
   ...devices["Pixel 7"], locale: "sv-SE", timezoneId: "Europe/Stockholm",
@@ -141,6 +160,39 @@ const ADDRESS = "Stortorget 1, 211 22 Malmö";
 
 console.log(`\nBoka Pass on Öppna Pass at ${BASE}`);
 console.log(`  take ${D_TAKE} · refuse ${D_REFUSE}\n`);
+
+// ---------------------------------------------------------------------------
+// RERUNNABLE, AND THE DATES MOVE UNDER IT.
+//
+// Two leftovers break a second run, and the second only bites once the
+// calendar has rolled a day:
+//
+//   A previous run leaves Arvid holding D_TAKE, and invariant 2 then hides the
+//   whole day from open_pass -- so the run fails at "not offered" for a reason
+//   that has nothing to do with the screen.
+//
+//   A previous run marked ITS D_REFUSE can't-work, and both offsets are
+//   relative to TODAY. Yesterday's refuse date is today's take date, and Tier 3
+//   never offers a day somebody has already answered no to. Clearing only the
+//   assignments leaves that mark behind and the run fails the same way, one day
+//   later, looking like a regression in the screen.
+//
+// So both go, scoped to this worker: the bookings to projects this script made,
+// the availability to the two dates it is about to use.
+// ---------------------------------------------------------------------------
+for (const table of ["pass_offer", "tilldelning"]) {
+  await db.query(
+    `delete from public.${table} x
+      using public.worker w, public.pass p, public.project pr
+      where x.worker_id = w.id and w.email = $1
+        and x.pass_id = p.id and p.project_id = pr.id and pr.name like 'Boka %'`,
+    [required("DEMO_WORKER_EMAIL")]);
+}
+await db.query(
+  `delete from public.forval f using public.worker w
+    where f.worker_id = w.id and w.email = $1
+      and f.work_date = any($2::date[])`,
+  [required("DEMO_WORKER_EMAIL"), [D_TAKE, D_REFUSE]]);
 
 try {
   // ---- setup ---------------------------------------------------------------
