@@ -1497,18 +1497,21 @@ export type Database = {
         Row: {
           account_id: string
           platform: string
+          tenant_id: string
           token: string
           updated_at: string
         }
         Insert: {
           account_id: string
           platform: string
+          tenant_id: string
           token: string
           updated_at?: string
         }
         Update: {
           account_id?: string
           platform?: string
+          tenant_id?: string
           token?: string
           updated_at?: string
         }
@@ -1533,6 +1536,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "arbetsledare_roster"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "push_token_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "push_token_tenant_matches_account"
+            columns: ["account_id", "tenant_id"]
+            isOneToOne: false
+            referencedRelation: "account"
+            referencedColumns: ["id", "tenant_id"]
           },
         ]
       }

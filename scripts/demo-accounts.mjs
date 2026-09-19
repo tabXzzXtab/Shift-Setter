@@ -51,6 +51,39 @@ const admin = createClient(url, service, { auth: { persistSession: false } });
 
 const { data: list } = await admin.auth.admin.listUsers({ perPage: 1000 });
 
+/**
+ * WHICH TENANT THE DEMO DATA BELONGS TO, resolved from the demo admin rather
+ * than configured separately.
+ *
+ * account and project are the only two tables that still default their
+ * tenant_id -- every other one derives it from a parent row. Both defaults are
+ * app.current_tenant_id(), which reads the CALLER'S account, and this script
+ * runs on the service-role key with no auth.uid() at all. So the default
+ * resolves to NULL here and the insert dies on a not-null constraint. It is
+ * the same hole bootstrap-admin.mjs had, and it bites the moment demo:reset
+ * deletes the non-admins and this recreates them: the update path works, the
+ * insert path does not.
+ *
+ * Taking it from the admin's existing row keeps one fact in one place -- demo
+ * data lives wherever the demo admin lives -- rather than adding a variable
+ * that can disagree with DEMO_ADMIN_EMAIL.
+ */
+const adminEmail = required("DEMO_ADMIN_EMAIL");
+const adminUser = list?.users.find((u) => u.email?.toLowerCase() === adminEmail.toLowerCase());
+let TENANT = null;
+if (adminUser) {
+  const { data: row } = await admin
+    .from("account").select("tenant_id").eq("id", adminUser.id).maybeSingle();
+  TENANT = row?.tenant_id ?? null;
+}
+if (!TENANT) {
+  console.error(
+    `Cannot tell which tenant the demo data belongs to: ${adminEmail} has no account row yet.\n` +
+    "Create it first, which is where the tenant is decided:\n" +
+    "  node scripts/bootstrap-admin.mjs <email> <password> <tenant>");
+  process.exit(1);
+}
+
 async function ensure({ key, role, name, worker }) {
   const email = required(`${key}_EMAIL`);
   const password = required(`${key}_PASSWORD`);
@@ -67,7 +100,7 @@ async function ensure({ key, role, name, worker }) {
   }
 
   const { error: aErr } = await admin
-    .from("account").upsert({ id, role, active: true }, { onConflict: "id" });
+    .from("account").upsert({ id, role, active: true, tenant_id: TENANT }, { onConflict: "id" });
   if (aErr) { console.error(`${email} account: ${aErr.message}`); process.exit(1); }
 
   // Every worker has an account; not every account has a worker. The leader
@@ -99,9 +132,13 @@ const leader = ensured.get("arbetsledare");
 // A project for them to work on, with the leader assigned -- without that the
 // leader's project dropdown is empty and they can do nothing at all.
 const NAME = "Demoprojektet";
-let { data: project } = await admin.from("project").select("id").eq("name", NAME).maybeSingle();
+// Scoped to the tenant: the service role sees every tenant's rows, and with
+// more than one client there can be more than one Demoprojektet.
+let { data: project } = await admin
+  .from("project").select("id").eq("name", NAME).eq("tenant_id", TENANT).maybeSingle();
 if (!project) {
   const { data, error } = await admin.from("project").insert({
+    tenant_id: TENANT,
     name: NAME,
     site_address: "Storgatan 1, 242 30 Hörby",
     bestallare_address: "Kundvägen 4, 241 38 Eslöv",
