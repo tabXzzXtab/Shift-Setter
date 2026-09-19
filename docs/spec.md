@@ -712,9 +712,9 @@ That block is the entire enforcement mechanism. The admin needs the document; on
 **No server.** The application is a static export. The browser holds the auth token and talks to the database directly. Every restriction that lives in the interface is decorative — the database is the only real boundary. This is why:
 - Role separation must be enforced in database policies and triggers, not in the client.
 - Column-level grants cannot separate roles: every logged-in user is the same database role, so a grant restricting workers restricts leaders identically. Triggers comparing old and new values are the mechanism that works.
-- Notifications, reminders, scheduled alerts and deadline emails are **impossible as-is**. They need something running — a scheduled function or a small server. That is an architecture decision, not a feature.
+- Reminders, scheduled alerts, deadline emails and digests are **impossible as-is**. They need a clock — a scheduled function or a small server — and there is still none. Push is the exception and it is not one: it is event-driven, raised by a database write rather than by the time of day. See Section 6b.
 
-**Notifications are in-app only.** A message on next load. (The arbetare's badge; the leader's Startsida counts rather than dots.) No push, no email, no scheduled digests — those need a server or a scheduled function, and neither exists. In-app is enough for the two things that actually need to travel: a deleted shift, and an offered one.
+**Notifications were in-app only, and are not any more.** ~~A message on next load. No push, no email, no scheduled digests — those need a server or a scheduled function, and neither exists.~~ **Reversed — see Section 6b.** In-app remains the baseline and is what a browser gets: a message on next load, the arbetare's badge, the leader's Startsida counts rather than dots. Push is added on top of it for the phone shell, and it does not replace the row: every push has a `notification` row behind it, because the device may be off, unregistered, or a browser.
 
 **Account creation needs elevated credentials**, so it runs through a separate function with its own deployment path. Creating an auth user requires the service-role key, which cannot ship in a static bundle.
 
@@ -727,6 +727,73 @@ That block is the entire enforcement mechanism. The admin needs the document; on
 **One table, not one per screen.** Three screens had grown their own partial translator, so the same refusal read differently depending on where you met it, and a rule added to the database got translated on whichever screen somebody happened to be working on. The database raises one sentence; the app says one thing back.
 
 **A refusal nobody anticipated is not guessed at.** It falls back to the caller's own context line — *"Passet kunde inte skapas. Kontakta administratören."* — which names the act that failed and who to ask without inventing a reason. A friendly guess about which rule fired would be worse than the honest shrug: it would send the reader to fix the wrong thing. Nothing is left in English either way.
+
+---
+
+## 6b. Push notifications
+
+**This reverses the in-app-only decision in Section 6.** That decision was never about whether push was wanted — a worker whose Tuesday shift is deleted on Monday evening should not find out when they next open the app. It was about there being nothing to send from. Three things closed that gap, and none of them is a server:
+
+- The app now ships inside a **Capacitor shell** as well as at `app.bellaserviceab.se`, so there is a handset with an OS-level notification tray to wake.
+- The FCM credential lives in a **Supabase Edge Function**, which is where server-side secrets were always allowed to live.
+- **pg_net** lets Postgres make an outbound HTTP request, so a database event can call that function. There is still no cron and no polling: the database notices the event because it is the thing the event happens to. This is the half still to land — see below.
+
+**Still no server, and push is still not a delivery guarantee.** It is a tap on the shoulder. Every push has a `notification` row behind it and the row is the record; the push is best effort on top. A device can be off, uninstalled, denied permission, or a browser — and a browser is the common case, because the same build serves the web far more often than it runs in the shell.
+
+### What is live
+
+**`public.push_token`** — one row per **device**, keyed on the token itself, not on the person.
+
+| Column | |
+|---|---|
+| `token` | primary key. The opaque string APNs or FCM hands back. |
+| `account_id` | → `account(id)`, `on delete cascade`. |
+| `platform` | `ios` or `android`, checked. No `web` — the plugin has no web implementation, so nothing could ever write it. |
+| `updated_at` | |
+
+**The token is the key, and that is the whole design decision.** Site phones get shared — one handset in a van, whoever is driving it signs in. Keyed on `(account_id, token)` both accounts would keep a row for the same handset, and the phone in one worker's hand would go on buzzing with another's shifts, hours and days. So signing in **moves** the row: the last person to log in owns the handset, which is the only claim about it that is true when it is made. Somebody with two phones has two rows, which is right — they want both to ring. Signing out **gives the device back**, scoped to the caller's own row, so signing out elsewhere never silences a handset somebody else has since claimed.
+
+**Nobody reads the table from a browser.** RLS on, no policy, no grants. Two `SECURITY DEFINER` functions are the only way in — `register_push_token(p_token, p_platform)` and `forget_push_token(p_token)` — and in both the account is `auth.uid()` rather than a parameter, because a caller who could name the account could point somebody else's notifications at their own handset. The only reader is the Edge Function, on the service role. A device token is a routing address; handing it to a logged-in user buys nothing and leaks a way to address somebody's phone.
+
+**`src/lib/push.ts`** is the device half. Every function is a no-op in a browser and the plugin is imported lazily, because the majority of loads can never use it. It registers only if permission **already** stands and never prompts — asking is the calling screen's decision, since it is the one that knows whether now is a reasonable moment, and on iOS the system dialog is shown exactly once per install. `forgetToken()` runs from the sign-out button *before* the session goes, because the delete is scoped to `auth.uid()` and there is no caller to scope it to afterwards.
+
+**`send-push`**, deployed at `https://ahujmzahjuvnlzbyyycc.supabase.co/functions/v1/send-push`.
+
+- **The caller is a machine, not a person.** It takes `{ account_id, title, body, data? }` — a push is addressed to an account the caller *names*, so a function that accepted a logged-in user would let any worker put arbitrary text on any other worker's lock screen. There is no role that would make that safe, which is why the door is a shared secret: `PUSH_CALLER_SECRET`, compared in constant time. Deliberately **not** the service-role key — the platform injects the newer `sb_secret_` form while the CLI hands out a legacy JWT, so that check demanded a credential no caller could present. The service role is still read; it is what gets past RLS on `push_token`, but it no longer opens the door.
+- **FCM v1**, not the legacy endpoint, which Google removed in June 2024. A service-account JSON (`FCM_SERVICE_ACCOUNT`) mints an OAuth2 bearer, cached for the life of a warm instance.
+- **One request per token** — v1 has no batch endpoint. An account is a handful of devices, not a fan-out.
+- **No devices is not a failure.** It answers `{sent: 0, pruned: 0, failed: 0}`, because most accounts have none and a caller firing per notification row would otherwise read the normal case as an error.
+- **Pruning is narrow on purpose.** `UNREGISTERED` and `INVALID_ARGUMENT` are dead forever and the row goes. Everything else is kept: a half-configured APNs key returns `THIRD_PARTY_AUTH_ERROR` and a quota problem `UNAVAILABLE`, and deleting live registrations over those would be a silent, unrecoverable loss of exactly the rows the table exists to hold. The delete is scoped to the account it was read for, never the token alone, because the row may have moved to a new owner in between.
+
+That is the whole of what works today: a device can file its token, and something holding `PUSH_CALLER_SECRET` can make a phone ring. Nothing in the app does that yet.
+
+### What is specified and not yet built
+
+- **`pg_net` is not installed.** The migration is written and not applied, so the database cannot currently make an outbound request at all. When it lands, `net.*` must be revoked from `anon` and `authenticated` — usage, tables, functions, sequences — for two reasons: the request queue holds the `Authorization` header, so a readable queue hands `PUSH_CALLER_SECRET` to anyone; and `net.http_post` reachable from a public role is a request-forgery primitive, the database making calls on a stranger's behalf from inside Supabase's network. A pg_net version upgrade re-runs the extension script and can restore those grants, so re-apply the revokes after one and check they took.
+- **No trigger dispatches a push.** Nothing calls `send-push`. The dispatch function and the notification triggers are separate migrations from the extension, because Postgres cannot use a new enum value in the transaction that adds it.
+- **`day_admin_confirmed` is not in `notification_kind`.** The enum currently carries `shift_deleted`, `shift_offered`, `day_unconfirmed`, `day_flagged`, `leader_replaced`, `pass_closed`, `snabb_review`.
+- **Nothing renders the wording below.** The table is the settled copy, not a description of running code.
+
+### The four events that raise a push
+
+`shift_offered` · `shift_deleted` · `day_unconfirmed` · `day_admin_confirmed`
+
+These are the ones worth a buzz: a shift you could take and somebody else will if you do not, a shift you were counting on that is gone, a day sent back for you to fix, and a day signed off. The remaining kinds stay in-app — their wording is settled all the same, below, so that one table is the only place any of it is written.
+
+### Swedish titles and bodies, per kind
+
+`[datum]` and `[projektnamn]` are substituted at send time. Titles are short enough to survive a lock screen; bodies say what happened and to which day, because a notification that only says "something changed" makes the reader open the app to find out what — which is the thing it was supposed to save them.
+
+| Kind | Titel | Text | Pushes |
+|---|---|---|---|
+| `shift_offered` | Nytt pass | Du har fått ett pass [datum] på [projektnamn] | yes |
+| `shift_deleted` | Pass inställt | Ditt pass [datum] på [projektnamn] är borttaget | yes |
+| `day_unconfirmed` | Pass skickat tillbaka | Dagen [datum] på [projektnamn] behöver din bekräftelse igen | yes |
+| `day_admin_confirmed` | Dag bekräftad | Dagen [datum] på [projektnamn] är bekräftad av admin | yes |
+| `snabb_review` | Snabb Pass att granska | [datum] på [projektnamn] behöver din genomgång | no |
+| `leader_replaced` | Du har bytts ut | Du är inte längre arbetsledare för [datum] på [projektnamn] | no |
+| `pass_closed` | Pass stängt | Passet [datum] på [projektnamn] har stängts | no |
+| `day_flagged` | Dag flaggad | Dagen [datum] på [projektnamn] kräver din uppmärksamhet | no |
 
 ---
 
@@ -925,7 +992,7 @@ Nothing here is open. Anything discovered later that is not covered is a stop-an
 - Black and white until everything works. No styling before function.
 - The calendar is the one exception — drag-to-paint needs a real layout from the start.
 - Built so a child could use it: large targets, obvious affordances, minimal per screen.
-- Notifications are in-app only.
+- Notifications are in-app for the browser and push for the phone shell — the in-app-only decision is reversed (Section 6b). Every push still has a `notification` row behind it; the row is the record, the push is best effort.
 - Payload fields renamed on port: `hours`, `passTider`, `vadViGjorde`.
 - Öppna Dag opens from the calendar only. No standalone page, no landing-page button.
 - The Arbetsdagbok lives inside the project. Direct download, no print dialog, named `20Jul-28Aug-2026-demoprojektet.pdf` — capitalised month, lowercased project slug.
