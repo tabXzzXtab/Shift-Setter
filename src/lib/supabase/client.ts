@@ -49,3 +49,41 @@ export function getSupabase(): SupabaseClient<Database> {
 
 export type { Database };
 export type { Tables, TablesInsert, TablesUpdate, Enums } from "./database.types";
+
+/**
+ * A row whose tenant_id the DATABASE fills in, not this caller.
+ *
+ * M1c dropped the column default from the seventeen child tables and gave each
+ * a BEFORE INSERT trigger that derives tenant_id from the row's parent -- from
+ * the project a pass hangs off, the account a worker belongs to, and so on.
+ * That is the whole point: a caller cannot pick its own tenancy, and one who
+ * names a tenancy the parent disagrees with is refused outright.
+ *
+ * THE GENERATED TYPES CANNOT KNOW THAT. Supabase derives Insert types from the
+ * catalogue, where the rule is simple: NOT NULL and no default means required.
+ * Triggers are invisible to it. So every insert in this app became a type error
+ * the moment M1c landed, for rows that are correct at run time and have been
+ * green in test:db throughout.
+ *
+ * Sending tenant_id to satisfy the compiler would be worse than the cast: the
+ * browser does not know which tenancy a row belongs to -- that is precisely
+ * what it is not allowed to decide -- and an operator writing into a client's
+ * project would send their own and be refused.
+ *
+ * So the reason is named once, here, rather than as a bare `as never` at each
+ * call site.
+ *
+ * IT ASSERTS THE ONE FIELD AND NOTHING ELSE. The first version of this
+ * returned `never`, which is assignable to every parameter type -- so it did
+ * not silence the missing tenant_id, it silenced type checking on the whole
+ * argument. A misspelled column, a string where a number belongs, a different
+ * required field left out: all of it would have compiled clean, at nine insert
+ * sites, in the code path that decides which rows land in whose company. The
+ * signature below adds tenant_id to the row's type and leaves every other
+ * field checked, which is the width the reason above actually justifies.
+ */
+export function derivesTenant<T extends object>(rows: T[]): (T & { tenant_id: string })[];
+export function derivesTenant<T extends object>(row: T): T & { tenant_id: string };
+export function derivesTenant(row: object): never {
+  return row as never;
+}

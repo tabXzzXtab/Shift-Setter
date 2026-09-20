@@ -29,7 +29,12 @@ select line from (
    group by t.typname
 
   union all
-  select 2, format('column %s.%s %s%s%s', c.relname, a.attname,
+  -- Qualified only outside public, so widening this to the app schema does not
+  -- rewrite every existing line. app.acting_tenant is the first table to live
+  -- there; until it did, this query had no reason to look.
+  select 2, format('column %s.%s %s%s%s',
+           case when n.nspname = 'public' then c.relname
+                else n.nspname || '.' || c.relname end, a.attname,
            format_type(a.atttypid, a.atttypmod),
            case when a.attnotnull then ' NOT NULL' else '' end,
            coalesce(' DEFAULT ' || pg_get_expr(d.adbin, d.adrelid), ''))
@@ -37,7 +42,7 @@ select line from (
     join pg_class c on c.oid = a.attrelid
     join pg_namespace n on n.oid = c.relnamespace
     left join pg_attrdef d on d.adrelid = a.attrelid and d.adnum = a.attnum
-   where n.nspname = 'public' and c.relkind in ('r','v') and a.attnum > 0 and not a.attisdropped
+   where n.nspname in ('app','public') and c.relkind in ('r','v') and a.attnum > 0 and not a.attisdropped
 
   union all
   select 3, format('constr %s %s', c.conrelid::regclass, pg_get_constraintdef(c.oid))

@@ -7,7 +7,7 @@ import {
   C, Card, PrimaryButton, SecondaryButton, SoftField, SoftInput, SoftNotice,
   SoftScreen, SoftSelect,
 } from "@/components/soft";
-import { getSupabase } from "@/lib/supabase/client";
+import { derivesTenant, getSupabase } from "@/lib/supabase/client";
 import { addDays, hhmm, stampToTime, stockholmToday } from "@/lib/dates";
 import { Bristsurvey, fetchGaps, hasGaps, type Gaps } from "@/components/bristsurvey";
 import type { DocDay, DocPayload } from "@/lib/doc/arbetsdagbok";
@@ -174,11 +174,11 @@ function Arbetsdagbok() {
 
     // The database is still the gate. If anything is missing this fails, and
     // the message says what.
-    const { error: gErr } = await sb.from("arbetsdagbok").insert({
+    const { error: gErr } = await sb.from("arbetsdagbok").insert(derivesTenant({
       project_id: projectId,
       covered,
       generated_by: (await sb.auth.getUser()).data.user!.id,
-    });
+    }));
 
     if (gErr) {
       setError(fel(gErr, "Arbetsdagboken kunde inte skapas. Kontakta administratören."));

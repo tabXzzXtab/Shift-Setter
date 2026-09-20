@@ -4767,4 +4767,144 @@ select pg_temp.ok(
 reset role;
 
 
+-- ============================================================================
+-- TENANT ISOLATION -- one company cannot see another's.
+--
+-- Everything above this point happens inside ONE tenancy, which is why none of
+-- it could ever have failed on a tenant clause. This section adds a second
+-- CLIENT company and asks the only question that matters: can either of them
+-- reach the other. The operator fixture from the section above is reused for
+-- the super-admin half rather than minted again.
+--
+-- The assertions are ordered so that each negative control lands on its own:
+-- a guard removed from the project policy fails at the project assertion, one
+-- removed from account fails at the account assertion, and so on. Two of them
+-- are deliberately NOT about isolation -- your own rows staying visible is the
+-- failure mode a too-broad clause produces, and a suite that only checked for
+-- leaks would call an app that shows nobody anything a pass.
+-- ============================================================================
+
+reset role;
+select set_config('request.jwt.claims', '{}', true);
+
+insert into public.tenant (id, name, org_nr, account_type)
+values ('99999999-9999-9999-9999-999999999999', 'Suite Klient AB', '556000-0099', 'sold');
+
+insert into auth.users (instance_id, id, aud, role, email, encrypted_password,
+                        email_confirmed_at, created_at, updated_at,
+                        raw_app_meta_data, raw_user_meta_data)
+values ('00000000-0000-0000-0000-000000000000',
+        '99999999-9999-9999-9999-99999999999a', 'authenticated', 'authenticated',
+        'klientadmin@suite.test', '', now(), now(), now(), '{}'::jsonb, '{}'::jsonb),
+       ('00000000-0000-0000-0000-000000000000',
+        '99999999-9999-9999-9999-99999999999b', 'authenticated', 'authenticated',
+        'klientarbetare@suite.test', '', now(), now(), now(), '{}'::jsonb, '{}'::jsonb);
+
+-- tenant_id is sent explicitly on both: account has no parent to derive from,
+-- and the scaffolding at the top of this file points its default at the OTHER
+-- client. Same for the project below.
+insert into public.account (id, role, active, tenant_id)
+values ('99999999-9999-9999-9999-99999999999a', 'admin', true,
+        '99999999-9999-9999-9999-999999999999'),
+       ('99999999-9999-9999-9999-99999999999b', 'arbetare', true,
+        '99999999-9999-9999-9999-999999999999');
+
+-- The worker row derives its tenant from the account, so it is not passed.
+insert into public.worker (id, account_id, name, email)
+values ('99999999-0000-0000-0000-0000000000bb', '99999999-9999-9999-9999-99999999999b',
+        'Klientarbetare', 'klientarbetare@suite.test');
+
+insert into public.project (id, tenant_id, name, site_address, bestallare_address,
+                            bestallare_bolag, bestallare_orgnr, services, start_date)
+values ('99999999-0000-0000-0000-0000000000aa', '99999999-9999-9999-9999-999999999999',
+        'Klientprojektet', 'Gata 99', 'Kund 99', 'Bolag AB', '556000-0099',
+        'Bygg', app.stockholm_today());
+
+-- ---- the other company's admin, looking across the line --------------------
+set local role authenticated;
+select pg_temp.act_as((select v from fx where k = 'admin'));
+
+select pg_temp.ok(
+  (select count(*) from public.project
+    where id = '99999999-0000-0000-0000-0000000000aa') = 0,
+  'TENANT.another_tenants_projects_are_invisible',
+  'an admin must not see a project belonging to another company');
+
+-- THE OTHER HALF OF THE SAME GUARD. A tenant clause that hides everything
+-- would pass the assertion above and break the product; this is what tells
+-- those two apart.
+select pg_temp.ok(
+  (select count(*) from public.project) > 0,
+  'TENANT.your_own_projects_are_still_visible',
+  'scoping to a tenant must not empty the tenant');
+
+select pg_temp.ok(
+  (select count(*) from public.account
+    where id = '99999999-9999-9999-9999-99999999999a') = 0,
+  'TENANT.another_tenants_accounts_are_invisible',
+  'an admin must not see an account belonging to another company');
+
+select pg_temp.ok(
+  (select count(*) from public.worker
+    where id = '99999999-0000-0000-0000-0000000000bb') = 0,
+  'TENANT.another_tenants_workers_are_invisible',
+  'an admin must not see a worker belonging to another company');
+
+select pg_temp.ok(
+  (select count(*) from public.tenant) = 1,
+  'TENANT.you_read_only_your_own_tenant_row',
+  'the tenant list is one row for a member of one tenant');
+
+-- Writing across the line, not merely reading across it. tenant_id derives
+-- from the project, so the row lands in the other company and the WITH CHECK
+-- refuses it -- which is the write half of isolation and a different code path
+-- from every assertion above.
+select pg_temp.rejects($rej$
+  insert into public.pass (project_id, work_date, start_time, end_time,
+                           planned_hours, headcount, created_by)
+  values ('99999999-0000-0000-0000-0000000000aa', app.stockholm_today() + 200,
+          '08:00', '16:00', 7.5, 1, (select v from fx where k = 'admin'))
+$rej$, 'TENANT.you_cannot_write_into_another_tenant');
+
+-- ---- the operator, before and after entering -------------------------------
+select pg_temp.act_as('66666666-6666-6666-6666-66666666666a');
+
+select pg_temp.ok(
+  (select count(distinct tenant_id) from public.project) >= 2,
+  'SUPER.sees_every_tenant_until_they_enter_one',
+  'a super admin who has not entered a tenancy sees them all');
+
+select public.enter_tenant('99999999-9999-9999-9999-999999999999');
+
+select pg_temp.ok(
+  (select count(*) from public.project
+    where tenant_id <> '99999999-9999-9999-9999-999999999999') = 0
+  and (select count(*) from public.project) > 0,
+  'SUPER.entering_narrows_to_that_tenant',
+  'entering a tenancy must narrow the database, not only the screen');
+
+-- Their own account row is in a THIRD tenancy and must still be readable, or
+-- the app cannot tell them who they are while they are inside a client.
+select pg_temp.ok(
+  (select count(*) from public.account
+    where id = '66666666-6666-6666-6666-66666666666a') = 1,
+  'SUPER.can_still_read_their_own_account_while_acting',
+  'your own account row is yours whatever tenancy you are standing in');
+
+select public.exit_tenant();
+
+select pg_temp.ok(
+  (select count(distinct tenant_id) from public.project) >= 2,
+  'SUPER.leaving_restores_the_view',
+  'leaving must put the operator back above the tenancies');
+
+-- Nobody else may enter anything, whatever else they can do.
+select pg_temp.act_as((select v from fx where k = 'admin'));
+select pg_temp.rejects($rej$
+  select public.enter_tenant('99999999-9999-9999-9999-999999999999')
+$rej$, 'SUPER.only_a_super_admin_can_enter');
+
+reset role;
+
+
 select pg_temp.ok(true, 'SUITE.complete', 'every assertion passed');

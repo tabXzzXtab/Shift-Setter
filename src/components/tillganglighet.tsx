@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { C, Card, Segmented, SoftNotice } from "./soft";
 import { PaintCalendar } from "./paint-calendar";
-import { getSupabase } from "@/lib/supabase/client";
+import { derivesTenant, getSupabase } from "@/lib/supabase/client";
 import { addDays, stockholmToday } from "@/lib/dates";
 import { useAccount } from "@/lib/account";
 import { fel } from "@/lib/fel";
@@ -108,7 +108,7 @@ export function Tillganglighet({ hint = false }: { hint?: boolean }) {
 
     if (toSet.length) {
       const { error } = await sb.from("forval").upsert(
-        toSet.map((work_date) => ({ worker_id: workerId, work_date, can_work: now[work_date]! })),
+        derivesTenant(toSet.map((work_date) => ({ worker_id: workerId, work_date, can_work: now[work_date]! }))),
         { onConflict: "worker_id,work_date" },
       );
       if (error) setError(fel(error, "Dagarna kunde inte markeras. Försök igen när du har nät."));

@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import { AuthProvider } from "@/lib/supabase/auth";
 import { AccountProvider } from "@/lib/account";
+import { AgerarBanner } from "@/components/agerar-banner";
 import "./globals.css";
 
 /**
@@ -64,7 +65,15 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html lang="sv" className={inter.variable}>
       <body className="bg-white text-black antialiased">
         <AuthProvider>
-          <AccountProvider>{children}</AccountProvider>
+          {/* The banner is here rather than on each screen because "every
+              screen" is what it has to mean: an operator inside a client's
+              tenancy must be able to leave from wherever they got to, and a
+              Lämna button that only exists on the page they entered from is
+              one they cannot reach. It renders nothing when nobody is acting. */}
+          <AccountProvider>
+            <AgerarBanner />
+            {children}
+          </AccountProvider>
         </AuthProvider>
       </body>
     </html>

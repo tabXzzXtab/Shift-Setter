@@ -5,7 +5,7 @@ import {
   C, Card, EmptyState, PrimaryButton, SectionLabel, SecondaryButton, SHADOW,
   SoftField, SoftInput, SoftNotice, SoftTextarea, Tag,
 } from "./soft";
-import { getSupabase } from "@/lib/supabase/client";
+import { derivesTenant, getSupabase } from "@/lib/supabase/client";
 import { hhmm } from "@/lib/dates";
 import { type Role } from "@/lib/account";
 import { CHIP_PALETTE } from "@/lib/project-colour";
@@ -228,7 +228,7 @@ export function NyHandelse({
 
     const { data, error } = await sb
       .from("personal_event")
-      .insert({
+      .insert(derivesTenant({
         owner_id: ownerId,
         title: title.trim(),
         description: description.trim() || null,
@@ -240,7 +240,7 @@ export function NyHandelse({
         start_time: allDay ? null : start,
         end_time: allDay ? null : end,
         colour,
-      })
+      }))
       .select("id")
       .single();
 
@@ -253,7 +253,7 @@ export function NyHandelse({
     if (chosen.length > 0) {
       const { error: vErr } = await sb
         .from("personal_event_viewer")
-        .insert(chosen.map((account_id) => ({ event_id: data.id, account_id })));
+        .insert(derivesTenant(chosen.map((account_id) => ({ event_id: data.id, account_id }))));
       // The ärende exists either way. Saying which half failed beats one
       // sitting there that nobody was told about.
       if (vErr) {

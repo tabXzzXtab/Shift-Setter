@@ -8,7 +8,7 @@ import {
   SoftSelect, Tag,
 } from "@/components/soft";
 import { EjStampladMark, JobbadeInteDialog } from "@/components/jobbade-inte";
-import { getSupabase } from "@/lib/supabase/client";
+import { derivesTenant, getSupabase } from "@/lib/supabase/client";
 import { hhmm, longDayHeading, passEndAt, stampToTime } from "@/lib/dates";
 import { pendingDays } from "@/lib/pending-days";
 import { spanHours } from "@/lib/hours";
@@ -374,14 +374,14 @@ function Bekrafta({ askedProject, askedDate }: { askedProject: string | null; as
     // the rejection recorded on it. That record is not the leader's to clear
     // and the guard keeps it whatever this write says.
     const { error: dErr } = await sb.from("project_day").upsert(
-      {
+      derivesTenant({
         project_id: day.project_id,
         work_date: day.work_date,
         vad_vi_gjorde: gjorde.trim(),
         confirmed_at: new Date().toISOString(),
         confirmed_by: (await sb.auth.getUser()).data.user!.id,
         confirmed_via: "leader",
-      },
+      }),
       { onConflict: "project_id,work_date" },
     );
 

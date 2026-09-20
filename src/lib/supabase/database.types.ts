@@ -2010,6 +2010,14 @@ export type Database = {
     }
     Functions: {
       accept_offer: { Args: { p_pass: string }; Returns: string }
+      acting_tenant: {
+        Args: never
+        Returns: {
+          entered_at: string
+          tenant_id: string
+          tenant_name: string
+        }[]
+      }
       approve_day: {
         Args: {
           p_project: string
@@ -2074,6 +2082,8 @@ export type Database = {
       delete_account: { Args: { p_account: string }; Returns: string }
       delete_pass: { Args: { p_pass: string }; Returns: undefined }
       delete_project: { Args: { p_project: string }; Returns: undefined }
+      enter_tenant: { Args: { p_tenant: string }; Returns: undefined }
+      exit_tenant: { Args: never; Returns: undefined }
       fill_passes: {
         Args: { p_batch: string }
         Returns: {

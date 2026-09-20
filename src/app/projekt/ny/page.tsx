@@ -7,7 +7,7 @@ import {
   C, Card, PrimaryButton, SoftField, SoftInput, SoftNotice, SoftScreen, SoftSelect,
 } from "@/components/soft";
 import { useAccount } from "@/lib/account";
-import { getSupabase } from "@/lib/supabase/client";
+import { derivesTenant, getSupabase } from "@/lib/supabase/client";
 import { stockholmToday } from "@/lib/dates";
 import { fel } from "@/lib/fel";
 
@@ -107,7 +107,7 @@ function NyttProjekt() {
 
     const { error: lErr } = await sb
       .from("project_leader")
-      .insert(ansvariga.map((account_id) => ({ project_id: project.id, account_id })));
+      .insert(derivesTenant(ansvariga.map((account_id) => ({ project_id: project.id, account_id }))));
 
     if (lErr) {
       // Not "koppla den under Redigera projekt": that page edits the seven

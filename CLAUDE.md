@@ -358,6 +358,22 @@ The maintenance reset deletes every non-admin account, so a login handed to
 someone stops working the moment it runs. Always use `npm run demo:reset`,
 which recreates the stable demo accounts from `.env.local` afterwards.
 
+**`DEMO_ADMIN_EMAIL` must be `admin@bellaservice.se`, not `demo-admin@`.** Demo
+data belongs in the CLIENT tenant. demo-admin@ is one of Korperation's super
+admins, and `demo-accounts.mjs` takes the tenant from whichever account that
+variable names — so pointing it at demo-admin@ reseeds the operator tenancy,
+which is exactly the mess that cost a day to purge on 19 Sep (28 projects, 44
+passes, 82 tilldelningar, 48 accounts). `.env.local` is gitignored and machine‑
+local, so this does not travel with a clone: check it before running
+`demo:reset` on a machine you have not run it on before.
+
+The consequence of that setting, stated so nobody rediscovers it: `demo:reset`
+RESETS THE PASSWORD of the account it names. That account is Bella Service AB's
+real administrator, the one that created their projects. The password becomes
+`DEMO_ADMIN_PASSWORD` on every run. That is accepted deliberately — a demo
+login nobody can sign into is not a demo login — but it means the client's admin
+credential is whatever `.env.local` says, not something they chose.
+
 ---
 
 ## Deployment

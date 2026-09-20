@@ -46,6 +46,88 @@ const perturb = (find, replace) => perturbIn("app.fill_pass(uuid)", find, replac
 
 /** Each control: disable one protection, name the assertion that must then fail. */
 const CONTROLS = [
+  ["tenant -- the clause every policy is wrapped in",
+   // app.in_tenant() made unconditionally true. The one control that proves
+   // the whole of M2a rather than any single policy: with it neutered, all 34
+   // clauses are decoration and the first cross-tenant read goes through.
+   perturbIn("app.in_tenant(uuid)",
+             "    p_tenant = app.current_tenant_id()\n" +
+             "    or (app.is_super_admin() and not app.is_acting()),",
+             "    true,"),
+   "TENANT.another_tenants_projects_are_invisible"],
+
+  ["tenant -- one company's projects are not another's to read",
+   // The same assertion as above, reached by removing ONE policy's clause
+   // instead of the helper. Both matter: the first proves the mechanism is
+   // load-bearing, this proves the wiring on a specific table is.
+   "drop policy project_staff_select on public.project; " +
+   "create policy project_staff_select on public.project for select to authenticated " +
+   "using ((deleted_at is null) and (app.leads_project(id) or app.holds_a_day(id) " +
+   "or (created_by = (select auth.uid()))))",
+   "TENANT.another_tenants_projects_are_invisible"],
+
+  ["tenant -- one company's accounts are not another's to read",
+   // account_self_or_admin_select is one of the fourteen that was satisfiable
+   // by role alone before M2a: is_admin() with no object reference, true for
+   // any admin of any company.
+   "drop policy account_self_or_admin_select on public.account; " +
+   "create policy account_self_or_admin_select on public.account for select to authenticated " +
+   "using ((id = (select auth.uid())) or app.is_admin())",
+   "TENANT.another_tenants_accounts_are_invisible"],
+
+  ["tenant -- one company's workers are not another's to read",
+   "drop policy worker_self_or_admin_select on public.worker; " +
+   "create policy worker_self_or_admin_select on public.worker for select to authenticated " +
+   "using ((account_id = (select auth.uid())) or app.is_admin())",
+   "TENANT.another_tenants_workers_are_invisible"],
+
+  ["tenant -- the tenant list is your own tenancy, not the customer list",
+   // Without the scope a client's admin reads every other client's name and
+   // organisationsnummer -- a leak of who else buys the product, which is
+   // commercial rather than operational and easy to miss for that reason.
+   "drop policy tenant_member_select on public.tenant; " +
+   "create policy tenant_member_select on public.tenant for select to authenticated using (true)",
+   "TENANT.you_read_only_your_own_tenant_row"],
+
+  ["tenant -- reading across the line is refused; so is writing across it",
+   // The WITH CHECK half. Isolation that only covered reads would let one
+   // company put shifts on another company's project.
+   "drop policy pass_leader_insert on public.pass; " +
+   "create policy pass_leader_insert on public.pass for insert to authenticated " +
+   "with check (app.leads_project(project_id))",
+   "TENANT.you_cannot_write_into_another_tenant"],
+
+  ["tenant -- entering a tenancy narrows the database, not the screen",
+   // app.is_acting() forced false, so the super-admin bypass is never
+   // suppressed and "entering" becomes a client-side pretence -- which is the
+   // exact failure this project's architecture rule exists to forbid.
+   perturbIn("app.is_acting()",
+             "  select exists (select 1 from app.acting_tenant t where t.account_id = (select auth.uid()))",
+             "  select false"),
+   "SUPER.entering_narrows_to_that_tenant"],
+
+  ["tenant -- only an operator may enter somebody else's tenancy",
+   perturbIn("public.enter_tenant(uuid)", "if not app.is_super_admin() then", "if false then"),
+   "SUPER.only_a_super_admin_can_enter"],
+
+  ["tenant -- your own account row is yours wherever you are standing",
+   // The policy put back the way M2a first wrote it, with the self test INSIDE
+   // the tenant clause. An operator inside a client tenancy then cannot read
+   // their own account, and the app cannot tell them who they are.
+   "drop policy account_self_or_admin_select on public.account; " +
+   "create policy account_self_or_admin_select on public.account for select to authenticated " +
+   "using (app.in_tenant(tenant_id) and ((id = (select auth.uid())) or app.is_admin()))",
+   "SUPER.can_still_read_their_own_account_while_acting"],
+
+  ["tenant -- the way out works",
+   // exit_tenant made a no-op. An operator who entered a client tenancy is
+   // then stuck inside it with no route back, which is worse than never
+   // having been able to enter.
+   perturbIn("public.exit_tenant()",
+             "  delete from app.acting_tenant where account_id = (select auth.uid());",
+             "  null;"),
+   "SUPER.leaving_restores_the_view"],
+
   ["tenant -- a child row takes its parent's tenant, not the writer's",
    // THE CALLER WINS OVER THE PARENT -- precisely the rule that broke every
    // admin write on the live database, reinstated inside the trigger rather

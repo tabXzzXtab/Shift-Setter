@@ -8,7 +8,7 @@ import {
   SoftNotice, SoftScreen, SoftSelect,
 } from "@/components/soft";
 import { PaintCalendar } from "@/components/paint-calendar";
-import { getSupabase } from "@/lib/supabase/client";
+import { derivesTenant, getSupabase } from "@/lib/supabase/client";
 import { stockholmToday } from "@/lib/dates";
 import { defaultHours } from "@/lib/hours";
 import { fel } from "@/lib/fel";
@@ -152,7 +152,7 @@ function NyttPass({ asked }: { asked: string | null }) {
     const me = (await sb.auth.getUser()).data.user!.id;
 
     const { data: batch, error: bErr } = await sb
-      .from("pass_batch").insert({ project_id: projectId, created_by: me })
+      .from("pass_batch").insert(derivesTenant({ project_id: projectId, created_by: me }))
       .select("id").single();
     if (bErr || !batch) {
       setError(fel(bErr, "Passen kunde inte skapas. Kontakta administratören."));
@@ -162,7 +162,7 @@ function NyttPass({ asked }: { asked: string | null }) {
 
     if (handpicked.length) {
       const { error: hErr } = await sb.from("pass_batch_handpick")
-        .insert(handpicked.map((worker_id) => ({ batch_id: batch.id, worker_id })));
+        .insert(derivesTenant(handpicked.map((worker_id) => ({ batch_id: batch.id, worker_id }))));
       if (hErr) {
         setError(fel(hErr, "De handplockade kunde inte sparas. Kontakta administratören."));
         setSaving(false);
@@ -184,7 +184,7 @@ function NyttPass({ asked }: { asked: string | null }) {
       })),
     );
 
-    const { error: pErr } = await sb.from("pass").insert(toInsert);
+    const { error: pErr } = await sb.from("pass").insert(derivesTenant(toInsert));
     if (pErr) {
       setError(fel(pErr, "Passen kunde inte skapas. Kontakta administratören."));
       setSaving(false);

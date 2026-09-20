@@ -319,7 +319,9 @@ Captured when one is written:
 
 **Who sees one is a list, not a role.** "Everyone with role arbetsledare" is wrong the day a second admin exists or a leader leaves, and a boolean "private" makes sharing all-or-nothing. So visibility is rows in `personal_event_viewer`, and the picker merely **sorts** arbetsledare to the top because they are who these are usually about. The owner always sees their own and cannot be taken off the list.
 
-**An admin who did not write it does not see it.** `is_admin()` is deliberately absent from the read policy: the admin's reach over shift data is not a reach over somebody else's diary, and "personlig" would mean nothing if it were.
+**A CLIENT'S admin who did not write it does not see it.** `is_admin()` is deliberately absent from the read policy: an admin's reach over shift data is not a reach over a colleague's diary, and "personlig" would mean nothing if it were.
+
+**Korperation's super admins are the exception, and it is a deliberate one.** Every policy is wrapped in `app.in_tenant()`, which is true for a row in the caller's own tenancy and true for everything if the caller is a super admin — so the three accounts that operate the product can read any tenant's `personal_event`. That is the price of being able to support a customer at all, and it is not hidden behind a role test that looks like something else. It is bounded by the tenant switcher rather than by the policy: a super admin enters one tenancy on purpose, and the screen says which. Within a client company nothing has moved — their own admin still cannot read their arbetsledare's ärenden.
 
 **On the shift calendar an ärende is a round dot beside the day number**, in the colour it was given — never a stripe. A stripe is a full-bleed bar below the numeral and says a site is working; both draw from the same eight colours, so shape and position are what tell them apart. Three dots fit; past that the cell stops drawing them, exactly as stripes cap at four. The cell stays the fixed 64px either way.
 
