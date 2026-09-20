@@ -1,0 +1,30 @@
+-- ============================================================================
+-- DAY_ADMIN_CONFIRMED -- the notification kind for a day the admin signed off.
+--
+-- Of the four events worth a push, three already have a kind and one does
+-- not. shift_deleted is raised today by delete_pass(). shift_offered and
+-- day_unconfirmed exist in the enum but are raised by NOTHING -- declared in
+-- the initial schema and never written, which a later migration already
+-- noticed in passing when it called day_unconfirmed "the unused" one. Stage 2
+-- approval has no kind at all, and this adds it.
+--
+-- THIS FILE EXISTS ONLY BECAUSE OF A POSTGRES RULE. A new enum value cannot be
+-- USED in the transaction that adds it, so the triggers that write this kind
+-- have to be a separate migration applied after this one commits. The same
+-- reason 20260914090000_snabb_ar_en_fjarde_vag.sql stands apart from the file
+-- that writes 'snabb' by name. It also means `npm run db:validate` -- which
+-- runs a migration inside a transaction and rolls it back -- cannot validate
+-- the trigger file until this one is live.
+--
+-- NAMED FOR THE STAGE, NOT THE ROUTE. Four routes reach admin_confirmed and
+-- only one of them has a leader behind it; this kind belongs to that one.
+-- The bristsurvey, a flagged day and a Snabb Pass filed direkt also arrive at
+-- admin_confirmed, and none of them should tell a leader that their day was
+-- approved -- on those routes there was no leader claim to approve. The
+-- trigger filters on confirmed_via = 'leader' for exactly that reason, so the
+-- name describes the stage the day reached and the filter decides who is told.
+--
+-- Nothing tenant-related here: an enum value has no rows and no policy.
+-- ============================================================================
+
+alter type public.notification_kind add value if not exists 'day_admin_confirmed';

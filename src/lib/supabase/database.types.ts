@@ -2169,6 +2169,7 @@ export type Database = {
         | "leader_replaced"
         | "pass_closed"
         | "snabb_review"
+        | "day_admin_confirmed"
       offer_state: "offered" | "accepted" | "declined" | "withdrawn"
       release_reason:
         | "removed_by_leader"
@@ -2332,6 +2333,7 @@ export const Constants = {
         "leader_replaced",
         "pass_closed",
         "snabb_review",
+        "day_admin_confirmed",
       ],
       offer_state: ["offered", "accepted", "declined", "withdrawn"],
       release_reason: [
