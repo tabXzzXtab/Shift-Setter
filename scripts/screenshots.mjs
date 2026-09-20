@@ -29,6 +29,9 @@ const CREDS = {
   admin:   { email: process.env.TEMP_ADMIN_EMAIL,    pw: process.env.TEMP_ADMIN_PW },
   ledare:  { email: process.env.TEMP_LEDARE_EMAIL,   pw: process.env.TEMP_LEDARE_PW },
   arbetare:{ email: process.env.TEMP_ARBETARE_EMAIL, pw: process.env.TEMP_ARBETARE_PW },
+  // A Korperation super admin: a different tenancy from the other three, which
+  // is the whole point of the shots it takes.
+  super:   { email: process.env.TEMP_SUPER_EMAIL,    pw: process.env.TEMP_SUPER_PW },
 };
 
 const wanted = process.argv.slice(2).filter((a) => !a.startsWith("--"));
@@ -68,8 +71,19 @@ async function shot(page, name) {
   console.log(`  ok   ${name}.png`);
 }
 
+/**
+ * ONLY=name,name narrows a run to those shots.
+ *
+ * Retaking one screen must not rewrite the rest of its role: the files around
+ * it were captured from a different account, or a different clock state, and
+ * quietly replacing them makes the set disagree with itself.
+ */
+const ONLY = (process.env.ONLY ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+const wants = (name) => ONLY.length === 0 || ONLY.includes(name);
+
 /** One capture. Never throws -- a failure is recorded and the run continues. */
 async function step(page, name, fn) {
+  if (!wants(name)) return;
   try {
     await fn();
     await shot(page, name);
@@ -247,7 +261,7 @@ if (ROLES.includes("admin")) {
     await page.goto(`${BASE}/installningar/`, { waitUntil: "networkidle" });
     const search = page.getByRole("searchbox", { name: "Sök bland kontona" });
     await search.waitFor({ timeout: 20000 });
-    await search.fill("temp-arbetare");
+    await search.fill("Arvid");
     const row = page.locator("[data-konto]").first();
     await row.waitFor({ timeout: 20000 });
     await row.locator("a").first().click();
@@ -260,6 +274,7 @@ if (ROLES.includes("admin")) {
   // Signed out, so it gets its own context: the recovery screen is reached
   // from the login page and an authenticated session never sees it.
   try {
+    if (!wants("admin-glomt-losenord")) throw { skip: true };
     const anon = await browser.newContext({ ...iphone14 });
     const p2 = await anon.newPage();
     await p2.goto(`${BASE}/glomt-losenord/`, { waitUntil: "networkidle" });
@@ -267,8 +282,11 @@ if (ROLES.includes("admin")) {
     await shot(p2, "admin-glomt-losenord");
     await anon.close();
   } catch (e) {
+    if (e && e.skip) { /* narrowed out by ONLY */ }
+    else {
     failed.push({ name: "admin-glomt-losenord", why: (e.message ?? String(e)).slice(0, 160) });
     console.log(`  FAIL admin-glomt-losenord.png -- ${String(e.message ?? e).slice(0, 120)}`);
+    }
   }
 }
 
@@ -335,7 +353,7 @@ if (ROLES.includes("ledare")) {
 
   await step(page, "ledare-mina-pass-lista", async () => {
     await page.goto(`${BASE}/mina-pass/`, { waitUntil: "networkidle" });
-    await page.getByRole("button", { name: "Lista", exact: true }).click();
+    await page.getByRole("button", { name: "Kommande Pass", exact: true }).click();
     await page.waitForTimeout(700);
   });
 
@@ -406,7 +424,7 @@ if (ROLES.includes("arbetare")) {
 
   await step(page, "arbetare-mina-pass-lista", async () => {
     await page.goto(`${BASE}/mina-pass/`, { waitUntil: "networkidle" });
-    await page.getByRole("button", { name: "Lista", exact: true }).click();
+    await page.getByRole("button", { name: "Kommande Pass", exact: true }).click();
     await page.waitForTimeout(700);
   });
 
@@ -424,6 +442,59 @@ if (ROLES.includes("arbetare")) {
     await page.goto(`${BASE}/konto/`, { waitUntil: "networkidle" });
     await page.getByRole("heading", { name: "Min profil" }).waitFor({ timeout: 20000 });
   });
+
+  await ctx.close();
+}
+
+/* ========================================================================== */
+/* SUPER ADMIN -- the operator's view, which is a different tenancy entirely   */
+/* ========================================================================== */
+if (ROLES.includes("super")) {
+  console.log("SUPER ADMIN");
+  const ctx = await browser.newContext({ ...iphone14 });
+  const page = await signIn(ctx, "super");
+  const TARGET = process.env.SUPER_TENANT ?? "Bella Service AB";
+
+  await step(page, "super-tenant-list", async () => {
+    await page.goto(`${BASE}/super/`, { waitUntil: "networkidle" });
+    await page.locator("[data-tenant]").first().waitFor({ timeout: 20000 });
+  });
+
+  /*
+   * ENTERING IS A DATABASE ACT, not a client-side pretence: enter_tenant()
+   * writes a row that app.is_acting() reads, and that suppresses the
+   * super-admin bypass so the operator sees the client's rows and only those.
+   * So this shot has to be taken after a real round trip, and the session has
+   * to be left OUT of the tenancy afterwards -- an operator left acting is a
+   * changed database row, not a stale screen.
+   */
+  await step(page, "super-acting-as-admin", async () => {
+    await page.goto(`${BASE}/super/`, { waitUntil: "networkidle" });
+    await page.locator(`[data-enter="${TARGET}"]`).click({ timeout: 20000 });
+    await page.waitForURL((u) => !u.pathname.includes("/super"), { timeout: 30000 });
+
+    // A FRESH LOAD, not the client-side navigation Gå in leaves you on. The
+    // banner reads the acting row when it mounts, and entering does not remount
+    // it -- so straight after the click the page is already scoped to the
+    // client's data while still showing no banner saying so. Waiting for
+    // "Lämna" before reloading waits for something that will never arrive.
+    await page.goto(`${BASE}/`, { waitUntil: "networkidle" });
+    await page.getByRole("button", { name: "Lämna" }).waitFor({ timeout: 30000 });
+    await page.getByRole("button", { name: "Meny", exact: true }).waitFor({ timeout: 30000 });
+  });
+
+  // Leave, whatever happened above.
+  try {
+    await page.goto(`${BASE}/`, { waitUntil: "networkidle" });
+    const leave = page.getByRole("button", { name: "Lämna" });
+    if (await leave.count()) {
+      await leave.click();
+      await leave.waitFor({ state: "detached", timeout: 20000 });
+      console.log("  ..   left the tenancy again");
+    }
+  } catch {
+    console.log("  WARN could not confirm the tenancy was left -- check /super");
+  }
 
   await ctx.close();
 }
