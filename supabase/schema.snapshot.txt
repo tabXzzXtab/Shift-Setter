@@ -25,6 +25,9 @@ column account_directory.worker_id uuid
 column app.acting_tenant.account_id uuid NOT NULL
 column app.acting_tenant.entered_at timestamp with time zone NOT NULL DEFAULT now()
 column app.acting_tenant.tenant_id uuid NOT NULL
+column app.rate_limit.attempts integer NOT NULL DEFAULT 0
+column app.rate_limit.ip text NOT NULL
+column app.rate_limit.window_start timestamp with time zone NOT NULL
 column arbetsdagbok.covered daterange NOT NULL
 column arbetsdagbok.generated_at timestamp with time zone NOT NULL DEFAULT now()
 column arbetsdagbok.generated_by uuid NOT NULL
@@ -610,6 +613,7 @@ func   app.current_tenant_id() md5=abcd4cf7e2a4a0d2fac5b31dd16359de
 func   app.current_worker_id() md5=74dddcd603933dd85350f7d4fd99efdf
 func   app.fill_pass(p_pass uuid) md5=bbb0bbebb1a48b4fd9f488ada98d90f0
 func   app.flag_day(p_tilldelning uuid, p_flag confirmation_source, p_worker uuid) md5=0adb6220d986f91660bef798807d598f
+func   app.guard_tenant(p_table text, p_id uuid) md5=299a2bbbe0d39727fe88bc5d0d9f085c
 func   app.holds_a_day(p_project uuid) md5=25945fb19cc7aa025b4298ef1be3e393
 func   app.holds_the_day(p_project uuid, p_work_date date) md5=8d2d52c980559183f43acfc52f409b1c
 func   app.in_tenant(p_tenant uuid) md5=1e52a80158c933c81b99354bc449025a
@@ -649,32 +653,32 @@ func   app.tg_sync_work_date() md5=205305b41ade44114ec626dc29b463e5
 func   app.tg_tenant_from_parent() md5=97c4126edaaa84cb950a88db798c8ed7
 func   app.tg_worker_self_edit_guard() md5=7e933362e1f8d5f23547d75ed47b6736
 func   app.week_start(d date) md5=4a8f6c192e41cf4a14ebb5f87e671c29
-func   public.accept_offer(p_pass uuid) md5=b61779007879aeb3d108d6c3e0aaceba
+func   public.accept_offer(p_pass uuid) md5=0a13c8479d443e02895be68fb42741b3
 func   public.acting_tenant() md5=951cdb8518f12ecbca3cac801e4168e6
 func   public.approve_day(p_project uuid, p_work_date date, p_text text, p_rows jsonb) md5=14ef16d933b5962d1b89c79d5f42c018
-func   public.assign_snabb(p_pass uuid, p_worker uuid) md5=2941adb07cca8418f1ba9086a65e3a8e
-func   public.avboka_pass(p_tilldelning uuid) md5=4172a9c4a9875df3a49ed8964594acd6
+func   public.assign_snabb(p_pass uuid, p_worker uuid) md5=bbeabc4cd865bb365369a4e3246d2e41
+func   public.avboka_pass(p_tilldelning uuid) md5=ffb6a4d4af49a19225ffad911665abc9
 func   public.batch_shortfall(p_dates date[], p_slots_per_day integer) md5=8dd3975240b28be0721227084e229bc2
-func   public.bristsurvey_gaps(p_project uuid, p_from date, p_to date) md5=2966c826968375d2b93623bbc9705cca
+func   public.bristsurvey_gaps(p_project uuid, p_from date, p_to date) md5=db6c75835ac6b6b6b70436d2a1180054
 func   public.cash_dist(money, money) md5=1acd79b2b4b9df652d58d90e72f05a29
-func   public.clock_in(p_tilldelning uuid) md5=6c4856b310eb35c37580a0125356847f
-func   public.clock_out(p_tilldelning uuid) md5=0cba39279e3ae3f7f67c95f6f627bfa2
-func   public.close_pass(p_pass uuid, p_hours numeric) md5=41bb50e95057bdb510bc60e731e64db9
+func   public.clock_in(p_tilldelning uuid) md5=c8858ed8115f06833d03d3c63748b169
+func   public.clock_out(p_tilldelning uuid) md5=e04c572777a7ede42c28eb205b134c23
+func   public.close_pass(p_pass uuid, p_hours numeric) md5=7232e3a7219f6a34f1994df2dd987284
 func   public.complete_bristsurvey(p_project uuid, p_work_date date, p_text text) md5=e511adf511d6a1b6fa953d9d1113c1c7
 func   public.confirm_flagged_day(p_project uuid, p_work_date date, p_text text, p_rows jsonb) md5=5af47daac0ae6d9807a1ffe947a807bd
-func   public.create_snabb_pass(p_project uuid, p_worker uuid, p_date date, p_start time without time zone, p_end time without time zone, p_hours numeric, p_direkt boolean, p_text text, p_ledare jsonb) md5=a8ae060f52e975fdb7da92124cd9343d
+func   public.create_snabb_pass(p_project uuid, p_worker uuid, p_date date, p_start time without time zone, p_end time without time zone, p_hours numeric, p_direkt boolean, p_text text, p_ledare jsonb) md5=b40c6781cfa5205bd7301e0f63cccb2f
 func   public.date_dist(date, date) md5=3983f43755ffa80d869985d91ee8e538
-func   public.decline_offer(p_pass uuid) md5=3b77c01816ffe8db5847a74c338cae38
-func   public.delete_account(p_account uuid) md5=cc6a58c374dbd3447dcfcc182acf6cf9
-func   public.delete_pass(p_pass uuid) md5=18c81886a24de59bb3922d1592d90051
-func   public.delete_project(p_project uuid) md5=d030116d7361ca4ca9f0313b20a6d04d
+func   public.decline_offer(p_pass uuid) md5=04cb255b51e245bac2ecfb0106a3b2d7
+func   public.delete_account(p_account uuid) md5=b1e07b082ff181343a268eecb086154f
+func   public.delete_pass(p_pass uuid) md5=67099d2049be452c7345da20559621c3
+func   public.delete_project(p_project uuid) md5=ef96a822f4646f369415ebb7e00230ad
 func   public.enter_tenant(p_tenant uuid) md5=84fc57e9e813330d89270036ba81f7bd
 func   public.exit_tenant() md5=00fa08df92fac949f6d363588d0633c0
-func   public.fill_passes(p_batch uuid) md5=330aaf6a5229939f92d52a5049213561
+func   public.fill_passes(p_batch uuid) md5=5ff896fe1619e686acaad13700243189
 func   public.float4_dist(real, real) md5=1491a162a165d9bd567fbac3c9d1dd2d
 func   public.float8_dist(double precision, double precision) md5=1c6ca5056a910a22941735008e6a75c1
 func   public.forget_push_token(p_token text) md5=8e84c8af4c2332caf644508a77643716
-func   public.forval_coverage(p_dates date[]) md5=413a413884b1fb318a370f1e9359337f
+func   public.forval_coverage(p_dates date[]) md5=3a4b4f9a1bacb07f7e0361cbc6ea1f6c
 func   public.gbt_bit_compress(internal) md5=31f34def849731302ee00e721401f01e
 func   public.gbt_bit_consistent(internal, bit, smallint, oid, internal) md5=878550d7e83f71fce0c49f44e350fedb
 func   public.gbt_bit_penalty(internal, internal, internal) md5=bb931bf3a8c73b48aeb0d1c8ff8089a0
@@ -855,17 +859,18 @@ func   public.int2_dist(smallint, smallint) md5=e28cfd9bdc2bae4a5d31338e45f7cc09
 func   public.int4_dist(integer, integer) md5=70022e3435f9747864cf180d2d97e3dc
 func   public.int8_dist(bigint, bigint) md5=a73c1806b07543ad4167457378c84df9
 func   public.interval_dist(interval, interval) md5=c2001397d4f589efc976e1f2db79c9ac
-func   public.leader_replacement_options(p_tilldelning uuid) md5=2a7b429196ee79137274571b9e10c8c5
-func   public.leave_day_unsupervised(p_tilldelning uuid) md5=d2d5b2c0260dc0626d33c38c6451fed3
-func   public.make_worker_ansvarig(p_tilldelning uuid, p_worker uuid) md5=6a1333b5816d7dc768c00bbce23b42ee
+func   public.leader_replacement_options(p_tilldelning uuid) md5=8dc052b44921db2afb8c9d58af02e4e8
+func   public.leave_day_unsupervised(p_tilldelning uuid) md5=431f40ea74504337e2cfacc64bb8bcdb
+func   public.make_worker_ansvarig(p_tilldelning uuid, p_worker uuid) md5=4be667eaebfcf47f4a23d6c80a23409e
+func   public.note_pin_attempt(p_ip text) md5=bed4f7c8d09c8223c7b07c8297f99078
 func   public.oid_dist(oid, oid) md5=98f1ff8d3c8373653d6d3a2e298a7eba
-func   public.place_replacement(p_pass uuid, p_worker uuid) md5=e449b122190431d9a0cf9e717d96abe0
+func   public.place_replacement(p_pass uuid, p_worker uuid) md5=163d23be215e0ccf6e882b5aaeaee43d
 func   public.register_push_token(p_token text, p_platform text) md5=6cd95f26b804eb022ce9863b4f94991b
 func   public.reject_day(p_project uuid, p_work_date date, p_note text) md5=5e4ec66b9ad25be694015c2db8afa0d2
-func   public.release_assignment(p_tilldelning uuid, p_reason release_reason) md5=1983347acadd4f94439618837e894b64
-func   public.replace_leader(p_tilldelning uuid, p_worker uuid) md5=a279675035fb73084464d85f437abf82
-func   public.swap_leaders(p_a uuid, p_b uuid) md5=affd029edc53ba339a48070debc27dc0
-func   public.swap_partners(p_tilldelning uuid) md5=40f2cc9cc8d1184fc8b328cdee7c723b
+func   public.release_assignment(p_tilldelning uuid, p_reason release_reason) md5=31d9dbd6079a9529e785435d07a54b3c
+func   public.replace_leader(p_tilldelning uuid, p_worker uuid) md5=f0ffb66be2966bab6e496b2e75af2a65
+func   public.swap_leaders(p_a uuid, p_b uuid) md5=63d79721d463aaa47add556da3014287
+func   public.swap_partners(p_tilldelning uuid) md5=25e16eee9af3a9571a01c1b718a824eb
 func   public.time_dist(time without time zone, time without time zone) md5=570a6afc92722fa17cb3fb725c661bb5
 func   public.ts_dist(timestamp without time zone, timestamp without time zone) md5=cd9d836b7dd414c3713096792f16bf8d
 func   public.tstz_dist(timestamp with time zone, timestamp with time zone) md5=d9abd396677b459458fae044fa46f4b1

@@ -2114,6 +2114,7 @@ export type Database = {
         Args: { p_tilldelning: string; p_worker: string }
         Returns: undefined
       }
+      note_pin_attempt: { Args: { p_ip: string }; Returns: string }
       place_replacement: {
         Args: { p_pass: string; p_worker: string }
         Returns: undefined
