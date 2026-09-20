@@ -242,6 +242,22 @@ const CONTROLS = [
    "end $ctl$",
    "PUSH.one_row_per_device"],
 
+  ["push token -- a handset handed to another company changes tenancy too",
+   // ONE LINE REMOVED from the ON CONFLICT: the tenant stops following the
+   // account. Everything else about the upsert still works, and a handset
+   // moving between two people at the SAME company still passes every other
+   // PUSH assertion -- which is why this went in unasserted and would have
+   // stayed that way.
+   //
+   // The perturbed run does not produce a wrong row; the composite foreign key
+   // (account_id, tenant_id) -> account (id, tenant_id) is INITIALLY IMMEDIATE
+   // and refuses the statement outright. So it lands on the accepts(), not on
+   // the state check after it.
+   perturbIn("public.register_push_token(text,text)",
+             "        tenant_id  = excluded.tenant_id,\n",
+             ""),
+   "PUSH.a_handset_can_cross_tenants"],
+
   ["push token -- signing out elsewhere cannot silence a handset that moved on",
    // The delete widened to the token alone. Still deletes the right row in the
    // ordinary case, which is why it needs a control: it only misbehaves once a

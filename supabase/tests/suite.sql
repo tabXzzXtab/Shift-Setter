@@ -4908,3 +4908,63 @@ reset role;
 
 
 select pg_temp.ok(true, 'SUITE.complete', 'every assertion passed');
+-- ---- a shared handset crossing the line ------------------------------------
+--
+-- THE ONE PLACE A ROW IS SUPPOSED TO CHANGE TENANT, and until now the only
+-- thing in the file that was not asserted anywhere.
+--
+-- Everything else about isolation says a row stays where it was born. A push
+-- token is the exception, because it is not a record of work -- it is the
+-- address of a handset, and a handset is a physical object that gets handed
+-- over. When a phone leaves one company and is signed into at another, the row
+-- has to follow it or that company's notifications keep arriving on a stranger's
+-- screen.
+--
+-- register_push_token() carries `tenant_id = excluded.tenant_id` in its ON
+-- CONFLICT for exactly this. Without that line the upsert moves account_id and
+-- leaves tenant_id behind, and the composite foreign key -- (account_id,
+-- tenant_id) references account (id, tenant_id), deferrable INITIALLY IMMEDIATE
+-- -- refuses the whole statement at statement end. So the failure is a refusal
+-- rather than a wrong row, and accepts() is what states it.
+--
+-- The push block earlier in this file cannot test this: it runs before the
+-- second tenant exists, and both its workers are in the same tenancy. Moving a
+-- handset between two accounts of ONE company was always going to pass,
+-- with or without the line.
+set local role authenticated;
+select pg_temp.act_as((select v from fx where k = 'w1'));
+select public.register_push_token('device-token-crosses', 'ios');
+reset role;
+
+select pg_temp.ok(
+  (select tenant_id from public.push_token where token = 'device-token-crosses')
+    = (select tenant_id from public.account where id = (select v from fx where k = 'w1')),
+  'PUSH.starts_in_the_first_owners_tenant',
+  'the handset did not land in the tenancy of whoever registered it');
+
+-- The other company signs in on the same physical phone.
+set local role authenticated;
+select pg_temp.act_as('99999999-9999-9999-9999-99999999999b');
+select pg_temp.accepts($acc$
+  select public.register_push_token('device-token-crosses', 'android')
+$acc$, 'PUSH.a_handset_can_cross_tenants');
+reset role;
+
+select pg_temp.ok(
+  (select account_id from public.push_token where token = 'device-token-crosses')
+    = '99999999-9999-9999-9999-99999999999b'
+  and (select tenant_id from public.push_token where token = 'device-token-crosses')
+    = '99999999-9999-9999-9999-999999999999',
+  'PUSH.the_tenant_moves_with_the_handset',
+  'the handset changed owner but stayed in the old company''s tenancy');
+
+-- THE ROLE IS PUT BACK THE WAY IT WAS FOUND. The two reads above run as the
+-- session user because push_token carries no grant to `authenticated` at all
+-- -- deliberately, it is written only through its two SECURITY DEFINER
+-- functions -- and `reset role` is the only way to see the row. But the
+-- operator section below opens with act_as() and no `set local role`, so it
+-- inherits whatever is in effect here: left as the session user it bypasses
+-- RLS entirely and SUPER.entering_narrows_to_that_tenant fails on a superuser
+-- who was never narrowed by anything. Which is exactly what it did.
+set local role authenticated;
+
