@@ -111,6 +111,8 @@ Dates are `DDMon` — day number and three-letter month, **the month abbreviatio
 
 The name carries one year, so a range crossing a year boundary is not covered by this pattern. If one arises, stop and ask.
 
+**The screen ends at the file.** Until the PDF exists the second button is the way back to the picker. Once it has been downloaded it becomes **Hem**: the admin is finished with this period, and going back to re-generate a range already documented is the thing the overlap warning exists to discourage. Beside the *"Nedladdad: …"* notice sits **Dela**, at icon size — the handset's own share sheet, handed the same file the download saved, so the document reaches the beställare from the phone that produced it. It is drawn only where the browser can put a file into a share sheet; where it cannot, the download is the whole route. The app has no channel of its own and sends nothing anywhere itself.
+
 **Generating consumes the days.** Every day in the range moves to **Historik** when the document is produced, whatever stage it had reached. A day that was only `leader_confirmed` goes to Historik with the rest — it does not wait for the admin's approval to get there.
 
 **Historik shows current values, not printed ones.** If the admin edits a day at stage 2 after the document was generated, Historik reflects the new figures. The PDF does not change — it is a snapshot of the moment it was produced. The two can disagree, and that is intended: regenerating the range is how a corrected document is obtained.

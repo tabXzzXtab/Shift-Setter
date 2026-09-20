@@ -411,7 +411,14 @@ day left alone.
 - [ ] **K2.** Press **Ladda ner PDF**.
       → **Ska hända:** the file downloads with no print dialog, named like
       `03Sep-04Sep-2026-demoprojektet.pdf` — capitalised month, lower-case
-      project slug — and *"Nedladdad: …"* appears.
+      project slug — and *"Nedladdad: …"* appears. **Tillbaka** is gone and
+      **Hem** stands in its place.
+
+- [ ] **K2b.** Press the share icon beside *"Nedladdad: …"*.
+      → **Ska hända:** the phone's own share sheet opens carrying that same
+      PDF, by that same name. Dismissing it says nothing on screen — changing
+      your mind is not an error. On a desktop browser with no share sheet the
+      icon is not drawn at all, and the download is the whole route.
 
 - [ ] **K3.** Add up the confirmed hours by hand, then open the PDF cover.
       → **Ska hända:** beställarens adress, bolag and org nummer all printed, the

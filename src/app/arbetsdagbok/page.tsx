@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { AuthGate } from "@/components/auth-gate";
 import { ArbetsdagbokDocument } from "@/components/arbetsdagbok-document";
 import {
-  C, Card, PrimaryButton, SecondaryButton, SoftField, SoftInput, SoftNotice,
+  C, Card, IconButton, PrimaryButton, SecondaryButton, SoftField, SoftInput, SoftNotice,
   SoftScreen, SoftSelect,
 } from "@/components/soft";
 import { derivesTenant, getSupabase } from "@/lib/supabase/client";
@@ -28,6 +28,53 @@ const RailPin = () => (
     <circle cx="12" cy="9" r="2.8" fill={C.surface} />
   </svg>
 );
+
+/**
+ * Dela. The tray and the arrow rather than the three connected dots: what the
+ * button opens is the platform's own sheet, and this is the shape the phones
+ * this app is installed on draw for it themselves.
+ */
+const ShareIcon = () => (
+  <svg width="19" height="20" viewBox="0 0 19 20" fill="none" aria-hidden focusable="false">
+    <path
+      d="M9.5 12.4V2M5.9 5.5 9.5 1.9l3.6 3.6M6.5 8.6H2.2v9.7h14.6V8.6h-4.3"
+      stroke={C.ink}
+      strokeWidth="2.1"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </svg>
+);
+
+/**
+ * Whether this handset can put a PDF into its own share sheet. Answered once
+ * and remembered, because it cannot change while the page is open.
+ *
+ * READ DURING RENDER, WHICH IS ONLY SAFE WHERE IT IS USED: this is a static
+ * export, so the markup is drawn at build time on a machine with no navigator
+ * at all. The button it gates lives behind `payload`, which is null on the
+ * render that hydrates -- the branch is never in the prerendered HTML and so
+ * can never disagree with it. Anything drawn on first paint would need an
+ * effect instead.
+ *
+ * A browser without the API gets no button rather than one that fails when
+ * pressed; the file is downloaded either way.
+ */
+let pdfShareSupport: boolean | null = null;
+function canSharePdf() {
+  if (pdfShareSupport === null) {
+    try {
+      const probe = new File([], "arbetsdagbok.pdf", { type: "application/pdf" });
+      pdfShareSupport =
+        typeof navigator.share === "function" &&
+        typeof navigator.canShare === "function" &&
+        navigator.canShare({ files: [probe] });
+    } catch {
+      pdfShareSupport = false;
+    }
+  }
+  return pdfShareSupport;
+}
 
 /**
  * One leg of the rail: the marker, the dashed line that reaches the next one,
@@ -103,6 +150,14 @@ function Arbetsdagbok() {
   const [downloading, setDownloading] = useState(false);
   const [saved, setSaved] = useState<string | null>(null);
   const [gaps, setGaps] = useState<Gaps | null>(null);
+  /**
+   * The file the download produced, kept so Dela hands the system sheet the
+   * SAME bytes rather than drawing a second copy of them -- and, the reason
+   * it is a ref rather than a rebuild, so that nothing is awaited between the
+   * tap and navigator.share(). iOS drops the user activation across an await
+   * and refuses the share with no way to tell that apart from a real failure.
+   */
+  const shareFile = useRef<File | null>(null);
 
   useEffect(() => {
     getSupabase()
@@ -273,8 +328,15 @@ function Arbetsdagbok() {
       const name = arbetsdagbokFilename(from, to, payload.cover.project);
       // Uint8Array -> ArrayBuffer slice keeps TypeScript and the Blob
       // constructor agreed about the backing buffer.
-      const blob = new Blob([bytes.slice().buffer as ArrayBuffer], { type: "application/pdf" });
-      const href = URL.createObjectURL(blob);
+      //
+      // A File rather than a Blob, and ONE object for both routes: a File is
+      // a Blob, so the anchor saves exactly the bytes the share sheet would
+      // send and the two can never be different documents.
+      const file = new File([bytes.slice().buffer as ArrayBuffer], name, {
+        type: "application/pdf",
+      });
+      shareFile.current = file;
+      const href = URL.createObjectURL(file);
       const a = document.createElement("a");
       a.href = href;
       a.download = name;
@@ -289,6 +351,27 @@ function Arbetsdagbok() {
       setError(fel(e, "PDF-filen kunde inte skapas. Försök igen, eller kontakta administratören."));
     }
     setDownloading(false);
+  }
+
+  /**
+   * Dela. Offered only once the file exists, which is also what makes it
+   * safe: the bytes are already in hand, so the sheet opens inside the tap
+   * that asked for it. Sharing is the platform's job from there -- e-post,
+   * the bestallare's chat, whatever the handset has. The app has no channel
+   * of its own and should not pretend to.
+   */
+  async function share() {
+    const file = shareFile.current;
+    if (!file) return;
+    setError(null);
+    try {
+      await navigator.share({ files: [file], title: file.name });
+    } catch (e) {
+      // Changing your mind is not a failure. Reporting a dismissal as one
+      // would make every closed sheet look like something broke.
+      if (e instanceof DOMException && e.name === "AbortError") return;
+      setError(fel(e, "PDF-filen kunde inte delas. Den är nedladdad och kan delas därifrån."));
+    }
   }
 
   if (payload) {
@@ -308,16 +391,40 @@ function Arbetsdagbok() {
           }}
         >
           {error && <div className="pb-[10px]"><SoftNotice tone="stop">{error}</SoftNotice></div>}
-          {saved && !error && (
-            <div className="pb-[10px]"><SoftNotice tone="live">Nedladdad: {saved}</SoftNotice></div>
+          {/* Shown alongside an error rather than instead of it, now that the
+              likeliest error is a share that failed: the file named here IS
+              on the phone, and hiding that would answer "kunde inte delas"
+              with a screen that no longer admits anything was downloaded. */}
+          {saved && (
+            <div className="flex items-center gap-[10px] pb-[10px]">
+              <div className="min-w-0 flex-1">
+                <SoftNotice tone="live">Nedladdad: {saved}</SoftNotice>
+              </div>
+              {/* Beside the file it shares, at icon size. The document below
+                  is what the screen is for, and a second full-width button
+                  would argue with the one action above it. Nothing is offered
+                  before the download, because there is nothing to send yet. */}
+              {canSharePdf() && (
+                <IconButton label="Dela PDF" onClick={share}><ShareIcon /></IconButton>
+              )}
+            </div>
           )}
           <PrimaryButton onClick={download} disabled={downloading}>
             {downloading ? "Skapar PDF…" : "Ladda ner PDF"}
           </PrimaryButton>
           <div className="pt-[10px]">
-            <SecondaryButton onClick={() => { setPayload(null); setSaved(null); }}>
-              Tillbaka
-            </SecondaryButton>
+            {/* The work ends at the file. Until it exists the second button is
+                the way back to the picker; once it does, the admin is finished
+                with this period and the way out is the one thing left to
+                offer -- going back to re-generate a range already documented
+                is what the overlap warning exists to discourage. */}
+            {saved ? (
+              <SecondaryButton href="/">Hem</SecondaryButton>
+            ) : (
+              <SecondaryButton onClick={() => setPayload(null)}>
+                Tillbaka
+              </SecondaryButton>
+            )}
           </div>
         </div>
         <div className="ad-doc mx-auto w-full max-w-[210mm]">
