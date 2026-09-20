@@ -54,6 +54,15 @@ const TABLE: [string, string][] = [
   ["Failed to fetch", "Ingen kontakt med servern. Kontrollera nätet och försök igen."],
   ["NetworkError", "Ingen kontakt med servern. Kontrollera nätet och försök igen."],
 
+  // The onboarding PIN gate, refused by verify-pin's attempt ceiling rather
+  // than by Postgres. It is here and not in the page because the gate has two
+  // ceilings -- one per caller, one across everybody -- and they say the same
+  // sentence deliberately: a salesperson turned away while somebody else is
+  // hammering the door has the same thing to do about it as one who mistyped
+  // six times, which is wait a minute. Telling them which ceiling they hit
+  // would only tell them whether an attack was under way.
+  ["too many attempts", "För många försök. Försök igen om en minut."],
+
   // A policy that cannot run its own helper is a broken deployment, not
   // something the reader did. Say so rather than blaming them.
   ["permission denied for function", "Något är fel i behörigheterna. Kontakta administratören."],

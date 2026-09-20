@@ -2,6 +2,7 @@
 
 import { useRef, useState, type ClipboardEvent, type KeyboardEvent, type ReactNode } from "react";
 import { C, ChevronRight, SHADOW, SoftNotice } from "@/components/soft";
+import { fel } from "@/lib/fel";
 
 /**
  * Onboarding -- the PIN gate, and the route chosen behind it.
@@ -116,6 +117,8 @@ function PinGate({ onPass }: { onPass: () => void }) {
 
     const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
     let verdict: "ok" | "wrong" | "waiting" | "down";
+    /** The Swedish for a refused attempt, resolved from fel.ts. */
+    let waited = "";
     try {
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/verify-pin`,
@@ -131,9 +134,20 @@ function PinGate({ onPass }: { onPass: () => void }) {
           body: JSON.stringify({ pin }),
         },
       );
-      if (res.status === 429) verdict = "waiting";
-      else if (!res.ok) verdict = "down";
-      else verdict = ((await res.json()) as { valid?: boolean }).valid ? "ok" : "wrong";
+      const body = (await res.json().catch(() => ({}))) as {
+        valid?: boolean;
+        error?: string;
+      };
+      if (res.status === 429) {
+        // THE WORDING IS NOT WRITTEN HERE. The function sends the English key
+        // and fel.ts holds the one Swedish sentence, the same way every other
+        // refusal in this app is worded -- so the gate cannot drift into
+        // saying "vänta en minut" while the rest of the app says something
+        // else for the same kind of answer.
+        verdict = "waiting";
+        waited = fel(body.error ?? "", "För många försök. Försök igen om en minut.");
+      } else if (!res.ok) verdict = "down";
+      else verdict = body.valid ? "ok" : "wrong";
     } catch {
       verdict = "down";
     }
@@ -149,7 +163,7 @@ function PinGate({ onPass }: { onPass: () => void }) {
     setRefusals((n) => n + 1);
     setError(
       verdict === "waiting"
-        ? "För många försök. Vänta en minut och försök igen."
+        ? waited
         : verdict === "down"
           ? "Kunde inte nå servern. Försök igen."
           : "Fel kod.",
