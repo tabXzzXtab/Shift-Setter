@@ -27,10 +27,8 @@
  * It REFUSES to move an account that already belongs to a different tenant --
  * see the note at that check.
  */
-import { execFileSync } from "node:child_process";
 import { createClient } from "@supabase/supabase-js";
-import { required, ROOT } from "./env.mjs";
-import path from "node:path";
+import { required, serviceRoleKey } from "./env.mjs";
 
 const [email, password, tenantArg] = process.argv.slice(2);
 if (!email || !password || !tenantArg) {
@@ -39,19 +37,11 @@ if (!email || !password || !tenantArg) {
   process.exit(1);
 }
 
-const ref = required("SUPABASE_PROJECT_REF");
 const url = required("NEXT_PUBLIC_SUPABASE_URL");
 
 // The service-role key is never written to .env.local: it is fetched for this
 // one run and lives only in memory. It must never reach a static bundle.
-const out = execFileSync(
-  process.execPath,
-  [path.join(ROOT, "node_modules/supabase/dist/supabase.js"),
-   "projects", "api-keys", "--project-ref", ref],
-  { encoding: "utf8", env: process.env },
-);
-const service = JSON.parse(out.slice(out.indexOf("{")))
-  .keys.find((k) => k.id === "service_role").api_key;
+const service = serviceRoleKey();
 
 const admin = createClient(url, service, { auth: { persistSession: false } });
 

@@ -19,13 +19,10 @@
  * Credentials come from .env.local, which is gitignored. This repository is
  * public; a working login committed to it is a working login for anyone.
  */
-import { execFileSync } from "node:child_process";
-import path from "node:path";
 import { createClient } from "@supabase/supabase-js";
-import { required, ROOT } from "./env.mjs";
+import { required, serviceRoleKey } from "./env.mjs";
 
 const url = required("NEXT_PUBLIC_SUPABASE_URL");
-const ref = required("SUPABASE_PROJECT_REF");
 
 // An admin holds no shifts, so it gets no worker row -- the same shape
 // scripts/bootstrap-admin.mjs creates. The other two are workers as well as
@@ -38,14 +35,7 @@ const PEOPLE = [
 
 // Fetched for this run only, never written to .env.local: it must never reach
 // a static bundle.
-const out = execFileSync(
-  process.execPath,
-  [path.join(ROOT, "node_modules/supabase/dist/supabase.js"),
-   "projects", "api-keys", "--project-ref", ref],
-  { encoding: "utf8", env: process.env },
-);
-const service = JSON.parse(out.slice(out.indexOf("{")))
-  .keys.find((k) => k.id === "service_role").api_key;
+const service = serviceRoleKey();
 
 const admin = createClient(url, service, { auth: { persistSession: false } });
 
