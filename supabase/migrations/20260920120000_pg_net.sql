@@ -1,0 +1,65 @@
+-- ============================================================================
+-- PG_NET -- the database is allowed to make an HTTP request.
+--
+-- A push has to be SENT by something holding the FCM credential, which on a
+-- static export means the send-push Edge Function (CLAUDE.md). But something
+-- has to CALL that function, and the events worth a push are database events:
+-- a pass deleted, a day rejected, a shift offered. There is no server to
+-- notice them and no cron to poll for them.
+--
+-- pg_net is what closes that gap. It gives Postgres net.http_post, which
+-- queues a request and returns immediately; a background worker delivers it
+-- outside the calling transaction. That asynchrony is the point. A push is not
+-- allowed to hold a shift deletion open while an HTTPS round trip to Google
+-- finishes, and it is not allowed to fail one either.
+--
+-- THIS FILE INSTALLS THE EXTENSION AND NOTHING ELSE. No trigger calls it yet.
+-- The dispatch and the three notification triggers are separate files, because
+-- they need a notification_kind value that does not exist yet and Postgres
+-- cannot use a new enum value in the transaction that adds it.
+--
+-- NO `WITH SCHEMA` CLAUSE, DELIBERATELY. It reads as though it would put the
+-- functions somewhere, and it does not: installed `with schema extensions`,
+-- the extension is registered against `extensions` while http_post still lands
+-- in `net`, because pg_net names its own schema. Tested before writing this.
+-- Spelling it without the clause is honest about where the objects go, and
+-- callers say net.http_post either way.
+-- ============================================================================
+
+create extension if not exists pg_net;
+
+-- ---------------------------------------------------------------------------
+-- WHAT THIS MIGRATION CANNOT DO, WRITTEN DOWN SO NOBODY RE-DISCOVERS IT.
+--
+-- pg_net's queue is world-readable and we cannot change that from here.
+--
+--   net.http_request_queue   relacl: {supabase_admin=arwdDxtm/supabase_admin,
+--                                     =arwdDxtm/supabase_admin}
+--   net.http_post            proacl: null  (execute to PUBLIC, the default)
+--   schema net               usage granted to anon, authenticated, service_role
+--
+-- The empty grantee in that second entry is PUBLIC, holding every privilege.
+-- So `anon` -- not even logged in -- can in principle select the queue, and
+-- the queue holds each request's HEADERS. Once the dispatch trigger exists
+-- those headers carry `Authorization: Bearer <PUSH_CALLER_SECRET>`, which is
+-- the only thing standing between a stranger and arbitrary text on any
+-- worker's lock screen.
+--
+-- A revoke block was written here and then removed, because it did not work
+-- and said it did. Every grant above was made BY supabase_admin, and a REVOKE
+-- is only honoured from the grantor or a superuser. This connection is
+-- `postgres`: rolsuper false, not a member of supabase_admin. All four
+-- statements returned REVOKE and changed nothing -- verified by re-reading
+-- has_table_privilege afterwards, which still said true. A migration whose
+-- comment claims a lock it did not take is worse than one that admits the gap.
+-- Note this is a DIFFERENT failure from the one push_token documents: there,
+-- revoking from `anon` missed a grant held via PUBLIC and revoking from PUBLIC
+-- was the fix. Here even PUBLIC does not work, because we are not the grantor.
+--
+-- WHAT KEEPS IT SHUT TODAY: PostgREST serves only its exposed schemas and
+-- `net` is not one -- the same reason app.* functions are not RPC-callable
+-- (CLAUDE.md, gotcha 2). A browser holding an anon key cannot reach these
+-- tables. The exposure is real but not currently reachable, and it becomes
+-- reachable the moment anything in `public` selects from `net` on a caller's
+-- behalf. Do not write that view.
+-- ---------------------------------------------------------------------------
