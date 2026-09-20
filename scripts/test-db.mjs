@@ -97,6 +97,31 @@ const CONTROLS = [
    "with check (app.leads_project(project_id))",
    "TENANT.you_cannot_write_into_another_tenant"],
 
+  ["tenant -- a view running as its owner still carries the clause",
+   // NOT A POLICY, WHICH IS THE POINT. open_pass is security_invoker = false,
+   // so it runs as its owner and every one of the 34 policies is skipped. This
+   // restores the pre-20260920160000 body -- the live definition with the one
+   // app.in_tenant() predicate removed and nothing else touched -- which is
+   // precisely the state in which a Bella Service arbetare read another
+   // company's project name and site address off Oppna Pass.
+   "create or replace view public.open_pass with (security_invoker = false) as " +
+   "select p.id as pass_id, p.work_date, p.start_time, p.end_time, " +
+   "       p.planned_hours, p.headcount, pr.name as project_name, " +
+   "       pr.site_address, p.headcount - count(t.id) as slots_open " +
+   "from public.pass p " +
+   "  join public.project pr on pr.id = p.project_id and pr.deleted_at is null " +
+   "  left join public.tilldelning t on t.pass_id = p.id and t.released_at is null " +
+   "where p.deleted_at is null " +
+   "  and app.pass_start_at(p.work_date, p.start_time) > now() " +
+   "  and not exists (select 1 from public.tilldelning mine " +
+   "                  where mine.worker_id = app.current_worker_id() " +
+   "                    and mine.work_date = p.work_date " +
+   "                    and mine.released_at is null) " +
+   "group by p.id, p.work_date, p.start_time, p.end_time, p.planned_hours, " +
+   "         p.headcount, pr.name, pr.site_address " +
+   "having p.headcount - count(t.id) > 0",
+   "TENANT.open_pass_hides_another_tenants_opening"],
+
   ["tenant -- entering a tenancy narrows the database, not the screen",
    // app.is_acting() forced false, so the super-admin bypass is never
    // suppressed and "entering" becomes a client-side pretence -- which is the

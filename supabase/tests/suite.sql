@@ -4866,48 +4866,55 @@ select pg_temp.rejects($rej$
           '08:00', '16:00', 7.5, 1, (select v from fx where k = 'admin'))
 $rej$, 'TENANT.you_cannot_write_into_another_tenant');
 
--- ---- the operator, before and after entering -------------------------------
-select pg_temp.act_as('66666666-6666-6666-6666-66666666666a');
-
-select pg_temp.ok(
-  (select count(distinct tenant_id) from public.project) >= 2,
-  'SUPER.sees_every_tenant_until_they_enter_one',
-  'a super admin who has not entered a tenancy sees them all');
-
-select public.enter_tenant('99999999-9999-9999-9999-999999999999');
-
-select pg_temp.ok(
-  (select count(*) from public.project
-    where tenant_id <> '99999999-9999-9999-9999-999999999999') = 0
-  and (select count(*) from public.project) > 0,
-  'SUPER.entering_narrows_to_that_tenant',
-  'entering a tenancy must narrow the database, not only the screen');
-
--- Their own account row is in a THIRD tenancy and must still be readable, or
--- the app cannot tell them who they are while they are inside a client.
-select pg_temp.ok(
-  (select count(*) from public.account
-    where id = '66666666-6666-6666-6666-66666666666a') = 1,
-  'SUPER.can_still_read_their_own_account_while_acting',
-  'your own account row is yours whatever tenancy you are standing in');
-
-select public.exit_tenant();
-
-select pg_temp.ok(
-  (select count(distinct tenant_id) from public.project) >= 2,
-  'SUPER.leaving_restores_the_view',
-  'leaving must put the operator back above the tenancies');
-
--- Nobody else may enter anything, whatever else they can do.
-select pg_temp.act_as((select v from fx where k = 'admin'));
-select pg_temp.rejects($rej$
-  select public.enter_tenant('99999999-9999-9999-9999-999999999999')
-$rej$, 'SUPER.only_a_super_admin_can_enter');
-
+-- ---- the VIEWS carry the tenant too ----------------------------------------
+--
+-- THE 34 POLICIES DO NOT REACH THESE. open_pass, my_offer and my_shift are
+-- security_invoker = false -- they run as their OWNER and never meet a policy
+-- at all -- which is deliberate and still right, because an arbetare cannot
+-- read public.pass directly: the policy is scoped to app.leads_project, so a
+-- worker reaches these rows through a view or not at all.
+--
+-- So the clause has to live in the view BODY, and until
+-- 20260920160000_views_carry_the_tenant it did not. Measured before the fix:
+-- a Bella Service arbetare read another company's project name, site address
+-- and slot count straight off Oppna Pass, while the same pass read from
+-- public.pass correctly returned nothing.
+--
+-- ASSERTED HERE BECAUSE THE SUITE HAD NO open_pass COVERAGE OF ANY KIND. Every
+-- TENANT control above reads a base table, and base tables are exactly what
+-- these views bypass -- which is why a green M2a could sit on top of an open
+-- cross-tenant read for a day.
 reset role;
 
+-- One opening in each tenant. The foreign one is inserted as owner, because
+-- the control immediately above proves an admin cannot write it themselves.
+insert into public.pass (id, project_id, work_date, start_time, end_time,
+                         planned_hours, headcount, created_by)
+values ('99999999-0000-0000-0000-0000000000cc',
+        '99999999-0000-0000-0000-0000000000aa', app.stockholm_today() + 210,
+        '08:00', '16:00', 7.5, 1, '99999999-9999-9999-9999-99999999999a'),
+       ('99999999-0000-0000-0000-0000000000cd',
+        'aaaaaaaa-0000-0000-0000-00000000000a', app.stockholm_today() + 211,
+        '08:00', '16:00', 7.5, 1, (select v from fx where k = 'admin'));
 
-select pg_temp.ok(true, 'SUITE.complete', 'every assertion passed');
+set local role authenticated;
+select pg_temp.act_as((select v from fx where k = 'admin'));
+
+select pg_temp.ok(
+  (select count(*) from public.open_pass
+    where pass_id = '99999999-0000-0000-0000-0000000000cc') = 0,
+  'TENANT.open_pass_hides_another_tenants_opening',
+  'Oppna Pass must not offer a shift belonging to another company');
+
+-- THE OTHER HALF, for the same reason it is spelled out above: a view body
+-- that returned nothing would pass the assertion above and take Oppna Pass
+-- down with it. This is what tells an isolated view from an empty one.
+select pg_temp.ok(
+  (select count(*) from public.open_pass
+    where pass_id = '99999999-0000-0000-0000-0000000000cd') = 1,
+  'TENANT.open_pass_still_shows_your_own_opening',
+  'scoping the view to a tenant must not empty it');
+
 -- ---- a shared handset crossing the line ------------------------------------
 --
 -- THE ONE PLACE A ROW IS SUPPOSED TO CHANGE TENANT, and until now the only
@@ -4968,3 +4975,45 @@ select pg_temp.ok(
 -- who was never narrowed by anything. Which is exactly what it did.
 set local role authenticated;
 
+-- ---- the operator, before and after entering -------------------------------
+select pg_temp.act_as('66666666-6666-6666-6666-66666666666a');
+
+select pg_temp.ok(
+  (select count(distinct tenant_id) from public.project) >= 2,
+  'SUPER.sees_every_tenant_until_they_enter_one',
+  'a super admin who has not entered a tenancy sees them all');
+
+select public.enter_tenant('99999999-9999-9999-9999-999999999999');
+
+select pg_temp.ok(
+  (select count(*) from public.project
+    where tenant_id <> '99999999-9999-9999-9999-999999999999') = 0
+  and (select count(*) from public.project) > 0,
+  'SUPER.entering_narrows_to_that_tenant',
+  'entering a tenancy must narrow the database, not only the screen');
+
+-- Their own account row is in a THIRD tenancy and must still be readable, or
+-- the app cannot tell them who they are while they are inside a client.
+select pg_temp.ok(
+  (select count(*) from public.account
+    where id = '66666666-6666-6666-6666-66666666666a') = 1,
+  'SUPER.can_still_read_their_own_account_while_acting',
+  'your own account row is yours whatever tenancy you are standing in');
+
+select public.exit_tenant();
+
+select pg_temp.ok(
+  (select count(distinct tenant_id) from public.project) >= 2,
+  'SUPER.leaving_restores_the_view',
+  'leaving must put the operator back above the tenancies');
+
+-- Nobody else may enter anything, whatever else they can do.
+select pg_temp.act_as((select v from fx where k = 'admin'));
+select pg_temp.rejects($rej$
+  select public.enter_tenant('99999999-9999-9999-9999-999999999999')
+$rej$, 'SUPER.only_a_super_admin_can_enter');
+
+reset role;
+
+
+select pg_temp.ok(true, 'SUITE.complete', 'every assertion passed');
