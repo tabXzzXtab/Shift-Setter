@@ -1099,3 +1099,12 @@ grant  UPDATE on tenant to authenticated
 grant  UPDATE on tilldelning to authenticated
 grant  UPDATE on worker to authenticated
 grant  UPDATE on worker_roster to authenticated
+view   public.account_directory security_invoker=false md5=16ab0adb9ebff46b12806dca19eacac5
+view   public.arbetsledare_roster security_invoker=false md5=2888a8ba9668fc362ecbe60bb42f48cb
+view   public.cancelled_day security_invoker=false md5=19707702cb64f30f9e893a3504a09748
+view   public.day_history security_invoker=false md5=3060a8e61c0ffcbe837f8b688891d1fd
+view   public.my_offer security_invoker=false md5=9f934026a994b99897c1f299f5e22c01
+view   public.my_shift security_invoker=false md5=5e33783e05b0583d541a59bef0d07f8a
+view   public.open_pass security_invoker=false md5=af584052dfd1a14f70d18749ae0e4fee
+view   public.project_hours security_invoker=false md5=9d8c9d237f12fc17116d5ccd39543c37
+view   public.worker_roster security_invoker=false md5=a717a3cc83c903a02cdee02ae2d8b075

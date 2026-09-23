@@ -84,6 +84,30 @@ select line from (
   select 9, format('grant  %s on %s to %s', privilege_type, table_name, grantee)
     from information_schema.role_table_grants
    where table_schema = 'public' and grantee in ('anon','authenticated')
+
+  -- A VIEW'S BODY, WHICH NOTHING ABOVE RECORDS. Section 2 collects a view's
+  -- COLUMNS, so until this existed a view could have its WHERE clause rewritten
+  -- and db:check reported no drift -- which is exactly what happened when six
+  -- of them gained a tenant clause and the snapshot did not move by one line.
+  --
+  -- That matters more than it used to. These views are security_invoker =
+  -- false, so they run as their owner and RLS on the tables underneath does not
+  -- apply to them; since M2 their WHERE clause is the only thing keeping one
+  -- company out of another's. An unrecorded definition is an unguarded one.
+  --
+  -- md5 rather than the text, matching how functions are recorded: the bodies
+  -- run to twenty lines each and the question the snapshot answers is "has this
+  -- changed", not "to what". security_invoker is spelled out because flipping
+  -- it is a security change that would not alter the definition at all.
+  union all
+  select 10, format('view   %s.%s security_invoker=%s md5=%s',
+           n.nspname, c.relname,
+           coalesce((select option_value from pg_options_to_table(c.reloptions)
+                      where option_name = 'security_invoker'), 'false'),
+           md5(pg_get_viewdef(c.oid, true)))
+    from pg_class c
+    join pg_namespace n on n.oid = c.relnamespace
+   where n.nspname in ('app','public') and c.relkind = 'v'
 ) s
 order by sect, line;
 `;
