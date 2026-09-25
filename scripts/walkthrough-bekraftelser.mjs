@@ -205,20 +205,30 @@ try {
   // create a project: they need somewhere to see it afterwards. The set is
   // still asserted exactly rather than loosened to "contains", because what
   // this step is for is catching an entry that should not be there.
-  const expect = ["Arbetsdagar", "Mina Pass", "Bekräftelser", "Alla projekt"].sort();
+  const expect = ["Mina Pass", "Bekräftelser", "Alla projekt"].sort();
   if (JSON.stringify(items) !== JSON.stringify(expect)) {
     fail(`menu holds ${JSON.stringify(items)}, expected ${JSON.stringify(expect)}`);
   }
   log(`menu reads ${expect.join(", ")} -- no "Min Pass Kalender", no "Bekräftelse Historik"`);
 
-  // Arbetsdagar is the availability grid and NOT a second Mina Pass. Its mode
-  // switch is the thing only that screen has.
-  await panel.getByRole("link", { name: "Arbetsdagar", exact: true }).click();
-  await page.waitForURL((u) => u.pathname.includes("/min-kalender"), { timeout: 20000 });
-  if (!(await page.getByRole("button", { name: "Kan jobba", exact: true }).count())) {
-    fail("Arbetsdagar is not the availability grid -- no Kan jobba switch");
+  // THE AVAILABILITY GRID IS A TAB NOW, not a row of its own. It stopped being
+  // "Arbetsdagar" in the hamburger and became Mina Pass's third view, because
+  // a leader weighing whether to say yes to a week reads the days they hold
+  // and the days they can work in one place. Same screen, same claim: the Kan
+  // jobba switch is the thing only the availability view has, and asserting on
+  // it is what keeps this from passing against a second copy of Mina Pass.
+  await panel.getByRole("link", { name: "Mina Pass", exact: true }).click();
+  await page.waitForURL((u) => u.pathname.includes("/mina-pass"), { timeout: 20000 });
+  await page.getByRole("button", { name: "Tillgänglighet", exact: true }).click();
+  // The tab is client state, so there is no navigation to wait on -- wait for
+  // the switch itself rather than counting before the view has swapped.
+  try {
+    await page.getByRole("button", { name: "Kan jobba", exact: true }).first()
+      .waitFor({ timeout: 20000 });
+  } catch {
+    fail("Tillgänglighet is not the availability grid -- no Kan jobba switch");
   }
-  log("Arbetsdagar opens the availability grid, the screen that writes förval");
+  log("Tillgänglighet opens the availability grid, the screen that writes förval");
 
   // ---- item 2: the switch --------------------------------------------------
   await page.goto(`${BASE}/historik/`, { waitUntil: "networkidle" });

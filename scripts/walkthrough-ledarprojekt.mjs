@@ -118,7 +118,7 @@ try {
   await panel.waitFor({ timeout: 20000 });
   const got = (await panel.getByRole("link").allInnerTexts())
     .map((t) => t.replace("→", "").trim()).sort();
-  const expect = ["Arbetsdagar", "Mina Pass", "Bekräftelser", "Alla projekt"].sort();
+  const expect = ["Mina Pass", "Bekräftelser", "Alla projekt"].sort();
   if (JSON.stringify(got) !== JSON.stringify(expect)) {
     fail(`menu holds ${JSON.stringify(got)}, expected ${JSON.stringify(expect)}`);
   }
