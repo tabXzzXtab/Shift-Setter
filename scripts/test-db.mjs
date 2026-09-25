@@ -684,6 +684,31 @@ const CONTROLS = [
    perturb("and not f.can_work", "and false"),
    "TIER3.no_offer_when_cant_work"],
 
+  ["invariant 11 -- the last admin is THIS company's",
+   // The count put back the way it was: every admin in the database. Another
+   // company's admins then stand in for a client's, and the client can be
+   // left with nobody who can administer their own site.
+   perturbIn("app.tg_last_admin_guard()",
+             "    and a.tenant_id = old.tenant_id;", ";"),
+   "I11.last_admin_of_a_company_is_protected"],
+
+  ["invariant 11 -- an admin moved out is an admin lost",
+   // The early exit put back: "still an active admin" without asking of WHICH
+   // company, which is true of an account moved to another tenancy -- and the
+   // count that would have caught it never runs.
+   perturbIn("app.tg_last_admin_guard()",
+             "and new.active\n     and new.tenant_id = old.tenant_id then",
+             "and new.active then"),
+   "I11.moving_the_last_admin_out_is_refused"],
+
+  ["a flagged day is told to its own company",
+   // The fan-out widened back to every active admin everywhere. The `or` that
+   // follows is left standing, so what this removes is the tenancy clause and
+   // nothing else.
+   perturbIn("app.flag_day(uuid, public.confirmation_source, uuid)",
+             "and (a.tenant_id = v_row.tenant_id", "and (true"),
+   "FLAG.does_not_notify_another_company"],
+
   ["a decline is this worker's own answer, and reversible",
    // The gate put back the way it was: `offered` only. Öppna Pass then lists
    // the shift they turned down and refuses to book it -- the state this

@@ -148,9 +148,41 @@ from fx where k <> 'ghost';
 --
 -- Order matters: the suite's admin is inserted first, so pausing the real ones
 -- is legal. The guard only ever refuses the last active admin.
-update public.account set active = false
-where role = 'admin'
-  and id not in (select v from fx where k like 'admin%');
+--
+-- THE GUARD IS STOOD DOWN FOR THIS ONE STATEMENT and put straight back. It
+-- counts per company now, and the operator's tenancy holds two admins and no
+-- fixture of its own -- so pausing its second one is refused and the run dies
+-- here, at scaffolding, before a single assertion. The same move the
+-- super-admin fixture makes further down, for the same reason: this statement
+-- is not what any assertion is about.
+--
+-- Scoping the pause to this company instead was the other way, and it is
+-- worse: it leaves the operator's admins active, and then the assertions
+-- below -- written when one company was all there was -- start depending on
+-- the new guard rather than testing it. A control that removed the tenancy
+-- clause failed at I11.demote_last_admin instead of at its own assertion,
+-- which is the harness saying exactly that.
+-- PUT BACK THE WAY IT WAS FOUND, not switched on. One negative control
+-- disables this very trigger for the whole run; re-enabling it here would
+-- hand the guard back mid-suite and the control would pass while proving
+-- nothing -- which is what it reported when this fixture did exactly that.
+do $last_admin$
+declare v_enabled char;
+begin
+  select t.tgenabled into v_enabled
+  from pg_trigger t
+  where t.tgname = 'last_admin_guard' and t.tgrelid = 'public.account'::regclass;
+
+  alter table public.account disable trigger last_admin_guard;
+
+  update public.account set active = false
+  where role = 'admin'
+    and id not in (select v from fx where k like 'admin%');
+
+  if v_enabled = 'O' then
+    alter table public.account enable trigger last_admin_guard;
+  end if;
+end $last_admin$;
 
 insert into public.worker (account_id, name, email)
 select v, initcap(k), k || '@suite.test' from fx where k in ('w1','w2','w3','leaderA');
@@ -564,6 +596,66 @@ select pg_temp.ok(
   (select role = 'arbetare' from public.account where id = (select v from fx where k='admin')),
   'I11.demote_when_not_last', 'demotion is allowed once another active admin exists');
 update public.account set role = 'admin' where id = (select v from fx where k='admin');
+
+-- ---- and "the last admin" means THIS COMPANY'S ----------------------------
+-- The guard counted every admin in the database, so a client holding one
+-- admin could lose them while the operator's two stood in, and the company
+-- was left with nobody who could administer it. Recoverable BY THE OPERATOR
+-- is not recoverable: invariant 11 is about getting back in without asking
+-- us. Counted inside the tenancy the account is leaving now.
+--
+-- Its own tenancy with its own single admin, so nothing below can be
+-- satisfied by the fixture admin above -- which is active, is an admin, and
+-- is in another company, which is exactly what the old count would have
+-- found. Written as the single writer: we are still postgres here.
+insert into public.tenant (id, name, org_nr, account_type)
+values ('77777777-7777-7777-7777-777777777777', 'Suite Klient AB', '556000-0777', 'sold');
+
+insert into auth.users (instance_id, id, aud, role, email, encrypted_password,
+                        email_confirmed_at, created_at, updated_at,
+                        raw_app_meta_data, raw_user_meta_data)
+values ('00000000-0000-0000-0000-000000000000',
+        '77777777-7777-7777-7777-77777777777a', 'authenticated', 'authenticated',
+        'i11klientadmin@suite.test', '', now(), now(), now(), '{}'::jsonb, '{}'::jsonb),
+       ('00000000-0000-0000-0000-000000000000',
+        '77777777-7777-7777-7777-77777777777b', 'authenticated', 'authenticated',
+        'i11klientadmin2@suite.test', '', now(), now(), now(), '{}'::jsonb, '{}'::jsonb);
+
+insert into public.account (id, role, active, tenant_id)
+values ('77777777-7777-7777-7777-77777777777a', 'admin', true,
+        '77777777-7777-7777-7777-777777777777');
+
+select pg_temp.rejects($$
+  update public.account set active = false
+  where id = '77777777-7777-7777-7777-77777777777a'
+$$, 'I11.last_admin_of_a_company_is_protected');
+
+-- The early exit's half of it. "Still an active admin" was true of an account
+-- MOVED to another tenancy, so the count never ran and the company being left
+-- kept nobody. Only a super admin can write this UPDATE through the app,
+-- which makes it precisely the person the guard has to be able to answer.
+select pg_temp.rejects($$
+  update public.account set tenant_id = '2f9a6d15-4c83-4e71-9a2b-5d07e3b8c164'
+  where id = '77777777-7777-7777-7777-77777777777a'
+$$, 'I11.moving_the_last_admin_out_is_refused');
+
+-- A guard, not a wall: a second admin in the same company makes room for the
+-- first to go. Without this the two above would pass against a guard that
+-- simply refused everything.
+insert into public.account (id, role, active, tenant_id)
+values ('77777777-7777-7777-7777-77777777777b', 'admin', true,
+        '77777777-7777-7777-7777-777777777777');
+
+select pg_temp.accepts($$
+  update public.account set active = false
+  where id = '77777777-7777-7777-7777-77777777777a'
+$$, 'I11.a_second_admin_here_makes_room');
+
+-- Back on: the company keeps two active admins for the notification
+-- assertions further down, which need somebody in another tenancy to NOT be
+-- told about a flagged day.
+update public.account set active = true
+where id = '77777777-7777-7777-7777-77777777777a';
 
 -- ============================================================================
 -- INVARIANT 6 -- the document cannot generate with any cell empty
@@ -2764,6 +2856,25 @@ select pg_temp.ok(
      and (n.payload->>'work_date')::date = app.stockholm_today() - 5) = 1,
   'S5C.admin_is_told', 'the admin hears about it without going to look');
 
+-- EVERY admin of the company the day belongs to, and NOBODY outside it. The
+-- fan-out selected every active admin in the database, so a client's flagged
+-- day -- its project, its date, and the admission of how it ran -- landed in
+-- the operator's notifications and in every other client's.
+select pg_temp.ok(
+  (select count(*) from public.notification n
+   where n.kind = 'day_flagged'
+     and n.account_id = (select v from fx where k = 'admin2')
+     and (n.payload->>'work_date')::date = app.stockholm_today() - 5) = 1,
+  'FLAG.notifies_this_companys_admins',
+  'the company''s other admin is told too, not only the one who did the flagging');
+
+select pg_temp.ok(
+  (select count(*) from public.notification n
+   where n.kind = 'day_flagged'
+     and n.account_id = '77777777-7777-7777-7777-77777777777a') = 0,
+  'FLAG.does_not_notify_another_company',
+  'an active admin of another company hears nothing about a day that is not theirs');
+
 -- INVARIANT 4b's last line. Not the project's other leaders, not the one who
 -- was taken off, not anyone.
 set local role authenticated;
@@ -4795,7 +4906,7 @@ insert into auth.users (instance_id, id, aud, role, email, encrypted_password,
                         raw_app_meta_data, raw_user_meta_data)
 values ('00000000-0000-0000-0000-000000000000',
         '99999999-9999-9999-9999-99999999999a', 'authenticated', 'authenticated',
-        'klientadmin@suite.test', '', now(), now(), now(), '{}'::jsonb, '{}'::jsonb),
+        'klient2admin@suite.test', '', now(), now(), now(), '{}'::jsonb, '{}'::jsonb),
        ('00000000-0000-0000-0000-000000000000',
         '99999999-9999-9999-9999-99999999999b', 'authenticated', 'authenticated',
         'klientarbetare@suite.test', '', now(), now(), now(), '{}'::jsonb, '{}'::jsonb);
