@@ -250,6 +250,15 @@ const CONTROLS = [
    "alter table public.account disable trigger account_super_admin_insert_guard",
    "TENANT.super_admin_is_not_self_service"],
 
+  ["tenant -- one company cannot hold two tenancies",
+   // Back to what create-tenant alone could promise: a SELECT then an INSERT,
+   // which two requests in the same second both pass. With the constraint gone
+   // the duplicate lands and the suite's rejects() reports a statement that was
+   // accepted and must not have been -- at this assertion and no other, since
+   // nothing else in the suite inserts a tenancy twice.
+   "alter table public.tenant drop constraint tenant_org_nr_key",
+   "TENANT.one_company_one_tenancy"],
+
   ["stage 2 -- a leader's times go to the leader's row",
    // The routing forced down the OLD path: every corrected span written to the
    // pass. The leader's own_start then never moves, which is the gap this

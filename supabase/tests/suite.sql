@@ -4788,6 +4788,35 @@ select set_config('request.jwt.claims', '{}', true);
 insert into public.tenant (id, name, org_nr, account_type)
 values ('66666666-6666-6666-6666-666666666666', 'Suite Operator AB', '556000-0666', 'owner');
 
+-- ONE COMPANY, ONE TENANCY. create-tenant asks whether a company is already
+-- here before it makes one, and answers in Swedish when it is -- but that is a
+-- SELECT followed by an INSERT, and two requests in the same second both see
+-- nothing and both write.
+--
+-- What a second tenancy costs is not a duplicate row. Every table carries
+-- tenant_id and every child derives it from its parent, so one company holding
+-- two tenancies is two disjoint worlds wearing one name: projects in one
+-- invisible from the other, staff who cannot see their colleagues' shifts, and
+-- an Arbetsdagbok that is complete and wrong because the days it is missing
+-- are in the other half. Neither half looks unhealthy from inside, which is
+-- why this has to be refused rather than detected.
+select pg_temp.rejects($rej$
+  insert into public.tenant (name, org_nr, account_type)
+  values ('Suite Operator AB, en gang till', '556000-0666', 'sold')
+$rej$, 'TENANT.one_company_one_tenancy');
+
+-- A guard, not a wall. Without this the assertion above would pass against a
+-- table that refused every insert -- including the one create-tenant makes for
+-- a company that really is new, which is the whole product's front door.
+select pg_temp.accepts($acc$
+  insert into public.tenant (name, org_nr, account_type)
+  values ('Suite Annat AB', '556000-0668', 'sold')
+$acc$, 'TENANT.a_different_org_nr_is_still_accepted');
+
+-- Straight back out. It has served its purpose, and a stray tenancy would sit
+-- under every count further down for no reason a later reader could infer.
+delete from public.tenant where org_nr = '556000-0668';
+
 insert into auth.users (instance_id, id, aud, role, email, encrypted_password,
                         email_confirmed_at, created_at, updated_at,
                         raw_app_meta_data, raw_user_meta_data)
