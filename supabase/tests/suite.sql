@@ -657,6 +657,27 @@ $$, 'I11.a_second_admin_here_makes_room');
 update public.account set active = true
 where id = '77777777-7777-7777-7777-77777777777a';
 
+-- A SHUT-DOWN ADMIN IS NOT COVER. The count reads role and active;
+-- public.account also carries deleted_at, and the two agree only because
+-- public.delete_account() writes `active = false, deleted_at = now()` in one
+-- statement. Nothing enforces that pairing, so the guard was one careless
+-- UPDATE away from accepting a removed account as the admin a company still
+-- has -- which is the exact row invariant 11 must not take as cover.
+--
+-- Set deliberately out of step, which the guard allows: this row stays an
+-- active admin of the same company, so the early exit returns before any
+-- count. That is what makes it available as false cover a moment later.
+update public.account set deleted_at = now()
+where id = '77777777-7777-7777-7777-77777777777b';
+
+select pg_temp.rejects($rej$
+  update public.account set active = false
+  where id = '77777777-7777-7777-7777-77777777777a'
+$rej$, 'I11.a_shut_down_admin_is_not_cover');
+
+update public.account set deleted_at = null
+where id = '77777777-7777-7777-7777-77777777777b';
+
 -- ============================================================================
 -- INVARIANT 6 -- the document cannot generate with any cell empty
 -- ============================================================================
@@ -5153,6 +5174,122 @@ select pg_temp.rejects($rej$
   select public.enter_tenant('99999999-9999-9999-9999-999999999999')
 $rej$, 'SUPER.only_a_super_admin_can_enter');
 
+reset role;
+
+
+-- ============================================================================
+-- EXPIRY -- a demo that has run out is shut, and can still be told why
+--
+-- tenant.expires_at was carried from M1 and read by nothing: the operator's
+-- list printed "Går ut" and the customer went on working past the date. M3
+-- enforces it in app.current_tenant_id(), which is the one place all 34
+-- policies narrow through -- so the whole database closes at once rather than
+-- table by table.
+--
+-- Three things have to be true at the same time, and only the first is
+-- obvious. It must SHUT (nothing readable). It must not shut anybody whose
+-- date has not arrived, or the clause is testing the column's existence rather
+-- than the date in it. And a shut tenancy must still be able to find out WHY,
+-- because an app that has silently emptied is indistinguishable from a broken
+-- one -- that is what public.tenant_status() is for, and it is the only thing
+-- in this file that deliberately answers from outside the isolation.
+-- ============================================================================
+
+reset role;
+select set_config('request.jwt.claims', '{}', true);
+
+-- account_type 'demo' is the one that MUST carry a date -- M1's check
+-- constraint says so -- which makes it the honest fixture for this.
+insert into public.tenant (id, name, org_nr, account_type, expires_at)
+values ('88888888-8888-8888-8888-888888888888', 'Suite Utgangen AB', '556000-0088',
+        'demo', now() - interval '1 day');
+
+insert into auth.users (instance_id, id, aud, role, email, encrypted_password,
+                        email_confirmed_at, created_at, updated_at,
+                        raw_app_meta_data, raw_user_meta_data)
+values ('00000000-0000-0000-0000-000000000000',
+        '88888888-8888-8888-8888-88888888888a', 'authenticated', 'authenticated',
+        'utgangen@suite.test', '', now(), now(), now(), '{}'::jsonb, '{}'::jsonb);
+
+insert into public.account (id, role, active, tenant_id)
+values ('88888888-8888-8888-8888-88888888888a', 'admin', true,
+        '88888888-8888-8888-8888-888888888888');
+
+insert into public.project (id, tenant_id, name, site_address, bestallare_address,
+                            bestallare_bolag, bestallare_orgnr, services, start_date)
+values ('88888888-0000-0000-0000-0000000000aa', '88888888-8888-8888-8888-888888888888',
+        'Utgangna projektet', 'Gata 88', 'Kund 88', 'Bolag AB', '556000-0088',
+        'Bygg', app.stockholm_today());
+
+-- ---- their own admin, the morning after --------------------------------
+set local role authenticated;
+select pg_temp.act_as('88888888-8888-8888-8888-88888888888a');
+
+-- Not "their project is invisible" -- EVERY project is. current_tenant_id()
+-- returns NULL, in_tenant() coalesces that to false, and there is no row in
+-- any tenancy this account can now reach.
+select pg_temp.ok(
+  (select count(*) from public.project) = 0,
+  'EXPIRY.an_expired_tenancy_is_shut',
+  'a tenancy past its date reads nothing, including its own');
+
+-- The claim the migration header makes, asserted rather than assumed: M2a
+-- hoisted `id = auth.uid()` outside the tenant clause, so the app can still
+-- tell them who they are while telling them they are out. Without this the
+-- lockout screen would not know whose name to put on it.
+select pg_temp.ok(
+  (select count(*) from public.account
+    where id = '88888888-8888-8888-8888-88888888888a') = 1,
+  'EXPIRY.you_can_still_be_told_who_you_are',
+  'your own account row is yours even when your company has run out');
+
+-- The way out of an empty screen. public.tenant is closed to them like
+-- everything else, so this is the only route to the sentence the app owes
+-- them.
+select pg_temp.ok(
+  (select expired from public.tenant_status()) is true,
+  'EXPIRY.it_can_still_be_told_why',
+  'a shut tenancy must be able to learn that it is shut, not merely be empty');
+
+-- ---- a date that has not arrived is not a lockout --------------------------
+--
+-- Without this, a clause that closed every tenancy carrying a date at all --
+-- which is every demo the product has ever sold -- would pass everything
+-- above.
+reset role;
+update public.tenant set expires_at = now() + interval '7 days'
+where id = '99999999-9999-9999-9999-999999999999';
+
+set local role authenticated;
+select pg_temp.act_as('99999999-9999-9999-9999-99999999999a');
+
+select pg_temp.ok(
+  (select count(*) from public.project
+    where id = '99999999-0000-0000-0000-0000000000aa') = 1,
+  'EXPIRY.a_date_in_the_future_is_not_a_lockout',
+  'a demo with time left on it is an ordinary tenancy');
+
+reset role;
+update public.tenant set expires_at = null
+where id = '99999999-9999-9999-9999-999999999999';
+
+-- ---- the operator is exempt, on purpose ------------------------------------
+--
+-- The sentence the customer reads says to contact us. An operator who cannot
+-- get in to renew them, or to see what they have, makes that instruction
+-- impossible to follow -- so the expiry sits only on the branch that reads the
+-- caller's OWN tenancy, and never on the one they entered.
+set local role authenticated;
+select pg_temp.act_as('66666666-6666-6666-6666-66666666666a');
+select public.enter_tenant('88888888-8888-8888-8888-888888888888');
+
+select pg_temp.ok(
+  (select count(*) from public.project
+    where tenant_id = '88888888-8888-8888-8888-888888888888') = 1,
+  'EXPIRY.the_operator_can_still_get_in',
+  'expiry closes a tenancy to its own people, not to the people it contacts');
+
+select public.exit_tenant();
 reset role;
 
 

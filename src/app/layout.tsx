@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import { AuthProvider } from "@/lib/supabase/auth";
 import { AccountProvider } from "@/lib/account";
 import { AgerarBanner } from "@/components/agerar-banner";
+import { Utgangen } from "@/components/utgangen";
 import "./globals.css";
 
 /**
@@ -70,9 +71,15 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
               tenancy must be able to leave from wherever they got to, and a
               Lämna button that only exists on the page they entered from is
               one they cannot reach. It renders nothing when nobody is acting. */}
+          {/* Utgangen wraps rather than sits beside, because a tenancy past
+              its date has to be REPLACED rather than annotated -- the screens
+              underneath are not wrong, they are empty, and an empty app with a
+              banner over it still reads as a fault. The banner stays outside
+              it: an operator acting in an expired client is not locked out,
+              and must be able to leave from here like anywhere else. */}
           <AccountProvider>
             <AgerarBanner />
-            {children}
+            <Utgangen>{children}</Utgangen>
           </AccountProvider>
         </AuthProvider>
       </body>

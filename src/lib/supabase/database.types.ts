@@ -2144,6 +2144,16 @@ export type Database = {
       }
       swap_leaders: { Args: { p_a: string; p_b: string }; Returns: undefined }
       swap_partners: { Args: { p_tilldelning: string }; Returns: Json }
+      tenant_status: {
+        Args: never
+        Returns: {
+          account_type: Database["public"]["Enums"]["tenant_account_type"]
+          expired: boolean
+          expires_at: string
+          name: string
+          tenant_id: string
+        }[]
+      }
     }
     Enums: {
       app_role: "admin" | "arbetsledare" | "arbetare"

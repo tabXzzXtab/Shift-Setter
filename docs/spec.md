@@ -801,6 +801,72 @@ These are the ones worth a buzz: a shift you could take and somebody else will i
 
 ---
 
+## 6c. Tenancy — one company, one world
+
+The product is sold to construction companies and operated by Korperation. Both
+live in the same database, so "whose row is this" is a question every read and
+every write has to answer.
+
+**A tenancy is a company.** `public.tenant` holds one row per company, with an
+`account_type` of `owner` (Korperation, who operate the product), `sold` (a
+paying customer) or `demo` (a trial). Every one of the 19 tables under RLS
+carries `tenant_id`, and **a child derives its tenancy from its parent, never
+from whoever wrote it** — a shift on a client's project belongs to that client
+even when an operator created it. Getting that backwards is what made every
+admin write fail on a composite key the first time it was tried.
+
+**`org_nr` is unique.** One company cannot hold two tenancies. The onboarding
+function checks first so the ordinary mistake — onboarding a customer somebody
+already onboarded — reads as a Swedish sentence rather than a second company;
+the constraint is what makes that answer true when two requests arrive in the
+same second. Two tenancies for one company would be two disjoint worlds wearing
+one name: staff who cannot see their colleagues' shifts, and an Arbetsdagbok
+that is complete and wrong because the days it is missing are in the other half.
+Neither half would look unhealthy from inside.
+
+**Isolation is enforced in the database, not the interface.** Every policy is
+wrapped in `app.in_tenant()`, which narrows to `app.current_tenant_id()`. The
+SECURITY DEFINER functions, which no policy can reach inside, check the tenancy
+of the row they are handed. The views that run as their owner carry the
+predicate themselves.
+
+**Korperation's super admins see across tenancies, and enter one on purpose.**
+A super admin who has not entered a tenancy sees them all; entering narrows the
+database, not merely the screen, and a banner says which company they are
+standing in until they leave. This is bounded by the switcher rather than
+hidden behind a role test that looks like something else.
+
+### The trial runs out
+
+A `demo` tenancy carries a date. **On that date the tenancy closes**, and it
+closes in `app.current_tenant_id()` — the one place all 34 policies narrow
+through — so the whole database shuts at once rather than table by table. The
+function returns NULL, `app.in_tenant()` coalesces that to false, and there is
+nothing left to read. A tenancy with no date never expires, which is what every
+paying customer and Korperation's own carry.
+
+**It shuts; it does not error.** Nothing is raised, so the customer's screens do
+not fill with refusals — they simply empty. That is why `public.tenant_status()`
+exists: it answers *whose am I and has it run out* from outside RLS, so the app
+can say **"Din provperiod har gått ut. Kontakta oss för att fortsätta använda
+ByggKoll."** instead of drawing a blank app. An app that has silently emptied is
+indistinguishable from one that has broken, and sends the customer to support
+instead of to us. Reading your own account row also still works, so the screen
+can use the company's name.
+
+**An operator is never locked out by a customer's date.** The expiry sits only
+on the branch that reads the caller's own tenancy, never on the one a super
+admin has entered. The sentence tells the customer to contact us; an operator
+who could not then get in to renew them, or to see what they have, would make
+that instruction impossible to follow.
+
+**Invariant 11 counts inside the company.** The last active admin of a *tenancy*
+cannot be removed, demoted, paused, or moved to another tenancy — and an
+account that has been shut down does not count as one a company still has.
+Korperation's admins are not cover for a client's: being recoverable by the
+operator is not being recoverable, and the invariant is about getting back in
+without asking us.
+
 ## 7. Landing pages and navigation
 
 Each role lands on what it does most, and nothing important is more than one press away.

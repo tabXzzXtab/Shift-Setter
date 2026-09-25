@@ -250,6 +250,33 @@ const CONTROLS = [
    "alter table public.account disable trigger account_super_admin_insert_guard",
    "TENANT.super_admin_is_not_self_service"],
 
+  ["expiry -- a demo that has run out is shut",
+   // The clause removed from the one place every policy narrows through. With
+   // it gone the tenancy reads exactly as it did the day before its date, which
+   // is the state that existed until M3: expires_at printed on the operator's
+   // list and enforced nowhere.
+   perturbIn("app.current_tenant_id()",
+             "        and (tn.expires_at is null or tn.expires_at > now())",
+             "        and true"),
+   "EXPIRY.an_expired_tenancy_is_shut"],
+
+  ["expiry -- a shut tenancy can still learn that it is shut",
+   // tenant_status() made to answer for nobody. The lockout still happens --
+   // the assertion above is untouched -- but the app has no way to tell a
+   // tenancy that has run out from a product that has broken, which is the
+   // difference between a bill and a support call.
+   perturbIn("public.tenant_status()",
+             "   where a.id = (select auth.uid())",
+             "   where a.id = (select auth.uid()) and false"),
+   "EXPIRY.it_can_still_be_told_why"],
+
+  ["invariant 11 -- a shut-down admin is not cover",
+   // deleted_at dropped from the count, so an account that was removed from
+   // the product counts as the admin a company still has.
+   perturbIn("app.tg_last_admin_guard()",
+             "    and a.deleted_at is null\n", ""),
+   "I11.a_shut_down_admin_is_not_cover"],
+
   ["tenant -- one company cannot hold two tenancies",
    // Back to what create-tenant alone could promise: a SELECT then an INSERT,
    // which two requests in the same second both pass. With the constraint gone

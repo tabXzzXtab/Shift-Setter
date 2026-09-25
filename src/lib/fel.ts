@@ -260,6 +260,13 @@ const TABLE: [string, string][] = [
    + "sluttiden efter starttiden."],
   ["personal_event_colour_in_palette", "Den färgen finns inte. Välj en av de åtta."],
 
+  // One company, one tenancy. Above the generic duplicate-key line, which
+  // would otherwise answer "Det finns redan en post med de uppgifterna" to a
+  // salesperson onboarding a customer -- true, and no use at all. create-tenant
+  // says this in its own words in the ordinary case; this is the sentence for
+  // the race it cannot win, where the constraint is what refuses.
+  ["tenant_org_nr_key", "Det finns redan ett företag med det organisationsnumret."],
+
   // ---- generic Postgres, last ---------------------------------------------
   ["duplicate key value", "Det finns redan en post med de uppgifterna."],
   ["violates foreign key constraint", "Något det här hänger ihop med finns inte längre. Ladda om sidan."],
@@ -276,6 +283,26 @@ const TABLE: [string, string][] = [
  * inte skapas. Kontakta administratören." It is not a default to be shared;
  * a screen that cannot say which act failed has not been given one.
  */
+/**
+ * What a tenancy that has run out is told.
+ *
+ * A CONSTANT RATHER THAN A TABLE ROW, and the difference is the point. Every
+ * other sentence in this file translates something Postgres RAISED. Expiry
+ * raises nothing: app.current_tenant_id() returns NULL, in_tenant() coalesces
+ * that to false, and the tenancy simply reads empty. There is no error text to
+ * match on, so a matcher here would be a line that can never fire.
+ *
+ * It lives in this file anyway because this is where the app keeps what it
+ * says when it turns somebody away, and a sentence about money kept in a
+ * component is one nobody else can find. <Utgangen> imports it.
+ *
+ * "Kontakta oss" is the operator, which is why a super admin who has entered a
+ * client keeps their access past the date -- the instruction has to be
+ * followable from the other end.
+ */
+export const UTGANGEN =
+  "Din provperiod har gått ut. Kontakta oss för att fortsätta använda ByggKoll.";
+
 export function fel(error: unknown, fallback: string): string {
   const raw = textOf(error as Felkalla).trim();
   if (raw === "") return fallback;
