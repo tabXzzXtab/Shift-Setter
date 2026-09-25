@@ -191,13 +191,60 @@ const CONTROLS = [
    "TENANT.rejects_a_forged_tenant"],
 
   ["tenant -- a notification belongs to the person being told",
-   // Same shape as the first, on the other parent kind: derived from the
-   // recipient's account rather than from a project. Without it the operator's
-   // own tenancy is stamped on a message to somebody else's worker.
-   "alter table public.notification disable trigger aa_tenant_from_parent; " +
-   "alter table public.notification alter column tenant_id set default app.current_tenant_id(); " +
-   "alter table public.notification drop constraint notification_tenant_matches_account",
+   // Same shape as derives_from_parent, on the other parent kind: a
+   // notification takes its tenant from the RECIPIENT's account, not from a
+   // project. Without it the operator's own tenancy is stamped on a message to
+   // somebody else's worker.
+   //
+   // PERTURBED IN THE FUNCTION, NOT BY DISABLING IT. This used to disable the
+   // trigger and put app.current_tenant_id() on the column as a default, which
+   // worked only while notifications were written during ASSERTIONS. The push
+   // dispatch made them a fixture-time event too -- notify_shift_offered fires
+   // on every tilldelning insert, and the fixtures create six. Fixture setup
+   // runs with no acting user, so the default evaluated to NULL and the suite
+   // died on notification's not-null tenant_id long before reaching this
+   // assertion. It went RED reporting a constraint, not a leak.
+   //
+   // coalesce keeps the fixtures alive -- with no auth the derivation is
+   // unchanged -- and changes the answer only for a caller who HAS a tenant of
+   // their own and is writing to somebody else's account. That is the one case
+   // this assertion is about. The same reason derives_from_parent is written
+   // this way, arrived at the same way: by a control that failed somewhere else.
+   async (client) => {
+     const def = await perturbIn(
+       "app.tg_tenant_from_parent()",
+       "  new.tenant_id := v_tenant;",
+       "  new.tenant_id := case when v_parent = 'account' then coalesce(app.current_tenant_id(), v_tenant) else v_tenant end;")(client);
+     // SCOPED TO ACCOUNT-PARENTED ROWS, or this control cannot be reached.
+     // tg_tenant_from_parent serves every child table, so perturbing it
+     // wholesale is the same change TENANT.derives_from_parent already tests --
+     // and that assertion sits earlier in the suite, so the run failed there
+     // and never arrived here. Narrowing it to v_parent = 'account' leaves the
+     // project-parented tables deriving correctly, lets derives_from_parent
+     // pass on its own terms, and breaks exactly the path a notification takes.
+     return def +
+       '; alter table public.notification drop constraint notification_tenant_matches_account';
+   },
    "TENANT.notification_follows_the_recipient"],
+
+  ["push -- a worker placed by somebody else is told",
+   // The whole trigger removed. Without it a worker is put on a shift and
+   // nothing reaches them -- which is the state this system was in before the
+   // dispatch existed, and it looked exactly like working software.
+   "drop trigger notify_shift_offered on public.tilldelning",
+   "PUSH.a_placed_worker_is_told"],
+
+  ["push -- booking yourself is not announced back to you",
+   // The filter widened to the bare <> 'ledare' it nearly shipped as. Every
+   // other source stays notified, so the suite gets no further than the one
+   // assertion that distinguishes them: 'oppen' is the worker tapping Boka
+   // Pass, and a phone buzzing to report what you just did is a system that
+   // is not paying attention.
+   "drop trigger notify_shift_offered on public.tilldelning; " +
+   "create trigger notify_shift_offered after insert on public.tilldelning " +
+   "for each row when (new.source <> 'ledare') " +
+   "execute function app.tg_notify_shift_offered()",
+   "PUSH.self_booking_is_not_announced"],
 
   ["tenant -- a super admin cannot be minted from inside the app",
    "alter table public.account disable trigger account_super_admin_insert_guard",

@@ -5016,4 +5016,68 @@ $rej$, 'SUPER.only_a_super_admin_can_enter');
 reset role;
 
 
+-- ============================================================================
+-- PUSH -- the notification dispatch
+--
+-- The dispatch itself cannot be asserted from here: net.http_post enqueues,
+-- delivery happens in a background worker outside this transaction, and every
+-- run is rolled back. What IS assertable is the part that decides WHO gets
+-- told and WHETHER, which is where the judgement lives -- the HTTP call is
+-- plumbing underneath it.
+-- ============================================================================
+reset role;
+
+-- Far enough out that nothing else in the suite holds these workers that day.
+-- Invariant 2 compares real timestamps, so a collision here would fail as an
+-- overlap and say nothing about push.
+insert into public.pass (id, project_id, work_date, start_time, end_time,
+                         planned_hours, headcount, created_by)
+values ('7b000000-0000-0000-0000-00000000000a',
+        'aaaaaaaa-0000-0000-0000-00000000000a', app.stockholm_today() + 300,
+        '08:00', '16:00', 7.5, 4, (select v from fx where k = 'admin')),
+       ('7b000000-0000-0000-0000-00000000000b',
+        'aaaaaaaa-0000-0000-0000-00000000000a', app.stockholm_today() + 301,
+        '08:00', '16:00', 7.5, 4, (select v from fx where k = 'admin'));
+
+-- SOMEBODY ELSE PUTTING A WORKER ON A SHIFT TELLS THEM.
+insert into public.tilldelning (pass_id, worker_id, source, work_date)
+values ('7b000000-0000-0000-0000-00000000000a',
+        (select id from public.worker where account_id = (select v from fx where k = 'w1')),
+        'manuell', app.stockholm_today() + 300);
+
+select pg_temp.ok(
+  exists (select 1 from public.notification n
+           where n.account_id = (select v from fx where k = 'w1')
+             and n.kind = 'shift_offered'
+             and n.payload ->> 'pass_id' = '7b000000-0000-0000-0000-00000000000a'),
+  'PUSH.a_placed_worker_is_told',
+  'a worker placed by somebody else gets a shift_offered notification');
+
+-- AND IT GOES TO THE RIGHT TENANCY -- derived from the recipient, never the
+-- writer. This is the push side of TENANT.notification_follows_the_recipient:
+-- the trigger passes no tenant_id at all and lets the parent rule fill it.
+select pg_temp.ok(
+  (select n.tenant_id from public.notification n
+    where n.account_id = (select v from fx where k = 'w1')
+      and n.payload ->> 'pass_id' = '7b000000-0000-0000-0000-00000000000a')
+  = (select a.tenant_id from public.account a
+      where a.id = (select v from fx where k = 'w1')),
+  'PUSH.the_notification_belongs_to_the_worker_told');
+
+-- BOOKING YOURSELF DOES NOT. 'oppen' is the worker tapping Boka Pass; they
+-- watched the screen confirm it a moment ago and do not need their own phone
+-- to announce it back to them.
+insert into public.tilldelning (pass_id, worker_id, source, work_date)
+values ('7b000000-0000-0000-0000-00000000000b',
+        (select id from public.worker where account_id = (select v from fx where k = 'w2')),
+        'oppen', app.stockholm_today() + 301);
+
+select pg_temp.ok(
+  not exists (select 1 from public.notification n
+               where n.account_id = (select v from fx where k = 'w2')
+                 and n.kind = 'shift_offered'
+                 and n.payload ->> 'pass_id' = '7b000000-0000-0000-0000-00000000000b'),
+  'PUSH.self_booking_is_not_announced',
+  'a worker who booked themselves is not told they were given a pass');
+
 select pg_temp.ok(true, 'SUITE.complete', 'every assertion passed');
