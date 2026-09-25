@@ -96,11 +96,18 @@ for (let round = 1; round <= ROUNDS; round++) {
 
   const winners = [ra.error ? null : "A", rb.error ? null : "B"].filter(Boolean);
 
+  // COUNT WHAT THE GUARD COUNTS. app.tg_headcount_guard() measures the slots
+  // against `source <> 'ledare'`, because invariant 2 exempts an auto-assigned
+  // arbetsledare -- their row rides along on a pass whose seats are all taken
+  // by arbetare. Counting every row instead made a correctly refused race look
+  // like an overfilled pass the moment a leader happened to be placed on the
+  // day, which is why this failed intermittently and only ever after round 1.
   const { count } = await admin
     .from("tilldelning")
     .select("id", { count: "exact", head: true })
     .eq("pass_id", pass.id)
-    .is("released_at", null);
+    .is("released_at", null)
+    .neq("source", "ledare");
 
   if (winners.length !== 1) {
     fail(
