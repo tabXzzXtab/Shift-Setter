@@ -115,8 +115,20 @@ async function createPerson(page, name, email, role) {
 
   // Kopiera Inloggning gates Tillverka Arbetare: an account whose credentials
   // nobody holds is an account nobody can use.
+  // THE GATE IS THE PRESS, not a disabled attribute. ny-arbetare keeps this
+  // button pressable deliberately and refuses in words when the login has not
+  // been copied -- a control that silently ignores a press reads as a broken
+  // app, so it says why instead. Asserting on `disabled` was asserting on the
+  // older design; this asserts on the guarantee, which is that no account is
+  // made until somebody is holding the credentials.
   const create = page.getByRole("button", { name: "Tillverka arbetare" });
-  if (await create.isEnabled()) fail(`"Tillverka arbetare" was pressable before the login was copied`);
+  await create.click();
+  try {
+    await page.getByText("Kopiera inloggningen först", { exact: false })
+      .first().waitFor({ timeout: 10000 });
+  } catch {
+    fail(`"Tillverka arbetare" said nothing when pressed before the login was copied`);
+  }
 
   await page.getByRole("button", { name: /Kopiera inloggning/ }).click();
   const block = await page.locator("[data-credentials]").first().innerText();

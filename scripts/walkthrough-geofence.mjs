@@ -135,6 +135,36 @@ async function markDay(page, date) {
 const stampButton = (page) =>
   page.locator("button").filter({ hasText: /Stämpla In|Stämpla Ut|Söker plats…|Stämplar…/ }).first();
 
+/**
+ * Stamped in, as the redesigned screen says it.
+ *
+ * "Du är instämplad." was a sentence on the old worker home, and e3630ed
+ * removed it when that screen became the handoff's. The STATE IS THE CONTROL
+ * now: the button offers Stämpla Ut once you are in, and the dot beside it
+ * carries the word for a screen reader. Asserting on the button asserts on the
+ * thing a worker actually presses, which cannot drift from the copy again.
+ */
+async function mustBeStampedIn(page, why) {
+  try {
+    await page.getByRole("button", { name: "Stämpla Ut", exact: true })
+      .first().waitFor({ timeout: 20000 });
+  } catch {
+    await shot(page, "FAILED");
+    fail(`${why} (the button never offered "Stämpla Ut"; see artifacts/FAILED.png)`);
+  }
+}
+
+/** The opposite claim: nothing was written, the shift is still not stamped in. */
+async function mustNotBeStampedIn(page, why) {
+  try {
+    await page.getByRole("button", { name: "Stämpla In", exact: true })
+      .first().waitFor({ timeout: 20000 });
+  } catch {
+    await shot(page, "FAILED");
+    fail(`${why} (the button no longer offers "Stämpla In"; see artifacts/FAILED.png)`);
+  }
+}
+
 const browser = await chromium.launch();
 
 // SITE is the coordinate Nominatim gives for Bruksgatan in Hörby; FAR is put
@@ -222,11 +252,11 @@ try {
     await signIn(page, W.email, W.password);
     await stampButton(page).waitFor({ timeout: 20000 });
     await stampButton(page).click();
-    await mustSee(page, "Du är instämplad.",
+    await mustBeStampedIn(page,
       "GEOFENCE_ENABLED is false, so a stamp from 50 km away must go through -- " +
       "if this is now blocked the flag was turned back on and this walkthrough " +
       "needs to go back to asserting the three refusal paths");
-    const parked = await page.locator("main").innerText();
+    const parked = await page.locator("body").innerText();
     if (/för långt från arbetsplatsen|tillåta platsdelning/.test(parked)) {
       await shot(page, "FAILED");
       fail("the fence refused a stamp while GEOFENCE_ENABLED is false");
@@ -248,11 +278,7 @@ try {
     log("with location refused the stamp is blocked, and says why");
 
     // Nothing was written: the button still offers to stamp IN.
-    const afterDenied = await page.locator("main").innerText();
-    if (!afterDenied.includes("Du har inte stämplat in.")) {
-      await shot(page, "FAILED");
-      fail(`a blocked stamp still wrote something: ${JSON.stringify(afterDenied.slice(0, 200))}`);
-    }
+    await mustNotBeStampedIn(page, "a blocked stamp still wrote something");
     log("and nothing was written -- the shift is still not stamped in");
 
     // ---- 2. allowed, but far away -------------------------------------------
@@ -265,7 +291,7 @@ try {
     await mustSee(page, "Du måste vara inom 4 km för att stämpla in.",
       "the refusal does not state the rule");
 
-    const far = await page.locator("main").innerText();
+    const far = await page.locator("body").innerText();
     const km = /för långt från arbetsplatsen \((\d+[.,]\d) km\)/.exec(far)?.[1];
     if (!km) fail(`the refusal does not name a distance: ${JSON.stringify(far.slice(0, 300))}`);
     if (Number(km.replace(",", ".")) < 10) {
@@ -274,15 +300,13 @@ try {
     await shot(page, "gf2-for-langt");
     log(`from 50 km away the stamp is blocked and the message names the distance (${km} km)`);
 
-    if (!far.includes("Du har inte stämplat in.")) {
-      fail("a stamp blocked by distance still wrote something");
-    }
+    await mustNotBeStampedIn(page, "a stamp blocked by distance still wrote something");
 
     // ---- 3. on the site -----------------------------------------------------
     await ctx.setGeolocation(SITE);
     await page.reload({ waitUntil: "networkidle" });
     await stampButton(page).click();
-    await mustSee(page, "Du är instämplad.", "a stamp from the site was blocked");
+    await mustBeStampedIn(page, "a stamp from the site was blocked");
     await shot(page, "gf3-instamplad");
     log("standing on the site the stamp goes through, unchanged");
 
@@ -297,10 +321,7 @@ try {
     await stampButton(page).click();
     await mustSee(page, "Du är för långt från arbetsplatsen",
       "Stämpla Ut is not gated; someone could stamp out from home");
-    const stillIn = await page.locator("main").innerText();
-    if (!stillIn.includes("Du är instämplad.")) {
-      fail("a blocked Stämpla Ut still wrote something");
-    }
+    await mustBeStampedIn(page, "a blocked Stämpla Ut still wrote something");
     await shot(page, "gf4-ut-nekad");
     log("Stämpla Ut is gated too -- the drive home is not the end of the shift");
 

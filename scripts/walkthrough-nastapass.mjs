@@ -138,7 +138,11 @@ async function makePass(page, project, date, pick, start, end) {
  * before that is reading a frame the app never meant to show.
  */
 async function cardText(page, until) {
-  const card = page.locator("h2:text-is('Nästa Pass')").locator("xpath=..");
+  // A SectionLabel div, not an h2 -- the handoff's section headings are styled
+  // text rather than headings, uppercased in CSS so the DOM still reads
+  // "Nästa Pass". Matched on the text and taken to its parent, the same shape
+  // as before and no longer tied to a tag the redesign stopped emitting.
+  const card = page.getByText("Nästa pass", { exact: true }).first().locator("xpath=..");
   await card.waitFor({ timeout: 20000 });
   for (let i = 0; i < 40; i++) {
     const text = await card.innerText();

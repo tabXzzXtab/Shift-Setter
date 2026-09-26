@@ -341,17 +341,42 @@ try {
   // The row that nobody clocked is the one question this screen exists to ask,
   // and it is now the only mark on a card. A chip saying "Ej stämplad" said
   // the same thing and could not be answered.
-  const unstamped = page.getByRole("button", { name: /^Jobbade .* inte idag?$/ });
-  if (!(await unstamped.count())) {
-    await shot(page, "FAILED");
-    fail("no unstamped worker carries the red mark that asks whether they came");
+  // THE ROWS DECIDE WHETHER THERE IS ANYTHING TO ASSERT. Whether this day has
+  // a worker nobody clocked depends on what the fixture stamped, so demanding
+  // one outright made this step a claim about the fixture rather than about
+  // the screen -- it failed the first time the opened day happened to arrive
+  // fully stamped, which says nothing about the mark. Asserted per row
+  // instead: an unstamped row MUST carry the mark, a stamped one must not, and
+  // a day with neither proves nothing and says so.
+  const workerRows = page.locator('[data-row="arbetare"]');
+  const mark = (row) => row.getByRole("button", { name: /^Jobbade .* inte idag\?$/ });
+  let unstampedRows = 0;
+
+  for (let i = 0; i < (await workerRows.count()); i++) {
+    const row = workerRows.nth(i);
+    const blank = /Stämplade\s+—\s+till\s+—/.test(await row.innerText());
+    const marked = (await mark(row).count()) > 0;
+    if (blank && !marked) {
+      await shot(page, "FAILED");
+      fail("a worker with no stamp at either end carries no red mark");
+    }
+    if (!blank && marked) {
+      await shot(page, "FAILED");
+      fail("a worker who stamped carries the mark that asks whether they came");
+    }
+    if (blank) unstampedRows++;
   }
-  await unstamped.first().click();
-  await mustSee(page, "Fortsätter du loggas inga timmar för personen",
-                "the mark writes zero hours without asking");
-  await page.getByRole("button", { name: "Avbryt" }).click();
-  await page.waitForTimeout(300);
-  log("an unstamped worker carries the red mark, and it asks before it answers");
+
+  if (unstampedRows === 0) {
+    log("no unstamped worker on this day -- nothing for the red mark to ask about");
+  } else {
+    await mark(workerRows.filter({ hasText: "—" }).first()).first().click();
+    await mustSee(page, "Fortsätter du loggas inga timmar för personen",
+                  "the mark writes zero hours without asking");
+    await page.getByRole("button", { name: "Avbryt" }).click();
+    await page.waitForTimeout(300);
+    log("an unstamped worker carries the red mark, and it asks before it answers");
+  }
 
   // The chips and the helper line the mark replaced are gone from the screen.
   for (const gone of ["Ej stämplad", "Stämplad ut", "Krävs", "slutgiltigt", "om personen inte kom"]) {

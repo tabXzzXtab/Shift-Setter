@@ -111,7 +111,12 @@ async function markDay(page, date) {
 
 /** This run's pass card in Alla Pass, scoped to the project name. */
 const passCard = (page, project) =>
-  page.locator("div.border-2").filter({ hasText: project }).first();
+  // data-pass, not a class: border-2 belonged to the black-and-white design
+  // and appears nowhere in src/ since the ByggKoll handoff landed. The hook is
+  // structural rather than the button this scopes, because two callers assert
+  // the button is ABSENT -- a locator that required it would find nothing and
+  // pass those checks by being empty.
+  page.locator("[data-pass]").filter({ hasText: project }).first();
 
 const browser = await chromium.launch();
 const ctx = await browser.newContext({
