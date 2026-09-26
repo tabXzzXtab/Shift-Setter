@@ -108,6 +108,59 @@ select line from (
     from pg_class c
     join pg_namespace n on n.oid = c.relnamespace
    where n.nspname in ('app','public') and c.relkind = 'v'
+
+  -- A FUNCTION'S ATTRIBUTES, WHICH SECTION 8 DOES NOT RECORD.
+  --
+  -- Section 8 md5s p.prosrc, and prosrc IS the body -- the text between the
+  -- dollar quotes. So a rewritten body has always been caught, and the story
+  -- that migrations landed unseen because bodies were untracked is not what
+  -- happened. What prosrc does not contain is everything AROUND the body, and
+  -- that is where this project keeps its guarantees:
+  --
+  --   SECURITY DEFINER   the difference between a function that reaches past
+  --                      RLS and one that does not. app.confirms_project(),
+  --                      app.in_tenant(), public.delete_pass() and 20-odd
+  --                      others are only correct because they are DEFINER.
+  --   search_path        "set search_path = ''" on every DEFINER function is
+  --                      what stops a caller shadowing "public" with their own
+  --                      schema and having the owner run it. Dropping it is a
+  --                      privilege escalation that does not touch one line of
+  --                      the body.
+  --   volatility         a STABLE guard silently turned VOLATILE changes when
+  --                      the planner calls it, and an IMMUTABLE one that reads
+  --                      a table can be evaluated once and cached wrongly.
+  --   return type        a boolean guard made to return NULL instead of false
+  --                      is gotcha 3 in CLAUDE.md, arriving by signature.
+  --
+  -- Flip any of those and section 8's md5 does not move by one character. That
+  -- is the actual blind spot, and it is the same shape as the view one that
+  -- 2abf8ff closed: not the code, but the setting the code is trusted under.
+  --
+  -- pg_get_functiondef is the whole CREATE statement, so its md5 covers the
+  -- body as well -- deliberately redundant with section 8 rather than replacing
+  -- it. Keeping both is what makes a drift report legible: section 8 moving
+  -- says the body changed, section 11 moving alone says only the attributes
+  -- did, and that second case is the one nobody would otherwise look for.
+  -- The four fields are spelled out beside the hash for the same reason
+  -- security_invoker is spelled out in section 10 -- so the report NAMES the
+  -- change instead of announcing that some hash differs.
+  --
+  -- prokind is filtered to plain functions because pg_get_functiondef raises
+  -- on an aggregate or a window function. All 275 here are 'f' today; the
+  -- filter is so that adding one later fails the check rather than the query.
+  union all
+  select 11, format('funcdef %s.%s(%s) security=%s volatile=%s config=%s returns=%s md5=%s',
+           n.nspname, p.proname, pg_get_function_identity_arguments(p.oid),
+           case when p.prosecdef then 'definer' else 'invoker' end,
+           case p.provolatile when 'i' then 'immutable'
+                              when 's' then 'stable'
+                              else 'volatile' end,
+           coalesce(array_to_string(p.proconfig, ','), '-'),
+           pg_get_function_result(p.oid),
+           md5(pg_get_functiondef(p.oid)))
+    from pg_proc p
+    join pg_namespace n on n.oid = p.pronamespace
+   where n.nspname in ('app','public') and p.prokind = 'f'
 ) s
 order by sect, line;
 `;

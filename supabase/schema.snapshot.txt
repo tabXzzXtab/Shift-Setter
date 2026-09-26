@@ -1124,3 +1124,278 @@ view   public.my_shift security_invoker=false md5=5e33783e05b0583d541a59bef0d07f
 view   public.open_pass security_invoker=false md5=af584052dfd1a14f70d18749ae0e4fee
 view   public.project_hours security_invoker=false md5=9d8c9d237f12fc17116d5ccd39543c37
 view   public.worker_roster security_invoker=false md5=a717a3cc83c903a02cdee02ae2d8b075
+funcdef app.confirms_project(p_project uuid, p_work_date date) security=definer volatile=stable config=search_path="" returns=boolean md5=41b2ca01ad67b6bf00c772b49f0c479b
+funcdef app.created_project(p_project uuid) security=definer volatile=stable config=search_path="" returns=boolean md5=d97361c93a4212da75f547850615f611
+funcdef app.current_role() security=definer volatile=stable config=search_path="" returns=app_role md5=492215fe7393e33c1e4cb1fa4bf1468b
+funcdef app.current_tenant_id() security=definer volatile=stable config=search_path="" returns=uuid md5=da46801280c8ecedc8310df4000ed47c
+funcdef app.current_worker_id() security=definer volatile=stable config=search_path="" returns=uuid md5=77f287ad12048a5b585e45f7a2e1d019
+funcdef app.day_leader_accounts(p_project uuid, p_work_date date) security=definer volatile=stable config=search_path="" returns=SETOF uuid md5=0f0cfaedf19301b52451d728af9462df
+funcdef app.fill_pass(p_pass uuid) security=definer volatile=volatile config=search_path="" returns=TABLE(filled integer, offered integer) md5=fc9920bd7fef140cf67af45fd369cf34
+funcdef app.flag_day(p_tilldelning uuid, p_flag confirmation_source, p_worker uuid) security=definer volatile=volatile config=search_path="" returns=void md5=d7bae5716492aa0794ef4e8febadc613
+funcdef app.guard_tenant(p_table text, p_id uuid) security=definer volatile=stable config=search_path="" returns=void md5=4b6266f425ed5f65163d83bf7fecc0b8
+funcdef app.holds_a_day(p_project uuid) security=definer volatile=stable config=search_path="" returns=boolean md5=2d8f0c8ce9c9aabb051884832c00277a
+funcdef app.holds_the_day(p_project uuid, p_work_date date) security=definer volatile=stable config=search_path="" returns=boolean md5=db369d30b604aa18f1c659b22b147deb
+funcdef app.in_tenant(p_tenant uuid) security=definer volatile=stable config=search_path="" returns=boolean md5=bdbed4013462700f7b494ad4838ff6f1
+funcdef app.is_acting() security=definer volatile=stable config=search_path="" returns=boolean md5=335b8a2fb767760cc4710774f30da72f
+funcdef app.is_admin() security=definer volatile=stable config=search_path="" returns=boolean md5=4956dce4272958e4db0bc060a16140ab
+funcdef app.is_staff() security=definer volatile=stable config=search_path="" returns=boolean md5=4047199cb26dc87d3e7e3567480bc13d
+funcdef app.is_super_admin() security=definer volatile=stable config=search_path="" returns=boolean md5=45ee6f443b4d0599cd937ef9210e0d15
+funcdef app.leads_project(p_project uuid) security=definer volatile=stable config=search_path="" returns=boolean md5=855b172128a5d891554ebbe8b80893b7
+funcdef app.owns_personal_event(p_event uuid) security=definer volatile=stable config=search_path="" returns=boolean md5=fdc76986eacf825a24858f73629d117c
+funcdef app.pass_end_at(p_date date, p_start time without time zone, p_end time without time zone) security=invoker volatile=stable config=search_path="" returns=timestamp with time zone md5=5792689ae892924bf79a0078b34ce998
+funcdef app.pass_start_at(p_date date, p_start time without time zone) security=invoker volatile=stable config=search_path="" returns=timestamp with time zone md5=39e2204d119f5e9073b917d3f247bc9f
+funcdef app.sees_personal_event(p_event uuid) security=definer volatile=stable config=search_path="" returns=boolean md5=d176610d4998c718f7ec6185e3d13202
+funcdef app.stockholm_today() security=invoker volatile=stable config=search_path="" returns=date md5=76e7c1b17d8f90c0488b5594beb49d8c
+funcdef app.svensk_datum(p_date date) security=invoker volatile=immutable config=search_path="" returns=text md5=25567f618b1ad12f24b3478d8bf4cb80
+funcdef app.sync_leader_day(p_project uuid, p_date date) security=definer volatile=volatile config=search_path="" returns=void md5=661226988d7bba6d6acbc6aedcdf04c8
+funcdef app.take_leader_off(p_tilldelning uuid) security=definer volatile=volatile config=search_path="" returns=tilldelning md5=28db841ca30bdf3df3bad4cc9a5297f7
+funcdef app.tg_account_pause() security=definer volatile=volatile config=search_path="" returns=trigger md5=2cf24bf99e87cbaf959ac4e7591a222b
+funcdef app.tg_account_unpause() security=definer volatile=volatile config=search_path="" returns=trigger md5=0b206fd1e9f0b904a7e08495618acc0f
+funcdef app.tg_arbetsdagbok_guard() security=definer volatile=volatile config=search_path="" returns=trigger md5=ba21ec2b06e3eb1ffd29e9831af777da
+funcdef app.tg_assignment_write_guard() security=definer volatile=volatile config=search_path="" returns=trigger md5=1f38f1a6ba7a0e8238ba37cdac90b467
+funcdef app.tg_block_guard() security=definer volatile=volatile config=search_path="" returns=trigger md5=0e76010ffcdaf3fc0d74b36f0eff898f
+funcdef app.tg_clock_evidence() security=definer volatile=volatile config=search_path="" returns=trigger md5=a4bc533747c9dc657cd477e6210e47af
+funcdef app.tg_confirmation_guard() security=definer volatile=volatile config=search_path="" returns=trigger md5=b2d2aed280af33516a8e1feae0205fbb
+funcdef app.tg_handpick_is_an_arbetare() security=definer volatile=volatile config=search_path="" returns=trigger md5=d92a232820c68d5c4030507e0893ac1c
+funcdef app.tg_headcount_guard() security=definer volatile=volatile config=search_path="" returns=trigger md5=0e575331ea5ecc8a9f0b290a7a5c2de3
+funcdef app.tg_last_admin_guard() security=definer volatile=volatile config=search_path="" returns=trigger md5=f9a6ea23232f35f31ae9e9526fbf6833
+funcdef app.tg_leader_day() security=definer volatile=volatile config=search_path="" returns=trigger md5=1397c1e4582203fb93a0018a29126a04
+funcdef app.tg_leader_day_pass() security=definer volatile=volatile config=search_path="" returns=trigger md5=788576683f47d0093f1a87f497d0e5f3
+funcdef app.tg_no_overlapping_assignment() security=definer volatile=volatile config=search_path="" returns=trigger md5=7f643813676d0a9e142f3a2b7eddc74d
+funcdef app.tg_notification_push() security=definer volatile=volatile config=search_path="" returns=trigger md5=ff3aa5e85bb292dbd71a23ba7bd6c23c
+funcdef app.tg_notify_day_admin_confirmed() security=definer volatile=volatile config=search_path="" returns=trigger md5=321ce9cfee5e64e604839a0f888710f4
+funcdef app.tg_notify_day_rejected() security=definer volatile=volatile config=search_path="" returns=trigger md5=88257841c309459fb8da8677d40b0939
+funcdef app.tg_notify_shift_offered() security=definer volatile=volatile config=search_path="" returns=trigger md5=ac17eafd2d93f3e18ca0eb2dca0c353f
+funcdef app.tg_pass_delete_guard() security=definer volatile=volatile config=search_path="" returns=trigger md5=3df9ba54c1ac648c41176432d0d9407d
+funcdef app.tg_pass_edit_guard() security=definer volatile=volatile config=search_path="" returns=trigger md5=9aedd9c59e2f2e296b0ce2afc03dd2d9
+funcdef app.tg_profile_touch() security=definer volatile=volatile config=search_path="" returns=trigger md5=4c1bc14981b8021d40b6e51870a1493d
+funcdef app.tg_project_created_by() security=definer volatile=volatile config=search_path="" returns=trigger md5=5db7bde64df48720e529bf9815396ba5
+funcdef app.tg_project_leader_is_a_leader() security=definer volatile=volatile config=search_path="" returns=trigger md5=5b087b4d6b0cf846b256d1c522cc1f1e
+funcdef app.tg_super_admin_guard() security=definer volatile=volatile config=search_path="" returns=trigger md5=8d51e89a3eef1b46252e095b1408dee2
+funcdef app.tg_super_admin_insert_guard() security=definer volatile=volatile config=search_path="" returns=trigger md5=1b21bc62b8701c5915a6b49496b5c362
+funcdef app.tg_sync_work_date() security=definer volatile=volatile config=search_path="" returns=trigger md5=818fb4acb91973b818377bf4aea045b7
+funcdef app.tg_tenant_from_parent() security=definer volatile=volatile config=search_path="" returns=trigger md5=0f5bb63ed2df385b5636b08484e7afde
+funcdef app.tg_worker_self_edit_guard() security=definer volatile=volatile config=search_path="" returns=trigger md5=77bd38466134c019d98b9712d99b5445
+funcdef app.week_start(d date) security=invoker volatile=immutable config=search_path="" returns=date md5=9a761c1ce03a2f776be8f6ecf059b293
+funcdef public.accept_offer(p_pass uuid) security=definer volatile=volatile config=search_path="" returns=uuid md5=457b20388f9d2b1df0c3b7f956c94feb
+funcdef public.acting_tenant() security=definer volatile=stable config=search_path="" returns=TABLE(tenant_id uuid, tenant_name text, entered_at timestamp with time zone) md5=202dd4443573f47593f67844778788d5
+funcdef public.approve_day(p_project uuid, p_work_date date, p_text text, p_rows jsonb) security=invoker volatile=volatile config=search_path="" returns=void md5=8faa80af66b6bddf99782034be0990e3
+funcdef public.assign_snabb(p_pass uuid, p_worker uuid) security=definer volatile=volatile config=search_path="" returns=uuid md5=fc5556aae090a31f3d0b9bf323561e46
+funcdef public.avboka_pass(p_tilldelning uuid) security=definer volatile=volatile config=search_path="" returns=jsonb md5=6c58a11a9b58bb0decd6298652bf51a2
+funcdef public.batch_shortfall(p_dates date[], p_slots_per_day integer) security=definer volatile=stable config=search_path="" returns=TABLE(work_date date, available integer, slots integer, short integer) md5=73ee124b7fcc25205452dc0ed243e08a
+funcdef public.bristsurvey_gaps(p_project uuid, p_from date, p_to date) security=definer volatile=stable config=search_path="" returns=jsonb md5=6603396ab9abf3bf1173872f5e5b1bb6
+funcdef public.cash_dist(money, money) security=invoker volatile=immutable config=- returns=money md5=0174d3d6a80cb459b81f8ccf73bdc736
+funcdef public.clock_in(p_tilldelning uuid) security=definer volatile=volatile config=search_path="" returns=timestamp with time zone md5=337d8f186af0892beba247b56a268618
+funcdef public.clock_out(p_tilldelning uuid) security=definer volatile=volatile config=search_path="" returns=timestamp with time zone md5=e88288a711038e3440e866965b7dfdf4
+funcdef public.close_pass(p_pass uuid, p_hours numeric) security=definer volatile=volatile config=search_path="" returns=void md5=724167dbc2493b25e9a4a6bccc3ae7fd
+funcdef public.complete_bristsurvey(p_project uuid, p_work_date date, p_text text) security=invoker volatile=volatile config=search_path="" returns=void md5=540dd236b8149a6759b5550d4845f08f
+funcdef public.confirm_flagged_day(p_project uuid, p_work_date date, p_text text, p_rows jsonb) security=invoker volatile=volatile config=search_path="" returns=void md5=1ade12fc6f0d14ffd1f51b0e04259518
+funcdef public.create_snabb_pass(p_project uuid, p_worker uuid, p_date date, p_start time without time zone, p_end time without time zone, p_hours numeric, p_direkt boolean, p_text text, p_ledare jsonb) security=definer volatile=volatile config=search_path="" returns=uuid md5=d50e5518a96e3b133f47bd41a52f2349
+funcdef public.date_dist(date, date) security=invoker volatile=immutable config=- returns=integer md5=053fc23cfc9549c4f7305a61bb68f309
+funcdef public.decline_offer(p_pass uuid) security=definer volatile=volatile config=search_path="" returns=void md5=59b359c76d6c1ca491f27e37e5647bfd
+funcdef public.delete_account(p_account uuid) security=definer volatile=volatile config=search_path="" returns=text md5=5b7e84929dcba2a12c90a8d998c8db2f
+funcdef public.delete_pass(p_pass uuid) security=definer volatile=volatile config=search_path="" returns=void md5=151d431550a7838913500b9b626b2622
+funcdef public.delete_project(p_project uuid) security=definer volatile=volatile config=search_path="" returns=void md5=2ded4649bbbc2f21cc52fb4629c7a9bd
+funcdef public.enter_tenant(p_tenant uuid) security=definer volatile=volatile config=search_path="" returns=void md5=17ee54caca46a63a0224d072ab66300c
+funcdef public.exit_tenant() security=definer volatile=volatile config=search_path="" returns=void md5=a8a402888f036998628dc6dab31f3884
+funcdef public.fill_passes(p_batch uuid) security=definer volatile=volatile config=search_path="" returns=TABLE(filled_pass uuid, for_date date, slots integer, filled integer, offered integer) md5=a186bf9b81d78f0efa8b5f9d15c87c39
+funcdef public.float4_dist(real, real) security=invoker volatile=immutable config=- returns=real md5=c4121f0bd5272580e6242242e97f3d86
+funcdef public.float8_dist(double precision, double precision) security=invoker volatile=immutable config=- returns=double precision md5=c7981b582e8ace592bf9b0808c5e4d67
+funcdef public.forget_push_token(p_token text) security=definer volatile=volatile config=search_path="" returns=void md5=0b00ef828da06141f480bf2c2f8fac2e
+funcdef public.forval_coverage(p_dates date[]) security=definer volatile=stable config=search_path="" returns=TABLE(work_date date, available integer) md5=681cb7d47380da38f2f1d46ded31b42e
+funcdef public.gbt_bit_compress(internal) security=invoker volatile=immutable config=- returns=internal md5=12db4c52158d8e060e40a4da56ed0e09
+funcdef public.gbt_bit_consistent(internal, bit, smallint, oid, internal) security=invoker volatile=immutable config=- returns=boolean md5=072c536534e32ae4a2cbd233acc0fef7
+funcdef public.gbt_bit_penalty(internal, internal, internal) security=invoker volatile=immutable config=- returns=internal md5=e6d127e44c78cbb42372a561940f2e27
+funcdef public.gbt_bit_picksplit(internal, internal) security=invoker volatile=immutable config=- returns=internal md5=84a4ffe096278a5f9b11a41bcb22e874
+funcdef public.gbt_bit_same(gbtreekey_var, gbtreekey_var, internal) security=invoker volatile=immutable config=- returns=internal md5=cd84892d7b8d62eb9b35d6be8bc60896
+funcdef public.gbt_bit_union(internal, internal) security=invoker volatile=immutable config=- returns=gbtreekey_var md5=8a0fa582a35bec0eff398d69175ce51e
+funcdef public.gbt_bool_compress(internal) security=invoker volatile=immutable config=- returns=internal md5=a189f1f5b5561afe61f62f7a4d488fd2
+funcdef public.gbt_bool_consistent(internal, boolean, smallint, oid, internal) security=invoker volatile=immutable config=- returns=boolean md5=1be78de45ab8c912752d6d94b953cce9
+funcdef public.gbt_bool_fetch(internal) security=invoker volatile=immutable config=- returns=internal md5=7fa411e8a659afa5ac8e58c9b3a0b9f3
+funcdef public.gbt_bool_penalty(internal, internal, internal) security=invoker volatile=immutable config=- returns=internal md5=cc9efc9ba20e698f1c1a1b269f11da31
+funcdef public.gbt_bool_picksplit(internal, internal) security=invoker volatile=immutable config=- returns=internal md5=67df4aeb638ee39f001d9e777bfa8f11
+funcdef public.gbt_bool_same(gbtreekey2, gbtreekey2, internal) security=invoker volatile=immutable config=- returns=internal md5=bc4e7dc7f0717b2bd9bf7ee940257684
+funcdef public.gbt_bool_union(internal, internal) security=invoker volatile=immutable config=- returns=gbtreekey2 md5=8f2d5fa0a77326062045259dcb3f857b
+funcdef public.gbt_bpchar_compress(internal) security=invoker volatile=immutable config=- returns=internal md5=5fcd2af4a3c728595f9e2e8116029178
+funcdef public.gbt_bpchar_consistent(internal, character, smallint, oid, internal) security=invoker volatile=immutable config=- returns=boolean md5=71f669215d7f0c70525191f5e1a6bc42
+funcdef public.gbt_bytea_compress(internal) security=invoker volatile=immutable config=- returns=internal md5=45ea82fd6fcc8e0286285c9715f56ec4
+funcdef public.gbt_bytea_consistent(internal, bytea, smallint, oid, internal) security=invoker volatile=immutable config=- returns=boolean md5=27dc51901584a08de2d60d1336b14775
+funcdef public.gbt_bytea_penalty(internal, internal, internal) security=invoker volatile=immutable config=- returns=internal md5=931d4e43dee85b0575a8352a01d61409
+funcdef public.gbt_bytea_picksplit(internal, internal) security=invoker volatile=immutable config=- returns=internal md5=55de745624ddc200dd99d079cf8cea9e
+funcdef public.gbt_bytea_same(gbtreekey_var, gbtreekey_var, internal) security=invoker volatile=immutable config=- returns=internal md5=8f9dbf39711c4b93b7507f6e3561789c
+funcdef public.gbt_bytea_union(internal, internal) security=invoker volatile=immutable config=- returns=gbtreekey_var md5=35ca14a1bce2e63b5502b7373c6ac6ce
+funcdef public.gbt_cash_compress(internal) security=invoker volatile=immutable config=- returns=internal md5=a1153a04599a5559ff73b8022a51501e
+funcdef public.gbt_cash_consistent(internal, money, smallint, oid, internal) security=invoker volatile=immutable config=- returns=boolean md5=2b1489036915a5d478463d51ee6c251a
+funcdef public.gbt_cash_distance(internal, money, smallint, oid, internal) security=invoker volatile=immutable config=- returns=double precision md5=359e60f68e819348d563b043b6c7b025
+funcdef public.gbt_cash_fetch(internal) security=invoker volatile=immutable config=- returns=internal md5=367fd9d9c4f8f05f7435a811c0773bea
+funcdef public.gbt_cash_penalty(internal, internal, internal) security=invoker volatile=immutable config=- returns=internal md5=af7237ec40e72c10ddee628314121759
+funcdef public.gbt_cash_picksplit(internal, internal) security=invoker volatile=immutable config=- returns=internal md5=82352c244c6d0be89b79a91d5b5c871a
+funcdef public.gbt_cash_same(gbtreekey16, gbtreekey16, internal) security=invoker volatile=immutable config=- returns=internal md5=fcb6247f5e1dd21e5d46e7a0cb3ae655
+funcdef public.gbt_cash_union(internal, internal) security=invoker volatile=immutable config=- returns=gbtreekey16 md5=dcaa4f94d09b3b1af60c5c3f5babb418
+funcdef public.gbt_date_compress(internal) security=invoker volatile=immutable config=- returns=internal md5=9d2cd707251f146e030935638957f5a2
+funcdef public.gbt_date_consistent(internal, date, smallint, oid, internal) security=invoker volatile=immutable config=- returns=boolean md5=ab927b9f6697a91e879d9906fac68df1
+funcdef public.gbt_date_distance(internal, date, smallint, oid, internal) security=invoker volatile=immutable config=- returns=double precision md5=4eb292b105f7461ff17b19206642cf60
+funcdef public.gbt_date_fetch(internal) security=invoker volatile=immutable config=- returns=internal md5=9584bf0902ddd07f328b226ea36d917d
+funcdef public.gbt_date_penalty(internal, internal, internal) security=invoker volatile=immutable config=- returns=internal md5=19056a16b9963dbd093b6647dce26f1e
+funcdef public.gbt_date_picksplit(internal, internal) security=invoker volatile=immutable config=- returns=internal md5=3e50e276c7a8ca893201e10e76b986ed
+funcdef public.gbt_date_same(gbtreekey8, gbtreekey8, internal) security=invoker volatile=immutable config=- returns=internal md5=3c02b09aeb1642d36f4aad8f13860f81
+funcdef public.gbt_date_union(internal, internal) security=invoker volatile=immutable config=- returns=gbtreekey8 md5=128e1f3a90258d04b76d411c71aaee74
+funcdef public.gbt_decompress(internal) security=invoker volatile=immutable config=- returns=internal md5=32cdf965f3a37cd7d052c766b8527f6e
+funcdef public.gbt_enum_compress(internal) security=invoker volatile=immutable config=- returns=internal md5=919054be3c40d51fef0989abcd55e375
+funcdef public.gbt_enum_consistent(internal, anyenum, smallint, oid, internal) security=invoker volatile=immutable config=- returns=boolean md5=eeb5faf91bc8fe489f5dce8b6956cba0
+funcdef public.gbt_enum_fetch(internal) security=invoker volatile=immutable config=- returns=internal md5=8d73d903c912d707f36f300f003f0ab1
+funcdef public.gbt_enum_penalty(internal, internal, internal) security=invoker volatile=immutable config=- returns=internal md5=7be7fcbc3aa1f94c891448bbfbdf874d
+funcdef public.gbt_enum_picksplit(internal, internal) security=invoker volatile=immutable config=- returns=internal md5=5bd4b5cdb40577ef043c9309190d5a4d
+funcdef public.gbt_enum_same(gbtreekey8, gbtreekey8, internal) security=invoker volatile=immutable config=- returns=internal md5=87be64e6fe4f1a9aa76f52de56ad19b0
+funcdef public.gbt_enum_union(internal, internal) security=invoker volatile=immutable config=- returns=gbtreekey8 md5=c56dc3dcefae418ae90649b355e66a6f
+funcdef public.gbt_float4_compress(internal) security=invoker volatile=immutable config=- returns=internal md5=51e4a71d38ff5bea66da16f6eabb94d6
+funcdef public.gbt_float4_consistent(internal, real, smallint, oid, internal) security=invoker volatile=immutable config=- returns=boolean md5=c4b897cd2ac7fe28f7aa5f3d29f08942
+funcdef public.gbt_float4_distance(internal, real, smallint, oid, internal) security=invoker volatile=immutable config=- returns=double precision md5=eb237ff012c3578a251311b7fa7c839b
+funcdef public.gbt_float4_fetch(internal) security=invoker volatile=immutable config=- returns=internal md5=9bbe38aa231d2c730c260c573996c5d5
+funcdef public.gbt_float4_penalty(internal, internal, internal) security=invoker volatile=immutable config=- returns=internal md5=725d6bea607ed47f207bfe0e1ae73239
+funcdef public.gbt_float4_picksplit(internal, internal) security=invoker volatile=immutable config=- returns=internal md5=7ec3c17fbb0b8bb68a10407d9800071d
+funcdef public.gbt_float4_same(gbtreekey8, gbtreekey8, internal) security=invoker volatile=immutable config=- returns=internal md5=87c502fb49c9dab0ee820f06e4ecddbe
+funcdef public.gbt_float4_union(internal, internal) security=invoker volatile=immutable config=- returns=gbtreekey8 md5=7bf85408aeac292bd7860cf890b29824
+funcdef public.gbt_float8_compress(internal) security=invoker volatile=immutable config=- returns=internal md5=2a4aaa2bc84059001d202a76792d2fdf
+funcdef public.gbt_float8_consistent(internal, double precision, smallint, oid, internal) security=invoker volatile=immutable config=- returns=boolean md5=a8444b6a91a2bad6fd2916a39ec1c994
+funcdef public.gbt_float8_distance(internal, double precision, smallint, oid, internal) security=invoker volatile=immutable config=- returns=double precision md5=d9c0d2c2d23c81db13661b0a4cf187e4
+funcdef public.gbt_float8_fetch(internal) security=invoker volatile=immutable config=- returns=internal md5=92ac6fec215d4f44724dfd651798d05c
+funcdef public.gbt_float8_penalty(internal, internal, internal) security=invoker volatile=immutable config=- returns=internal md5=7da819d4b282b907c57deeecc97cec48
+funcdef public.gbt_float8_picksplit(internal, internal) security=invoker volatile=immutable config=- returns=internal md5=0b36ef1bb53a7a4636e6f2aaabd95e9f
+funcdef public.gbt_float8_same(gbtreekey16, gbtreekey16, internal) security=invoker volatile=immutable config=- returns=internal md5=4a0cba3c5981112671943ffa556c689d
+funcdef public.gbt_float8_union(internal, internal) security=invoker volatile=immutable config=- returns=gbtreekey16 md5=12c80c73c1578e43c6d29d85a347f3bf
+funcdef public.gbt_inet_compress(internal) security=invoker volatile=immutable config=- returns=internal md5=957d1b92cda55df43ae0cd5462897cdb
+funcdef public.gbt_inet_consistent(internal, inet, smallint, oid, internal) security=invoker volatile=immutable config=- returns=boolean md5=c9ad93f10dc980a88d416d2aa21aeba8
+funcdef public.gbt_inet_penalty(internal, internal, internal) security=invoker volatile=immutable config=- returns=internal md5=01f84722defd3782c78d04a5a2fe2faa
+funcdef public.gbt_inet_picksplit(internal, internal) security=invoker volatile=immutable config=- returns=internal md5=78ff0934f2a2da590bfc838beb095e02
+funcdef public.gbt_inet_same(gbtreekey16, gbtreekey16, internal) security=invoker volatile=immutable config=- returns=internal md5=68ac7932f98616f5f89596fdc0383c74
+funcdef public.gbt_inet_union(internal, internal) security=invoker volatile=immutable config=- returns=gbtreekey16 md5=8d13593e61b33ee5fcf51767ebfe60cb
+funcdef public.gbt_int2_compress(internal) security=invoker volatile=immutable config=- returns=internal md5=76457cfde7ac936c91cce0bcd0fb6a8b
+funcdef public.gbt_int2_consistent(internal, smallint, smallint, oid, internal) security=invoker volatile=immutable config=- returns=boolean md5=31a0c477550569af5848170d10816720
+funcdef public.gbt_int2_distance(internal, smallint, smallint, oid, internal) security=invoker volatile=immutable config=- returns=double precision md5=eb49d6cbf3f47d3d0d889abdc89a1f89
+funcdef public.gbt_int2_fetch(internal) security=invoker volatile=immutable config=- returns=internal md5=6df3ee6914b8bad1034a86047a813835
+funcdef public.gbt_int2_penalty(internal, internal, internal) security=invoker volatile=immutable config=- returns=internal md5=382f13afd9f111cd87c0318b88269c1e
+funcdef public.gbt_int2_picksplit(internal, internal) security=invoker volatile=immutable config=- returns=internal md5=7ed396611a92bca1ed090a3f48b531b0
+funcdef public.gbt_int2_same(gbtreekey4, gbtreekey4, internal) security=invoker volatile=immutable config=- returns=internal md5=be8c6ea90b9ccf1a7d560c4df3d8034e
+funcdef public.gbt_int2_union(internal, internal) security=invoker volatile=immutable config=- returns=gbtreekey4 md5=af7da0da4e62f28512c2aa9233e82159
+funcdef public.gbt_int4_compress(internal) security=invoker volatile=immutable config=- returns=internal md5=05aa29b62545f6300f8caa8cb97dc14b
+funcdef public.gbt_int4_consistent(internal, integer, smallint, oid, internal) security=invoker volatile=immutable config=- returns=boolean md5=d3bb9e3214de01334f3d524a8bdd1a0e
+funcdef public.gbt_int4_distance(internal, integer, smallint, oid, internal) security=invoker volatile=immutable config=- returns=double precision md5=9ece339c022d365196fb587260412eb2
+funcdef public.gbt_int4_fetch(internal) security=invoker volatile=immutable config=- returns=internal md5=628dcc24f31e321c0f6e5117c06c7611
+funcdef public.gbt_int4_penalty(internal, internal, internal) security=invoker volatile=immutable config=- returns=internal md5=f2c18108d96670e84ed608b28c14773d
+funcdef public.gbt_int4_picksplit(internal, internal) security=invoker volatile=immutable config=- returns=internal md5=cd4304107aeeaf5a0a3d8a4b8b261d7e
+funcdef public.gbt_int4_same(gbtreekey8, gbtreekey8, internal) security=invoker volatile=immutable config=- returns=internal md5=ad68ad53a8ca667337d9e4831e813ecf
+funcdef public.gbt_int4_union(internal, internal) security=invoker volatile=immutable config=- returns=gbtreekey8 md5=ccb049f7bf3038b2a48012b91088657d
+funcdef public.gbt_int8_compress(internal) security=invoker volatile=immutable config=- returns=internal md5=b078a1208e399b141a9f1c96fd9a9e23
+funcdef public.gbt_int8_consistent(internal, bigint, smallint, oid, internal) security=invoker volatile=immutable config=- returns=boolean md5=89a2b4f7e377de55c942711924d681b1
+funcdef public.gbt_int8_distance(internal, bigint, smallint, oid, internal) security=invoker volatile=immutable config=- returns=double precision md5=a4429c2ea936d6896f813955889df13b
+funcdef public.gbt_int8_fetch(internal) security=invoker volatile=immutable config=- returns=internal md5=2b62f5b466260b9c497597b6dca8a4e3
+funcdef public.gbt_int8_penalty(internal, internal, internal) security=invoker volatile=immutable config=- returns=internal md5=da37e2045f272e0feaec7faca885e17a
+funcdef public.gbt_int8_picksplit(internal, internal) security=invoker volatile=immutable config=- returns=internal md5=1f07b9e96a72d93e70a83eff6e425cd9
+funcdef public.gbt_int8_same(gbtreekey16, gbtreekey16, internal) security=invoker volatile=immutable config=- returns=internal md5=677e07c185b4f91006347906630b9622
+funcdef public.gbt_int8_union(internal, internal) security=invoker volatile=immutable config=- returns=gbtreekey16 md5=5513e217265cd3b8b47a73f478e4f842
+funcdef public.gbt_intv_compress(internal) security=invoker volatile=immutable config=- returns=internal md5=38de7b9b484797e5a8893250a9587ebd
+funcdef public.gbt_intv_consistent(internal, interval, smallint, oid, internal) security=invoker volatile=immutable config=- returns=boolean md5=86b65a736a05d9ef74b111d5dda50cb2
+funcdef public.gbt_intv_decompress(internal) security=invoker volatile=immutable config=- returns=internal md5=5d928ecf6a36a96b4e1f6e46888f516f
+funcdef public.gbt_intv_distance(internal, interval, smallint, oid, internal) security=invoker volatile=immutable config=- returns=double precision md5=50fe698e8757f9c29e6975030055f185
+funcdef public.gbt_intv_fetch(internal) security=invoker volatile=immutable config=- returns=internal md5=2fba8dd6fe01d5b9e9bd9894b676af62
+funcdef public.gbt_intv_penalty(internal, internal, internal) security=invoker volatile=immutable config=- returns=internal md5=f3046e796fcedd057d32d05015ad7c23
+funcdef public.gbt_intv_picksplit(internal, internal) security=invoker volatile=immutable config=- returns=internal md5=fd17098c532807aaf251be71a3967ef7
+funcdef public.gbt_intv_same(gbtreekey32, gbtreekey32, internal) security=invoker volatile=immutable config=- returns=internal md5=72e8bf8254328594742a357472d4059b
+funcdef public.gbt_intv_union(internal, internal) security=invoker volatile=immutable config=- returns=gbtreekey32 md5=830a1795d7e21fbe15c769922d48bc87
+funcdef public.gbt_macad8_compress(internal) security=invoker volatile=immutable config=- returns=internal md5=e35b734d2b2a12099d299bd233fca647
+funcdef public.gbt_macad8_consistent(internal, macaddr8, smallint, oid, internal) security=invoker volatile=immutable config=- returns=boolean md5=09303111373acfc68ff8c476e716db9b
+funcdef public.gbt_macad8_fetch(internal) security=invoker volatile=immutable config=- returns=internal md5=b6a2d4bfd5206953ec36a24940ac81b7
+funcdef public.gbt_macad8_penalty(internal, internal, internal) security=invoker volatile=immutable config=- returns=internal md5=27edde2e56607b9e493543fde4b831be
+funcdef public.gbt_macad8_picksplit(internal, internal) security=invoker volatile=immutable config=- returns=internal md5=483c2670df782f2e39141be95003bcc6
+funcdef public.gbt_macad8_same(gbtreekey16, gbtreekey16, internal) security=invoker volatile=immutable config=- returns=internal md5=66921a08695a9cb1c39d0537c1f316b6
+funcdef public.gbt_macad8_union(internal, internal) security=invoker volatile=immutable config=- returns=gbtreekey16 md5=2f1cc6edc8083ff4e2f192d1538a252e
+funcdef public.gbt_macad_compress(internal) security=invoker volatile=immutable config=- returns=internal md5=ea081b544fb74b24411024601055c181
+funcdef public.gbt_macad_consistent(internal, macaddr, smallint, oid, internal) security=invoker volatile=immutable config=- returns=boolean md5=18894b46655b5ab4ef4f51e405fc8fae
+funcdef public.gbt_macad_fetch(internal) security=invoker volatile=immutable config=- returns=internal md5=d6b8404c3cd9493c2e72a143d2c16fa4
+funcdef public.gbt_macad_penalty(internal, internal, internal) security=invoker volatile=immutable config=- returns=internal md5=007a158cf99606095d7af75037e2db48
+funcdef public.gbt_macad_picksplit(internal, internal) security=invoker volatile=immutable config=- returns=internal md5=aaca6246846afef0937accccd30cadd9
+funcdef public.gbt_macad_same(gbtreekey16, gbtreekey16, internal) security=invoker volatile=immutable config=- returns=internal md5=ed6b0d4608614c8af5d003ef0c8eeba9
+funcdef public.gbt_macad_union(internal, internal) security=invoker volatile=immutable config=- returns=gbtreekey16 md5=b8aa0cc87bbc8725c389b442a493e6ef
+funcdef public.gbt_numeric_compress(internal) security=invoker volatile=immutable config=- returns=internal md5=4d98c5a857cdaa53d6180a3ce621b1ad
+funcdef public.gbt_numeric_consistent(internal, numeric, smallint, oid, internal) security=invoker volatile=immutable config=- returns=boolean md5=550bb6347f2d173a532faaeafdee3e30
+funcdef public.gbt_numeric_penalty(internal, internal, internal) security=invoker volatile=immutable config=- returns=internal md5=727db73bf013d80390bdbb0bd2749e00
+funcdef public.gbt_numeric_picksplit(internal, internal) security=invoker volatile=immutable config=- returns=internal md5=95dd2bca92d498a42797385d8bd6659f
+funcdef public.gbt_numeric_same(gbtreekey_var, gbtreekey_var, internal) security=invoker volatile=immutable config=- returns=internal md5=2f6b2a5d58a6a6a6cf9bf4f61fc6a356
+funcdef public.gbt_numeric_union(internal, internal) security=invoker volatile=immutable config=- returns=gbtreekey_var md5=d3f85eac43be60208582c74345b25e71
+funcdef public.gbt_oid_compress(internal) security=invoker volatile=immutable config=- returns=internal md5=0f9116b19ff415afd056048672a4da09
+funcdef public.gbt_oid_consistent(internal, oid, smallint, oid, internal) security=invoker volatile=immutable config=- returns=boolean md5=1b77c003448240af7c9bd90f5d9eb4cf
+funcdef public.gbt_oid_distance(internal, oid, smallint, oid, internal) security=invoker volatile=immutable config=- returns=double precision md5=7d8dcaf2067ba4a3cb43b19a5665d4fa
+funcdef public.gbt_oid_fetch(internal) security=invoker volatile=immutable config=- returns=internal md5=2359d99b301071c741c70d21ec8eb561
+funcdef public.gbt_oid_penalty(internal, internal, internal) security=invoker volatile=immutable config=- returns=internal md5=35f52ffef863c8220434ca1040f6f0d0
+funcdef public.gbt_oid_picksplit(internal, internal) security=invoker volatile=immutable config=- returns=internal md5=5e0eeeb87df3fa974d424ae83a66beaa
+funcdef public.gbt_oid_same(gbtreekey8, gbtreekey8, internal) security=invoker volatile=immutable config=- returns=internal md5=1a9490e748569457f6c2406e9b5dc760
+funcdef public.gbt_oid_union(internal, internal) security=invoker volatile=immutable config=- returns=gbtreekey8 md5=0107289e9e77e60e6298c28ea1feff80
+funcdef public.gbt_text_compress(internal) security=invoker volatile=immutable config=- returns=internal md5=434e0ce858760cc15925babf914a1f88
+funcdef public.gbt_text_consistent(internal, text, smallint, oid, internal) security=invoker volatile=immutable config=- returns=boolean md5=8c692ac49a1f619f1de0bab68be5debc
+funcdef public.gbt_text_penalty(internal, internal, internal) security=invoker volatile=immutable config=- returns=internal md5=c27f5c31c714ea3642f986f48bf72b38
+funcdef public.gbt_text_picksplit(internal, internal) security=invoker volatile=immutable config=- returns=internal md5=89bc628a9627db991bd86fd3ddacd070
+funcdef public.gbt_text_same(gbtreekey_var, gbtreekey_var, internal) security=invoker volatile=immutable config=- returns=internal md5=47123ee9b127fb50c0da4c20dd92f3d7
+funcdef public.gbt_text_union(internal, internal) security=invoker volatile=immutable config=- returns=gbtreekey_var md5=9314e96a693dce221cc6e97332b66f00
+funcdef public.gbt_time_compress(internal) security=invoker volatile=immutable config=- returns=internal md5=7e1ce05587c12ce7edb54362cae5045e
+funcdef public.gbt_time_consistent(internal, time without time zone, smallint, oid, internal) security=invoker volatile=immutable config=- returns=boolean md5=7a48cc9cf659cab823362b0fb4c97311
+funcdef public.gbt_time_distance(internal, time without time zone, smallint, oid, internal) security=invoker volatile=immutable config=- returns=double precision md5=4541a95f64243c17a48d28f2be3bf1fa
+funcdef public.gbt_time_fetch(internal) security=invoker volatile=immutable config=- returns=internal md5=f05b7fd7343fa2d32fe63b671c90db5a
+funcdef public.gbt_time_penalty(internal, internal, internal) security=invoker volatile=immutable config=- returns=internal md5=8fd2154fdff9c881687d0a28f2d9820e
+funcdef public.gbt_time_picksplit(internal, internal) security=invoker volatile=immutable config=- returns=internal md5=144ef7276467046f45693e0b1ee4500c
+funcdef public.gbt_time_same(gbtreekey16, gbtreekey16, internal) security=invoker volatile=immutable config=- returns=internal md5=4c9766e0a4d9b827367456673722d155
+funcdef public.gbt_time_union(internal, internal) security=invoker volatile=immutable config=- returns=gbtreekey16 md5=8c6d873b361445b4be462abec34b04f8
+funcdef public.gbt_timetz_compress(internal) security=invoker volatile=immutable config=- returns=internal md5=73c3fe5b2df25075f0870c8e2c38f812
+funcdef public.gbt_timetz_consistent(internal, time with time zone, smallint, oid, internal) security=invoker volatile=immutable config=- returns=boolean md5=4be7e927bc4a2722b8e218b7d410898f
+funcdef public.gbt_ts_compress(internal) security=invoker volatile=immutable config=- returns=internal md5=fe74b6d0e340672b685c860df8ba927f
+funcdef public.gbt_ts_consistent(internal, timestamp without time zone, smallint, oid, internal) security=invoker volatile=immutable config=- returns=boolean md5=36d9bac944eaa6bd10568d0b2772c14f
+funcdef public.gbt_ts_distance(internal, timestamp without time zone, smallint, oid, internal) security=invoker volatile=immutable config=- returns=double precision md5=81c49f3af2487330f0eb0f16162993c6
+funcdef public.gbt_ts_fetch(internal) security=invoker volatile=immutable config=- returns=internal md5=f70df233860879817c034dc572831e61
+funcdef public.gbt_ts_penalty(internal, internal, internal) security=invoker volatile=immutable config=- returns=internal md5=73ff0effff2313a75caeabd1b43070ff
+funcdef public.gbt_ts_picksplit(internal, internal) security=invoker volatile=immutable config=- returns=internal md5=94c891a5a6ecf832b568e00204053f3d
+funcdef public.gbt_ts_same(gbtreekey16, gbtreekey16, internal) security=invoker volatile=immutable config=- returns=internal md5=62ad9767a8b3128ebba752edaecf15ca
+funcdef public.gbt_ts_union(internal, internal) security=invoker volatile=immutable config=- returns=gbtreekey16 md5=db6a679bdf4c1722fa0c9758e950d76d
+funcdef public.gbt_tstz_compress(internal) security=invoker volatile=immutable config=- returns=internal md5=b1070ea583c80cfb688cb3742d5444cd
+funcdef public.gbt_tstz_consistent(internal, timestamp with time zone, smallint, oid, internal) security=invoker volatile=immutable config=- returns=boolean md5=932372b0afbdf106b6ca742c283e4f1a
+funcdef public.gbt_tstz_distance(internal, timestamp with time zone, smallint, oid, internal) security=invoker volatile=immutable config=- returns=double precision md5=57505c8a58a98d0f3894ced7a140a90d
+funcdef public.gbt_uuid_compress(internal) security=invoker volatile=immutable config=- returns=internal md5=d41c9ce457d01d3c0f111827ce914165
+funcdef public.gbt_uuid_consistent(internal, uuid, smallint, oid, internal) security=invoker volatile=immutable config=- returns=boolean md5=075a33d9c05d28303bd776b20019f170
+funcdef public.gbt_uuid_fetch(internal) security=invoker volatile=immutable config=- returns=internal md5=c35cedc763c6589b8cb54cec730b353b
+funcdef public.gbt_uuid_penalty(internal, internal, internal) security=invoker volatile=immutable config=- returns=internal md5=287015ac7f399363feeea66d33c06f14
+funcdef public.gbt_uuid_picksplit(internal, internal) security=invoker volatile=immutable config=- returns=internal md5=91085a1ec6d26d5e59962db167204524
+funcdef public.gbt_uuid_same(gbtreekey32, gbtreekey32, internal) security=invoker volatile=immutable config=- returns=internal md5=0b4b3efaa6d3b1799e756a05fcd30c5e
+funcdef public.gbt_uuid_union(internal, internal) security=invoker volatile=immutable config=- returns=gbtreekey32 md5=3cd6d767ac35cb71a7ece0c27521dd9f
+funcdef public.gbt_var_decompress(internal) security=invoker volatile=immutable config=- returns=internal md5=30409117ac643c111828740726d66df4
+funcdef public.gbt_var_fetch(internal) security=invoker volatile=immutable config=- returns=internal md5=ef49c46ace0aaf86fa47dd03a68e884f
+funcdef public.gbtreekey16_in(cstring) security=invoker volatile=immutable config=- returns=gbtreekey16 md5=9b3aa17d204e8369ccd0aa158f4dc484
+funcdef public.gbtreekey16_out(gbtreekey16) security=invoker volatile=immutable config=- returns=cstring md5=ffca940fbbd744b95704986a268a8fe1
+funcdef public.gbtreekey2_in(cstring) security=invoker volatile=immutable config=- returns=gbtreekey2 md5=82b43bd16db9976f3c922895b99440b0
+funcdef public.gbtreekey2_out(gbtreekey2) security=invoker volatile=immutable config=- returns=cstring md5=4ed0c419e3f0e5c18f2f9bb1c4353673
+funcdef public.gbtreekey32_in(cstring) security=invoker volatile=immutable config=- returns=gbtreekey32 md5=e47f8c56fb3ee4cc083baf17fc367ca0
+funcdef public.gbtreekey32_out(gbtreekey32) security=invoker volatile=immutable config=- returns=cstring md5=8b334dc41408a9d90ff5581ab6394f97
+funcdef public.gbtreekey4_in(cstring) security=invoker volatile=immutable config=- returns=gbtreekey4 md5=25e7fae4fd42f0b8a5596a91f13146c7
+funcdef public.gbtreekey4_out(gbtreekey4) security=invoker volatile=immutable config=- returns=cstring md5=7598d03744d602fb31108279bd61dc2d
+funcdef public.gbtreekey8_in(cstring) security=invoker volatile=immutable config=- returns=gbtreekey8 md5=b409336b66a068c40e5a2534d94a7568
+funcdef public.gbtreekey8_out(gbtreekey8) security=invoker volatile=immutable config=- returns=cstring md5=254c497b85d0d1cacb88cb2cde03ffb1
+funcdef public.gbtreekey_var_in(cstring) security=invoker volatile=immutable config=- returns=gbtreekey_var md5=09c92351a65ba5b9d17549f8430ed07e
+funcdef public.gbtreekey_var_out(gbtreekey_var) security=invoker volatile=immutable config=- returns=cstring md5=40e41d4e3537d162885da5387453bff8
+funcdef public.int2_dist(smallint, smallint) security=invoker volatile=immutable config=- returns=smallint md5=e36b6fc93bdd661e5a4d5619dfa7f80b
+funcdef public.int4_dist(integer, integer) security=invoker volatile=immutable config=- returns=integer md5=86c09754928d088f88f2aab5ff9c9504
+funcdef public.int8_dist(bigint, bigint) security=invoker volatile=immutable config=- returns=bigint md5=97c6468fcddb489f0769367e1fa9c449
+funcdef public.interval_dist(interval, interval) security=invoker volatile=immutable config=- returns=interval md5=dd0c147cf691aa1d9339c040b7eeeec5
+funcdef public.leader_replacement_options(p_tilldelning uuid) security=definer volatile=stable config=search_path="" returns=jsonb md5=797f80b54feeabe5d805064ba84e4fa3
+funcdef public.leave_day_unsupervised(p_tilldelning uuid) security=definer volatile=volatile config=search_path="" returns=void md5=93cc48d5819fe7beee7f61e651a92dff
+funcdef public.make_worker_ansvarig(p_tilldelning uuid, p_worker uuid) security=definer volatile=volatile config=search_path="" returns=void md5=86dfb6c56c216d46e6e8936926490e61
+funcdef public.note_pin_attempt(p_ip text) security=definer volatile=volatile config=search_path="" returns=text md5=54865e0b1d428911d913c47e12255683
+funcdef public.oid_dist(oid, oid) security=invoker volatile=immutable config=- returns=oid md5=997dbbedac9c532c2dfe9e61df3963bc
+funcdef public.place_replacement(p_pass uuid, p_worker uuid) security=definer volatile=volatile config=search_path="" returns=void md5=a4dc12da0b95490d39627820e6aab132
+funcdef public.register_push_token(p_token text, p_platform text) security=definer volatile=volatile config=search_path="" returns=void md5=18ff73feef8fead7216ea2a523932253
+funcdef public.reject_day(p_project uuid, p_work_date date, p_note text) security=invoker volatile=volatile config=search_path="" returns=void md5=fb9d34f928f24f4f4c11265c0f5f9a28
+funcdef public.release_assignment(p_tilldelning uuid, p_reason release_reason) security=definer volatile=volatile config=search_path="" returns=TABLE(reopened boolean, filled integer, offered integer) md5=f806294614c82cac7a08d964eea01fcc
+funcdef public.replace_leader(p_tilldelning uuid, p_worker uuid) security=definer volatile=volatile config=search_path="" returns=void md5=4891a709fadf5c63809f68ac4209441f
+funcdef public.swap_leaders(p_a uuid, p_b uuid) security=definer volatile=volatile config=search_path="" returns=void md5=6a699de48f80a6e6a41ea010c41406ca
+funcdef public.swap_partners(p_tilldelning uuid) security=definer volatile=stable config=search_path="" returns=jsonb md5=cd9c68b70c37b62db3da621c3f78122a
+funcdef public.tenant_status() security=definer volatile=stable config=search_path="" returns=TABLE(tenant_id uuid, name text, account_type tenant_account_type, expires_at timestamp with time zone, expired boolean) md5=feb7eba3252adb6aae3862e50809ff19
+funcdef public.time_dist(time without time zone, time without time zone) security=invoker volatile=immutable config=- returns=interval md5=8801e6dea2facf63a20dd9a006954403
+funcdef public.ts_dist(timestamp without time zone, timestamp without time zone) security=invoker volatile=immutable config=- returns=interval md5=08531fe18b363d069feec1bdfcd04b64
+funcdef public.tstz_dist(timestamp with time zone, timestamp with time zone) security=invoker volatile=immutable config=- returns=interval md5=5c617ffed7741ec780071a5bf792097f
