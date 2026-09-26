@@ -148,7 +148,17 @@ function SnabbPass({ asked }: { asked: string | null }) {
 
   // Is the day already somebody's? Counted rather than fetched: the number is
   // all the screen says, and the day may hold a whole crew.
+  // THE LAST RESPONSE IS NOT THE LATEST DAY. Changing the date starts a second
+  // count before the first has come back, and two round trips to the same
+  // table do not return in the order they were sent. Without this the answer
+  // about the day the admin just left could land after the answer about the
+  // day they moved to, and foreHinder -- derived, and correct -- would then be
+  // derived from a count belonging to a date nobody is looking at any more.
+  // The refusal about a shared day reappeared on a clean one, which is the
+  // exact failure the comment above foreHinder says it removed: the reason was
+  // no longer remembered, but the number it read was.
   useEffect(() => {
+    let active = true;
     void (async () => {
       if (!projectId || !date) { setUpptagen(0); return; }
       const { count } = await getSupabase()
@@ -157,8 +167,10 @@ function SnabbPass({ asked }: { asked: string | null }) {
         .eq("project_id", projectId)
         .eq("work_date", date)
         .is("deleted_at", null);
+      if (!active) return;
       setUpptagen(count ?? 0);
     })();
+    return () => { active = false; };
   }, [projectId, date]);
 
   // The arbetsledare this project will place on the day. Read from
