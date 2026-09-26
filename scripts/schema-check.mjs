@@ -161,6 +161,61 @@ select line from (
     from pg_proc p
     join pg_namespace n on n.oid = p.pronamespace
    where n.nspname in ('app','public') and p.prokind = 'f'
+
+  -- WHO MAY CALL A FUNCTION, WHICH NEITHER 9 NOR 11 RECORDS.
+  --
+  -- Section 9 reads information_schema.role_table_grants -- TABLE grants.
+  -- Section 11 records what a function IS. Neither records who is allowed to
+  -- call it: that lives in pg_proc.proacl, and a grant is not part of the
+  -- CREATE statement, so pg_get_functiondef's md5 does not move when one is
+  -- revoked.
+  --
+  -- Two things in this project fail silently and completely if a function grant
+  -- goes missing, both found the hard way:
+  --
+  --   CLAUDE.md's gotcha 2 -- "authenticated" needs execute on schema app's
+  --   functions, or every policy raises "permission denied for function" and a
+  --   logged-in user can read nothing at all.
+  --
+  --   public.tenant_status() -- the ONLY thing an expired tenancy can still
+  --   call. Everything else it can reach has gone dark by design, so this is
+  --   what lets the app say "din provperiod har gått ut" rather than draw a
+  --   blank screen. Revoke it and the lockout becomes indistinguishable from
+  --   the product being broken -- and because expiry raises nothing, nothing
+  --   anywhere would say so.
+  --
+  -- ONE LINE PER FUNCTION, not one per grantee. Per-grantee is 722 lines and
+  -- nearly doubles this file; worse, a revoke would read as a vanished line
+  -- among hundreds instead of a changed one. Collapsed, it reads as
+  -- EXECUTE=PUBLIC,authenticated becoming EXECUTE=PUBLIC.
+  --
+  -- THE OWNER IS EXCLUDED AND NOBODY ELSE IS. Filtering to the roles that look
+  -- interesting is exactly how the view section came to miss six definitions,
+  -- so an unexpected grantee prints rather than being dropped -- which is how
+  -- one notices that Supabase's default privileges grant "anon" and
+  -- "service_role" on every new function in public, alongside whatever the
+  -- migration asked for.
+  --
+  -- acldefault() fills a NULL proacl, because NULL is not "no grants" -- it is
+  -- the default, and for a function the default is EXECUTE to PUBLIC. Recording
+  -- it as (none) would invert the fact. A function nobody but its owner may
+  -- call prints '(none)' and says so.
+  union all
+  select 12, format('grantfn %s.%s(%s) EXECUTE=%s',
+           n.nspname, p.proname, pg_get_function_identity_arguments(p.oid),
+           coalesce((select string_agg(who, ',' order by who)
+                       from (select distinct
+                                    case when a.grantee = 0 then 'PUBLIC'
+                                         else coalesce(r.rolname, a.grantee::text) end as who
+                               from aclexplode(coalesce(p.proacl,
+                                                        acldefault('f', p.proowner))) a
+                               left join pg_roles r on r.oid = a.grantee
+                              where a.privilege_type = 'EXECUTE'
+                                and a.grantee <> p.proowner) g),
+                    '(none)'))
+    from pg_proc p
+    join pg_namespace n on n.oid = p.pronamespace
+   where n.nspname in ('app','public')
 ) s
 order by sect, line;
 `;
