@@ -1,7 +1,10 @@
 "use client";
 
 import { useRef, useState, type ClipboardEvent, type KeyboardEvent, type ReactNode } from "react";
-import { C, ChevronRight, SHADOW, SoftNotice } from "@/components/soft";
+import {
+  C, Card, ChevronRight, PrimaryButton, SHADOW, SoftField, SoftInput,
+  SoftNotice, Tag,
+} from "@/components/soft";
 import { fel } from "@/lib/fel";
 
 /**
@@ -21,10 +24,11 @@ import { fel } from "@/lib/fel";
  * off a piece of state, and state is the caller's to set; anyone willing to
  * open devtools is past it. That is the architecture rather than an oversight
  * -- CLAUDE.md, every restriction that lives in the interface is decorative.
- * Nothing is read or written here yet, so there is nothing yet to protect.
- * Whatever stage three eventually DOES must be gated in the database by RLS
- * like every other write in this app, and this gate must not be mistaken for
- * having done that.
+ * SO STAGE THREE DOES NOT RELY ON IT. It sends the code with the request, and
+ * create-tenant checks it server side before writing anything -- reaching this
+ * screen proves nothing about who got here, and the endpoint is the thing that
+ * mints a company. The gate is a convenience that keeps the form away from
+ * somebody who mistyped; it is not what protects the write.
  */
 
 const LENGTH = 5;
@@ -33,9 +37,21 @@ const LENGTH = 5;
 type Route = "demo" | "sald" | "gava";
 
 export default function OnboardingPage() {
-  const [stage, setStage] = useState<"pin" | "route">("pin");
+  /**
+   * THE CODE IS KEPT, and that is a decision rather than laziness.
+   *
+   * create-tenant checks it server side -- it has to, because this gate is
+   * client state and reaching stage three proves nothing about the person who
+   * got there. So the code has to travel with the request that actually makes
+   * the company. Holding it in a variable exposes nothing new: the operator
+   * typed it into this tab a moment ago, and it never leaves memory.
+   */
+  const [pin, setPin] = useState<string | null>(null);
+  const [route, setRoute] = useState<Route | null>(null);
 
-  return stage === "pin" ? <PinGate onPass={() => setStage("route")} /> : <RouteChoice />;
+  if (!pin) return <PinGate onPass={setPin} />;
+  if (!route) return <RouteChoice onChoose={setRoute} />;
+  return <SignupForm pin={pin} route={route} onBack={() => setRoute(null)} />;
 }
 
 /* ---- the frame both stages share ----------------------------------------- */
@@ -77,7 +93,7 @@ function Frame({ children }: { children: ReactNode }) {
 
 /* ---- stage 1: the code --------------------------------------------------- */
 
-function PinGate({ onPass }: { onPass: () => void }) {
+function PinGate({ onPass }: { onPass: (pin: string) => void }) {
   const [digits, setDigits] = useState<string[]>(() => Array(LENGTH).fill(""));
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -154,7 +170,7 @@ function PinGate({ onPass }: { onPass: () => void }) {
 
     setBusy(false);
     if (verdict === "ok") {
-      onPass();
+      onPass(pin);
       return;
     }
 
@@ -306,25 +322,15 @@ const ROUTES: { key: Route; title: string; body: string }[] = [
   },
 ];
 
-function RouteChoice() {
-  /**
-   * The seam stage three plugs into.
-   *
-   * Held rather than acted on, because the screens behind these three are not
-   * built. A card that visibly does nothing when tapped reads as broken rather
-   * than as unfinished, so the choice is recorded and said back; both the
-   * state and the line below go when the real step arrives.
-   */
-  const [route, setRoute] = useState<Route | null>(null);
 
+function RouteChoice({ onChoose }: { onChoose: (r: Route) => void }) {
   return (
     <Frame>
       {ROUTES.map((r, i) => (
         <button
           key={r.key}
           type="button"
-          onClick={() => setRoute(r.key)}
-          aria-pressed={route === r.key}
+          onClick={() => onChoose(r.key)}
           className={`press-scale block w-full p-[18px] text-left transition-transform duration-[110ms] hover:bg-[#f6f9ff] active:scale-[.985] ${
             i > 0 ? "mt-[14px]" : ""
           }`}
@@ -354,20 +360,350 @@ function RouteChoice() {
       <div className="flex justify-center pt-[18px]">
         <button
           type="button"
-          onClick={() => setRoute("gava")}
-          aria-pressed={route === "gava"}
+          onClick={() => onChoose("gava")}
           className="flex min-h-[44px] items-center px-2 text-[15px] font-semibold underline underline-offset-[3px]"
           style={{ color: C.text2 }}
         >
           Ge Bort ByggKoll
         </button>
       </div>
+    </Frame>
+  );
+}
 
-      {route && (
-        <div className="pt-[18px]">
-          <SoftNotice tone="quiet">Nästa steg är inte byggt ännu.</SoftNotice>
+/* ---- stage 3: the company, and its first admin ----------------------------
+    What the three cards were choosing BETWEEN. The route is not asked again
+    here -- it was answered by the card that got us in, and asking twice
+    invites somebody to answer differently on the screen that writes.        */
+
+/** Six digits: inside create-tenant's 6-20, and typeable on a phone keypad. */
+function generatePassword(): string {
+  const n = crypto.getRandomValues(new Uint32Array(1))[0]!;
+  return String(100000 + (n % 900000));
+}
+
+const TYPE_WORD: Record<Route, string> = {
+  demo: "Demo",
+  sald: "Kund",
+  gava: "Gåva",
+};
+
+/**
+ * The page's word for a route, and the database's. They differ by one word
+ * each, and translating HERE keeps the Swedish on the screen and the enum's
+ * own vocabulary in the request -- rather than letting either leak into the
+ * other and having to be untangled later.
+ */
+const ROUTE_TO_TYPE: Record<Route, string> = {
+  demo: "demo",
+  sald: "sold",
+  gava: "gift",
+};
+
+type Made = {
+  tenant_id: string;
+  name: string;
+  account_type: string;
+  expires_at: string | null;
+  admin_email: string;
+};
+
+function SignupForm({
+  pin, route, onBack,
+}: {
+  pin: string;
+  route: Route;
+  onBack: () => void;
+}) {
+  const [company, setCompany] = useState("");
+  const [orgNr, setOrgNr] = useState("");
+  const [invoice, setInvoice] = useState("");
+  const [adminName, setAdminName] = useState("");
+  const [adminEmail, setAdminEmail] = useState("");
+
+  const [password, setPassword] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [made, setMade] = useState<Made | null>(null);
+
+  /**
+   * Asked for only where somebody will be invoiced. A demo and a gift have
+   * nobody to send a bill to, and demanding an address for one would be asking
+   * the operator to invent it. create-tenant enforces the same rule, so this
+   * field appearing and that rule are one decision rather than two that can
+   * drift.
+   */
+  const invoiceRequired = route === "sald";
+
+  const ready =
+    company.trim() !== "" &&
+    /^\d{6}-\d{4}$/.test(orgNr.trim()) &&
+    adminName.trim() !== "" &&
+    adminEmail.includes("@") &&
+    (!invoiceRequired || invoice.includes("@"));
+
+  function credentialBlock(pw: string) {
+    return [
+      `Länk: ${window.location.origin}/login/`,
+      `Företag: ${company.trim()}`,
+      `Namn: ${adminName.trim()}`,
+      `Email: ${adminEmail.trim()}`,
+      `Lösenord: ${pw}`,
+    ].join("\n");
+  }
+
+  async function copyCredentials() {
+    const pw = password ?? generatePassword();
+    setPassword(pw);
+    try {
+      await navigator.clipboard.writeText(credentialBlock(pw));
+    } catch {
+      // A clipboard the browser refused is not a reason to pretend the step
+      // did not happen: the password is on screen and can be read off it.
+    }
+    setCopied(true);
+  }
+
+  async function create() {
+    if (!password) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/create-tenant`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            apikey: anon,
+            Authorization: `Bearer ${anon}`,
+          },
+          body: JSON.stringify({
+            pin,
+            route: ROUTE_TO_TYPE[route],
+            company: {
+              name: company.trim(),
+              org_nr: orgNr.trim(),
+              invoice_email: invoice.trim() || undefined,
+            },
+            admin: { name: adminName.trim(), email: adminEmail.trim(), password },
+          }),
+        },
+      );
+      const body = (await res.json().catch(() => ({}))) as Made & { error?: string };
+      if (!res.ok) {
+        // create-tenant answers in Swedish for everything a person can fix,
+        // and in fel.ts's key for the one refusal it shares with the gate.
+        setError(fel(body.error ?? "", "Företaget kunde inte skapas. Försök igen."));
+        setBusy(false);
+        return;
+      }
+      setMade(body);
+    } catch {
+      setError("Kunde inte nå servern. Försök igen.");
+    }
+    setBusy(false);
+  }
+
+  /* ---- done -------------------------------------------------------------- */
+  if (made) {
+    return (
+      <Frame>
+        <div className="pb-[14px]">
+          <SoftNotice tone="live" headline="Företaget är skapat">
+            {made.name} loggar in med uppgifterna du kopierade.
+          </SoftNotice>
+        </div>
+
+        <Card radius={16} pad="p-5" shadow={SHADOW.hero}>
+          <div className="mb-[14px] flex items-baseline justify-between gap-3">
+            <div className="min-w-0 text-[22px] font-extrabold" style={{ letterSpacing: "-.7px" }}>
+              {made.name}
+            </div>
+            <Tag tone={route === "demo" ? "warn" : "live"}>{TYPE_WORD[route]}</Tag>
+          </div>
+          <div className="rounded-[10px] px-4 py-[14px]" style={{ background: C.panel2 }}>
+            <div className="text-[15px] font-medium" style={{ color: C.text2 }}>
+              {made.admin_email}
+            </div>
+            {made.expires_at && (
+              <div className="mt-[6px] text-[15px] font-bold">
+                Provperioden går ut {made.expires_at.slice(0, 10)}
+              </div>
+            )}
+          </div>
+        </Card>
+
+        <p className="pt-[22px] text-center text-[15px] font-medium" style={{ color: C.text2 }}>
+          Lösenordet visas inte igen.
+        </p>
+      </Frame>
+    );
+  }
+
+  /* ---- the form ---------------------------------------------------------- */
+  return (
+    <Frame>
+      <div className="flex items-baseline justify-between px-1 pb-[10px]">
+        <div
+          className="text-[12px] font-bold uppercase"
+          style={{ letterSpacing: "1px", color: C.text2 }}
+        >
+          {TYPE_WORD[route]}
+        </div>
+        <button
+          type="button"
+          onClick={onBack}
+          className="flex min-h-[44px] items-center px-2 text-[15px] font-semibold"
+          style={{ color: C.accent }}
+        >
+          Byt
+        </button>
+      </div>
+
+      {error && (
+        <div className="pb-[14px]">
+          <SoftNotice tone="stop">{error}</SoftNotice>
         </div>
       )}
+
+      <Card radius={16} pad="p-5">
+        <div className="mb-[14px] text-[19px] font-bold" style={{ letterSpacing: "-.4px" }}>
+          Företaget
+        </div>
+        <div className="mb-[14px]">
+          <SoftField label="Namn">
+            <SoftInput
+              value={company}
+              onChange={(e) => setCompany(e.target.value)}
+              placeholder="Bygg AB"
+            />
+          </SoftField>
+        </div>
+        <div className={invoiceRequired ? "mb-[14px]" : ""}>
+          <SoftField label="Organisationsnummer" help="Skrivs som 556677-8899.">
+            <SoftInput
+              value={orgNr}
+              onChange={(e) => setOrgNr(e.target.value)}
+              placeholder="556677-8899"
+              inputMode="numeric"
+            />
+          </SoftField>
+        </div>
+        {invoiceRequired && (
+          <SoftField label="Fakturamejl">
+            <SoftInput
+              type="email"
+              value={invoice}
+              onChange={(e) => setInvoice(e.target.value)}
+              placeholder="faktura@bolaget.se"
+            />
+          </SoftField>
+        )}
+      </Card>
+
+      <div className="pt-[14px]">
+        <Card radius={16} pad="p-5">
+          <div className="mb-[14px] text-[19px] font-bold" style={{ letterSpacing: "-.4px" }}>
+            Administratören
+          </div>
+          <div className="mb-[14px]">
+            <SoftField label="Namn">
+              <SoftInput
+                value={adminName}
+                onChange={(e) => setAdminName(e.target.value)}
+                placeholder="Anna Andersson"
+              />
+            </SoftField>
+          </div>
+          <SoftField label="E-post" help="Det här blir inloggningen.">
+            <SoftInput
+              type="email"
+              value={adminEmail}
+              onChange={(e) => setAdminEmail(e.target.value)}
+              placeholder="anna@bolaget.se"
+            />
+          </SoftField>
+        </Card>
+      </div>
+
+      {/* The credentials, on Ny arbetare's terms and for its reason: the
+          password is generated in the browser and stored nowhere readable, so
+          a company created before anybody copied it is a company nobody can
+          sign into. */}
+      {password && (
+        <div className="pt-[14px]">
+          <Card radius={16} pad="p-5">
+            <div className="mb-[14px] flex items-baseline justify-between gap-3">
+              <div className="text-[19px] font-bold" style={{ letterSpacing: "-.4px" }}>
+                Inloggning
+              </div>
+              {copied && <Tag tone="live">Kopierad</Tag>}
+            </div>
+            <div className="rounded-[10px] px-4 py-[14px]" style={{ background: C.panel2 }}>
+              <div className="text-[15px] font-medium" style={{ color: C.text2 }}>
+                {adminEmail.trim()}
+              </div>
+              <div
+                data-password
+                className="mt-[6px] text-[22px] font-extrabold"
+                style={{ letterSpacing: "1px" }}
+              >
+                {password}
+              </div>
+            </div>
+            <div className="pt-[14px]">
+              <button
+                type="button"
+                onClick={() => void copyCredentials()}
+                className="press-scale flex h-[60px] w-full items-center justify-center rounded-[12px] text-[17px] font-bold transition-transform duration-[110ms] hover:bg-[#dbe4f9] active:scale-[.985]"
+                style={{ background: C.panel2, color: C.ink, letterSpacing: "-.2px" }}
+              >
+                Kopiera igen
+              </button>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      <div className="pt-[22px]">
+        {!password ? (
+          <>
+            {/* NOT the `disabled` attribute, for the reason Ny arbetare gives:
+                a disabled button swallows the click, so the screen cannot
+                answer and what the operator meets is a control that does
+                nothing at all. This one is always clickable and simply does
+                not advance until the fields are filled. */}
+            <button
+              type="button"
+              onClick={() => { if (ready) void copyCredentials(); }}
+              className="press-scale h-16 w-full rounded-[12px] text-[20px] font-extrabold transition-[transform,background] duration-150 active:scale-[.985]"
+              style={{
+                letterSpacing: "-.4px",
+                background: ready ? C.accent : C.hairline,
+                color: ready ? C.surface : C.chevron,
+                boxShadow: ready ? SHADOW.action : undefined,
+                cursor: ready ? "pointer" : "not-allowed",
+              }}
+            >
+              Kopiera inloggning
+            </button>
+            <p
+              className="pt-[14px] text-center text-[15px] font-medium"
+              style={{ color: C.text2, textWrap: "pretty" }}
+            >
+              Lösenordet finns bara här. Kopiera det innan du skapar företaget —
+              annars kan ingen logga in.
+            </p>
+          </>
+        ) : (
+          <PrimaryButton onClick={() => void create()} disabled={busy}>
+            {busy ? "Skapar…" : "Skapa företaget"}
+          </PrimaryButton>
+        )}
+      </div>
     </Frame>
   );
 }

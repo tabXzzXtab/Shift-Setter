@@ -867,6 +867,74 @@ Korperation's admins are not cover for a client's: being recoverable by the
 operator is not being recoverable, and the invariant is about getting back in
 without asking us.
 
+## 6d. Onboarding — how a company gets in
+
+`/onboarding` is **linked from nowhere**. It is reached by typing the path, by
+whoever is sitting with the customer, and it opens on a code rather than a login
+because the person using it may hold no account in this app at all. What is
+being decided is which kind of account the CUSTOMER gets.
+
+Three stages.
+
+**Stage 1 — the code.** Five digit boxes, auto-advancing, submitting on the
+fifth. A wrong code shakes the row, empties it, and says *Fel kod.* — the shake
+is the fast copy of the message, never the message itself, because it says
+nothing to a screen reader and is dropped entirely under reduced motion. The
+code is compared in the `verify-pin` Edge Function, never in the page: a static
+export ships its own source, so a comparison written in the browser is a
+comparison printed in the bundle.
+
+**Stage 2 — which route.** Two cards, *Tilldela Demo* and *Sålt ByggKoll*, and
+*Ge Bort ByggKoll* as a small underlined text button beneath them. The weight is
+the ranking: handing the product over for nothing should not be as easy to hit
+as selling it. They map to `tenant.account_type` as `demo`, `sold` and `gift`.
+`owner` is **not offerable** — that is Korperation's own type, the one whose
+accounts can be super admins, and a public endpoint able to mint one would hand
+over the product.
+
+**Stage 3 — the company and its first admin.** Två kort: *Företaget* (namn,
+organisationsnummer, and *Fakturamejl* only where somebody will actually be
+invoiced) and *Administratören* (namn, e-post). Then the credential handover
+the Ny arbetare screen already uses: a six-digit password generated in the
+browser, shown once, and **Skapa företaget does not exist until it has been
+copied** — a company created before anybody copied it is a company nobody can
+sign into.
+
+### What actually protects this
+
+**The gate is not a boundary.** Stages two and three are drawn off client state,
+and anyone willing to open devtools is past them. That is the architecture, not
+an oversight — see Section 6, every restriction that lives in the interface is
+decorative.
+
+**So the code is checked again where it matters.** `create-tenant` verifies
+`ONBOARDING_PIN` server-side before writing anything, and calls
+`public.note_pin_attempt()` on the same ceilings as the gate — 5 attempts per
+caller per minute, 40 across everybody. Without that second call the endpoint
+would be an unmetered oracle for the very code the gate rate-limits, and the
+limiter would be guarding the cheap door while the expensive one stood open.
+Reaching stage three proves nothing about who got there; the request proves it.
+
+**`create-tenant` is the one write that lands outside the caller's tenancy.**
+`create-account` declines the job by design — it places a new account in the
+tenant of the admin who asked, so a client's admin can never put somebody inside
+another client's company. A brand-new tenancy has no admin to authorise its
+first account, so this function makes all four rows itself: tenant, auth
+identity, account (`role = admin`, `super_admin` false, `created_by` null,
+because there was no admin behind it), and worker. There is no transaction
+across GoTrue and PostgREST, so the chain unwinds by hand on any failure — a
+half-made company would sit in the operator's list looking real with nobody able
+to sign into it.
+
+**A demo carries three weeks**, written as `expires_at` and enforced since M3
+inside `app.current_tenant_id()`. `sold` and `gift` carry no end date.
+
+**What does not exist yet:** there is no route, in the app or in a script, that
+removes a tenancy. One can be created and never deleted, and invariant 11 makes
+the obvious manual attempt fail — a company's last admin cannot be deleted, so
+the tenancy cannot be emptied first. Clearing a demo means lifting that guard
+deliberately, and nothing does it for you.
+
 ## 7. Landing pages and navigation
 
 Each role lands on what it does most, and nothing important is more than one press away.
