@@ -115,8 +115,7 @@ try {
   const pop = w.getByRole("dialog", { name: "Profil" });
   await pop.waitFor({ timeout: 20000 });
   // "Min profil" now: Konto and Profil were one screen asking about one person
-  // under two names, and are one page. /profil still renders it, so the route
-  // below and anything anybody has bookmarked keep working.
+  // under two names, and are one page, at /konto.
   await pop.getByRole("link", { name: "Min profil", exact: true }).click();
   await w.waitForURL((u) => u.pathname.includes("/konto"), { timeout: 20000 });
   await mustSee(w, "Har du företag?", "the Profil form never rendered");
@@ -242,7 +241,7 @@ try {
   log("admin changed a field on the arbetare's profile and saved");
 
   // AND THE WHOLE POINT: the admin's own row must not have moved.
-  await a.goto(`${BASE}/profil/`, { waitUntil: "networkidle" });
+  await a.goto(`${BASE}/konto/`, { waitUntil: "networkidle" });
   await mustSee(a, "Har du företag?", "the admin's own Profil did not load");
   const own = await field(a, "Stad").inputValue();
   if (own === ADMIN_EDIT || own === `Hörby ${stamp}`) {

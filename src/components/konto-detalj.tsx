@@ -20,9 +20,8 @@ import { fel } from "@/lib/fel";
  * wall -- and "open the person, then everything about them is here" is both
  * fewer controls and a truer description of what an account is.
  *
- * Both routes still render it. /konto and /profil are in menus, in back links
- * and in whatever anybody has bookmarked, and a merge that breaks those is a
- * merge that costs more than it saves.
+ * /konto renders it. /profil did too, for the menus and back links that still
+ * pointed there, and was removed once none did.
  *
  * WHAT IS NOT HERE: removal. That lives on the Alla Konton row, as the handoff
  * draws it. Two places to delete the same account is one more than there

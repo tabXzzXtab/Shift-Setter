@@ -990,10 +990,10 @@ landing page.
 
 **Two entries, not three.** Konto and Profil were separate screens asking about
 one person: the first held the name, the email and the role, the second the
-phone number, the bank account and the next of kin. They are one page now —
-`/konto` and `/profil` both render it, so no menu entry, back link or bookmark
-broke — and the pair of buttons that used to sit on every row of the accounts
-list went with the merge.
+phone number, the bank account and the next of kin. They are one page now,
+`/konto`, and the pair of buttons that used to sit on every row of the accounts
+list went with the merge. `/profil` rendered the same page for a while so no
+menu entry, back link or bookmark broke, and was removed once nothing linked it.
 
 #### Alla Konton
 
