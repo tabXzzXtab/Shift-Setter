@@ -311,7 +311,21 @@ try {
   if (said.includes("arbetsdagböcker")) {
     fail(`an unused account must be erased, not shut down: "${said}"`);
   }
-  if (await page.locator("[data-konto]").count()) {
+  // WAIT FOR THE LIST, NOT FOR THE NOTICE. These are two different events and
+  // the gap between them is real work: the handler sets the note and bumps the
+  // tick in one render, but the rows only change after account_directory comes
+  // back AND signAvatars() has signed a url for every face in the list. On a
+  // loaded machine this assertion used to read the stale list and report the
+  // account as still present when the database had already erased it -- the
+  // search box is still filled with NEW_NAME, so the count reaching zero is
+  // exactly what "it is gone" looks like here.
+  //
+  // state:"detached" rather than a count check: it re-queries as the list
+  // re-renders, and it resolves immediately when the row has already gone, so
+  // the fast path costs nothing.
+  try {
+    await page.locator("[data-konto]").first().waitFor({ state: "detached", timeout: 20000 });
+  } catch {
     fail("the removed account is still in the list");
   }
   log(`removed, and said so: "${said.replace(/\s+/g, " ")}"`);

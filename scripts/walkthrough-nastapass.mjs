@@ -144,7 +144,20 @@ async function cardText(page, until) {
   // as before and no longer tied to a tag the redesign stopped emitting.
   const card = page.getByText("Nästa pass", { exact: true }).first().locator("xpath=..");
   await card.waitFor({ timeout: 20000 });
-  for (let i = 0; i < 40; i++) {
+  // 240 x 250ms = a minute of faked time, up from ten seconds.
+  //
+  // Ten was enough alone and not enough inside a full sweep: running this
+  // twenty-third of twenty-four, against a dev server compiling routes on
+  // demand, left the card on "Laddar…" and the run failed reporting a card
+  // that was merely still loading. The rows arrive over a real network, but
+  // every render that follows is scheduled on a faked timer, so the budget
+  // here has to cover the REAL wait as well as the faked one -- and under
+  // load the real wait is the larger of the two.
+  //
+  // It costs nothing when things are quick: the loop returns on the first tick
+  // that shows the card, so a healthy run still finishes in a few hundred
+  // milliseconds. The ceiling only matters when it is needed.
+  for (let i = 0; i < 240; i++) {
     const text = await card.innerText();
     if (!text.includes("Laddar…") && (!until || text.includes(until))) return text;
     // Ticks the page's clock, not the wall. waitForTimeout would spin forever:
