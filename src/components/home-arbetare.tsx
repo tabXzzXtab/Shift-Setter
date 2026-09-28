@@ -386,7 +386,6 @@ export function HomeArbetare() {
                     ? {
                         background: ACCENT,
                         boxShadow: "0 0 0 5px rgba(118,146,255,.20)",
-                        animation: "livedot 2s ease-in-out infinite",
                       }
                     : { background: CHEVRON }
                 }
