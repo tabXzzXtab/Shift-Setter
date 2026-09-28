@@ -347,6 +347,20 @@ expire, which shuts it without erasing anything. Removing one is a hand-written
 transaction, and the first person who needs to clear a finished demo should know
 that before they go looking for the button.
 
+**So demo tenancies accumulate, and nothing here can stop them.** A trial runs
+21 days; on day 22 it is shut and every row still exists — the tenancy, its
+accounts, its projects, its passes, its hours. Nothing reaps them, and nothing
+is going to: a sweep needs a cron or a scheduled job, and the architecture
+section above forbids both because a static export has no server to run one.
+One dead tenancy per trial sold, permanently, until somebody removes it by hand.
+
+Today that number is zero — `create-tenant` only just landed, and the database
+holds one `owner` and one `sold`, neither carrying a date. This is written now
+because the cost of finding it out later is a pile of them and no procedure.
+`/super` is the only place they are visible, and it prints `Går ut <date>`
+whether the date is ahead or behind, so an expired demo does not look different
+from a live one on that list. Counting them means a query.
+
 **The database refuses it rather than cascading.** Twenty of the twenty-one
 foreign keys into `public.tenant` are `NO ACTION`, so `delete from public.tenant`
 fails while a single child row remains. That is the right default and should
