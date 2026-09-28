@@ -39,12 +39,22 @@ export function useMonthColour(month: string): (projectId: string) => string | n
       const [y, m] = month.split("-").map(Number);
       const next = m === 12 ? `${y + 1}-01-01` : `${y}-${String(m + 1).padStart(2, "0")}-01`;
 
+      // BELT AND BRACES, AND SAID SO RATHER THAN IMPLIED. colourIndex() sorts
+      // a copy of whatever it is handed before taking the index, so the colour
+      // has never depended on the order these rows arrive in and this clause
+      // changes no colour on any screen today. It is here because the contract
+      // above -- "a project's position in a sorted list" -- was true only
+      // because a function two files away was careful, and a reader checking
+      // it at the source found an unordered query. Ordering here makes the
+      // list this returns the sorted one it is described as, so the guarantee
+      // no longer rests on the caller alone.
       const { data } = await getSupabase()
         .from("pass")
         .select("project_id")
         .is("deleted_at", null)
         .gte("work_date", `${month}-01`)
-        .lt("work_date", next);
+        .lt("work_date", next)
+        .order("project_id");
 
       if (!active) return;
       setIds([...new Set((data ?? []).map((p) => p.project_id))]);

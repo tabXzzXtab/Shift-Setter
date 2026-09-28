@@ -280,6 +280,31 @@ try {
   await mustSee(page, B, "the calendar does not show Beta");
 
   /**
+   * THE STRIPES ARRIVE ON A SECOND ROUND TRIP, and the names above are not it.
+   *
+   * A stripe needs two answers: the page's own pass query, which supplies the
+   * project names and the count in each cell's aria-label, and
+   * useMonthColour's separate query, which supplies the colours. Waiting for a
+   * name and then measuring reads the grid between them -- a cell holding five
+   * projects drew one stripe, which is not the calendar being wrong but the
+   * test asking before it had finished answering.
+   *
+   * Settled is "the count stopped changing", not a fixed sleep: two equal
+   * non-zero readings half a second apart. A sleep long enough to be safe here
+   * would be a sleep this suite pays on every run forever.
+   */
+  await page.waitForFunction(
+    () => {
+      const n = document.querySelectorAll("[data-date] span[data-stripe]").length;
+      const settled = n > 0 && n === window.__stripes;
+      window.__stripes = n;
+      return settled;
+    },
+    null,
+    { timeout: 20000, polling: 500 },
+  );
+
+  /**
    * Every cell, measured. The count comes from the cell's own aria-label, so
    * the arithmetic below is checked against what the page itself claims is on
    * the day rather than against a number this script assumed.
