@@ -196,15 +196,22 @@ try {
   for (const d of OPEN) await makePass(page, project, d, "6", null);  // Tier 3 offers them
   await signOut(page);
 
-  // One unread notice, written straight in. The path that CREATES one -- an
+  // One shift_deleted, written straight in. The path that CREATES one -- an
   // admin deleting a shift someone holds -- is driven in walkthrough-kalender;
   // what is under test here is that the badge shows up in the right place.
+  //
+  // It is not the only notice the worker ends up holding: the two hand-picked
+  // placements above announce themselves through notify_shift_offered, so the
+  // badge step below expects three. Kept as a direct insert anyway, because
+  // shift_deleted is the kind this screen was drawn for and no trigger in this
+  // setup would produce one.
   await db.query(
     `insert into public.notification (account_id, kind, payload)
      select w.account_id, 'shift_deleted', jsonb_build_object('work_date', $2::text)
      from public.worker w where w.name = $1`, [W.name, soon]);
 
-  log(`a shift today for ${W.name}, ${OPEN.length} open ones, and one unread notice`);
+  log(`a shift today for ${W.name}, ${OPEN.length} open ones, and 3 unread notices ` +
+      `(2 placements announced, 1 written here)`);
 
   // ---- the landing page ----------------------------------------------------
   await signIn(page, W.email, W.password);
@@ -262,21 +269,52 @@ try {
   const stampBtn = () => page.getByRole("button", { name: /Stämpla/ });
   await stampBtn().waitFor({ timeout: 20000 });
 
-  const badge = page.getByRole("button", { name: "Okej", exact: true });
-  if (!(await badge.count())) fail("no notification badge while a notice is unread");
-  const [sBox, bBox] = await Promise.all([stampBtn().boundingBox(), badge.boundingBox()]);
+  // THREE NOTICES, NOT ONE, and the number is checked rather than tolerated.
+  //
+  // The fixture writes one shift_deleted by hand. The two hand-picked
+  // placements above each fire notify_shift_offered as well -- somebody else
+  // putting a worker on a shift tells them, which is the point of it -- so the
+  // worker holds 2 x shift_offered + 1 x shift_deleted by the time this runs.
+  //
+  // It is deterministic. Only three triggers write notifications;
+  // notify_day_admin_confirmed and notify_day_rejected need a project_day or a
+  // day_review that this setup has not reached, and notify_shift_offered fires
+  // on handplockad, forval, manuell and snabb -- so the five OPEN passes, which
+  // nobody is picked for, add nothing.
+  //
+  // This assertion used to expect exactly one and broke on a strict-mode
+  // violation when push_dispatch started announcing placements. Asserting the
+  // count keeps that from happening silently again: a change in what a
+  // placement announces should land here as a failure, not as a different
+  // screen nobody looked at.
+  const badges = page.getByRole("button", { name: "Okej", exact: true });
+  const unread = await badges.count();
+  if (unread !== 3) {
+    await shot(page, "FAILED");
+    fail(`expected 3 unread notices (2 placements announced + 1 written by the ` +
+         `fixture), got ${unread}`);
+  }
+  const [sBox, bBox] = await Promise.all([stampBtn().boundingBox(), badges.first().boundingBox()]);
   if (!(bBox.y > sBox.y + sBox.height)) {
     fail(`the badge is not below the stamp: stamp ends ${sBox.y + sBox.height}, badge at ${bBox.y}`);
   }
   await shot(page, "w1b-notis");
-  log("the notification badge sits directly below the stamp button");
+  log(`${unread} notices, and the badge sits directly below the stamp button`);
 
-  await badge.click();
-  await page.waitForTimeout(1200);
-  if (await page.getByRole("button", { name: "Okej", exact: true }).count()) {
-    fail("the notice came back after being dismissed");
+  // One Okej takes one notice, and none of them comes back. The old check read
+  // "zero after a single click", which was only ever true while the fixture
+  // produced a single notice -- it would have passed just as happily against a
+  // button that cleared the lot.
+  for (let left = unread; left > 0; left--) {
+    await badges.first().click();
+    await page.waitForTimeout(1200);
+    const now = await badges.count();
+    if (now !== left - 1) {
+      await shot(page, "FAILED");
+      fail(`dismissing one notice left ${now} on screen, expected ${left - 1}`);
+    }
   }
-  log("dismissing it keeps it dismissed");
+  log("each Okej dismisses exactly one notice, and none of them comes back");
 
   // ---- the stamp, both ways, against the server clock ----------------------
   if (!/Stämpla In/.test(await stampBtn().innerText())) {
@@ -388,44 +426,30 @@ try {
     await shot(page, "FAILED");
     fail("the card has no Leaflet map (Nominatim may have refused the lookup)");
   }
-  // THE STACK, as the redesign draws it: two slabs behind the card rather than
-  // three scaled slivers. They are inset from the card's edges and sit below
-  // it, so the card reads as the front of a pile without anything being
-  // rotated -- a matrix(a,b,c,d,e,f) with b or c set is a rotation or a skew,
-  // and there must be none.
-  const slabs = page.locator("[data-stack-slab]");
-  const count = await slabs.count();
-  if (count !== 2) fail(`expected 2 slabs behind the front card, saw ${count}`);
-
-  const deep = await page.locator('[data-stack-slab="deep"]').boundingBox();
-  const near = await page.locator('[data-stack-slab="near"]').boundingBox();
-
-  for (const [name, sel] of [["deep", "deep"], ["near", "near"]]) {
-    const m = await page.locator(`[data-stack-slab="${sel}"]`)
-      .evaluate((el) => getComputedStyle(el).transform);
-    if (m !== "none") {
-      const [a, b, c, d] = m.replace(/matrix\(|\)/g, "").split(",").map(Number);
-      if (b !== 0 || c !== 0) fail(`the ${name} slab is rotated or skewed: ${m}`);
-      if (a !== d) fail(`the ${name} slab is scaled unevenly: ${m}`);
-    }
+  // NO STACK ON THE HOME SCREEN, and that is the design rather than a loss.
+  //
+  // c75bf85 made the arbetare's startsida offer ONE pass at a time:
+  // home-arbetare.tsx hands OfferStack a list of one, so the two slabs that
+  // drew the pile behind the card are deliberately not there. Answering the
+  // card refetches and the next offer takes its place, and the whole queue is
+  // still on Acceptera Pass -- which is what the next block checks, and where
+  // the stack assertions now belong.
+  //
+  // This expected 2 slabs and had done since 08 Sep. It went unnoticed for
+  // three weeks because the run never got this far: it was timing out on a
+  // calendar cell in an earlier month long before reaching the home screen.
+  //
+  // Asserted as a number rather than deleted. "The home screen shows one offer
+  // and no pile" is a claim worth holding on to -- if a stack comes back here,
+  // that is a product decision and this should be the thing that says so.
+  const slabs = await page.locator("[data-stack-slab]").count();
+  if (slabs !== 0) {
+    await shot(page, "FAILED");
+    fail(`the startsida offers one pass at a time, so it draws no stack; saw ${slabs} slabs`);
   }
-
-  // Each is narrower than the card and centred under it, the deeper one more
-  // inset than the near one -- 14px against 7px in the handoff.
-  for (const [name, box] of [["deep", deep], ["near", near]]) {
-    if (!(box.width < cBox.width)) fail(`the ${name} slab is not inset from the card`);
-    if (Math.abs((box.x + box.width / 2) - (cBox.x + cBox.width / 2)) > 1) {
-      fail(`the ${name} slab is not centred under the front card`);
-    }
-    if (!(box.y + box.height > cBox.y + cBox.height)) {
-      fail(`the ${name} slab does not sit below the card`);
-    }
-  }
-  if (!(deep.width < near.width)) fail("the deeper slab is not the narrower one");
-  if (!(deep.y + deep.height > near.y + near.height)) {
-    fail("the deeper slab does not sit lower than the near one");
-  }
-  log("2 slabs behind, inset and centred, the deeper one lower and narrower");
+  const cards = await page.locator('[data-offer-card="front"]').count();
+  if (cards !== 1) fail(`expected exactly one offer card on the startsida, saw ${cards}`);
+  log("one offer, no pile behind it -- the queue lives on Acceptera Pass");
 
   await shot(page, "w2-acceptera-kort");
   log(`card reads ${JSON.stringify(text.replace(/\n+/g, " | "))}, with a map`);
