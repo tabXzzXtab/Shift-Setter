@@ -389,6 +389,19 @@ This exists because the schema once changed underneath a patch in progress, and
 deciding whether a reset was safe meant reasoning from row counts to be sure
 nothing real would be destroyed.
 
+**Never run `supabase db push` or `supabase db reset` against this project.**
+Migrations are applied one at a time with `db:sql -- --file`, after
+`validate-migration.mjs` has proved they run. That is the whole route; the CLI's
+migration commands are not part of it.
+
+`supabase_migrations.schema_migrations` now lists all of them, so `db push`
+would be a no-op rather than a replay — but it was stale for weeks, and the
+warning outlives the fix. A `db push` against a stale ledger does not fail
+safely: every `create or replace function` succeeds silently and reverts the
+live definition to whatever the file said, undoing later fixes without a word,
+while the statements that do fail leave the earlier ones already applied. There
+is no dry run that would have told you first.
+
 ---
 
 ## There is no sanctioned way to delete a tenancy
