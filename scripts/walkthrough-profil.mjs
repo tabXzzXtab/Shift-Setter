@@ -260,6 +260,26 @@ try {
   }
   log("the arbetare sees the admin's edit on their own profile");
 
+  // ==========================================================================
+  // TEARDOWN: THE TOGGLE GOES BACK OFF
+  // ==========================================================================
+  // Step 4 asserts the company block starts hidden, and this run switched it
+  // on and saved it. Left on, the next run fails there against a screen that
+  // is correct. Switched off here, as the worker, through the same Spara --
+  // and proven off after a reload, or the next run inherits the problem.
+  await check(w, "Har du företag?").uncheck();
+  await w.getByRole("button", { name: "Spara", exact: true }).click();
+  await mustSee(w, "Sparat.", "saving the toggle back off reported nothing");
+  await w.reload({ waitUntil: "networkidle" });
+  await mustSee(w, "Har du företag?", "the form did not come back after the teardown");
+  if (await check(w, "Har du företag?").isChecked()) {
+    fail("teardown: the company toggle is still on after a reload");
+  }
+  if (await boxes(w, "Organisationsnummer").count()) {
+    fail("teardown: the company fields are still on screen with the toggle off");
+  }
+  log("teardown: the company toggle is off again, so the next run starts clean");
+
   console.log("\nPROFIL FORM COMPLETE.\n");
 } finally {
   await browser.close();
