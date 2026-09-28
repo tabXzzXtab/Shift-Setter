@@ -78,12 +78,43 @@ Full specification: [docs/spec.md](docs/spec.md).
 10. A worker sees their hours only once an Arbetsdagbok covering that date has
     been generated, and the number is exactly what was filed. Confirmation
     alone is not enough — a confirmed day can still be edited at stage two.
-11. The last active admin cannot be removed, demoted, or paused. Only an admin
-    can change a role, so an admin is the one whose disappearance cannot be
-    recovered from inside the app. The guard counts active admins; it does
-    not protect the last arbetsledare.
+11. The last active admin OF A TENANCY cannot be removed, demoted, paused, or
+    moved to another tenancy. Only an admin can change a role, so an admin is
+    the one whose disappearance cannot be recovered from inside that company.
+    The guard counts active, undeleted admins IN THE TENANCY THE ACCOUNT IS
+    LEAVING. An account that has been shut down is not cover -- delete_account()
+    writes active = false and deleted_at together, but nothing enforces the
+    pairing, so the count tests both. Neither is an admin of another company,
+    including Korperation's: being recoverable BY THE OPERATOR is not being
+    recoverable, and this invariant is about getting back in without asking us.
+    It does not protect the last arbetsledare.
+12. A row belongs to exactly ONE tenancy, and tenant_id is NOT NULL on every
+    table under RLS. A CHILD DERIVES ITS TENANCY FROM ITS PARENT, never from
+    whoever wrote it -- an operator writing onto a client's project creates a
+    row belonging to the CLIENT, and a column default naming the caller gets
+    that exactly backwards. One company holds one tenancy; org_nr is unique.
+    No read and no write crosses a tenancy.
+    Four things enforce that, and all four are load-bearing:
+      - app.in_tenant(), inside every policy;
+      - app.guard_tenant(), inside the SECURITY DEFINER functions, which no
+        policy can reach into;
+      - a predicate written into each VIEW, because a view runs as its owner
+        and RLS on the tables underneath does not apply to it;
+      - the composite foreign keys.
+    Removing any one leaves a hole the other three do not cover. Each was
+    added because the layer above it had already been shown to be insufficient
+    on its own.
 
 Weakening any of these is a stop-and-ask, never a judgment call.
+
+The operator's crossing is the one exception, and it is deliberate rather than
+a gap. Only `account.super_admin` crosses tenancies; it cannot be set from
+inside the app, on insert or on update, so the flag is not self-service.
+Entering a tenancy narrows the DATABASE and not merely the screen, and the
+banner names the company until they leave -- `exit_tenant()` carries no guard
+of its own, because a way out that can itself be refused is a trap. An expired
+tenancy is shut, never erased, and an operator acting inside one is not locked
+out of it.
 
 Working rules:
 - Nothing counts until it has run against a real database and matched a
