@@ -84,6 +84,3 @@ export function useAccount(): State {
   if (!ctx) throw new Error("useAccount must be used inside <AccountProvider>");
   return ctx;
 }
-
-/** Admin can do everything an arbetsledare can, except confirm days. */
-export const isStaff = (r: Role | undefined) => r === "admin" || r === "arbetsledare";
