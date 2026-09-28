@@ -523,13 +523,28 @@ export function HomeArbetare() {
             next", once per section: the next shift above, the next offer here.
             A number saying 31 more made the section a queue to work through,
             and a phone on a building site is not where that belongs. */}
-        <div className="flex items-baseline justify-between px-1 pb-[10px]">
+        <div className="flex items-center justify-between px-1 pb-[10px]">
           <div
             className="text-[12px] font-bold uppercase"
             style={{ letterSpacing: "1px", color: TEXT_2 }}
           >
             Acceptera pass
           </div>
+          {/* The way to the whole queue. A word, not a number, for the reason
+              above; and only while there is an offer, since the page behind
+              it would say the same "nothing to answer" the panel already
+              does. 44px tall, pulled back into the kicker's line so the row
+              does not grow. */}
+          {front && (
+            <Link
+              href="/acceptera"
+              className="-my-4 flex h-11 items-center gap-[8px] rounded-[10px] px-[6px] text-[15px] font-bold hover:bg-[#f6f9ff]"
+              style={{ color: INK }}
+            >
+              Visa alla
+              <Chevron />
+            </Link>
+          )}
         </div>
 
         {offers === null && <EmptyPanel>Laddar…</EmptyPanel>}
