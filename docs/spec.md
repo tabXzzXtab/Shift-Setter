@@ -1066,6 +1066,20 @@ Alla Arbetare is not in the leader's menu. **A project row opens only Kolla Pass
 
 Both are the bottom sheet described above.
 
+### Första gången — the tour
+
+**Once per account per device, on the first login there.** Tracked in `localStorage` as `onboarding_complete_{account_id}`, set by the last card's **Kom igång**; `onboarding_step_{account_id}` holds the step to resume at, so a reload mid-tour does not start again, and is removed on completion. Per device is the trade: a new phone plays it again. **Existing accounts see it too**, once each, on their next login — that is deliberate, not a side effect. The role comes from the account row like everywhere else. It never starts for an operator acting inside another tenancy, nor on `/login`, `/onboarding`, `/super` or the password screens, and an automated browser (`navigator.webdriver`) only sees it when it opts in with `byggkoll.tour-test`, so the other walkthroughs are unaffected.
+
+**Three kinds of step.** A **card** covers the app, blurred behind the sheet's scrim, and says one thing with **Nästa**. A **nav** step rings the real element with a pulsing accent halo and a tooltip pointing at it; the person does the thing themselves, and the page underneath stays fully usable. An **autofill** step fills a form in its own state, typed at 40 ms a character (instant under reduced motion), then points at the button. **Autofill never submits.** What the person presses is a real write — the tips say so — and a step advances when the write **succeeds**, never on the press, so a refused submit leaves them on the step that explains it.
+
+**A step that cannot happen becomes a card.** A first login usually has no offer, no waiting day, no shift today. Such a step is checked against the database when it starts and, unmet, shows an explanation card instead (or is skipped when the card before it already said it); a nav step whose element has not appeared after 8 s does the same. Every nav and autofill step carries **Hoppa över**, and one on another screen offers **Ta mig dit**. Nothing traps anybody.
+
+- **Admin:** project card → **Nytt projekt** → the form fills with an example (Fasad Malmö, a start two weeks out, an obviously example beställare — it prints on a real Arbetsdagbok if pressed) → four cards on who does what → the project's **Generera Arbetsdagbok** → the button on that page, if a confirmed day exists.
+- **Arbetsledare:** two cards → **Skapa pass** → one day two weeks out, 07:00–16:00, **8** typed as the hours → two cards → **Bekräfta pass** → Timmar and Vad vi gjorde ringed. **No autofill on Bekräfta**: those figures are the leader's claim about a real day and confirming is final (invariants 1 and 5). No day waiting: a card explains the screen instead.
+- **Arbetare:** card → **Arbetsdagar** → mark a day (advances when a *kan jobba* day is saved) → two cards → **Visa alla** → **Acceptera** on the queue → card → **Stämpla In**, which ends when the stamp is in the database. No offer, no shift today: cards instead.
+
+Last: *"Välkommen till ByggKoll. Du vet nu vad du behöver göra."* and **Kom igång**.
+
 ## 8. Decisions — all settled
 
 Nothing here is open. Anything discovered later that is not covered is a stop-and-ask, never a guess.

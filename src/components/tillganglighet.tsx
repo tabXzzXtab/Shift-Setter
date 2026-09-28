@@ -7,6 +7,7 @@ import { derivesTenant, getSupabase } from "@/lib/supabase/client";
 import { addDays, stockholmToday } from "@/lib/dates";
 import { useAccount } from "@/lib/account";
 import { fel } from "@/lib/fel";
+import { tourSignal } from "@/lib/tour/signal";
 
 type Mark = boolean; // true = can work, false = cannot
 type Marks = Record<string, Mark>;
@@ -112,6 +113,9 @@ export function Tillganglighet({ hint = false }: { hint?: boolean }) {
         { onConflict: "worker_id,work_date" },
       );
       if (error) setError(fel(error, "Dagarna kunde inte markeras. Försök igen när du har nät."));
+      // A day saved as one they CAN work -- what the tour asks for. Marking a
+      // day they cannot is saved just the same, and is not that.
+      else if (toSet.some((d) => now[d] === true)) tourSignal("availability-saved");
     }
     if (toClear.length) {
       const { error } = await sb.from("forval").delete()

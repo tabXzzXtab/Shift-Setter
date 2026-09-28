@@ -13,6 +13,7 @@ import { Bristsurvey, fetchGaps, hasGaps, type Gaps } from "@/components/bristsu
 import type { DocDay, DocPayload } from "@/lib/doc/arbetsdagbok";
 import { arbetsdagbokFilename, buildArbetsdagbokPdf } from "@/lib/doc/pdf";
 import { fel } from "@/lib/fel";
+import { tourSignal } from "@/lib/tour/signal";
 
 /**
  * The marker on the date rail. Filled rather than outlined, because it is not
@@ -311,6 +312,7 @@ function Arbetsdagbok() {
       },
       days: [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date)),
     });
+    tourSignal("arbetsdagbok-generated");
     setBusy(false);
   }
 

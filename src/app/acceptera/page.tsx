@@ -6,6 +6,7 @@ import { C, SoftNotice, SoftScreen } from "@/components/soft";
 import { OfferStack, type Offer } from "@/components/offer-stack";
 import { getSupabase } from "@/lib/supabase/client";
 import { fel } from "@/lib/fel";
+import { tourSignal } from "@/lib/tour/signal";
 
 /**
  * Acceptera Pass -- Tier 3, on its own page.
@@ -64,6 +65,7 @@ function Acceptera() {
       );
     } else if (take) {
       setNote("Passet är ditt.");
+      tourSignal("offer-accepted");
     } else {
       setNote("Passet ligger kvar under Öppna Pass om du ändrar dig.");
     }

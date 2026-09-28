@@ -13,6 +13,7 @@ import { hhmm, longDayHeading, passEndAt, stampToTime } from "@/lib/dates";
 import { pendingDays } from "@/lib/pending-days";
 import { spanHours } from "@/lib/hours";
 import { fel } from "@/lib/fel";
+import { tourSignal } from "@/lib/tour/signal";
 
 type Row = {
   tilldelning_id: string;
@@ -391,6 +392,7 @@ function Bekrafta({ askedProject, askedDate }: { askedProject: string | null; as
       return;
     }
 
+    tourSignal("day-confirmed");
     setSaving(false);
     setReload((r) => r + 1);
   }

@@ -9,9 +9,11 @@ import {
 } from "@/components/soft";
 import { PaintCalendar } from "@/components/paint-calendar";
 import { derivesTenant, getSupabase } from "@/lib/supabase/client";
-import { stockholmToday } from "@/lib/dates";
+import { addDays, stockholmToday } from "@/lib/dates";
 import { defaultHours } from "@/lib/hours";
 import { fel } from "@/lib/fel";
+import { useTourAutofill } from "@/components/tour/use-tour-autofill";
+import { tourSignal } from "@/lib/tour/signal";
 
 type Project = { id: string; name: string };
 type Worker = { id: string; name: string };
@@ -145,6 +147,29 @@ function NyttPass({ asked }: { asked: string | null }) {
     setDays((d) => (d.includes(date) ? d.filter((x) => x !== date) : [...d, date]));
   }
 
+  // The first-launch tour's example: one day two weeks out, one person,
+  // 07:00-16:00, eight hours. Written into this screen's own state; the leader
+  // moves on and creates it themselves. The hours are TYPED over the prefill
+  // (hoursTouched), because "8" is the figure the example states rather than
+  // the span minus lunch -- and it stays theirs to change before they press.
+  useTourAutofill("pass-days", step === "days", () => {
+    const day = addDays(stockholmToday(), 14);
+    return [{
+      text: day,
+      typed: false,
+      write: (d: string) => { setMonth(d.slice(0, 7)); setDays([d]); },
+    }];
+  });
+  useTourAutofill("pass-detail", step === "detail" && projects.length > 0, () => [
+    ...(projectId ? [] : [{ text: projects[0]!.id, typed: false, write: setProjectId }]),
+    { text: "07:00", typed: false, write: (v: string) => setTime(0, "start", v) },
+    { text: "16:00", typed: false, write: (v: string) => setTime(0, "end", v) },
+    {
+      text: "8",
+      write: (v: string) => setRows((p) => p.map((x, j) => (j === 0 ? { ...x, hours: v, hoursTouched: true } : x))),
+    },
+  ]);
+
   async function generate() {
     setSaving(true);
     setError(null);
@@ -204,6 +229,7 @@ function NyttPass({ asked }: { asked: string | null }) {
       slots: (filled ?? []).reduce((n, r) => n + (r.slots ?? 0), 0),
       offered: (filled ?? []).reduce((n, r) => n + (r.offered ?? 0), 0),
     });
+    tourSignal("passes-created");
     setSaving(false);
   }
 

@@ -1,14 +1,16 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { AuthGate } from "@/components/auth-gate";
 import {
   C, Card, PrimaryButton, SoftField, SoftInput, SoftNotice, SoftScreen, SoftSelect,
 } from "@/components/soft";
+import { useTourAutofill } from "@/components/tour/use-tour-autofill";
 import { useAccount } from "@/lib/account";
 import { derivesTenant, getSupabase } from "@/lib/supabase/client";
-import { stockholmToday } from "@/lib/dates";
+import { addDays, stockholmToday } from "@/lib/dates";
+import { tourSignal } from "@/lib/tour/signal";
 import { fel } from "@/lib/fel";
 
 /**
@@ -72,6 +74,26 @@ function NyttProjekt() {
   // step with both, which is a second source of truth for the same answer.
   const leaderId = chosen ?? (iAmLeader && me ? me : leaders.length === 1 ? leaders[0]!.id : "");
 
+  // The first-launch tour's example project. The inputs are uncontrolled -- the
+  // submit reads FormData -- so their own values are what gets written. The
+  // beställare is plainly an example: whatever is pressed with it becomes a
+  // real project, and it prints on a real Arbetsdagbok.
+  const form = useRef<HTMLFormElement>(null);
+  const input = (name: string) => form.current?.elements.namedItem(name) as HTMLInputElement | null;
+  const into = (name: string, text: string, typed = true) => ({
+    text, typed, el: () => input(name), write: (v: string) => { const el = input(name); if (el) el.value = v; },
+  });
+  useTourAutofill("projekt", leaders.length > 0, () => [
+    into("name", "Fasad Malmö"),
+    into("site_address", "Storgatan 12, 211 34 Malmö"),
+    into("start_date", addDays(stockholmToday(), 14), false),
+    into("services", "Fasadrenovering"),
+    ...(leaderId ? [] : [{ text: leaders[0]!.id, typed: false, write: (v: string) => setChosen(v) }]),
+    into("bestallare_bolag", "Exempelbolaget AB"),
+    into("bestallare_address", "Södra Förstadsgatan 4, 211 43 Malmö"),
+    into("bestallare_orgnr", "556000-0000"),
+  ]);
+
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setSaving(true);
@@ -119,6 +141,7 @@ function NyttProjekt() {
       return;
     }
 
+    tourSignal("project-created");
     router.push("/projekt");
   }
 
@@ -130,7 +153,7 @@ function NyttProjekt() {
     >
       {error && <div className="px-4 pb-[4px] pt-[10px]"><SoftNotice tone="stop">{error}</SoftNotice></div>}
 
-      <form onSubmit={onSubmit}>
+      <form ref={form} onSubmit={onSubmit}>
         {/* The same two cards Redigera Projekt wears, in the same order: what
             the project is, then who is being billed. Creating and correcting a
             project must not be two different forms. */}

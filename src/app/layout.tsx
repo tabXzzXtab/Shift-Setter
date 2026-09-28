@@ -4,6 +4,7 @@ import { AuthProvider } from "@/lib/supabase/auth";
 import { AccountProvider } from "@/lib/account";
 import { AgerarBanner } from "@/components/agerar-banner";
 import { Utgangen } from "@/components/utgangen";
+import { TourProvider } from "@/components/tour/tour-provider";
 import "./globals.css";
 
 /**
@@ -77,9 +78,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
               banner over it still reads as a fault. The banner stays outside
               it: an operator acting in an expired client is not locked out,
               and must be able to leave from here like anywhere else. */}
+          {/* The first-launch tour sits inside Utgangen: an expired tenancy
+              has no screens to be shown round, and the tour must not draw over
+              the one that says so. */}
           <AccountProvider>
             <AgerarBanner />
-            <Utgangen>{children}</Utgangen>
+            <Utgangen><TourProvider>{children}</TourProvider></Utgangen>
           </AccountProvider>
         </AuthProvider>
       </body>

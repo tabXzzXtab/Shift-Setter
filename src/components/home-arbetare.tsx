@@ -9,6 +9,7 @@ import { getSupabase } from "@/lib/supabase/client";
 import { addDays, hhmm, passEndAt, stockholmToday } from "@/lib/dates";
 import { stampGate } from "@/lib/geo";
 import { fel } from "@/lib/fel";
+import { tourSignal } from "@/lib/tour/signal";
 
 type Shift = {
   id: string;
@@ -230,6 +231,7 @@ export function HomeArbetare() {
     const { error } = await getSupabase()
       .rpc(dir === "in" ? "clock_in" : "clock_out", { p_tilldelning: shift.id });
     if (error) setError(fel(error, "Stämplingen gick inte igenom. Försök igen, eller prata med din arbetsledare."));
+    else if (dir === "in") tourSignal("stamped-in");
     setBusy(false);
     setReload((r) => r + 1);
   }
@@ -248,6 +250,7 @@ export function HomeArbetare() {
         : error.message);
     } else if (take) {
       setNote("Passet är ditt.");
+      tourSignal("offer-accepted");
     } else {
       setNote("Passet ligger kvar under Öppna Pass om du ändrar dig.");
     }

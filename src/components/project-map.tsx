@@ -89,11 +89,15 @@ export function ProjectMap({ address }: { address: string }) {
   }
   if (point === null) return null;
 
+  // `isolate`: Leaflet stacks its panes at z-index 400 and its controls at
+  // 1000, and without a stacking context of its own the map competes with the
+  // whole page -- it drew straight through the tour's cards and the bottom
+  // sheets. Isolated, those numbers only order the map's own layers.
   return (
     <div
       ref={box}
       aria-hidden
-      className="h-40 w-full border-b-2 border-black [&_.leaflet-control-attribution]:text-[9px]"
+      className="isolate h-40 w-full border-b-2 border-black [&_.leaflet-control-attribution]:text-[9px]"
     />
   );
 }
