@@ -465,6 +465,29 @@ Every run is wrapped in a transaction and rolled back.
 `npm run db:sql` **commits**. Use `-- --rollback` for anything exploratory; a
 probe run without it once left fixture rows in the database.
 
+### Running the walkthroughs
+
+**`npm run demo:reset` FIRST, every sweep. This is not optional.**
+
+The walkthroughs write real rows and clean up almost nothing, so the suite
+poisons itself. Two sweeps of the same commit on the same day gave different
+results: `2026-09-27` reached **24 projects and 28 passes**, and `snabb` — which
+has to find its own project on that day — failed on a day it had passed on two
+hours earlier. `pausa` failed with `2 projekt den här dagen`, one from each
+sweep. Nothing had regressed; the second run was reading the first run's data.
+
+A red without a reset means one of three different things — a regression, a
+calendar month boundary, or simply that the suite has been run before — and
+they are indistinguishable from the output.
+
+`scripts/wt-dates.mjs` spreads each run's dates across a lane derived from its
+run stamp, which stops consecutive sweeps landing on top of each other. That is
+a mitigation with a horizon, not a fix: it delays collisions and removes no
+rows. The pool of days is finite and every sweep fills more of it.
+
+Read the reset's own cost above before running it: it clears every non-admin
+account across every tenancy, and it resets `admin@bellaservice.se`'s password.
+
 The maintenance reset deletes every non-admin account, so a login handed to
 someone stops working the moment it runs. Always use `npm run demo:reset`,
 which recreates the stable demo accounts from `.env.local` afterwards.

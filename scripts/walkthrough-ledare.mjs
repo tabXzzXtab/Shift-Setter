@@ -15,6 +15,7 @@ import { chromium, devices } from "playwright";
 import { mkdirSync } from "node:fs";
 import path from "node:path";
 import { required } from "./env.mjs";
+import { monthLane, reachDate, shiftDays, stockholmToday } from "./wt-dates.mjs";
 
 const BASE = process.env.BASE_URL ?? "http://localhost:3000";
 const ART = "artifacts";
@@ -98,7 +99,10 @@ async function markDay(page, date) {
 
   for (let attempt = 1; attempt <= 3; attempt++) {
     await page.goto(`${BASE}/min-kalender/`, { waitUntil: "networkidle" });
-    await page.locator(`[data-date="${date}"]`).waitFor({ timeout: 20000 });
+    // Page to the month holding the date. Waiting for a cell the calendar was
+    // never going to draw is how this used to fail: twenty seconds, then a
+    // locator timeout naming a date rather than the reason.
+    await reachDate(page, date, fail);
     await page.waitForTimeout(800);          // the month's marks land after the fetch
 
     if (await marked().count()) return;
@@ -119,6 +123,7 @@ async function markDay(page, date) {
 async function makePass(page, project, date, pick, hours) {
   await page.goto(`${BASE}/pass/ny/`, { waitUntil: "networkidle" });
   await page.getByText("Vilka dagar?").waitFor({ timeout: 20000 });
+  await reachDate(page, date, fail);
   const cell = page.locator(`[data-date="${date}"]`);
   await cell.waitFor({ timeout: 20000 });
   await cell.scrollIntoViewIfNeeded();
@@ -141,9 +146,18 @@ const ctx = await browser.newContext({
 const page = await ctx.newPage();
 page.on("pageerror", (e) => fail(`page error: ${e.message}`));
 
-const sv = new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Stockholm" });
-const yesterday = sv.format(new Date(Date.now() - 864e5));
-const soon = sv.format(new Date(Date.now() + 3 * 864e5));
+const TODAY = stockholmToday();
+// An IN-MONTH lane on the future day, so repeated sweeps spread across the
+// month rather than stacking on today+3 -- and stay on the month the calendar
+// already has drawn, which is the cheap case now that markDay and makePass
+// page. When the month has no room left the lane is 0 and `soon` crosses into
+// the next one, where reachDate finds it instead of a locator timing out.
+//
+// `yesterday` takes no lane: the day has to be over, and one day back is the
+// clearest way to be sure of that.
+const LANE = monthLane(RUN, 3, TODAY);
+const yesterday = shiftDays(TODAY, -1);
+const soon = shiftDays(TODAY, 3 + LANE);
 
 // A real address, because the pin is geocoded through Nominatim and an
 // invented street would test the fallback rather than the map.

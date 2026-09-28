@@ -14,6 +14,7 @@ import { mkdirSync } from "node:fs";
 import path from "node:path";
 import pg from "pg";
 import { connectionString, required } from "./env.mjs";
+import { monthLane, reachDate, shiftDays, stockholmToday } from "./wt-dates.mjs";
 
 const BASE = process.env.BASE_URL ?? "http://localhost:3000";
 const ART = "artifacts";
@@ -82,7 +83,7 @@ async function markDay(page, date) {
   const marked = () => page.locator(`[data-date="${date}"][aria-label*="kan jobba"]`);
   for (let attempt = 1; attempt <= 3; attempt++) {
     await page.goto(`${BASE}/min-kalender/`, { waitUntil: "networkidle" });
-    await page.locator(`[data-date="${date}"]`).waitFor({ timeout: 20000 });
+    await reachDate(page, date, fail);
     await page.waitForTimeout(800);
     if (await marked().count()) return;
     await page.getByRole("button", { name: "Kan jobba", exact: true }).click();
@@ -99,6 +100,9 @@ async function markDay(page, date) {
 async function makePass(page, project, date, hours, pick) {
   await page.goto(`${BASE}/pass/ny/`, { waitUntil: "networkidle" });
   await page.getByText("Vilka dagar?").waitFor({ timeout: 20000 });
+  // The lane can put the block in the next month; page to it rather than
+  // waiting out twenty seconds on a cell this month will never draw.
+  await reachDate(page, date, fail);
   const cell = page.locator(`[data-date="${date}"]`);
   await cell.waitFor({ timeout: 20000 });
   await cell.scrollIntoViewIfNeeded();
@@ -132,11 +136,15 @@ const ctx = await browser.newContext({
 const page = await ctx.newPage();
 page.on("pageerror", (e) => fail(`page error: ${e.message}`));
 
-const sv = new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Stockholm" });
-const today = sv.format(new Date());
+const today = stockholmToday();
+// An IN-MONTH lane across the whole block, so repeated sweeps do not stack
+// five open days on the same five dates. 8 is the furthest day needed, so the
+// lane is the slack the month has left after it; when there is none the lane
+// is 0 and the block crosses into next month, where reachDate pages to it.
+const LANE = monthLane(RUN, 8, today);
 // Five open days, so the stack has more behind it than it is allowed to show
 // and the cap is something the test can actually see.
-const OPEN = [4, 5, 6, 7, 8].map((n) => sv.format(new Date(Date.now() + n * 864e5)));
+const OPEN = [4, 5, 6, 7, 8].map((n) => shiftDays(today, n + LANE));
 
 /**
  * A second held shift, two days out, and it is not decoration.
@@ -147,7 +155,9 @@ const OPEN = [4, 5, 6, 7, 8].map((n) => sv.format(new Date(Date.now() + n * 864e
  * pass" and the assertion below fails for a reason that is the fix working.
  * A run must not depend on the hour it is started at.
  */
-const SOON = sv.format(new Date(Date.now() + 2 * 864e5));
+// Laned with the rest, so the second held shift travels with the block it
+// belongs to rather than being left behind on today+2 every run.
+const SOON = shiftDays(today, 2 + LANE);
 const soon = OPEN[0];
 const ADDRESS = "Stortorget 1, 211 22 Malmö";
 

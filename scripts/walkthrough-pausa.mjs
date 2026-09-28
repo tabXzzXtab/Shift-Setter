@@ -20,6 +20,7 @@ import { mkdirSync } from "node:fs";
 import path from "node:path";
 import { required } from "./env.mjs";
 import { openDayPage } from "./day-page.mjs";
+import { reachDate, runLane, shiftDays, stockholmToday } from "./wt-dates.mjs";
 
 const BASE = process.env.BASE_URL ?? "http://localhost:3000";
 const ART = "artifacts";
@@ -80,16 +81,12 @@ async function createPerson(page, name, email, role) {
   return { email, password, name };
 }
 
-async function reach(page, date) {
-  for (let i = 0; i < 24; i++) {
-    if (await page.locator(`[data-date="${date}"]`).count()) return;
-    const next = page.getByRole("button", { name: "Nästa månad", exact: true });
-    const prev = page.getByRole("button", { name: "Föregående månad", exact: true });
-    await (date > new Date().toISOString().slice(0, 10) ? next : prev).click();
-    await page.waitForTimeout(400);
-  }
-  fail(`could not page the calendar to ${date}`);
-}
+// This script's own pager, now shared: ledare and arbetare needed the same
+// thing and were timing out without it. The one behaviour change is that the
+// direction is decided against the Stockholm date rather than the UTC one,
+// which differ for two hours every evening -- long enough to send it walking
+// the wrong way on a date one day out.
+const reach = (page, date) => reachDate(page, date, fail);
 
 async function tap(page, date) {
   const cell = page.locator(`[data-date="${date}"]`);
@@ -175,9 +172,22 @@ const ctx = await browser.newContext({
 const page = await ctx.newPage();
 page.on("pageerror", (e) => fail(`page error: ${e.message}`));
 
-const sv = new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Stockholm" });
-const day = (n) => sv.format(new Date(Date.now() + n * 864e5));
-const TODAY = day(0), FUTURE = day(20), LEADERDAY = day(21);
+// A LANE on the two future days, so two sweeps do not book the same date.
+// Without it both landed on today+20 and the day page came back "2 projekt den
+// här dagen" -- one project from each sweep -- and the assertion that the day
+// had been released could not tell them apart.
+//
+// Unbounded, because reach() below pages the calendar: these dates may sit in
+// any month and still be reachable. TODAY is not laned, because the running
+// shift this run pauses has to be running NOW.
+//
+// shiftDays rather than Date.now() + n * 864e5: adding milliseconds moves the
+// calendar day by one across the March and October changes, so the script
+// would pick a day other than the one it prints.
+const TODAY = stockholmToday();
+const LANE = runLane(RUN, 60);
+const FUTURE = shiftDays(TODAY, 20 + LANE);
+const LEADERDAY = shiftDays(TODAY, 21 + LANE);
 
 console.log(`\nPausa kontot at ${BASE}\n`);
 

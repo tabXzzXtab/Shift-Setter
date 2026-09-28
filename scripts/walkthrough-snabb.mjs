@@ -22,6 +22,7 @@ import { mkdirSync } from "node:fs";
 import path from "node:path";
 import { required } from "./env.mjs";
 import { chooseProject } from "./day-page.mjs";
+import { reachDate, runLane, shiftDays, stockholmToday } from "./wt-dates.mjs";
 
 const BASE = process.env.BASE_URL ?? "http://localhost:3000";
 const ART = "artifacts";
@@ -85,15 +86,21 @@ const ctx = await browser.newContext({
 const page = await ctx.newPage();
 page.on("pageerror", (e) => fail(`page error: ${e.message}`));
 
-const today = new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Stockholm" }).format(new Date());
-const ymd = (n) => {
-  const [y, m, d] = today.split("-").map(Number);
-  return new Date(Date.UTC(y, m - 1, d + n, 12)).toISOString().slice(0, 10);
-};
-const D = ymd(-1);   // yesterday: already over, so the day is confirmable
-// Three days back, and nothing else on it. Före bekräftelse is only offered on
-// a day its own pass is alone on, so the two routes need two days.
-const DF = ymd(-3);
+// A LANE, so two sweeps do not write to the same day. This one only ever goes
+// FURTHER BACK: both days have to be over already -- D so the day is
+// confirmable, DF because Före bekräftelse is only offered on a past date --
+// and a lane that could move forward would break both. The gap between them is
+// preserved, so DF stays two days clear of D.
+//
+// This is the script that made the problem visible: 2026-09-27 reached 24
+// projects across a few sweeps, and step 07 could no longer find its own
+// project on the day.
+const today = stockholmToday();
+const LANE = runLane(RUN, 45);
+const D = shiftDays(today, -1 - LANE);   // already over, so the day is confirmable
+// Two days before D, and nothing else on it. Före bekräftelse is only offered
+// on a day its own pass is alone on, so the two routes need two days.
+const DF = shiftDays(today, -3 - LANE);
 
 console.log(`\nSnabb Pass on ${D}, filed direkt on ${DF}\n`);
 
@@ -122,6 +129,9 @@ try {
   // ---- W1 marks the day and takes an ordinary pass on it --------------------
   await signIn(page, W1.email, W1.password);
   await page.goto(`${BASE}/min-kalender/`, { waitUntil: "networkidle" });
+  // The lane can put D in an earlier month, so page to it rather than waiting
+  // for a cell this month was never going to draw.
+  await reachDate(page, D, fail);
   const cell = page.locator(`[data-date="${D}"]`);
   await cell.waitFor({ timeout: 20000 });
   await cell.scrollIntoViewIfNeeded();
@@ -133,6 +143,7 @@ try {
   await signIn(page, L.email, L.password);
   await page.goto(`${BASE}/pass/ny/`, { waitUntil: "networkidle" });
   await page.getByText("Vilka dagar?").waitFor({ timeout: 20000 });
+  await reachDate(page, D, fail);
   const c2 = page.locator(`[data-date="${D}"]`);
   await c2.scrollIntoViewIfNeeded();
   const b2 = await c2.boundingBox();
