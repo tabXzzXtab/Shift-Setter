@@ -175,12 +175,12 @@ if (ROLES.includes("admin")) {
 
   await step(page, "admin-kalender-arbete", async () => {
     await page.goto(`${BASE}/kalender/`, { waitUntil: "networkidle" });
-    await page.getByRole("heading", { name: "Skiftkalender" }).waitFor({ timeout: 20000 });
+    await page.getByRole("heading", { name: "Välj en dag" }).waitFor({ timeout: 20000 });
   });
 
   await step(page, "admin-kalender-personlig", async () => {
     await page.getByRole("button", { name: "Personlig", exact: true }).click();
-    await page.getByRole("heading", { name: "Personlig kalender" }).waitFor({ timeout: 20000 });
+    await page.getByRole("heading", { name: "Lägg in ett ärende" }).waitFor({ timeout: 20000 });
   });
 
   await step(page, "admin-kalender-dag-open", async () => {

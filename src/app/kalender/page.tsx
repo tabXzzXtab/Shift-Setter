@@ -355,13 +355,10 @@ function Kalender() {
 
   return (
     <SoftScreen
-      title={vy === "arbete" ? "Skiftkalender" : "Personlig kalender"}
+      // The act of the view, and no line on either: tapping a day is not where
+      // anything goes wrong. The hint under the personal grid says how.
+      title={vy === "arbete" ? "Välj en dag" : "Lägg in ett ärende"}
       back="/"
-      subtitle={
-        vy === "arbete"
-          ? "Tryck på en dag för att se vilka som jobbar då."
-          : "Vad som annars ligger i vägen — möten, besök, ledighet."
-      }
     >
       <div className="px-4 pt-[14px]">
         <Segmented
