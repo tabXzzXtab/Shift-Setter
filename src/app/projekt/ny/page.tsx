@@ -147,9 +147,9 @@ function NyttProjekt() {
 
   return (
     <SoftScreen
-      title="Nytt projekt"
+      title="Skapa ett projekt"
       back="/"
-      subtitle="Alla fält krävs. De skrivs ut i Arbetsdagboken och kan inte fyllas i efteråt."
+      subtitle="Kontrollera beställarens org nummer och adress."
     >
       {error && <div className="px-4 pb-[4px] pt-[10px]"><SoftNotice tone="stop">{error}</SoftNotice></div>}
 
