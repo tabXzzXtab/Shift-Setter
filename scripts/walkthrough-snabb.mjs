@@ -149,7 +149,7 @@ try {
   const b2 = await c2.boundingBox();
   await page.touchscreen.tap(b2.x + b2.width / 2, b2.y + b2.height / 2);
   await page.getByRole("button", { name: "Fortsätt", exact: true }).click();
-  await page.getByText("Vad behövs?").waitFor({ timeout: 20000 });
+  await page.getByRole("heading", { name: "Beskriv passen" }).waitFor({ timeout: 20000 });
   await field(page, "Projekt").selectOption({ label: project });
   await page.getByLabel("Timmar på rad 1").fill("8");
   await page.getByRole("button", { name: /Skapa 1 pass/ }).click();

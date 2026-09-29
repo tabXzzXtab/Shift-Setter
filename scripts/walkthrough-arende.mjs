@@ -122,7 +122,7 @@ async function makeBatch(page, project, dates, hours) {
   await page.getByRole("heading", { name: "Välj dagar" }).waitFor({ timeout: 20000 });
   for (const d of dates) await tapDay(page, d);
   await page.getByRole("button", { name: "Fortsätt", exact: true }).click();
-  await page.getByText("Vad behövs?").waitFor({ timeout: 20000 });
+  await page.getByRole("heading", { name: "Beskriv passen" }).waitFor({ timeout: 20000 });
   await field(page, "Projekt").selectOption({ label: project });
   await page.getByLabel("Timmar på rad 1").fill(hours);
   await page.getByRole("button", { name: /Skapa \d+ pass/ }).click();

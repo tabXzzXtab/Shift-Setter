@@ -350,7 +350,7 @@ function NyttPass({ asked }: { asked: string | null }) {
   // out of the same pieces anyway, because a wizard that changes language
   // between its two steps reads as two different apps.
   return (
-    <SoftScreen title="Vad behövs?" back="/">
+    <SoftScreen title="Beskriv passen" back="/" subtitle="Kontrollera tiderna och antalet personer.">
       {error && <div className="px-4 pb-[10px] pt-[2px]"><SoftNotice tone="stop">{error}</SoftNotice></div>}
 
       <div className="px-4 pt-[2px]">

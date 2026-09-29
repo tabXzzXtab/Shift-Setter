@@ -278,7 +278,7 @@ try {
   log(`selected ${MONTH_DAYS.length} days by touch; tapping toggles one day`);
 
   await page.getByRole("button", { name: "Fortsätt", exact: true }).click();
-  await page.getByText("Vad behövs?").waitFor({ timeout: 20000 });
+  await page.getByRole("heading", { name: "Beskriv passen" }).waitFor({ timeout: 20000 });
 
   // ---- the hours prefill ----------------------------------------------------
   // (end - start) - 30 min, and it stops following the times once typed over.

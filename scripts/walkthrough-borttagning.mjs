@@ -120,7 +120,7 @@ async function makePass(page, project, date, pick, start, end) {
   await reach(page, date);
   await tap(page, date);
   await page.getByRole("button", { name: "Fortsätt", exact: true }).click();
-  await page.getByText("Vad behövs?").waitFor({ timeout: 20000 });
+  await page.getByRole("heading", { name: "Beskriv passen" }).waitFor({ timeout: 20000 });
   await field(page, "Projekt").selectOption({ label: project });
   await field(page, "Börjar").fill(start);
   await field(page, "Slutar").fill(end);

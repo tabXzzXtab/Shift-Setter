@@ -323,7 +323,7 @@ if (ROLES.includes("ledare")) {
     // opens the form. Waited for rather than caught-and-ignored: a swallowed
     // failure here photographs the picker under the form's filename.
     await page.getByRole("button", { name: "Fortsätt", exact: true }).click({ timeout: 20000 });
-    await page.getByRole("heading", { name: "Vad behövs?" }).waitFor({ timeout: 20000 });
+    await page.getByRole("heading", { name: "Beskriv passen" }).waitFor({ timeout: 20000 });
   });
 
   await step(page, "ledare-bekrafta-pass-active", async () => {

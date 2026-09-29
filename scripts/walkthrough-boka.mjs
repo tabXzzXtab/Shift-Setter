@@ -130,7 +130,7 @@ async function makePass(p, project, date, hours) {
   const b = await cell.boundingBox();
   await p.touchscreen.tap(b.x + b.width / 2, b.y + b.height / 2);
   await p.getByRole("button", { name: "Fortsätt", exact: true }).click();
-  await p.getByText("Vad behövs?").waitFor({ timeout: 20000 });
+  await p.getByRole("heading", { name: "Beskriv passen" }).waitFor({ timeout: 20000 });
   await field(p, "Projekt").selectOption({ label: project });
   await p.getByLabel("Timmar på rad 1").fill(hours);
   await p.getByRole("button", { name: /Skapa 1 pass/ }).click();

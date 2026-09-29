@@ -141,7 +141,7 @@ async function pickDays(page, dates) {
     await page.waitForTimeout(400);
   }
   await page.getByRole("button", { name: "Fortsätt", exact: true }).click();
-  await page.getByText("Vad behövs?").waitFor({ timeout: 20000 });
+  await page.getByRole("heading", { name: "Beskriv passen" }).waitFor({ timeout: 20000 });
 }
 
 const browser = await chromium.launch();
