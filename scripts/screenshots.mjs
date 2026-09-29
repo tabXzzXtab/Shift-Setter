@@ -254,7 +254,7 @@ if (ROLES.includes("admin")) {
 
   await step(page, "admin-profil-egen", async () => {
     await page.goto(`${BASE}/konto/`, { waitUntil: "networkidle" });
-    await page.getByRole("heading", { name: "Min profil" }).waitFor({ timeout: 20000 });
+    await page.getByRole("heading", { name: "Uppdatera dina uppgifter" }).waitFor({ timeout: 20000 });
   });
 
   await step(page, "admin-profil-annan-anvandare", async () => {
@@ -266,7 +266,7 @@ if (ROLES.includes("admin")) {
     await row.waitFor({ timeout: 20000 });
     await row.locator("a").first().click();
     await page.waitForURL((u) => u.searchParams.get("id"), { timeout: 20000 });
-    await page.getByRole("heading", { name: "Konto", exact: true }).waitFor({ timeout: 20000 });
+    await page.getByRole("heading", { name: /^Ändra .+ konto$/ }).waitFor({ timeout: 20000 });
   });
 
   await ctx.close();
@@ -369,7 +369,7 @@ if (ROLES.includes("ledare")) {
 
   await step(page, "ledare-profil", async () => {
     await page.goto(`${BASE}/konto/`, { waitUntil: "networkidle" });
-    await page.getByRole("heading", { name: "Min profil" }).waitFor({ timeout: 20000 });
+    await page.getByRole("heading", { name: "Uppdatera dina uppgifter" }).waitFor({ timeout: 20000 });
   });
 
   await ctx.close();
@@ -440,7 +440,7 @@ if (ROLES.includes("arbetare")) {
 
   await step(page, "arbetare-profil", async () => {
     await page.goto(`${BASE}/konto/`, { waitUntil: "networkidle" });
-    await page.getByRole("heading", { name: "Min profil" }).waitFor({ timeout: 20000 });
+    await page.getByRole("heading", { name: "Uppdatera dina uppgifter" }).waitFor({ timeout: 20000 });
   });
 
   await ctx.close();

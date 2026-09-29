@@ -198,7 +198,7 @@ try {
   // ---- your own card opens the merged screen ---------------------------------
   await mine.click();
   await page.waitForURL((u) => u.pathname.includes("/konto"), { timeout: 20000 });
-  await page.getByRole("heading", { name: "Min profil" }).waitFor({ timeout: 20000 });
+  await page.getByRole("heading", { name: "Uppdatera dina uppgifter" }).waitFor({ timeout: 20000 });
 
   // Both halves of the old pair, on one screen.
   await field(page, "Namn").waitFor({ timeout: 10000 });
@@ -271,7 +271,7 @@ try {
   await page.locator("[data-konto]").first().waitFor({ timeout: 20000 });
   await page.locator("[data-konto] a").first().click();
   await page.waitForURL((u) => u.searchParams.get("id"), { timeout: 20000 });
-  await page.getByRole("heading", { name: "Konto", exact: true }).waitFor({ timeout: 20000 });
+  await page.getByRole("heading", { name: /^Ändra .+ konto$/ }).waitFor({ timeout: 20000 });
   await field(page, "Roll").waitFor({ timeout: 10000 });
   await page.getByRole("button", { name: /^(Pausa|Aktivera) kontot$/ }).waitFor({ timeout: 10000 });
   log("somebody else's card opens the same screen, with Roll and the pause on it");

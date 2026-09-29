@@ -274,8 +274,20 @@ export function KontoDetalj({ askedId }: { askedId: string | null }) {
     );
   }
 
+  // The two lines. Your own page is for keeping your details right, and for
+  // anyone who is paid through it the account number is what goes wrong; the
+  // admin holds no worker row and is not. Somebody else's page is an admin
+  // changing an account, where the role is the field that costs the most.
+  const who = row.name ?? row.email ?? "kontot";
+  const title = isSelf
+    ? "Uppdatera dina uppgifter"
+    : `Ändra ${who}${/[sxz]$/i.test(who) ? "" : "s"} konto`;
+  const line = isSelf
+    ? (row.role === "admin" ? undefined : "Kontrollera att clearing- och kontonumret stämmer.")
+    : "Kontrollera rollen innan du sparar.";
+
   return (
-    <SoftScreen title={isSelf ? "Min profil" : "Konto"} back={back}>
+    <SoftScreen title={title} back={back} subtitle={line}>
       {(error || note || !isSelf) && (
         <div className="flex flex-col gap-[10px] px-4 pb-[10px] pt-[2px]">
           {error && <SoftNotice tone="stop">{error}</SoftNotice>}
