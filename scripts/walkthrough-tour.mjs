@@ -289,7 +289,13 @@ try {
     const page = await ctx.newPage();
     await signIn(page, email, password);
 
-    await expectCard(page, "Steg 1 av 9", "admin: the first card has no step count");
+    await expectCard(page, "Allt börjar med ett projekt.", "admin: first login");
+    // Progress is a bar now, not "Steg 1 av 9": a quarter full on step one,
+    // never empty.
+    const bar = page.getByRole("progressbar", { name: "Hur långt du har kommit" });
+    if ((await bar.getAttribute("aria-valuenow")) !== "25") {
+      fail(`admin: the first card's progress is ${await bar.getAttribute("aria-valuenow")}, wanted 25`);
+    }
     await shot(page, "admin-1-kort");
     await nextCard(page, "Allt börjar med ett projekt.", "admin: first login");
     log("admin: first login opens on step 1, the project card");

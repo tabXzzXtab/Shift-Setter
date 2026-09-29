@@ -72,6 +72,11 @@
   animation: tourpulse 1.6s ease-out infinite;
 }
 
+/* The tour's progress fill: moving on is something the eye sees happen. */
+.tour-progress {
+  transition: width 420ms cubic-bezier(.2, .8, .2, 1);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-livedot { animation: none; }
   /* `scale`, not `transform`: Tailwind 4 compiles active:scale-[.985] to the
@@ -85,6 +90,8 @@
   .animate-shake { animation: none; }
   /* The tour's ring stays; only its halo stops spreading. */
   .animate-tourpulse { animation: none; }
+  /* The fill still lands where it should; it just stops sliding there. */
+  .tour-progress { transition: none; }
 }
 
 /*

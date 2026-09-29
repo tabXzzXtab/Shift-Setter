@@ -202,14 +202,17 @@ export function TourProvider({ children }: { children: ReactNode }) {
   // ---- drawing ---------------------------------------------------------------
   let overlay: ReactNode = null;
   if (active && !hidden) {
-    const kicker = `Steg ${Math.min(index + 1, active.steps.length)} av ${active.steps.length}`;
+    // A quarter on the first step, never empty; full on the last. Between
+    // them the steps share the remaining three quarters evenly.
+    const last = Math.max(active.steps.length - 1, 1);
+    const progress = 25 + 75 * Math.min(index, last) / last;
 
     if (done) {
-      overlay = <TourCard title={DONE.title} line={DONE.line} button={DONE.button} onNext={finish} />;
+      overlay = <TourCard progress={100} title={DONE.title} line={DONE.line} button={DONE.button} onNext={finish} />;
     } else if (step?.type === "card") {
-      overlay = <TourCard kicker={kicker} title={step.text} button="Nästa" onNext={next} />;
+      overlay = <TourCard progress={progress} title={step.text} button="Nästa" onNext={next} />;
     } else if (step && verdict?.state === "fallback") {
-      overlay = <TourCard kicker={kicker} title={verdict.text ?? ""} button="Nästa" onNext={next} />;
+      overlay = <TourCard progress={progress} title={verdict.text ?? ""} button="Nästa" onNext={next} />;
     } else if (step && verdict?.state === "ok") {
       if (!onRoute) {
         if (offRouteFor === routeKey) {

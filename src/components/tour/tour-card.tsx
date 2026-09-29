@@ -5,12 +5,18 @@ import { C, PrimaryButton, SHADOW } from "@/components/soft";
 import { TOUR_UI } from "@/lib/tour/targets";
 
 /**
- * A tour card: the whole screen, the app blurred and dimmed behind it.
+ * A tour card: the whole screen, with nothing of the app showing behind it.
  *
- * The scrim is the sheet's own rgba(9,21,64,.42), so the tour reads as part of
- * the app rather than something laid over it. The blur is what the brief asks
- * for and what the handoff already does behind an open menu -- the page stays
- * recognisable as the place the next step happens on.
+ * FULLY COVERING, on purpose. A card step only says something, and an app
+ * half-visible behind it invites a tap on a page the dialog has taken out of
+ * reach. So the ground is the ink itself at .94 under a heavy blur -- the app
+ * is gone, not dimmed. The real screen comes back only on nav and autofill
+ * steps, where the person has to use it (TourSpotlight, TourBar).
+ *
+ * PROGRESS IS A BAR, not "Steg 6 av 9": a thin accent fill across the top of
+ * the card, never empty -- the first step already shows a quarter -- and full
+ * on the last. The width animates between steps (dropped under reduced
+ * motion, globals.css), so moving on is something the eye sees happen.
  *
  * The button takes focus when the card opens: a card that only says something
  * has exactly one thing to do, and a keyboard or a screen reader should land
@@ -18,9 +24,10 @@ import { TOUR_UI } from "@/lib/tour/targets";
  * reach.
  */
 export function TourCard({
-  kicker, title, line, button, onNext,
+  progress, title, line, button, onNext,
 }: {
-  kicker?: string;
+  /** 0-100. Absent on a card that is not a numbered step. */
+  progress?: number;
   title: string;
   line?: string;
   button: string;
@@ -40,9 +47,9 @@ export function TourCard({
       aria-label={title}
       className="fixed inset-0 z-[80] flex items-end justify-center overflow-y-auto p-4 pb-[max(16px,env(safe-area-inset-bottom))] sm:items-center"
       style={{
-        background: "rgba(9,21,64,.42)",
-        backdropFilter: "blur(6px)",
-        WebkitBackdropFilter: "blur(6px)",
+        background: "rgba(9,21,64,.94)",
+        backdropFilter: "blur(24px)",
+        WebkitBackdropFilter: "blur(24px)",
       }}
     >
       <div
@@ -55,12 +62,20 @@ export function TourCard({
           fontFamily: "var(--font-inter), system-ui, sans-serif",
         }}
       >
-        {kicker && (
+        {progress !== undefined && (
           <div
-            className="mb-[10px] text-[12px] font-bold uppercase"
-            style={{ letterSpacing: "1px", color: C.text2 }}
+            role="progressbar"
+            aria-label="Hur långt du har kommit"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={Math.round(progress)}
+            className="mb-5 h-1 w-full overflow-hidden rounded-full"
+            style={{ background: C.panel }}
           >
-            {kicker}
+            <div
+              className="tour-progress h-full rounded-full"
+              style={{ width: `${progress}%`, background: C.accent }}
+            />
           </div>
         )}
         {/* 22/800 for a line; a card that explains a step it had to replace
