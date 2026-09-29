@@ -399,7 +399,7 @@ function Bekrafta({ askedProject, askedDate }: { askedProject: string | null; as
 
   if (day === undefined) {
     return (
-      <SoftScreen title="Bekräfta pass" back="/">
+      <SoftScreen title="Bekräfta dagen" back="/">
         <div className="px-4 pt-2 text-[15px] font-medium" style={{ color: C.text2 }}>Laddar…</div>
       </SoftScreen>
     );
@@ -409,7 +409,7 @@ function Bekrafta({ askedProject, askedDate }: { askedProject: string | null; as
   // headline and the line under it.
   if (day === null) {
     return (
-      <SoftScreen title="Bekräfta pass" back="/">
+      <SoftScreen title="Bekräfta dagen" back="/">
         <div className="px-4 pt-[2px]">
           {error && <div className="pb-[10px]"><SoftNotice tone="stop">{error}</SoftNotice></div>}
           <div className="rounded-[14px] px-[22px] py-[34px] text-center" style={{ background: C.panel }}>
@@ -460,8 +460,21 @@ function Bekrafta({ askedProject, askedDate }: { askedProject: string | null; as
     (r) => passEndAt(day.work_date, r.start, r.end).getTime() > now,
   );
 
+  /**
+   * The line under the title: the one thing to check on THIS day. A worker
+   * with no stamp at either end is the row most likely to carry the wrong
+   * figure, so when there is one, it is named; otherwise the hours in general.
+   * Leaders are placed, never clocked, and are never the unstamped row.
+   */
+  const unstamped = day.rows
+    .filter((r) => !r.is_leader && !r.clock_in && !r.clock_out)
+    .map((r) => r.worker_name);
+  const check = unstamped.length > 0
+    ? `${new Intl.ListFormat("sv", { type: "conjunction" }).format(unstamped)} har inte stämplat, kontrollera timmarna.`
+    : "Kontrollera att timmarna stämmer innan du bekräftar.";
+
   return (
-    <SoftScreen title="Bekräfta pass" back="/">
+    <SoftScreen title="Bekräfta dagen" back="/" subtitle={check}>
       {/*
         THE ONE THING ON THIS SCREEN NOBODY ASKED FOR.
         
@@ -823,7 +836,7 @@ function BekraftaFromUrl() {
 export default function Page() {
   return (
     <AuthGate>
-      <Suspense fallback={<SoftScreen title="Bekräfta pass" back="/"><span /></SoftScreen>}>
+      <Suspense fallback={<SoftScreen title="Bekräfta dagen" back="/"><span /></SoftScreen>}>
         <BekraftaFromUrl />
       </Suspense>
     </AuthGate>
