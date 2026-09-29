@@ -152,7 +152,7 @@ export function SoftScreen({
 
       {subtitle && (
         <p
-          className={`pb-1 pr-4 text-[15px] font-medium ${back ? "pl-[72px]" : "pl-4"}`}
+          className={`pb-[10px] pr-4 text-[15px] font-medium ${back ? "pl-[72px]" : "pl-4"}`}
           style={{ color: C.text2, textWrap: "pretty" }}
         >
           {subtitle}
