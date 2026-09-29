@@ -76,14 +76,18 @@ function Acceptera() {
 
   if (offers === null) {
     return (
-      <SoftScreen title="Acceptera pass" back="/">
+      <SoftScreen title="Välj ditt pass" back="/">
         <p className="px-5 text-[15px] font-medium" style={{ color: C.text2 }}>Laddar…</p>
       </SoftScreen>
     );
   }
 
   return (
-    <SoftScreen title="Acceptera pass" back="/">
+    <SoftScreen
+      title="Välj ditt pass"
+      back="/"
+      subtitle="Se till att du är ledig den dagen innan du accepterar."
+    >
       {(error || note) && (
         <div className="px-4 pb-[10px] pt-[2px]">
           {error && <SoftNotice tone="stop">{error}</SoftNotice>}
