@@ -78,6 +78,9 @@ export function HomeArbetsledare() {
 
   // Swedish counts one day in the singular, and a screen whose whole subject is
   // a number should not get its own number's grammar wrong.
+  /** Days owed, or still loading -- either way the hero keeps its full weight
+   *  until the count says there is nothing. */
+  const owed = waiting === null || waiting > 0;
   const count =
     waiting === null ? "…" : waiting === 0 ? "Inget just nu" : `${waiting} ${waiting === 1 ? "dag" : "dagar"}`;
   const line =
@@ -169,8 +172,10 @@ export function HomeArbetsledare() {
                 ? "Hämtar dagar som väntar på bekräftelse"
                 : `${waiting} dagar väntar på bekräftelse`
             }
-            className="mb-1 text-[34px] font-extrabold leading-[1.05]"
-            style={{ letterSpacing: "-1.4px" }}
+            // Display XL only for a number that is owed. "Inget just nu" is not
+            // one, and at 34/800 it was the loudest word on an idle screen.
+            className={`mb-1 font-extrabold leading-[1.05] ${owed ? "text-[34px]" : "text-[22px]"}`}
+            style={{ letterSpacing: owed ? "-1.4px" : "-.7px" }}
           >
             {count}
           </div>
@@ -181,15 +186,19 @@ export function HomeArbetsledare() {
           {/* 66px, the one primary action on the screen. It leads somewhere
               real even at zero: Bekräfta Pass draws its own empty state, which
               the handoff designs, rather than this card having to. */}
+          {/* Accent only while something is owed. At zero it still leads
+              somewhere real, but it is no longer the loudest thing on a screen
+              where there is nothing to confirm. */}
           <Link
             href="/bekrafta"
-            className="press-scale flex h-[66px] w-full items-center justify-center rounded-[12px] text-[23px] font-extrabold transition-[transform,background] duration-150 hover:bg-[#12206b] active:scale-[.985]"
-            style={{
-              letterSpacing: "-.5px",
-              background: C.accent,
-              color: C.surface,
-              boxShadow: SHADOW.action,
-            }}
+            className={`press-scale flex w-full items-center justify-center rounded-[12px] font-extrabold transition-[transform,background] duration-150 active:scale-[.985] ${
+              owed ? "h-[66px] text-[23px] hover:bg-[#12206b]" : "h-14 text-[18px] hover:bg-[#dbe4f9]"
+            }`}
+            style={
+              owed
+                ? { letterSpacing: "-.5px", background: C.accent, color: C.surface, boxShadow: SHADOW.action }
+                : { letterSpacing: "-.4px", background: C.panel2, color: C.inkHover }
+            }
           >
             Bekräfta pass
           </Link>
