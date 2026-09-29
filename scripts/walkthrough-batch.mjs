@@ -24,7 +24,8 @@
 import { chromium, devices } from "playwright";
 import { mkdirSync } from "node:fs";
 import path from "node:path";
-import { required } from "./env.mjs";
+import pg from "pg";
+import { connectionString, required } from "./env.mjs";
 import { chooseProject } from "./day-page.mjs";
 import { reachDate, sameMonth, shiftDays, stockholmToday } from "./wt-dates.mjs";
 
@@ -128,7 +129,9 @@ async function createPerson(page, name, email, role) {
   if (!password) fail(`no password for ${name}`);
   await page.getByRole("button", { name: "Tillverka arbetare" }).click();
   await page.getByText("Klar", { exact: false }).first().waitFor({ timeout: 20000 });
-  return { email, password };
+  // name comes back too: the NEAR block looks the worker row up by it, and
+  // returning only the login made W[0].name undefined and the lookup silent.
+  return { name, email, password };
 }
 
 /**
@@ -193,6 +196,13 @@ const NEAR = shiftDays(today, 2);
 const SPARE = shiftDays(MONTH_DAYS.at(-1), 3);
 
 console.log(`\nBatch of ${MONTH_DAYS.length} days: ${MONTH_DAYS[0]} … ${MONTH_DAYS.at(-1)}\n`);
+
+const db = new pg.Client({
+  connectionString: connectionString(),
+  ssl: { rejectUnauthorized: false },
+  connectionTimeoutMillis: 15000,
+});
+await db.connect();
 
 try {
   // ---- setup ---------------------------------------------------------------
@@ -404,6 +414,40 @@ try {
   log("removed a worker more than five days out: the slot reopened and cascaded");
 
   // ---- and not inside five days --------------------------------------------
+  //
+  // THE FIXTURE OWNS THIS DAY'S AVAILABILITY, because the assertion below is
+  // about the absence of a replacement and absence is not something a shared
+  // database hands you.
+  //
+  // What it tests is the third of dag-panel's three answers: no forval worker
+  // free, and the day inside five days, so nothing is filled automatically and
+  // the admin is told to sort it out themselves. That needs NOBODY holding
+  // forval on NEAR -- and NEAR is within five days of today, a pool of about
+  // five dates that every previous run has also drawn from. Workers left
+  // behind by earlier runs had marked it and were free, so removing the worker
+  // opened the replacement panel instead: "Välj Utbyte -- De här har förvalt
+  // 2026-10-01 och är lediga", offering two people from a run that finished
+  // hours earlier.
+  //
+  // Owning the day outright is the only version of this that does not depend
+  // on who ran what before. Done BEFORE the pass is created, so the tier walk
+  // places this run's own worker rather than one of those leftovers --
+  // otherwise Ta bort removes a stranger and the test is about somebody else's
+  // run.
+  // forval is (worker_id, work_date), so the day is cleared by its date alone
+  // and then given back to exactly one worker: this run's own Ada. One, not
+  // none -- clearing the day outright leaves nobody for the tier walk to place,
+  // the pass comes up empty, and there is no assignment to remove. The state
+  // the assertion needs is one person on the shift and nobody behind them.
+  const cleared = await db.query(
+    "delete from public.forval where work_date = $1::date", [NEAR]);
+  const given = await db.query(
+    `insert into public.forval (worker_id, work_date, can_work)
+     select id, $2::date, true from public.worker where name = $1`,
+    [W[0].name, NEAR]);
+  if (given.rowCount !== 1) fail(`expected to hand ${NEAR} to one worker, set ${given.rowCount}`);
+  log(`cleared ${cleared.rowCount} förval on ${NEAR} and gave the day to ${W[0].name} alone`);
+
   await page.goto(`${BASE}/pass/ny/`, { waitUntil: "networkidle" });
   await touchTap(page, NEAR);
   await page.getByRole("button", { name: "Fortsätt", exact: true }).click();
@@ -423,4 +467,5 @@ try {
   console.log("\nBATCH WALKTHROUGH COMPLETE -- all gestures were touch, not mouse.\n");
 } finally {
   await browser.close();
+  await db.end();
 }
