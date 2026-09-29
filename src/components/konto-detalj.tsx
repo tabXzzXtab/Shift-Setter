@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
   Avatar, C, Card, PrimaryButton, SectionLabel, SHADOW, SoftField, SoftInput,
-  SoftNotice, SoftScreen, SoftSelect,
+  SoftNotice, SoftScreen, SoftSelect, SoftToast,
 } from "@/components/soft";
 import { getSupabase } from "@/lib/supabase/client";
 import { useAccount, type Role } from "@/lib/account";
@@ -104,6 +104,8 @@ export function KontoDetalj({ askedId }: { askedId: string | null }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
+  /** Plain confirmations fade (SoftToast); ones with a consequence stay as `note`. */
+  const [toast, setToast] = useState<string | null>(null);
   const [tick, setTick] = useState(0);
   const filePicker = useRef<HTMLInputElement>(null);
 
@@ -201,7 +203,7 @@ export function KontoDetalj({ askedId }: { askedId: string | null }) {
       return;
     }
 
-    setNote("Sparat.");
+    setToast("Sparat.");
     setBusy(false);
     if (identityChanged) {
       setTick((t) => t + 1);
@@ -216,7 +218,7 @@ export function KontoDetalj({ askedId }: { askedId: string | null }) {
       const path = await uploadAvatar(target, file, row.avatar_path);
       setRow({ ...row, avatar_path: path });
       setFace(await signAvatar(path));
-      setNote("Bilden är sparad.");
+      setToast("Bilden är sparad.");
     } catch (e) {
       setError(fel(e, "Bilden kunde inte sparas. Försök igen."));
     }
@@ -230,7 +232,7 @@ export function KontoDetalj({ askedId }: { askedId: string | null }) {
       await removeAvatar(target, row.avatar_path);
       setRow({ ...row, avatar_path: null });
       setFace(null);
-      setNote("Bilden är borttagen.");
+      setToast("Bilden är borttagen.");
     } catch (e) {
       setError(fel(e, "Bilden kunde inte tas bort. Försök igen."));
     }
@@ -242,7 +244,7 @@ export function KontoDetalj({ askedId }: { askedId: string | null }) {
     setBusy(true); setError(null); setNote(null);
     const { error } = await getSupabase().from("account").update({ role }).eq("id", row.id);
     if (error) setError(fel(error, "Rollen kunde inte ändras. Kontakta administratören."));
-    else setNote(`Rollen ändrad till ${ROLE_LABEL[role]}.`);
+    else setToast(`Rollen ändrad till ${ROLE_LABEL[role]}.`);
     setBusy(false);
     setTick((t) => t + 1);
     if (isSelf) reload();
@@ -288,6 +290,7 @@ export function KontoDetalj({ askedId }: { askedId: string | null }) {
 
   return (
     <SoftScreen title={title} back={back} subtitle={line}>
+      <SoftToast message={toast} onDone={() => setToast(null)} />
       {/* WHOSE ROW THIS IS is said by the title -- "Ändra {namn}s konto" --
           so the amber line that used to repeat it under the title is gone. */}
       {(error || note) && (

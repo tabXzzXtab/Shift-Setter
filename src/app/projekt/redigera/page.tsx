@@ -6,7 +6,7 @@ import { AuthGate } from "@/components/auth-gate";
 import { useAccount } from "@/lib/account";
 import {
   C, Card, DangerButton, PrimaryButton, SecondaryButton, SoftField, SoftInput,
-  SoftNotice, SoftScreen,
+  SoftNotice, SoftScreen, SoftToast,
 } from "@/components/soft";
 import { getSupabase } from "@/lib/supabase/client";
 import { fel } from "@/lib/fel";
@@ -208,12 +208,12 @@ function RedigeraProjekt({ id }: { id: string | null }) {
       back="/projekt"
       subtitle="Kontrollera beställarens uppgifter innan du sparar."
     >
-      {(error || saved) && (
+      {error && (
         <div className="px-4 pb-[10px] pt-[2px]">
-          {error && <SoftNotice tone="stop">{error}</SoftNotice>}
-          {saved && !error && <SoftNotice tone="live">Ändringarna är sparade.</SoftNotice>}
+          <SoftNotice tone="stop">{error}</SoftNotice>
         </div>
       )}
+      <SoftToast message={saved && !error ? "Ändringarna är sparade." : null} onDone={() => setSaved(false)} />
 
       <form onSubmit={onSave}>
         <div className="px-4 pt-[2px]">

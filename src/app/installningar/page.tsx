@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { AuthGate } from "@/components/auth-gate";
 import {
   Avatar, C, ChevronRight, DangerButton, EmptyState, SecondaryButton, SHADOW,
-  SoftDialog, SoftInput, SoftNotice, SoftScreen,
+  SoftDialog, SoftInput, SoftNotice, SoftScreen, SoftToast,
 } from "@/components/soft";
 import { getSupabase } from "@/lib/supabase/client";
 import { useAccount, type Role } from "@/lib/account";
@@ -80,6 +80,8 @@ function AllaKonton() {
   const [query, setQuery] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
+  /** A removal with nothing else to say fades; a warning stays as `note`. */
+  const [toast, setToast] = useState<string | null>(null);
   const [confirming, setConfirming] = useState<Konto | null>(null);
   const [busy, setBusy] = useState(false);
   const [tick, setTick] = useState(0);
@@ -141,11 +143,10 @@ function AllaKonton() {
     }
 
     const who = k.name ?? k.email ?? "Kontot";
-    setNote(
+    if (!body.warning && body.mode === "raderat") setToast(`${who} är borttagen.`);
+    else setNote(
       body.warning
         ? body.warning
-        : body.mode === "raderat"
-        ? `${who} är borttagen.`
         : `${who} är borttagen. Namnet står kvar på de arbetsdagböcker som redan är skapade.`,
     );
     setTick((t) => t + 1);
@@ -183,6 +184,7 @@ function AllaKonton() {
 
   return (
     <SoftScreen title="Alla Konton" back="/">
+      <SoftToast message={toast} onDone={() => setToast(null)} />
       {(error || note) && (
         <div className="flex flex-col gap-[10px] px-4 pb-[10px] pt-[2px]">
           {error && <SoftNotice tone="stop">{error}</SoftNotice>}

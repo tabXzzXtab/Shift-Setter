@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 // The fallback letters live with the rest of the avatar handling rather than
 // here: two copies of "what do we draw when there is no photograph" is two
 // copies that drift.
@@ -866,6 +866,43 @@ export function SignOut({ quiet = false }: { quiet?: boolean } = {}) {
     >
       Logga ut
     </button>
+  );
+}
+
+/**
+ * A plain confirmation that an action worked -- "Sparat.", "Bilden är sparad."
+ * -- dropped in under the top of the screen and gone again after four seconds.
+ *
+ * ONLY FOR THE PLAIN ONES. A note that tells the reader a consequence ("Kontot
+ * är pausat. Pass som inte har börjat är frisläppta …") stays inline as a
+ * SoftNotice, because a sentence that fades cannot be read twice. role=status,
+ * so a screen reader hears it without the focus moving.
+ */
+export function SoftToast({ message, onDone }: { message: string | null; onDone: () => void }) {
+  // The latest onDone without restarting the timer every render.
+  const done = useRef(onDone);
+  useEffect(() => { done.current = onDone; });
+  useEffect(() => {
+    if (!message) return;
+    const t = setTimeout(() => done.current(), 4000);
+    return () => clearTimeout(t);
+  }, [message]);
+
+  if (!message) return null;
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      className="animate-slidedown fixed inset-x-0 top-3 z-[60] mx-auto w-[calc(100%-32px)] max-w-[358px]"
+    >
+      <div
+        className="flex items-center gap-3 rounded-[14px] px-4 py-[14px] text-[15px] font-semibold"
+        style={{ background: C.surface, color: C.ink, boxShadow: SHADOW.group, fontFamily: "var(--font-inter), system-ui, sans-serif" }}
+      >
+        <NoticeMark tone="live" />
+        {message}
+      </div>
+    </div>
   );
 }
 
