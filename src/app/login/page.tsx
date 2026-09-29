@@ -62,12 +62,18 @@ export default function LoginPage() {
         fontVariantNumeric: "tabular-nums",
       }}
     >
+      {/* Two lines and nothing else above the form: what you do here, and what
+          to have in hand. The product is named in the first, because this is
+          the one screen a person meets before they know which app they are in. */}
       <h1
-        className="px-1 pb-[26px] text-[38px] font-extrabold leading-[1.02]"
-        style={{ letterSpacing: "-1.6px" }}
+        className="px-1 text-[30px] font-extrabold leading-[1.08]"
+        style={{ letterSpacing: "-1.1px" }}
       >
-        Shift Setter
+        Logga in på ByggKoll
       </h1>
+      <p className="px-1 pb-[22px] pt-[6px] text-[15px] font-medium" style={{ color: C.text2 }}>
+        Använd e-posten och lösenordet du fick av administratören.
+      </p>
 
       {error && (
         <div className="pb-[14px]">
@@ -123,9 +129,6 @@ export default function LoginPage() {
         </div>
       </form>
 
-      <p className="pt-[22px] text-center text-[15px] font-medium" style={{ color: C.text2 }}>
-        Konton skapas av administratören.
-      </p>
     </main>
   );
 }
