@@ -338,7 +338,7 @@ function SnabbPass({ asked }: { asked: string | null }) {
   // whose every button fails.
   if (account && account.role !== "admin") {
     return (
-      <SoftScreen title="Snabb Pass" back="/">
+      <SoftScreen title="Sätt in någon på ett pass" back="/">
         <div className="px-4 pt-[2px]">
           <SoftNotice tone="quiet">
             Endast administratören kan skapa Snabb Pass.
@@ -350,9 +350,15 @@ function SnabbPass({ asked }: { asked: string | null }) {
 
   return (
     <SoftScreen
-      title="Snabb Pass"
+      title="Sätt in någon på ett pass"
       back="/"
-      subtitle="Går förbi hela turordningen. Används när någon hoppar av i sista stund."
+      // The line follows the mode: filed direkt, the hours are final the
+      // moment it is pressed; through the leader, the clash is what goes wrong.
+      subtitle={
+        direktAktiv
+          ? "Kontrollera timmarna innan du för in dagen."
+          : "Kontrollera att personen inte redan jobbar då."
+      }
     >
       {(error || projects.length === 0) && (
         <div className="px-4 pb-[4px] pt-[10px]">
@@ -572,7 +578,7 @@ function SnabbFromUrl() {
 export default function Page() {
   return (
     <AuthGate>
-      <Suspense fallback={<SoftScreen title="Snabb Pass" back="/"><span /></SoftScreen>}>
+      <Suspense fallback={<SoftScreen title="Sätt in någon på ett pass" back="/"><span /></SoftScreen>}>
         <SnabbFromUrl />
       </Suspense>
     </AuthGate>

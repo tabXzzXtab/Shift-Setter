@@ -197,7 +197,7 @@ try {
   await shot(page, "40-snabb-ny-arbetare");
   await create.click();
 
-  await mustSee(page, "Går förbi hela turordningen",
+  await mustSee(page, "Sätt in någon på ett pass",
     "did not return to the Snabb Pass form after creating the worker");
   const selected = await field(page, "Vem?").inputValue();
   if (!selected || selected === "__ny__") fail("returned without the new worker selected");

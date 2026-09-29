@@ -77,7 +77,7 @@ try {
   const ACTIONS = [
     ["Nytt projekt", "/projekt/ny", "Projektnamn"],
     ["Skapa pass", "/pass/ny", "Välj dagar"],
-    ["Snabb pass", "/snabb", "Snabb pass"],
+    ["Snabb pass", "/snabb", "Sätt in någon på ett pass"],
   ];
   for (const [label, href, lands] of ACTIONS) {
     await page.goto(`${BASE}/`, { waitUntil: "networkidle" });
