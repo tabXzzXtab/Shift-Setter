@@ -436,12 +436,21 @@ function SignupForm({
    */
   const invoiceRequired = route === "sald";
 
-  const ready =
-    company.trim() !== "" &&
-    /^\d{6}-\d{4}$/.test(orgNr.trim()) &&
-    adminName.trim() !== "" &&
-    adminEmail.includes("@") &&
-    (!invoiceRequired || invoice.includes("@"));
+  /**
+   * What stands between the form and Kopiera inloggning, in the words the
+   * screen uses. The gate used to be a bare boolean, and a tap on the grey
+   * button did nothing at all -- an org nummer typed without its dash looked,
+   * to the person holding the phone, like a screen with no way forward.
+   */
+  const missing = [
+    company.trim() === "" && "företagets namn",
+    !/^\d{6}-\d{4}$/.test(orgNr.trim()) && "organisationsnummer, skrivet som 556677-8899",
+    invoiceRequired && !invoice.includes("@") && "fakturamejl",
+    adminName.trim() === "" && "administratörens namn",
+    !adminEmail.includes("@") && "administratörens e-post",
+  ].filter((m): m is string => Boolean(m));
+  const ready = missing.length === 0;
+  const [tried, setTried] = useState(false);
 
   function credentialBlock(pw: string) {
     return [
@@ -674,11 +683,20 @@ function SignupForm({
             {/* NOT the `disabled` attribute, for the reason Ny arbetare gives:
                 a disabled button swallows the click, so the screen cannot
                 answer and what the operator meets is a control that does
-                nothing at all. This one is always clickable and simply does
-                not advance until the fields are filled. */}
+                nothing at all. This one is always clickable -- and now it
+                ANSWERS: a tap before the form is complete says what is
+                missing, here by the thumb rather than at the top of the
+                screen, and the list shrinks as the fields are filled. */}
+            {tried && !ready && (
+              <div className="pb-[14px]">
+                <SoftNotice tone="warn">
+                  Det här saknas: {missing.join(", ")}.
+                </SoftNotice>
+              </div>
+            )}
             <button
               type="button"
-              onClick={() => { if (ready) void copyCredentials(); }}
+              onClick={() => { if (ready) void copyCredentials(); else setTried(true); }}
               className="press-scale h-16 w-full rounded-[12px] text-[20px] font-extrabold transition-[transform,background] duration-150 active:scale-[.985]"
               style={{
                 letterSpacing: "-.4px",
