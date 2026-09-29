@@ -257,9 +257,9 @@ function SnabbPass({ asked }: { asked: string | null }) {
   if (creatingWorker) {
     return (
       <SoftScreen
-        title="Ny arbetare"
+        title="Skapa ett konto"
         back="/snabb"
-        subtitle="Skapas och läggs sedan direkt på passet."
+        subtitle="Kopiera inloggningen innan du skapar kontot."
       >
         <div className="px-4 pt-[14px]">
           <NyArbetareForm

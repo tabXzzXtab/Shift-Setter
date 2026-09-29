@@ -176,7 +176,7 @@ try {
   await field(page, "Datum").fill(D);
   await field(page, "Timmar").fill("6");
   await field(page, "Vem?").selectOption("__ny__");
-  await page.getByText("Skapas och läggs sedan direkt på passet").waitFor({ timeout: 20000 });
+  await page.getByRole("heading", { name: "Skapa ett konto" }).waitFor({ timeout: 20000 });
 
   const newName = `Bo S${RUN}`;
   await field(page, "Namn").fill(newName);

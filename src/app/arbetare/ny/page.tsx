@@ -54,7 +54,11 @@ function NyArbetare() {
   }
 
   return (
-    <SoftScreen title="Ny arbetare" back="/">
+    <SoftScreen
+      title="Skapa ett konto"
+      back="/"
+      subtitle="Kopiera inloggningen innan du skapar kontot."
+    >
       <div className="px-4 pt-[2px]">
         <NyArbetareForm
           key={key}
