@@ -288,21 +288,12 @@ export function KontoDetalj({ askedId }: { askedId: string | null }) {
 
   return (
     <SoftScreen title={title} back={back} subtitle={line}>
-      {(error || note || !isSelf) && (
+      {/* WHOSE ROW THIS IS is said by the title -- "Ändra {namn}s konto" --
+          so the amber line that used to repeat it under the title is gone. */}
+      {(error || note) && (
         <div className="flex flex-col gap-[10px] px-4 pb-[10px] pt-[2px]">
           {error && <SoftNotice tone="stop">{error}</SoftNotice>}
           {note && !error && <SoftNotice tone="live">{note}</SoftNotice>}
-          {/* WHOSE ROW THIS IS, said out loud. The card below already shows
-              their name and their face, but this screen saves a bank account,
-              and "I thought I was editing my own" is the mistake worth one
-              line of amber. It survives the merge from /profil, where it was
-              the only thing standing between the admin and a silent edit to
-              the wrong person. */}
-          {!isSelf && (
-            <SoftNotice tone="warn">
-              Du ändrar profilen för <strong>{row.name ?? row.email ?? "detta konto"}</strong>.
-            </SoftNotice>
-          )}
         </div>
       )}
 

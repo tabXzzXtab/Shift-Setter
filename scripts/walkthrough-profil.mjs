@@ -222,7 +222,10 @@ try {
   if (!url.searchParams.get("id")) {
     fail(`Ändra profil did not put the account in scope: ${a.url()}`);
   }
-  await mustSee(a, "Du ändrar profilen för", "nothing says whose profile the admin is editing");
+  // The title names whose account it is ("Ändra {namn}s konto"); the amber
+  // line that repeated it was removed.
+  await a.getByRole("heading", { name: /^Ändra .+ konto$/ }).waitFor({ timeout: 20000 })
+    .catch(() => fail("nothing says whose profile the admin is editing"));
   log(`admin opened the arbetare's profile with id=${url.searchParams.get("id").slice(0, 8)}…`);
 
   // The admin sees what the worker saved, which is already proof the id in
