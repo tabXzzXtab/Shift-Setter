@@ -63,14 +63,14 @@ function AllaProjekt() {
 
   if (!projects) {
     return (
-      <SoftScreen title="Alla projekt" back="/">
+      <SoftScreen title="Välj ett projekt" back="/">
         <p className="px-5 text-[15px] font-medium" style={{ color: C.text2 }}>Laddar…</p>
       </SoftScreen>
     );
   }
 
   return (
-    <SoftScreen title="Alla projekt" back="/">
+    <SoftScreen title="Välj ett projekt" back="/">
       <div className="flex flex-col gap-[10px] px-4 pt-1">
         {projects.length === 0 && <EmptyState>Inga projekt än.</EmptyState>}
 
