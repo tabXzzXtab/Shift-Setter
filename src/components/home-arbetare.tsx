@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { SoftNastaPass } from "./nasta-pass-card";
 import { OfferStack, type Offer } from "./offer-stack";
-import { GroupedList, SignOut, SoftSheet } from "./soft";
+import { GroupedList, HomeTitle, SignOut, SoftSheet } from "./soft";
 import { getSupabase } from "@/lib/supabase/client";
 import { addDays, hhmm, passEndAt, stockholmToday } from "@/lib/dates";
 import { stampGate } from "@/lib/geo";
@@ -320,10 +320,6 @@ export function HomeArbetare() {
           </svg>
         </button>
 
-        <h1 className="text-[17px] font-bold" style={{ letterSpacing: "-.2px" }}>
-          Arbetare
-        </h1>
-
         <button
           type="button"
           aria-label="Profil"
@@ -338,6 +334,24 @@ export function HomeArbetare() {
           </svg>
         </button>
       </div>
+
+      {/* The two lines, from the state of the screen: the stamp when there is
+          one to make, the offer when there is not, and nothing to check when
+          there is nothing to do. */}
+      <HomeTitle
+        title={
+          shift && clockedIn ? "Stämpla ut"
+            : shift ? "Stämpla in"
+              : front ? "Svara på pass"
+                : "Dina pass"
+        }
+        line={
+          shift && clockedIn ? "Stämpla ut innan du lämnar platsen."
+            : shift ? "Du måste vara inom 4 km från arbetsplatsen."
+              : front ? "Se till att du är ledig den dagen innan du accepterar."
+                : null
+        }
+      />
 
       {/* Not in the handoff, which designs the happy path only. Kept in the
           same language: a panel, not a shout, because a stamp refused by the

@@ -74,6 +74,28 @@ export const ChevronRight = ({ colour = C.chevron }: { colour?: string }) => (
 );
 
 /** 44x44, radius 11, white, flat shadow. The handoff's shared icon button. */
+/**
+ * A landing page's two lines, under its bar of icon buttons: what to do now,
+ * and -- only when something can go wrong -- what to check first. The same
+ * 22/800 and 15/500 as every sub-screen's title and subtitle, so a home reads
+ * like any other screen, just without a back button. Dynamic by design: the
+ * caller passes whatever the screen's state makes true.
+ */
+export function HomeTitle({ title, line }: { title: string; line?: string | null }) {
+  return (
+    <div className="px-5 pb-[14px] pt-[2px]">
+      <h1 className="text-[22px] font-extrabold" style={{ letterSpacing: "-.7px" }}>
+        {title}
+      </h1>
+      {line && (
+        <p className="mt-[2px] text-[15px] font-medium" style={{ color: C.text2, textWrap: "pretty" }}>
+          {line}
+        </p>
+      )}
+    </div>
+  );
+}
+
 export function IconButton({
   label, onClick, href, children,
 }: {
