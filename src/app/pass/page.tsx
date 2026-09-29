@@ -65,6 +65,17 @@ function AllaPass({ askedProject }: { askedProject: string | null }) {
 
   const to = addDays(from, 30);
 
+  /** The project's name, read on its own: the title has to name the project
+   *  in a period with no passes too, which the pass rows cannot. */
+  const [projectName, setProjectName] = useState<string | null>(null);
+  useEffect(() => {
+    if (!askedProject) return;
+    let live = true;
+    void getSupabase().from("project").select("name").eq("id", askedProject).maybeSingle()
+      .then(({ data }) => { if (live) setProjectName(data?.name ?? null); });
+    return () => { live = false; };
+  }, [askedProject]);
+
   useEffect(() => {
     let live = true;
     void (async () => {
@@ -160,9 +171,8 @@ function AllaPass({ askedProject }: { askedProject: string | null }) {
 
   return (
     <SoftScreen
-      title={askedProject ? (rows?.[0]?.project?.name ?? "Pass") : "Alla Pass"}
+      title={askedProject ? `Se passen i ${projectName ?? rows?.[0]?.project?.name ?? "projektet"}` : "Alla Pass"}
       back={askedProject ? "/projekt" : "/"}
-      subtitle={askedProject ? "Pass i det här projektet." : undefined}
     >
       {(error || note) && (
         <div className="px-4 pb-[10px] pt-[2px]">
