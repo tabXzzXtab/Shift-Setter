@@ -278,7 +278,7 @@ if (ROLES.includes("admin")) {
     const anon = await browser.newContext({ ...iphone14 });
     const p2 = await anon.newPage();
     await p2.goto(`${BASE}/glomt-losenord/`, { waitUntil: "networkidle" });
-    await p2.getByRole("heading", { name: "Glömt lösenord" }).waitFor({ timeout: 20000 });
+    await p2.getByRole("heading", { name: "Återställ lösenordet" }).waitFor({ timeout: 20000 });
     await shot(p2, "admin-glomt-losenord");
     await anon.close();
   } catch (e) {

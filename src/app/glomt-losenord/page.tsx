@@ -72,7 +72,7 @@ export default function GlomtLosenordPage() {
 
   if (sent) {
     return (
-      <SoftScreen title="Glömt lösenord" back="/login">
+      <SoftScreen title="Återställ lösenordet" back="/login">
         {/* The same sentence whatever the address was. There is no "no such
             user" branch to draw, because there is no such answer to give. */}
         <div className="px-4 pt-[2px]">
@@ -98,9 +98,9 @@ export default function GlomtLosenordPage() {
 
   return (
     <SoftScreen
-      title="Glömt lösenord"
+      title="Återställ lösenordet"
       back="/login"
-      subtitle="Skriv din e-postadress så skickar vi en länk för att välja ett nytt lösenord."
+      subtitle="Skriv e-posten du loggar in med."
     >
       {error && <div className="px-4 pb-[4px] pt-[10px]"><SoftNotice tone="stop">{error}</SoftNotice></div>}
 
