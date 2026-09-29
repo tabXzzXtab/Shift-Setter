@@ -90,14 +90,24 @@ function MinaPass() {
 
   if (shifts === null) {
     return (
-      <SoftScreen title="Mina pass" back="/">
+      <SoftScreen title="Se dina pass" back="/">
         <div className="px-4 text-[15px] font-medium" style={{ color: C.text2 }}>Laddar…</div>
       </SoftScreen>
     );
   }
 
   return (
-    <SoftScreen title="Mina pass" back="/">
+    // The title follows the tab: the first two are for looking, the third is
+    // for marking, and marking is the one where the wrong mode costs a day.
+    <SoftScreen
+      title={view === "tillganglighet" ? "Markera dina dagar" : "Se dina pass"}
+      back="/"
+      subtitle={
+        view === "tillganglighet"
+          ? "Kontrollera att rätt läge är valt, Kan jobba eller Kan inte."
+          : undefined
+      }
+    >
       {/* All three always visible, the current one on a white thumb. A switch
           that hides the thing it switches to makes people press it to find out. */}
       <div className="px-4 pt-[2px]">
@@ -119,7 +129,7 @@ function MinaPass() {
       {view === "kalender" && <Kalender shifts={shifts} today={today} />}
       {/* The tab that is not about held days at all. It loads its own rows,
           from forval, and knows nothing about the shifts above it. */}
-      {view === "tillganglighet" && <Tillganglighet hint />}
+      {view === "tillganglighet" && <Tillganglighet />}
     </SoftScreen>
   );
 }

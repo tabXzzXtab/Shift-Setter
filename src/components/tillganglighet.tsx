@@ -28,11 +28,10 @@ type Marks = Record<string, Mark>;
  * The three states are told apart by fill, not by colour alone: solid accent
  * is can-work, a ringed stop fill is cannot, panel is unsaid.
  *
- * `hint` draws the instruction line the standalone page carries as its
- * SoftScreen subtitle. Inside a tab there is no subtitle to put it in -- the
- * screen is titled "Mina pass" and two of its three tabs are not painted on.
+ * No instruction line of its own: both screens that draw it say what to check
+ * in their own subtitle, which follows the tab on Mina pass.
  */
-export function Tillganglighet({ hint = false }: { hint?: boolean }) {
+export function Tillganglighet() {
   const { account } = useAccount();
   const [month, setMonth] = useState(() => stockholmToday().slice(0, 7));
   const [marks, setMarks] = useState<Marks>({});
@@ -151,15 +150,6 @@ export function Tillganglighet({ hint = false }: { hint?: boolean }) {
 
   return (
     <>
-      {hint && (
-        <p
-          className="px-4 pb-1 pt-[14px] text-[15px] font-medium"
-          style={{ color: C.text2, textWrap: "pretty" }}
-        >
-          Tryck på en dag, eller dra över flera.
-        </p>
-      )}
-
       {error && <div className="px-4 pb-[4px] pt-[10px]"><SoftNotice tone="stop">{error}</SoftNotice></div>}
 
       {/* The mode switch decides what a tap WRITES; tapping a day already in
