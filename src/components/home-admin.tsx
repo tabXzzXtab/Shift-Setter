@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
-  C, Card, EmptyState, GroupedList, SHADOW, SignOut, SoftNotice, SoftSheet,
+  C, Card, EmptyState, GroupedList, HomeTitle, SHADOW, SignOut, SoftNotice, SoftSheet,
 } from "./soft";
 import { getSupabase } from "@/lib/supabase/client";
 import { fel } from "@/lib/fel";
@@ -12,7 +12,6 @@ type Row = {
   project_id: string;
   name: string;
   site_address: string;
-  hours: number;
 };
 
 /**
@@ -59,12 +58,6 @@ const PROFILE_MENU = [
   { href: "/installningar", label: "Alla Konton" },
 ];
 
-/** Swedish decimal comma, and no trailing ",0" on a whole number. */
-const hours = (n: number) => {
-  const r = Math.round(n * 100) / 100;
-  return Number.isInteger(r) ? String(r) : String(r).replace(".", ",");
-};
-
 export function HomeAdmin() {
   const [rows, setRows] = useState<Row[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -76,11 +69,12 @@ export function HomeAdmin() {
   useEffect(() => {
     let active = true;
     void (async () => {
-      // The hours are summed in the database. Adding them here would mean
-      // shipping every assignment in the company to a phone to total them.
+      // project_hours is the list the landing page has always read -- the
+      // same rows RLS and the view's tenant predicate decide. Its hours column
+      // is no longer shown here, so it is no longer asked for.
       const { data, error } = await getSupabase()
         .from("project_hours")
-        .select("project_id, name, site_address, hours")
+        .select("project_id, name, site_address")
         .order("name");
 
       if (!active) return;
@@ -132,10 +126,6 @@ export function HomeAdmin() {
             </svg>
           </button>
 
-          <h1 className="text-[17px] font-bold" style={{ letterSpacing: "-.2px" }}>
-            Admin
-          </h1>
-
           <button
             type="button"
             aria-label="Profil"
@@ -151,18 +141,15 @@ export function HomeAdmin() {
           </button>
         </div>
 
+        {/* What an owner does here, not whose screen it is. Nothing to check:
+            creating and opening are both undoable. */}
+        <HomeTitle title="Skapa eller öppna ett projekt" />
+
         {error && <div className="px-4 pb-[6px]"><SoftNotice tone="stop">{error}</SoftNotice></div>}
 
         {/* ---- skapa ------------------------------------------------------ */}
         <div className="px-4 pt-[6px]">
           <Card radius={16} shadow={SHADOW.hero} pad="px-[18px] pb-5 pt-[18px]">
-            <div
-              className="mb-3 text-[12px] font-bold uppercase"
-              style={{ letterSpacing: "1px", color: C.text2 }}
-            >
-              Skapa
-            </div>
-
             <Link
               href="/projekt/ny"
               className="press-scale mb-[10px] flex h-[60px] w-full items-center justify-center gap-[10px] rounded-[12px] text-[18px] font-extrabold transition-[transform,background] duration-150 hover:bg-[#12206b] active:scale-[.985]"
@@ -203,11 +190,6 @@ export function HomeAdmin() {
             <h2 className="text-[12px] font-bold uppercase" style={{ letterSpacing: "1px", color: C.text2 }}>
               Alla projekt
             </h2>
-            {rows !== null && rows.length > 0 && (
-              <span className="text-[12px] font-bold" style={{ color: C.accent }}>
-                {rows.length} projekt
-              </span>
-            )}
           </div>
 
           {rows === null && (
@@ -251,16 +233,9 @@ export function HomeAdmin() {
                         {p.site_address}
                       </span>
                     </span>
+                    {/* No hours on the row: this list is for getting to a project,
+                        not for reporting on it. Hours belong in the Arbetsdagbok. */}
                     <span className="flex shrink-0 items-center gap-[10px]">
-                      {/* Accent when there are hours on it, secondary when there
-                          are none: the accent is reserved for numbers that
-                          change, and "0 h" is the one that has not. */}
-                      <span
-                        className="whitespace-nowrap text-[15px] font-bold"
-                        style={{ color: p.hours ? C.accent : C.text2 }}
-                      >
-                        {hours(p.hours)} h
-                      </span>
                       {/* The chevron turns to point at what it opened, which is
                           the only thing on the row that says it is a control. */}
                       <svg

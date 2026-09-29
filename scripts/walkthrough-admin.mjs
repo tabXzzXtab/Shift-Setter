@@ -136,8 +136,9 @@ try {
   if (n === 0) fail("the landing page lists no projects at all");
 
   const first = await rows.first().innerText();
-  if (!/\d/.test(first) || !/\bh\b/.test(first)) {
-    fail(`a project row shows no hours: ${JSON.stringify(first)}`);
+  // Hours belong in the Arbetsdagbok, not on the list you navigate from.
+  if (/\b\d+(,\d+)?\s?h\b/.test(first)) {
+    fail(`a project row still shows hours: ${JSON.stringify(first)}`);
   }
   if (await rows.first().locator("a").count()) {
     await shot(page, "FAILED");
