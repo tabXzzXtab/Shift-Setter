@@ -212,21 +212,29 @@ export function HomeArbetsledare() {
           phone. The pair is the shape the admin's landing page already uses
           for two creates of equal weight.
 
-          Neither is the leader's most common act -- confirming is -- so both
-          stay secondary, and both keep the plus the handoff draws. */}
+          Confirming is the leader's most common act, so while days are owed
+          both stay secondary. With nothing owed the hero steps down and SKAPA
+          PASS TAKES THE ACCENT: it is the natural next step for an idle
+          leader, and the tour's first action. Both keep the handoff's plus. */}
       <div className="flex gap-[10px] px-4 pt-[14px]">
         {[
-          { href: "/pass/ny", label: "Skapa pass" },
-          { href: "/projekt/ny", label: "Nytt projekt" },
+          { href: "/pass/ny", label: "Skapa pass", lead: !owed },
+          { href: "/projekt/ny", label: "Nytt projekt", lead: false },
         ].map((a) => (
           <Link
             key={a.href}
             href={a.href}
-            className="press-scale flex h-[60px] min-w-0 flex-1 items-center justify-center gap-[8px] rounded-[12px] text-[16px] font-bold transition-transform duration-[110ms] hover:bg-[#dbe4f9] active:scale-[.985]"
-            style={{ letterSpacing: "-.3px", background: C.panel2, color: C.inkHover }}
+            className={`press-scale flex h-[60px] min-w-0 flex-1 items-center justify-center gap-[8px] rounded-[12px] text-[16px] font-bold transition-transform duration-[110ms] active:scale-[.985] ${
+              a.lead ? "hover:bg-[#12206b]" : "hover:bg-[#dbe4f9]"
+            }`}
+            style={
+              a.lead
+                ? { letterSpacing: "-.3px", background: C.accent, color: C.surface, boxShadow: SHADOW.action }
+                : { letterSpacing: "-.3px", background: C.panel2, color: C.inkHover }
+            }
           >
             <svg width="13" height="13" viewBox="0 0 15 15" fill="none" aria-hidden>
-              <path d="M7.5 1v13M1 7.5h13" stroke={C.inkHover} strokeWidth="2.4" strokeLinecap="round" />
+              <path d="M7.5 1v13M1 7.5h13" stroke={a.lead ? C.surface : C.inkHover} strokeWidth="2.4" strokeLinecap="round" />
             </svg>
             {a.label}
           </Link>
