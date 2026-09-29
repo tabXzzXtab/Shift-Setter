@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { SoftNastaPass } from "./nasta-pass-card";
 import {
-  C, Card, GroupedList, SHADOW, SignOut, SoftNotice, SoftSheet,
+  C, Card, GroupedList, HomeTitle, SHADOW, SignOut, SoftNotice, SoftSheet,
 } from "./soft";
 import { pendingDays } from "@/lib/pending-days";
 import { fel } from "@/lib/fel";
@@ -135,10 +135,6 @@ export function HomeArbetsledare() {
           </svg>
         </button>
 
-        <h1 className="text-[17px] font-bold" style={{ letterSpacing: "-.2px" }}>
-          Arbetsledare
-        </h1>
-
         <button
           type="button"
           aria-label="Profil"
@@ -153,6 +149,10 @@ export function HomeArbetsledare() {
           </svg>
         </button>
       </div>
+
+      {/* What to do now, not whose screen it is: the days while any are owed,
+          a new pass when none are. Nothing on either to check first. */}
+      <HomeTitle title={owed ? "Bekräfta dina dagar" : "Skapa ett pass"} />
 
       {error && <div className="px-4 pb-[6px]"><SoftNotice tone="stop">{error}</SoftNotice></div>}
 
