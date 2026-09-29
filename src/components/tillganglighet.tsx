@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { C, Card, Segmented, SoftNotice } from "./soft";
+import { C, Segmented, SoftNotice } from "./soft";
 import { PaintCalendar } from "./paint-calendar";
 import { derivesTenant, getSupabase } from "@/lib/supabase/client";
 import { addDays, stockholmToday } from "@/lib/dates";
@@ -212,11 +212,12 @@ export function Tillganglighet({ hint = false }: { hint?: boolean }) {
       </div>
 
       {/* Availability is advisory and autosaves -- so the screen says so in
-          the live pair rather than making anybody look for a Spara. */}
-      <div className="px-4 pt-[14px]">
+          the live colour rather than making anybody look for a Spara. A line,
+          not a filled strip: it reassures, it does not ask for anything, and
+          the grid above is the one thing on this screen a finger should go to. */}
+      <div className="px-4 pt-[12px]">
         <div
-          className="flex items-center gap-2 rounded-[12px] px-4 py-3"
-          style={{ background: C.liveBg }}
+          className="flex items-center gap-2 px-1"
           aria-live="polite"
         >
           {!saving && (
@@ -225,7 +226,7 @@ export function Tillganglighet({ hint = false }: { hint?: boolean }) {
                 strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           )}
-          <span className="text-[15px] font-semibold" style={{ color: C.liveInk }}>
+          <span className="text-[14px] font-semibold" style={{ color: C.liveInk }}>
             {saving ? "Sparar…" : "Sparas automatiskt"}
           </span>
         </div>
@@ -236,8 +237,10 @@ export function Tillganglighet({ hint = false }: { hint?: boolean }) {
         and every row is named in words. The counts are live, because the
         question this screen answers is "how many days have I said yes to".
       */}
-      <div className="px-4 pt-[14px]">
-        <Card radius={14} pad="px-4 py-[14px]" className="flex flex-col gap-3">
+      {/* On the ground, not in a card: a key to the grid, so the grid stays the
+          only white card on the screen. */}
+      <div className="px-4 pt-[22px]">
+        <div className="flex flex-col gap-3 px-1">
           <div className="flex items-center gap-[10px]">
             <span
               className="h-[22px] w-[22px] shrink-0 rounded-[7px]"
@@ -268,13 +271,15 @@ export function Tillganglighet({ hint = false }: { hint?: boolean }) {
           <div className="flex items-center gap-[10px]">
             <span
               className="h-[22px] w-[22px] shrink-0 rounded-[7px]"
-              style={{ background: C.panel2 }}
+              // A ring, because off the white card the unmarked fill sits one
+              // step from the ground and would otherwise all but vanish.
+              style={{ background: C.panel2, boxShadow: "inset 0 0 0 1.5px #dbe4f9" }}
             />
             <span className="text-[15px] font-semibold" style={{ color: C.text2 }}>
               Inte sagt
             </span>
           </div>
-        </Card>
+        </div>
       </div>
     </>
   );
