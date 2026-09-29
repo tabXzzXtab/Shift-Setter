@@ -116,7 +116,7 @@ export default function AterstallLosenordPage() {
   }
 
   return (
-    <SoftScreen title="Nytt lösenord">
+    <SoftScreen title="Välj ett nytt lösenord" subtitle="Skriv samma lösenord i båda fälten.">
       {error && <div className="px-4 pb-[4px] pt-[10px]"><SoftNotice tone="stop">{error}</SoftNotice></div>}
 
       <form onSubmit={onSubmit}>
