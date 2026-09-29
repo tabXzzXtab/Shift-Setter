@@ -355,6 +355,22 @@ export function HomeArbetare() {
       )}
 
       {/* ---- 2. hero, the clock ------------------------------------------ */}
+      {/* NOTHING TO STAMP IS AN EMPTY STATE, NOT A HERO. A white hero card is
+          the loudest shape on the screen, and with nothing in it but a grey
+          sentence it drew the eye to the one place there was nothing to do.
+          The hero comes back the moment there is a shift, carrying Stämpla. */}
+      {shift === null && (
+        <div className="px-4 pt-[6px]">
+          <div
+            className="rounded-[14px] px-5 py-[18px] text-[15px] font-medium"
+            style={{ background: PANEL, color: TEXT_2 }}
+          >
+            Inget pass att stämpla just nu.
+          </div>
+        </div>
+      )}
+
+      {shift !== null && (
       <div className="px-4 pt-[6px]">
         <div
           className="relative rounded-[16px] px-5 pb-[18px] pt-5"
@@ -362,12 +378,6 @@ export function HomeArbetare() {
         >
           {shift === undefined && (
             <p className="text-[15px] font-medium" style={{ color: TEXT_2 }}>Laddar…</p>
-          )}
-
-          {shift === null && (
-            <p className="text-[15px] font-medium" style={{ color: TEXT_2 }}>
-              Inget pass att stämpla just nu.
-            </p>
           )}
 
           {shift && (
@@ -431,6 +441,7 @@ export function HomeArbetare() {
           )}
         </div>
       </div>
+      )}
 
       {/* Notices the handoff does not draw, in its language rather than the
           old black-and-white one. */}
@@ -564,6 +575,9 @@ export function HomeArbetare() {
             offers={[front]}
             busy={waiting}
             onRespond={respond}
+            // One primary per screen: while Stämpla is showing it is that,
+            // and the offer steps down to the secondary weight.
+            quiet={Boolean(shift)}
           />
         )}
       </div>

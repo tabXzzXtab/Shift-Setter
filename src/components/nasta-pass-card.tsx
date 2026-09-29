@@ -172,12 +172,16 @@ export function SoftNastaPass() {
           href={`https://maps.google.com/maps?q=${encodeURIComponent(next.address)}`}
           target="_blank"
           rel="noreferrer"
+          // QUIETER THAN AN OFFER, on purpose. This card asks for nothing -- it
+          // is a day already held -- so it takes the group shadow, a shorter
+          // map and Title M rather than the offer card's weight. Drawn at the
+          // same size, the two read as equals and the eye has to choose.
           className="block overflow-hidden rounded-[15px]"
-          style={{ background: C.surface, boxShadow: SHADOW.offer }}
+          style={{ background: C.surface, boxShadow: SHADOW.group }}
         >
           {next.address && (
             <div
-              className="mx-4 mt-4 h-[150px] overflow-hidden rounded-[9px]"
+              className="mx-4 mt-4 h-[96px] overflow-hidden rounded-[9px]"
               style={{ background: C.panel, boxShadow: "inset 0 0 0 1px rgba(9,21,64,.06)" }}
             >
               <ProjectMap address={next.address} />
@@ -185,7 +189,7 @@ export function SoftNastaPass() {
           )}
           <div className="px-5 pb-5 pt-4">
             <div className="mb-4 flex items-baseline justify-between gap-3">
-              <div className="text-[21px] font-bold" style={{ letterSpacing: "-.5px" }}>
+              <div className="text-[18px] font-bold" style={{ letterSpacing: "-.4px" }}>
                 {next.project}
               </div>
               <span className="text-right text-[15px] font-medium" style={{ color: C.text2 }}>
@@ -203,7 +207,7 @@ export function SoftNastaPass() {
                 >
                   {longDayHeading(next.date)}
                 </div>
-                <div className="text-[20px] font-extrabold" style={{ letterSpacing: "-.5px" }}>
+                <div className="text-[17px] font-bold" style={{ letterSpacing: "-.3px" }}>
                   {hhmm(next.start)}–{hhmm(next.end)}
                 </div>
               </div>

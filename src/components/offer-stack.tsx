@@ -50,10 +50,15 @@ export function OfferStack({
   offers,
   busy,
   onRespond,
+  quiet = false,
 }: {
   offers: Offer[];
   busy: boolean;
   onRespond: (passId: string, take: boolean) => void;
+  /** Acceptera in the secondary weight. For a screen that already has its one
+   *  primary -- the startsida while Stämpla In/Ut is showing -- so two accent
+   *  buttons never ask for the same thumb at once. */
+  quiet?: boolean;
 }) {
   const front = offers[0];
   if (!front) return <EmptyState>Inga pass erbjuds just nu.</EmptyState>;
@@ -134,8 +139,14 @@ export function OfferStack({
               type="button"
               onClick={() => onRespond(front.pass_id, true)}
               disabled={busy}
-              className="press-scale h-[54px] flex-[2] rounded-[10px] text-[17px] font-bold text-white transition-transform duration-[120ms] hover:bg-[#12206b] active:scale-[.985] disabled:opacity-60"
-              style={{ letterSpacing: "-.2px", background: C.accent }}
+              className={`press-scale h-[54px] flex-[2] rounded-[10px] text-[17px] font-bold transition-transform duration-[120ms] active:scale-[.985] disabled:opacity-60 ${
+                quiet ? "hover:bg-[#dbe4f9]" : "hover:bg-[#12206b]"
+              }`}
+              style={{
+                letterSpacing: "-.2px",
+                background: quiet ? C.panel2 : C.accent,
+                color: quiet ? C.inkHover : C.surface,
+              }}
             >
               Acceptera
             </button>
