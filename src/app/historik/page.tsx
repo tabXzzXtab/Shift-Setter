@@ -283,14 +283,13 @@ function AttBekrafta() {
           <div key={d.key} className="px-4 pt-[14px]">
             <Link href={`/bekrafta?projekt=${d.project_id}&datum=${d.work_date}`} className="block">
               <Card radius={14} className="hover:bg-[#f6f9ff]">
+                {/* NO HOURS ON THE ROW. The leader is here to pick a day, and
+                    the hours are what they state on the page this opens; a
+                    figure here was the card's only accent and drew the eye to
+                    something that is not the choice being made. */}
                 <Kicker>{longDayHeading(d.work_date)}</Kicker>
-                <div className="flex items-baseline justify-between gap-[10px]">
-                  <div className="text-[18px] font-bold" style={{ letterSpacing: "-.4px" }}>
-                    {d.project_name}
-                  </div>
-                  <div className="shrink-0 text-[15px] font-bold" style={{ color: C.accent }}>
-                    {hh(d.hours)} h
-                  </div>
+                <div className="text-[18px] font-bold" style={{ letterSpacing: "-.4px" }}>
+                  {d.project_name}
                 </div>
                 <div className="mt-[6px] flex items-center justify-between gap-[10px]">
                   <div className="text-[15px] font-medium" style={{ color: C.text2 }}>

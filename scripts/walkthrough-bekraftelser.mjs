@@ -252,11 +252,11 @@ try {
   const second = await rows.nth(1).innerText();
   if (!first.includes(heading(older))) fail(`oldest first is broken: row 1 reads ${JSON.stringify(first)}`);
   if (!second.includes(heading(newer))) fail(`row 2 reads ${JSON.stringify(second)}`);
-  for (const bit of [project, W.name, "6 h"]) {
+  for (const bit of [project, W.name]) {
     if (!second.includes(bit)) fail(`row 2 is missing ${JSON.stringify(bit)}: ${JSON.stringify(second)}`);
   }
   await shot(page, "b1-att-bekrafta");
-  log(`two days, oldest first, each naming the project, the crew and the hours`);
+  log(`two days, oldest first, each naming the project and the crew`);
 
   // THE CONTROL. Tap the SECOND row. Bekräfta Pass opens on the oldest waiting
   // day by default, so a row that did not carry its own day would land on the
