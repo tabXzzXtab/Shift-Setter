@@ -5357,4 +5357,117 @@ select pg_temp.ok(
   'PUSH.self_booking_is_not_announced',
   'a worker who booked themselves is not told they were given a pass');
 
+-- ============================================================================
+-- ANALYTICS -- write-only from the app, read only by the operator.
+--
+-- Every row here is on '/suite-analys', a path no screen has, so the operator's
+-- aggregates below can be hand-computed whatever the live table already holds.
+--
+--   w1 (this client, arbetare)   exits of 1000 and 3000 ms, two taps
+--   klientarbetare (the other)   one exit of 6000 ms
+--
+--   across every company:  3 visits, avg (1000+3000+6000)/3 = 3333, median 3000
+--   this company only:     2 visits, avg 2000, median 2000
+--   taps: (x 10 of 100, y 10+0 of 200)   -> column 2,  row 1
+--         (x 99 of 100, y 150+200 of 200) -> column 19, row 35
+-- ============================================================================
+
+reset role;
+select set_config('request.jwt.claims', '{}', true);
+
+set local role authenticated;
+select pg_temp.act_as((select v from fx where k = 'w1'));
+
+select pg_temp.accepts($acc$
+  insert into public.analytics_event (role, kind, screen, visit_id, client_at, duration_ms)
+  values ('arbetare', 'screen_exit', '/suite-analys', gen_random_uuid(), now(), 1000),
+         ('arbetare', 'screen_exit', '/suite-analys', gen_random_uuid(), now(), 3000)
+$acc$, 'ANALYTICS.a_worker_files_their_own_time');
+
+select pg_temp.accepts($acc$
+  insert into public.analytics_event (role, kind, screen, visit_id, client_at,
+                                      element, x, y, vw, vh, scroll_y)
+  values ('arbetare', 'tap', '/suite-analys', gen_random_uuid(), now(),
+          'button:stampla-in', 10, 10, 100, 200, 0),
+         ('arbetare', 'tap', '/suite-analys', gen_random_uuid(), now(),
+          'button', 99, 150, 100, 200, 200)
+$acc$, 'ANALYTICS.a_worker_files_their_taps');
+
+-- The role on the row is the one the database says you hold. A worker filing
+-- an admin's time would put their minutes in the owner's average.
+select pg_temp.rejects($rej$
+  insert into public.analytics_event (role, kind, screen, visit_id, client_at, duration_ms)
+  values ('admin', 'screen_exit', '/suite-analys', gen_random_uuid(), now(), 5)
+$rej$, 'ANALYTICS.no_filing_as_another_role');
+
+-- Invariant 12, on a table with no parent: the tenancy is the caller's own.
+select pg_temp.rejects($rej$
+  insert into public.analytics_event (tenant_id, role, kind, screen, visit_id, client_at, duration_ms)
+  values ('99999999-9999-9999-9999-999999999999', 'arbetare', 'screen_exit',
+          '/suite-analys', gen_random_uuid(), now(), 5)
+$rej$, 'ANALYTICS.no_filing_into_another_tenant');
+
+-- A tap names a kind of element, never its text: the labels in this app are
+-- people's and projects' names.
+select pg_temp.rejects($rej$
+  insert into public.analytics_event (role, kind, screen, visit_id, client_at,
+                                      element, x, y, vw, vh, scroll_y)
+  values ('arbetare', 'tap', '/suite-analys', gen_random_uuid(), now(),
+          'Bo T123', 1, 1, 100, 200, 0)
+$rej$, 'ANALYTICS.no_text_in_an_element');
+
+select pg_temp.act_as('99999999-9999-9999-9999-99999999999b');
+insert into public.analytics_event (role, kind, screen, visit_id, client_at, duration_ms)
+values ('arbetare', 'screen_exit', '/suite-analys', gen_random_uuid(), now(), 6000);
+
+-- NOBODY READS THE RAW ROWS, the company's own admin included.
+select pg_temp.act_as((select v from fx where k = 'admin'));
+select pg_temp.rejects($rej$ select count(*) from public.analytics_event $rej$,
+  'ANALYTICS.raw_rows_are_unreadable');
+
+select pg_temp.rejects($rej$
+  select * from public.analytics_screen_times(now() - interval '1 hour', now() + interval '1 hour')
+$rej$, 'ANALYTICS.stats_are_the_operators_only');
+
+select pg_temp.rejects($rej$
+  select * from public.analytics_taps('/suite-analys', 'arbetare',
+                                      now() - interval '1 hour', now() + interval '1 hour')
+$rej$, 'ANALYTICS.taps_are_the_operators_only');
+
+-- ---- the operator ------------------------------------------------------------
+select pg_temp.act_as('66666666-6666-6666-6666-66666666666a');
+
+-- Files nothing: the operator is not a user of the product.
+select pg_temp.rejects($rej$
+  insert into public.analytics_event (role, kind, screen, visit_id, client_at, duration_ms)
+  values ('admin', 'screen_exit', '/suite-analys', gen_random_uuid(), now(), 5)
+$rej$, 'ANALYTICS.the_operator_files_nothing');
+
+select pg_temp.ok(
+  (select (s.visits, s.avg_ms, s.median_ms, s.taps) = (3::bigint, 3333, 3000, 2::bigint)
+     from public.analytics_screen_times(now() - interval '1 hour', now() + interval '1 hour') s
+    where s.screen = '/suite-analys' and s.role = 'arbetare'),
+  'ANALYTICS.the_operator_sees_every_company',
+  'three visits across two companies: avg 3333, median 3000, two taps');
+
+select pg_temp.ok(
+  (select (s.visits, s.avg_ms, s.median_ms) = (2::bigint, 2000, 2000)
+     from public.analytics_screen_times(now() - interval '1 hour', now() + interval '1 hour',
+                                        (select tenant_id from public.account
+                                          where id = (select v from fx where k = 'w1'))) s
+    where s.screen = '/suite-analys' and s.role = 'arbetare'),
+  'ANALYTICS.one_company_when_asked',
+  'narrowed to w1''s company: two visits, avg 2000, median 2000');
+
+select pg_temp.ok(
+  (select array_agg(array[t.x_bin, t.y_bin, t.taps::integer] order by t.x_bin)
+     from public.analytics_taps('/suite-analys', 'arbetare',
+                                now() - interval '1 hour', now() + interval '1 hour') t)
+  = array[array[2, 1, 1], array[19, 35, 1]],
+  'ANALYTICS.taps_are_binned',
+  'column 2 row 1, and column 19 row 35');
+
+reset role;
+select set_config('request.jwt.claims', '{}', true);
+
 select pg_temp.ok(true, 'SUITE.complete', 'every assertion passed');

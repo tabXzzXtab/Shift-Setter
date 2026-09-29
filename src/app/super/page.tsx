@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AuthGate } from "@/components/auth-gate";
 import {
-  C, Card, EmptyState, SectionLabel, SoftNotice, SoftScreen, SoftSelect, Tag,
+  C, Card, EmptyState, SecondaryButton, SectionLabel, SoftNotice, SoftScreen, SoftSelect, Tag,
 } from "@/components/soft";
 import { ACTING_ROLE_KEY, HOME_FOR, type ActingRole } from "@/components/agerar-banner";
 import { getSupabase } from "@/lib/supabase/client";
@@ -129,6 +129,10 @@ function SuperScreen() {
       subtitle="Välj ett företag för att arbeta inuti det."
     >
       {error && <div className="px-4 pt-[10px]"><SoftNotice tone="stop">{error}</SoftNotice></div>}
+
+      <div className="px-4 pt-[14px]">
+        <SecondaryButton href="/super/analytics">Analys</SecondaryButton>
+      </div>
 
       {tenants !== null && tenants.length === 0 && (
         <div className="px-4 pt-[22px]"><EmptyState>Inga företag ännu.</EmptyState></div>

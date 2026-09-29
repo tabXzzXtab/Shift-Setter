@@ -35,6 +35,7 @@
     "walkthrough:boka": "node scripts/walkthrough-boka.mjs",
     "walkthrough:profil": "node scripts/walkthrough-profil.mjs",
     "walkthrough:tour": "node scripts/walkthrough-tour.mjs",
+    "walkthrough:analytics": "node scripts/walkthrough-analytics.mjs",
     "walkthrough:minapass": "node scripts/walkthrough-minapass.mjs",
     "walkthrough:bytledare": "node scripts/walkthrough-byt-ledare.mjs",
     "walkthrough:bytaplats": "node scripts/walkthrough-byta-plats.mjs",

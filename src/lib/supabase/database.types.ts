@@ -79,6 +79,68 @@ export type Database = {
           },
         ]
       }
+      analytics_event: {
+        Row: {
+          client_at: string
+          duration_ms: number | null
+          element: string | null
+          id: number
+          kind: string
+          received_at: string
+          role: Database["public"]["Enums"]["app_role"]
+          screen: string
+          scroll_y: number | null
+          tenant_id: string
+          vh: number | null
+          visit_id: string
+          vw: number | null
+          x: number | null
+          y: number | null
+        }
+        Insert: {
+          client_at: string
+          duration_ms?: number | null
+          element?: string | null
+          id?: never
+          kind: string
+          received_at?: string
+          role: Database["public"]["Enums"]["app_role"]
+          screen: string
+          scroll_y?: number | null
+          tenant_id?: string
+          vh?: number | null
+          visit_id: string
+          vw?: number | null
+          x?: number | null
+          y?: number | null
+        }
+        Update: {
+          client_at?: string
+          duration_ms?: number | null
+          element?: string | null
+          id?: never
+          kind?: string
+          received_at?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          screen?: string
+          scroll_y?: number | null
+          tenant_id?: string
+          vh?: number | null
+          visit_id?: string
+          vw?: number | null
+          x?: number | null
+          y?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "analytics_event_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       arbetsdagbok: {
         Row: {
           covered: unknown
@@ -2016,6 +2078,32 @@ export type Database = {
           entered_at: string
           tenant_id: string
           tenant_name: string
+        }[]
+      }
+      analytics_screen_times: {
+        Args: { p_from: string; p_tenant?: string; p_to: string }
+        Returns: {
+          avg_ms: number
+          median_ms: number
+          p90_ms: number
+          role: Database["public"]["Enums"]["app_role"]
+          screen: string
+          taps: number
+          visits: number
+        }[]
+      }
+      analytics_taps: {
+        Args: {
+          p_from: string
+          p_role: Database["public"]["Enums"]["app_role"]
+          p_screen: string
+          p_tenant?: string
+          p_to: string
+        }
+        Returns: {
+          taps: number
+          x_bin: number
+          y_bin: number
         }[]
       }
       approve_day: {

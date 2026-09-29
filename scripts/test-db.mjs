@@ -1186,6 +1186,45 @@ const CONTROLS = [
    "create policy avatars_read on storage.objects for select to authenticated " +
    "using (bucket_id = 'avatars')",
    "KONTO.avatar_is_not_public"],
+
+  // ---- ANALYTICS -------------------------------------------------------------
+  // The insert policy's three clauses, one at a time, then the column check,
+  // the read wall and the operator guard. Each leaves the rest of the table
+  // working, so each lands on its own assertion.
+
+  ["analytics -- you file as the role you hold",
+   "drop policy analytics_event_insert on public.analytics_event; " +
+   "create policy analytics_event_insert on public.analytics_event for insert to authenticated " +
+   "with check (app.in_tenant(tenant_id) and not app.is_super_admin())",
+   "ANALYTICS.no_filing_as_another_role"],
+
+  ["analytics -- you file into your own company",
+   "drop policy analytics_event_insert on public.analytics_event; " +
+   "create policy analytics_event_insert on public.analytics_event for insert to authenticated " +
+   "with check (coalesce(role = app.current_role(), false) and not app.is_super_admin())",
+   "ANALYTICS.no_filing_into_another_tenant"],
+
+  ["analytics -- the operator files nothing",
+   "drop policy analytics_event_insert on public.analytics_event; " +
+   "create policy analytics_event_insert on public.analytics_event for insert to authenticated " +
+   "with check (app.in_tenant(tenant_id) and coalesce(role = app.current_role(), false))",
+   "ANALYTICS.the_operator_files_nothing"],
+
+  ["analytics -- an element is an identifier, never text",
+   "alter table public.analytics_event drop constraint analytics_event_element_check",
+   "ANALYTICS.no_text_in_an_element"],
+
+  ["analytics -- the raw rows are nobody's to read",
+   // What a well-meant "let admins see their own numbers" would look like.
+   "grant select on public.analytics_event to authenticated; " +
+   "create policy analytics_leak on public.analytics_event for select to authenticated " +
+   "using (app.in_tenant(tenant_id))",
+   "ANALYTICS.raw_rows_are_unreadable"],
+
+  ["analytics -- the aggregates are the operator's only",
+   perturbIn("app.require_super_admin()",
+             "if not app.is_super_admin() then", "if false then"),
+   "ANALYTICS.stats_are_the_operators_only"],
 ];
 
 const client = new pg.Client({

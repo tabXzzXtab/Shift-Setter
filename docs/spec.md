@@ -935,6 +935,22 @@ the obvious manual attempt fail — a company's last admin cannot be deleted, so
 the tenancy cannot be emptied first. Clearing a demo means lifting that guard
 deliberately, and nothing does it for you.
 
+## 6e. Analytics — for the operator, about screens, not people
+
+**What is recorded.** Entering and leaving a screen, and taps on it, into `public.analytics_event` (migration `20260929100000`). A row carries the **company and the role — never the account**; there is no column for one. A screen is its **path only** (the query string is where ids live). A tap is **the kind of element** (`a`, `button`, `input`…) plus a `data-analytics` key where a screen gives one — **never its text**, because labels here are people's and projects' names; a CHECK refuses anything that is not an identifier. Coordinates are stored with the viewport size and scroll offset so they can be placed on the page.
+
+**A visit** starts on arriving or on the app coming back into view, and ends on leaving or on the app being **hidden** — a phone locked on site is not hours on one screen. The phone measures the visit and sends the duration **with the exit**, so a lost exit drops the visit from the averages instead of making it endless.
+
+**Silent.** No screen changes. Events are buffered and sent every 10 s, at 25, or when the page is hidden; the send as the page closes uses fetch keepalive. Every failure is swallowed.
+
+**Who is not recorded.** The operator (super admin), acting or not — refused by the insert policy, not only by the client — and automated browsers, which the database cannot tell from people; the analytics walkthrough opts in with `byggkoll.analytics-test`.
+
+**Write-only.** One INSERT policy: your own tenancy, the role you actually hold, never the operator. No SELECT, UPDATE or DELETE for anybody, a company's own admin included. The operator reads **aggregates only**, through `analytics_screen_times` (visits, average, median and p90 per screen and role, plus tap counts) and `analytics_taps` (a 20-column grid across the viewport, rows in twentieths of a screen height down the page), both refusing anyone but a super admin. They **cross tenancies on purpose** — the operator's sanctioned exception — and `p_tenant` narrows to one company. **/super/analytics** draws both: time per screen per role, and a heatmap with its busiest cells also listed in words.
+
+**Kept indefinitely.** There is no retention and nothing prunes the table; no cron exists to do it. Roughly 100–300 rows per person per active day.
+
+**A company with one admin makes "admin" one person.** Worth remembering when reading a single company's numbers.
+
 ## 7. Landing pages and navigation
 
 Each role lands on what it does most, and nothing important is more than one press away.

@@ -22,6 +22,21 @@ column account_directory.id uuid
 column account_directory.name text
 column account_directory.role app_role
 column account_directory.worker_id uuid
+column analytics_event.client_at timestamp with time zone NOT NULL
+column analytics_event.duration_ms integer
+column analytics_event.element text
+column analytics_event.id bigint NOT NULL
+column analytics_event.kind text NOT NULL
+column analytics_event.received_at timestamp with time zone NOT NULL DEFAULT now()
+column analytics_event.role app_role NOT NULL
+column analytics_event.screen text NOT NULL
+column analytics_event.scroll_y integer
+column analytics_event.tenant_id uuid NOT NULL DEFAULT app.current_tenant_id()
+column analytics_event.vh smallint
+column analytics_event.visit_id uuid NOT NULL
+column analytics_event.vw smallint
+column analytics_event.x smallint
+column analytics_event.y smallint
 column app.acting_tenant.account_id uuid NOT NULL
 column app.acting_tenant.entered_at timestamp with time zone NOT NULL DEFAULT now()
 column app.acting_tenant.tenant_id uuid NOT NULL
@@ -272,6 +287,19 @@ constr account FOREIGN KEY (id) REFERENCES auth.users(id) ON DELETE CASCADE
 constr account FOREIGN KEY (tenant_id) REFERENCES tenant(id)
 constr account PRIMARY KEY (id)
 constr account UNIQUE (id, tenant_id)
+constr analytics_event CHECK (((duration_ms >= 0) AND (duration_ms <= 86400000)))
+constr analytics_event CHECK (((kind = 'screen_exit'::text) OR (duration_ms IS NULL)))
+constr analytics_event CHECK (((kind = 'tap'::text) = ((element IS NOT NULL) AND (x IS NOT NULL) AND (y IS NOT NULL) AND (vw IS NOT NULL) AND (vh IS NOT NULL) AND (scroll_y IS NOT NULL))))
+constr analytics_event CHECK (((screen ~ '^/[a-z0-9/-]*$'::text) AND (length(screen) <= 80)))
+constr analytics_event CHECK ((element ~ '^[a-z0-9:._-]{1,80}$'::text))
+constr analytics_event CHECK ((kind = ANY (ARRAY['screen_enter'::text, 'screen_exit'::text, 'tap'::text])))
+constr analytics_event CHECK ((scroll_y >= 0))
+constr analytics_event CHECK ((vh > 0))
+constr analytics_event CHECK ((vw > 0))
+constr analytics_event CHECK ((x >= 0))
+constr analytics_event CHECK ((y >= 0))
+constr analytics_event FOREIGN KEY (tenant_id) REFERENCES tenant(id)
+constr analytics_event PRIMARY KEY (id)
 constr arbetsdagbok CHECK ((lower_inc(covered) AND (NOT upper_inc(covered)) AND (NOT isempty(covered))))
 constr arbetsdagbok FOREIGN KEY (generated_by) REFERENCES account(id)
 constr arbetsdagbok FOREIGN KEY (project_id) REFERENCES project(id) ON DELETE CASCADE
@@ -417,6 +445,8 @@ constr worker PRIMARY KEY (id)
 constr worker UNIQUE (account_id)
 constr worker UNIQUE (id, tenant_id)
 index  CREATE INDEX account_tenant ON public.account USING btree (tenant_id)
+index  CREATE INDEX analytics_event_screen ON public.analytics_event USING btree (screen, role, kind)
+index  CREATE INDEX analytics_event_window ON public.analytics_event USING btree (kind, received_at)
 index  CREATE INDEX arbetsdagbok_overlap_idx ON public.arbetsdagbok USING gist (project_id, covered)
 index  CREATE INDEX arbetsdagbok_project_covered_idx ON public.arbetsdagbok USING gist (project_id, covered)
 index  CREATE INDEX arbetsdagbok_tenant ON public.arbetsdagbok USING btree (tenant_id)
@@ -459,6 +489,7 @@ index  CREATE INDEX worker_active_idx ON public.worker USING btree (id) WHERE (d
 index  CREATE INDEX worker_tenant ON public.worker USING btree (tenant_id)
 index  CREATE UNIQUE INDEX account_id_tenant_key ON public.account USING btree (id, tenant_id)
 index  CREATE UNIQUE INDEX account_pkey ON public.account USING btree (id)
+index  CREATE UNIQUE INDEX analytics_event_pkey ON public.analytics_event USING btree (id)
 index  CREATE UNIQUE INDEX arbetsdagbok_pkey ON public.arbetsdagbok USING btree (id)
 index  CREATE UNIQUE INDEX clock_edit_pkey ON public.clock_edit USING btree (id)
 index  CREATE UNIQUE INDEX day_review_pkey ON public.day_review USING btree (id)
@@ -492,6 +523,7 @@ index  CREATE UNIQUE INDEX worker_id_tenant_key ON public.worker USING btree (id
 index  CREATE UNIQUE INDEX worker_pkey ON public.worker USING btree (id)
 policy account.account_admin_write [ALL] USING((app.in_tenant(tenant_id) AND app.is_admin())) CHECK((app.in_tenant(tenant_id) AND app.is_admin()))
 policy account.account_self_or_admin_select [SELECT] USING(((id = ( SELECT auth.uid() AS uid)) OR (app.in_tenant(tenant_id) AND app.is_admin()))) CHECK(-)
+policy analytics_event.analytics_event_insert [INSERT] USING(-) CHECK((app.in_tenant(tenant_id) AND COALESCE((role = app."current_role"()), false) AND (NOT app.is_super_admin())))
 policy arbetsdagbok.arbetsdagbok_admin [ALL] USING((app.in_tenant(tenant_id) AND app.is_admin())) CHECK((app.in_tenant(tenant_id) AND app.is_admin()))
 policy clock_edit.clock_edit_leader_select [SELECT] USING((app.in_tenant(tenant_id) AND (EXISTS ( SELECT 1
    FROM (tilldelning t
@@ -543,6 +575,7 @@ policy worker.worker_admin_insert [INSERT] USING(-) CHECK((app.in_tenant(tenant_
 policy worker.worker_self_or_admin_select [SELECT] USING((app.in_tenant(tenant_id) AND ((account_id = ( SELECT auth.uid() AS uid)) OR app.is_admin()))) CHECK(-)
 policy worker.worker_self_profile_update [UPDATE] USING((app.in_tenant(tenant_id) AND ((account_id = ( SELECT auth.uid() AS uid)) OR app.is_admin()))) CHECK((app.in_tenant(tenant_id) AND ((account_id = ( SELECT auth.uid() AS uid)) OR app.is_admin())))
 rls    account enabled=t
+rls    analytics_event enabled=t
 rls    arbetsdagbok enabled=t
 rls    clock_edit enabled=t
 rls    day_review enabled=t
@@ -635,6 +668,7 @@ func   app.leads_project(p_project uuid) md5=f1d9360a0c4753413b5ac7fa20a587db
 func   app.owns_personal_event(p_event uuid) md5=53a2a7184e8ff014bc28b9ddef92da47
 func   app.pass_end_at(p_date date, p_start time without time zone, p_end time without time zone) md5=5cbed15c09406f178bd3175eac1980f4
 func   app.pass_start_at(p_date date, p_start time without time zone) md5=9fa0f40882eca98efe820667c724d176
+func   app.require_super_admin() md5=e00d806a6aba2a1adabbe654677313b4
 func   app.sees_personal_event(p_event uuid) md5=feda599a5891e5e7c8ed2d8f4a2c7e92
 func   app.stockholm_today() md5=8b086d188d946a11d35cafa583ec6465
 func   app.svensk_datum(p_date date) md5=00a51bc9770d7412bdb3c51b62afc154
@@ -670,6 +704,8 @@ func   app.tg_worker_self_edit_guard() md5=7e933362e1f8d5f23547d75ed47b6736
 func   app.week_start(d date) md5=4a8f6c192e41cf4a14ebb5f87e671c29
 func   public.accept_offer(p_pass uuid) md5=0a13c8479d443e02895be68fb42741b3
 func   public.acting_tenant() md5=951cdb8518f12ecbca3cac801e4168e6
+func   public.analytics_screen_times(p_from timestamp with time zone, p_to timestamp with time zone, p_tenant uuid) md5=03c784cbad507ddf14256a4acfffc593
+func   public.analytics_taps(p_screen text, p_role app_role, p_from timestamp with time zone, p_to timestamp with time zone, p_tenant uuid) md5=ecad6cf81da9a2027829bb00dad64f59
 func   public.approve_day(p_project uuid, p_work_date date, p_text text, p_rows jsonb) md5=14ef16d933b5962d1b89c79d5f42c018
 func   public.assign_snabb(p_pass uuid, p_worker uuid) md5=bbeabc4cd865bb365369a4e3246d2e41
 func   public.avboka_pass(p_tilldelning uuid) md5=ffb6a4d4af49a19225ffad911665abc9
@@ -924,6 +960,7 @@ grant  DELETE on worker to authenticated
 grant  DELETE on worker_roster to authenticated
 grant  INSERT on account to authenticated
 grant  INSERT on account_directory to authenticated
+grant  INSERT on analytics_event to authenticated
 grant  INSERT on arbetsdagbok to authenticated
 grant  INSERT on arbetsledare_roster to anon
 grant  INSERT on arbetsledare_roster to authenticated
@@ -1144,6 +1181,7 @@ funcdef app.leads_project(p_project uuid) security=definer volatile=stable confi
 funcdef app.owns_personal_event(p_event uuid) security=definer volatile=stable config=search_path="" returns=boolean md5=fdc76986eacf825a24858f73629d117c
 funcdef app.pass_end_at(p_date date, p_start time without time zone, p_end time without time zone) security=invoker volatile=stable config=search_path="" returns=timestamp with time zone md5=5792689ae892924bf79a0078b34ce998
 funcdef app.pass_start_at(p_date date, p_start time without time zone) security=invoker volatile=stable config=search_path="" returns=timestamp with time zone md5=39e2204d119f5e9073b917d3f247bc9f
+funcdef app.require_super_admin() security=definer volatile=stable config=search_path="" returns=void md5=7ae8893fc1536e989a9f235e495e9960
 funcdef app.sees_personal_event(p_event uuid) security=definer volatile=stable config=search_path="" returns=boolean md5=d176610d4998c718f7ec6185e3d13202
 funcdef app.stockholm_today() security=invoker volatile=stable config=search_path="" returns=date md5=76e7c1b17d8f90c0488b5594beb49d8c
 funcdef app.svensk_datum(p_date date) security=invoker volatile=immutable config=search_path="" returns=text md5=25567f618b1ad12f24b3478d8bf4cb80
@@ -1179,6 +1217,8 @@ funcdef app.tg_worker_self_edit_guard() security=definer volatile=volatile confi
 funcdef app.week_start(d date) security=invoker volatile=immutable config=search_path="" returns=date md5=9a761c1ce03a2f776be8f6ecf059b293
 funcdef public.accept_offer(p_pass uuid) security=definer volatile=volatile config=search_path="" returns=uuid md5=457b20388f9d2b1df0c3b7f956c94feb
 funcdef public.acting_tenant() security=definer volatile=stable config=search_path="" returns=TABLE(tenant_id uuid, tenant_name text, entered_at timestamp with time zone) md5=202dd4443573f47593f67844778788d5
+funcdef public.analytics_screen_times(p_from timestamp with time zone, p_to timestamp with time zone, p_tenant uuid) security=definer volatile=stable config=search_path="" returns=TABLE(screen text, role app_role, visits bigint, avg_ms integer, median_ms integer, p90_ms integer, taps bigint) md5=b80032e6144a2d7217404a4791c8fb36
+funcdef public.analytics_taps(p_screen text, p_role app_role, p_from timestamp with time zone, p_to timestamp with time zone, p_tenant uuid) security=definer volatile=stable config=search_path="" returns=TABLE(x_bin integer, y_bin integer, taps bigint) md5=e2ea72c1a88adc44ca112b309aefc10f
 funcdef public.approve_day(p_project uuid, p_work_date date, p_text text, p_rows jsonb) security=invoker volatile=volatile config=search_path="" returns=void md5=8faa80af66b6bddf99782034be0990e3
 funcdef public.assign_snabb(p_pass uuid, p_worker uuid) security=definer volatile=volatile config=search_path="" returns=uuid md5=fc5556aae090a31f3d0b9bf323561e46
 funcdef public.avboka_pass(p_tilldelning uuid) security=definer volatile=volatile config=search_path="" returns=jsonb md5=6c58a11a9b58bb0decd6298652bf51a2
@@ -1419,6 +1459,7 @@ grantfn app.leads_project(p_project uuid) EXECUTE=authenticated
 grantfn app.owns_personal_event(p_event uuid) EXECUTE=PUBLIC,authenticated
 grantfn app.pass_end_at(p_date date, p_start time without time zone, p_end time without time zone) EXECUTE=authenticated
 grantfn app.pass_start_at(p_date date, p_start time without time zone) EXECUTE=authenticated
+grantfn app.require_super_admin() EXECUTE=authenticated
 grantfn app.sees_personal_event(p_event uuid) EXECUTE=PUBLIC,authenticated
 grantfn app.stockholm_today() EXECUTE=authenticated
 grantfn app.svensk_datum(p_date date) EXECUTE=(none)
@@ -1454,6 +1495,8 @@ grantfn app.tg_worker_self_edit_guard() EXECUTE=authenticated
 grantfn app.week_start(d date) EXECUTE=PUBLIC,authenticated
 grantfn public.accept_offer(p_pass uuid) EXECUTE=PUBLIC,authenticated,service_role
 grantfn public.acting_tenant() EXECUTE=anon,authenticated,service_role
+grantfn public.analytics_screen_times(p_from timestamp with time zone, p_to timestamp with time zone, p_tenant uuid) EXECUTE=anon,authenticated,service_role
+grantfn public.analytics_taps(p_screen text, p_role app_role, p_from timestamp with time zone, p_to timestamp with time zone, p_tenant uuid) EXECUTE=anon,authenticated,service_role
 grantfn public.approve_day(p_project uuid, p_work_date date, p_text text, p_rows jsonb) EXECUTE=PUBLIC,anon,authenticated,service_role
 grantfn public.assign_snabb(p_pass uuid, p_worker uuid) EXECUTE=PUBLIC,authenticated,service_role
 grantfn public.avboka_pass(p_tilldelning uuid) EXECUTE=PUBLIC,anon,authenticated,service_role
