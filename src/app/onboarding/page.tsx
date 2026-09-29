@@ -2,8 +2,8 @@
 
 import { useRef, useState, type ClipboardEvent, type KeyboardEvent, type ReactNode } from "react";
 import {
-  C, Card, ChevronRight, PrimaryButton, SHADOW, SoftField, SoftInput,
-  SoftNotice, Tag,
+  BackArrow, C, Card, ChevronRight, IconButton, PrimaryButton, SHADOW, SoftField,
+  SoftInput, SoftNotice, Tag,
 } from "@/components/soft";
 import { fel } from "@/lib/fel";
 
@@ -408,6 +408,69 @@ type Made = {
   admin_email: string;
 };
 
+/**
+ * What create-tenant said, as the operator should read it.
+ *
+ * THE FUNCTION ANSWERS IN SWEDISH, and its sentence is the one worth showing:
+ * "Korperation finns redan med det organisationsnumret." is an answer, where
+ * "Företaget kunde inte skapas" is a shrug. This used to pass every answer
+ * through fel(), which only knows its own table and replaced all of these with
+ * the fallback -- so a duplicate org nummer, a used email and a wrong code all
+ * read as the same unexplained failure.
+ *
+ * fel() still gets first look, for the two things it exists for: the 429 key
+ * the PIN gate shares, and an English database message from one of the
+ * function's undo paths. Anything it does not know is shown exactly as sent.
+ */
+function answerOf(status: number, error: string | undefined): string {
+  const said = (error ?? "").trim();
+  if (status === 429) return fel(said, "För många försök. Försök igen om en minut.");
+  if (said) return fel(said, said);
+  return `Företaget kunde inte skapas (svar ${status}). Försök igen.`;
+}
+
+/**
+ * Stage three's frame: the handoff's sub-screen header -- the back button, the
+ * 22/800 title, one line under it indented to clear the button -- and nothing
+ * else above the form. Back returns to the route choice; it is state, not a
+ * route, which is why this is not SoftScreen and its Link.
+ */
+function FormFrame({
+  title, line, onBack, children,
+}: {
+  title: string;
+  line: string;
+  onBack?: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <main
+      data-soft-screen={title}
+      className="mx-auto min-h-dvh w-full max-w-[390px] pb-[40px]"
+      style={{
+        background: C.ground,
+        color: C.ink,
+        fontFamily: "var(--font-inter), system-ui, sans-serif",
+        fontVariantNumeric: "tabular-nums",
+      }}
+    >
+      <div className="flex items-center gap-3 px-4 pb-[6px] pt-[14px]">
+        {onBack && <IconButton label="Tillbaka" onClick={onBack}><BackArrow /></IconButton>}
+        <h1 className="min-w-0 flex-1 text-[22px] font-extrabold" style={{ letterSpacing: "-.7px" }}>
+          {title}
+        </h1>
+      </div>
+      <p
+        className={`pb-1 pr-4 text-[15px] font-medium ${onBack ? "pl-[72px]" : "pl-4"}`}
+        style={{ color: C.text2, textWrap: "pretty" }}
+      >
+        {line}
+      </p>
+      <div className="px-4 pt-[14px]">{children}</div>
+    </main>
+  );
+}
+
 function SignupForm({
   pin, route, onBack,
 }: {
@@ -421,11 +484,12 @@ function SignupForm({
   const [adminName, setAdminName] = useState("");
   const [adminEmail, setAdminEmail] = useState("");
 
-  const [password, setPassword] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [tried, setTried] = useState(false);
   const [made, setMade] = useState<Made | null>(null);
+  const [password, setPassword] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   /**
    * Asked for only where somebody will be invoiced. A demo and a gift have
@@ -437,10 +501,10 @@ function SignupForm({
   const invoiceRequired = route === "sald";
 
   /**
-   * What stands between the form and Kopiera inloggning, in the words the
-   * screen uses. The gate used to be a bare boolean, and a tap on the grey
-   * button did nothing at all -- an org nummer typed without its dash looked,
-   * to the person holding the phone, like a screen with no way forward.
+   * What stands between the form and Skapa företaget, in the words the screen
+   * uses. A tap before the form is complete names these rather than doing
+   * nothing -- an org nummer typed without its dash once looked, to the person
+   * holding the phone, like a screen with no way forward.
    */
   const missing = [
     company.trim() === "" && "företagets namn",
@@ -450,7 +514,6 @@ function SignupForm({
     !adminEmail.includes("@") && "administratörens e-post",
   ].filter((m): m is string => Boolean(m));
   const ready = missing.length === 0;
-  const [tried, setTried] = useState(false);
 
   function credentialBlock(pw: string) {
     return [
@@ -463,10 +526,9 @@ function SignupForm({
   }
 
   async function copyCredentials() {
-    const pw = password ?? generatePassword();
-    setPassword(pw);
+    if (!password) return;
     try {
-      await navigator.clipboard.writeText(credentialBlock(pw));
+      await navigator.clipboard.writeText(credentialBlock(password));
     } catch {
       // A clipboard the browser refused is not a reason to pretend the step
       // did not happen: the password is on screen and can be read off it.
@@ -474,8 +536,17 @@ function SignupForm({
     setCopied(true);
   }
 
+  /**
+   * CREATE FIRST, THEN COPY. The password is generated here and sent with the
+   * request, and shown only once the company exists -- so what is copied is
+   * always a login that works. If the operator leaves without copying it, the
+   * admin is not locked out: Glömt lösenord on the login screen resets it by
+   * email. That is the trade this order makes against copying first.
+   */
   async function create() {
-    if (!password) return;
+    if (busy) return;
+    if (!ready) { setTried(true); return; }
+    const pw = generatePassword();
     setBusy(true);
     setError(null);
     try {
@@ -497,18 +568,17 @@ function SignupForm({
               org_nr: orgNr.trim(),
               invoice_email: invoice.trim() || undefined,
             },
-            admin: { name: adminName.trim(), email: adminEmail.trim(), password },
+            admin: { name: adminName.trim(), email: adminEmail.trim(), password: pw },
           }),
         },
       );
       const body = (await res.json().catch(() => ({}))) as Made & { error?: string };
       if (!res.ok) {
-        // create-tenant answers in Swedish for everything a person can fix,
-        // and in fel.ts's key for the one refusal it shares with the gate.
-        setError(fel(body.error ?? "", "Företaget kunde inte skapas. Försök igen."));
+        setError(answerOf(res.status, body.error));
         setBusy(false);
         return;
       }
+      setPassword(pw);
       setMade(body);
     } catch {
       setError("Kunde inte nå servern. Försök igen.");
@@ -516,26 +586,25 @@ function SignupForm({
     setBusy(false);
   }
 
-  /* ---- done -------------------------------------------------------------- */
-  if (made) {
+  /* ---- made: the login, and copying it ------------------------------------ */
+  if (made && password) {
     return (
-      <Frame>
-        <div className="pb-[14px]">
-          <SoftNotice tone="live" headline="Företaget är skapat">
-            {made.name} loggar in med uppgifterna du kopierade.
-          </SoftNotice>
-        </div>
-
+      <FormFrame title="Företaget är skapat" line="Kopiera inloggningen — lösenordet visas bara här.">
         <Card radius={16} pad="p-5" shadow={SHADOW.hero}>
           <div className="mb-[14px] flex items-baseline justify-between gap-3">
             <div className="min-w-0 text-[22px] font-extrabold" style={{ letterSpacing: "-.7px" }}>
               {made.name}
             </div>
-            <Tag tone={route === "demo" ? "warn" : "live"}>{TYPE_WORD[route]}</Tag>
+            <Tag tone={copied ? "live" : route === "demo" ? "warn" : "quiet"}>
+              {copied ? "Kopierad" : TYPE_WORD[route]}
+            </Tag>
           </div>
           <div className="rounded-[10px] px-4 py-[14px]" style={{ background: C.panel2 }}>
             <div className="text-[15px] font-medium" style={{ color: C.text2 }}>
               {made.admin_email}
+            </div>
+            <div data-password className="mt-[6px] text-[22px] font-extrabold" style={{ letterSpacing: "1px" }}>
+              {password}
             </div>
             {made.expires_at && (
               <div className="mt-[6px] text-[15px] font-bold">
@@ -544,51 +613,29 @@ function SignupForm({
             )}
           </div>
         </Card>
-
-        <p className="pt-[22px] text-center text-[15px] font-medium" style={{ color: C.text2 }}>
-          Lösenordet visas inte igen.
-        </p>
-      </Frame>
+        <div className="pt-[22px]">
+          <PrimaryButton onClick={() => void copyCredentials()}>
+            {copied ? "Kopiera igen" : "Kopiera inloggning"}
+          </PrimaryButton>
+        </div>
+      </FormFrame>
     );
   }
 
   /* ---- the form ---------------------------------------------------------- */
   return (
-    <Frame>
-      <div className="flex items-baseline justify-between px-1 pb-[10px]">
-        <div
-          className="text-[12px] font-bold uppercase"
-          style={{ letterSpacing: "1px", color: C.text2 }}
-        >
-          {TYPE_WORD[route]}
-        </div>
-        <button
-          type="button"
-          onClick={onBack}
-          className="flex min-h-[44px] items-center px-2 text-[15px] font-semibold"
-          style={{ color: C.accent }}
-        >
-          Byt
-        </button>
-      </div>
-
-      {error && (
-        <div className="pb-[14px]">
-          <SoftNotice tone="stop">{error}</SoftNotice>
-        </div>
-      )}
-
+    <FormFrame
+      title="Skapa företaget"
+      line="Kontrollera organisationsnumret — det måste stämma exakt."
+      onBack={onBack}
+    >
       <Card radius={16} pad="p-5">
         <div className="mb-[14px] text-[19px] font-bold" style={{ letterSpacing: "-.4px" }}>
           Företaget
         </div>
         <div className="mb-[14px]">
           <SoftField label="Namn">
-            <SoftInput
-              value={company}
-              onChange={(e) => setCompany(e.target.value)}
-              placeholder="Bygg AB"
-            />
+            <SoftInput value={company} onChange={(e) => setCompany(e.target.value)} placeholder="Bygg AB" />
           </SoftField>
         </div>
         <div className={invoiceRequired ? "mb-[14px]" : ""}>
@@ -620,11 +667,7 @@ function SignupForm({
           </div>
           <div className="mb-[14px]">
             <SoftField label="Namn">
-              <SoftInput
-                value={adminName}
-                onChange={(e) => setAdminName(e.target.value)}
-                placeholder="Anna Andersson"
-              />
+              <SoftInput value={adminName} onChange={(e) => setAdminName(e.target.value)} placeholder="Anna Andersson" />
             </SoftField>
           </div>
           <SoftField label="E-post" help="Det här blir inloggningen.">
@@ -638,90 +681,26 @@ function SignupForm({
         </Card>
       </div>
 
-      {/* The credentials, on Ny arbetare's terms and for its reason: the
-          password is generated in the browser and stored nowhere readable, so
-          a company created before anybody copied it is a company nobody can
-          sign into. */}
-      {password && (
-        <div className="pt-[14px]">
-          <Card radius={16} pad="p-5">
-            <div className="mb-[14px] flex items-baseline justify-between gap-3">
-              <div className="text-[19px] font-bold" style={{ letterSpacing: "-.4px" }}>
-                Inloggning
-              </div>
-              {copied && <Tag tone="live">Kopierad</Tag>}
-            </div>
-            <div className="rounded-[10px] px-4 py-[14px]" style={{ background: C.panel2 }}>
-              <div className="text-[15px] font-medium" style={{ color: C.text2 }}>
-                {adminEmail.trim()}
-              </div>
-              <div
-                data-password
-                className="mt-[6px] text-[22px] font-extrabold"
-                style={{ letterSpacing: "1px" }}
-              >
-                {password}
-              </div>
-            </div>
-            <div className="pt-[14px]">
-              <button
-                type="button"
-                onClick={() => void copyCredentials()}
-                className="press-scale flex h-[60px] w-full items-center justify-center rounded-[12px] text-[17px] font-bold transition-transform duration-[110ms] hover:bg-[#dbe4f9] active:scale-[.985]"
-                style={{ background: C.panel2, color: C.ink, letterSpacing: "-.2px" }}
-              >
-                Kopiera igen
-              </button>
-            </div>
-          </Card>
-        </div>
-      )}
-
+      {/* Both answers sit here, by the button a thumb just pressed, rather
+          than at the top of a screen that has scrolled. */}
       <div className="pt-[22px]">
-        {!password ? (
-          <>
-            {/* NOT the `disabled` attribute, for the reason Ny arbetare gives:
-                a disabled button swallows the click, so the screen cannot
-                answer and what the operator meets is a control that does
-                nothing at all. This one is always clickable -- and now it
-                ANSWERS: a tap before the form is complete says what is
-                missing, here by the thumb rather than at the top of the
-                screen, and the list shrinks as the fields are filled. */}
-            {tried && !ready && (
-              <div className="pb-[14px]">
-                <SoftNotice tone="warn">
-                  Det här saknas: {missing.join(", ")}.
-                </SoftNotice>
-              </div>
-            )}
-            <button
-              type="button"
-              onClick={() => { if (ready) void copyCredentials(); else setTried(true); }}
-              className="press-scale h-16 w-full rounded-[12px] text-[20px] font-extrabold transition-[transform,background] duration-150 active:scale-[.985]"
-              style={{
-                letterSpacing: "-.4px",
-                background: ready ? C.accent : C.hairline,
-                color: ready ? C.surface : C.chevron,
-                boxShadow: ready ? SHADOW.action : undefined,
-                cursor: ready ? "pointer" : "not-allowed",
-              }}
-            >
-              Kopiera inloggning
-            </button>
-            <p
-              className="pt-[14px] text-center text-[15px] font-medium"
-              style={{ color: C.text2, textWrap: "pretty" }}
-            >
-              Lösenordet finns bara här. Kopiera det innan du skapar företaget —
-              annars kan ingen logga in.
-            </p>
-          </>
-        ) : (
-          <PrimaryButton onClick={() => void create()} disabled={busy}>
-            {busy ? "Skapar…" : "Skapa företaget"}
-          </PrimaryButton>
+        {tried && !ready && (
+          <div className="pb-[14px]">
+            <SoftNotice tone="warn">Det här saknas: {missing.join(", ")}.</SoftNotice>
+          </div>
         )}
+        {error && (
+          <div className="pb-[14px]">
+            <SoftNotice tone="stop">{error}</SoftNotice>
+          </div>
+        )}
+        {/* Disabled only while the request is out. Incomplete, it stays
+            pressable and answers with what is missing -- a disabled button
+            swallows the tap and says nothing. */}
+        <PrimaryButton onClick={() => void create()} disabled={busy}>
+          {busy ? "Skapar…" : "Skapa företaget"}
+        </PrimaryButton>
       </div>
-    </Frame>
+    </FormFrame>
   );
 }
