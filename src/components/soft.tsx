@@ -730,45 +730,93 @@ export function Avatar({
 }
 
 /**
- * A notice, in the design's language rather than the old black-and-white one.
- * The handoff does not draw error states, so these reuse its signal pairs.
+ * A notice. COLOUR LIVES IN THE ICON, NOT IN THE BOX.
+ *
+ * It used to be a block filled with the signal's pale tint and set in the
+ * signal's ink -- pink behind red, pale green behind green -- which is the
+ * look of a stock alert component and made every refusal shout the same way.
+ * Now a refusal, a warning or a success is a white card with the flat shadow,
+ * a small filled icon carrying the colour, and ink text; a quiet note has no
+ * container at all, just an accent "i" and a grey line. Every tone still
+ * pairs its colour with a shape and words (handoff §4).
+ *
+ * The handoff does not draw error states, so these are its signal colours
+ * applied to one mark each.
  */
+function NoticeMark({ tone }: { tone: "live" | "warn" | "stop" | "quiet" }) {
+  const fill = { live: C.liveInk, warn: C.warnInk, stop: C.stopInk, quiet: C.accent }[tone];
+  return (
+    <span
+      aria-hidden
+      className="mt-[1px] flex h-5 w-5 shrink-0 items-center justify-center rounded-full"
+      style={{ background: fill }}
+    >
+      {tone === "live" ? (
+        <svg width="11" height="9" viewBox="0 0 11 9" fill="none">
+          <path d="M1 4.6 4 7.6 10 1.4" stroke={C.surface} strokeWidth="2.2"
+            strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      ) : tone === "quiet" ? (
+        <svg width="4" height="11" viewBox="0 0 4 11" fill="none">
+          <circle cx="2" cy="1.6" r="1.4" fill={C.surface} />
+          <path d="M2 4.8v5" stroke={C.surface} strokeWidth="2.2" strokeLinecap="round" />
+        </svg>
+      ) : (
+        <svg width="4" height="11" viewBox="0 0 4 11" fill="none">
+          <path d="M2 1.2v5" stroke={C.surface} strokeWidth="2.2" strokeLinecap="round" />
+          <circle cx="2" cy="9.4" r="1.4" fill={C.surface} />
+        </svg>
+      )}
+    </span>
+  );
+}
+
 export function SoftNotice({
   tone, headline, children,
 }: {
   tone: "live" | "warn" | "stop" | "quiet";
-  /** 17/800 above the body. The handoff draws one: "Dagen kördes utan
-   *  arbetsledare." on Granska pass, where the panel is the reason the screen
+  /** 16/700 above the body. The handoff draws one: "Dagen kördes utan
+   *  arbetsledare." on Granska pass, where the notice is the reason the screen
    *  exists rather than an aside on it. */
   headline?: string;
   children: ReactNode;
 }) {
-  const pair = {
-    live: [C.liveInk, C.liveBg],
-    warn: [C.warnInk, C.warnBg],
-    stop: [C.stopInk, C.stopBg],
-    /** The handoff's own inset notice -- "Bekräftat är slutgiltigt." It is
-     *  #eef3fe rather than the empty state's #e7edfb, and 600 rather than 500,
-     *  because it is a statement the screen is making, not a shrug. */
-    quiet: [C.inkHover, C.panel2],
-  }[tone];
+  // A quiet note is a line of information, not an event: no card to frame it.
+  if (tone === "quiet") {
+    return (
+      <div
+        role="status"
+        className="flex items-start gap-[10px] px-1 text-[15px] font-medium"
+        style={{ color: C.text2, textWrap: "pretty" }}
+      >
+        <NoticeMark tone="quiet" />
+        <div className="min-w-0">
+          {headline && (
+            <div className="mb-[2px] text-[16px] font-bold" style={{ color: C.ink, letterSpacing: "-.2px" }}>
+              {headline}
+            </div>
+          )}
+          {children}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       role={tone === "stop" ? "alert" : "status"}
-      className={`rounded-[12px] px-4 py-[14px] text-[15px] ${
-        tone === "quiet" ? "font-semibold" : "font-medium"
-      }`}
-      style={{ color: pair[0], background: pair[1], textWrap: "pretty" }}
+      className="flex items-start gap-3 rounded-[12px] px-4 py-[14px] text-[15px] font-medium"
+      style={{ color: C.ink, background: C.surface, boxShadow: SHADOW.flat, textWrap: "pretty" }}
     >
-      {headline && (
-        <div
-          className="mb-[6px] text-[17px] font-extrabold"
-          style={{ letterSpacing: "-.3px", color: tone === "warn" ? C.tagWarnInk : pair[0] }}
-        >
-          {headline}
-        </div>
-      )}
-      {children}
+      <NoticeMark tone={tone} />
+      <div className="min-w-0">
+        {headline && (
+          <div className="mb-[2px] text-[16px] font-bold" style={{ letterSpacing: "-.2px" }}>
+            {headline}
+          </div>
+        )}
+        {children}
+      </div>
     </div>
   );
 }
