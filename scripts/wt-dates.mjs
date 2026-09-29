@@ -96,10 +96,30 @@ export function monthLane(run, ahead, today = stockholmToday()) {
  * `fail` is passed in because each script owns how it reports and screenshots.
  */
 export async function reachDate(page, date, fail) {
-  const today = stockholmToday();
   for (let i = 0; i < 24; i++) {
     if (await page.locator(`[data-date="${date}"]`).count()) return;
-    const name = date > today ? "Nästa månad" : "Föregående månad";
+
+    // WHICH WAY TO WALK IS READ OFF THE SCREEN, not worked out from today.
+    //
+    // Deciding it from today is right only while the calendar is still showing
+    // the current month, which holds if every call follows a fresh page.goto
+    // and breaks the moment two calls share one page load: after paging
+    // forward to November, a request for a date in October is still "after
+    // today", so it would page forward again and walk 24 months away from a
+    // date that was one click back. walkthrough-tiers picks several days on
+    // one load and was avoiding this by visiting them in ascending order --
+    // a constraint nobody should have to know about, found by shift-project-
+    // setterv2-5c rather than by me.
+    //
+    // Compared against the whole span on screen rather than one cell, because
+    // a month grid may also draw the tail of the previous month or the head of
+    // the next; the target is known not to be among them, since the check
+    // above just failed.
+    const shown = await page.locator("[data-date]").evaluateAll(
+      (els) => els.map((e) => e.getAttribute("data-date")).filter(Boolean).sort());
+    if (!shown.length) fail(`no calendar on screen to page towards ${date}`);
+
+    const name = date > shown[shown.length - 1] ? "Nästa månad" : "Föregående månad";
     const button = page.getByRole("button", { name, exact: true });
     if (!(await button.count())) {
       fail(`${date} is not on screen and this calendar has no "${name}" button`);
