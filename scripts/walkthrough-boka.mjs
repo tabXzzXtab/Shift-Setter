@@ -269,7 +269,7 @@ try {
   await page.locator(`[data-open-pass="${takeRow.id}"]`).waitFor({ timeout: 20000 });
 
   const sub = (await page.locator("main p").first().innerText()).trim();
-  if (sub !== "Pass som saknar folk. Boka ett pass som passar ditt schema.") {
+  if (sub !== "Kontrollera att passet inte krockar med något du redan har.") {
     await fail(`the subtitle reads "${sub}"`);
   }
   if (!(await page.locator(`[data-open-pass="${refuseRow.id}"]`).count())) {

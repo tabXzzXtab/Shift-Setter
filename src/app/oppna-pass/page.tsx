@@ -146,9 +146,9 @@ function OppnaPass() {
 
   return (
     <SoftScreen
-      title="Öppna pass"
+      title="Boka ett ledigt pass"
       back="/"
-      subtitle="Pass som saknar folk. Boka ett pass som passar ditt schema."
+      subtitle="Kontrollera att passet inte krockar med något du redan har."
     >
       {error && (
         <div className="px-4 pt-2"><SoftNotice tone="stop">{error}</SoftNotice></div>
