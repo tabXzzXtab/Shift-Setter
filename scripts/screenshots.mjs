@@ -163,7 +163,7 @@ if (ROLES.includes("admin")) {
   await step(page, "admin-redigera-projekt", async () => {
     await page.getByRole("link", { name: /Redigera Projekt/i }).first().click();
     await page.waitForURL((u) => u.pathname.includes("/projekt/redigera"), { timeout: 20000 });
-    await page.getByRole("heading", { name: "Redigera projekt" }).waitFor({ timeout: 20000 });
+    await page.getByRole("heading", { name: "Ändra projektet" }).waitFor({ timeout: 20000 });
   });
 
   await step(page, "admin-kolla-pass", async () => {

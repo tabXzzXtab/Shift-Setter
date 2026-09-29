@@ -76,7 +76,7 @@ const BESTALLAREN: FieldSpec[] = [
 /** The ground, the header and a line -- the three loading and dead ends. */
 function Plain({ children }: { children: React.ReactNode }) {
   return (
-    <SoftScreen title="Redigera projekt" back="/projekt">
+    <SoftScreen title="Ändra projektet" back="/projekt">
       <div className="px-4 pt-[2px]">{children}</div>
     </SoftScreen>
   );
@@ -203,7 +203,11 @@ function RedigeraProjekt({ id }: { id: string | null }) {
   );
 
   return (
-    <SoftScreen title="Redigera projekt" back="/projekt">
+    <SoftScreen
+      title="Ändra projektet"
+      back="/projekt"
+      subtitle="Kontrollera beställarens uppgifter innan du sparar."
+    >
       {(error || saved) && (
         <div className="px-4 pb-[10px] pt-[2px]">
           {error && <SoftNotice tone="stop">{error}</SoftNotice>}
