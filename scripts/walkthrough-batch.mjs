@@ -26,6 +26,7 @@ import { mkdirSync } from "node:fs";
 import path from "node:path";
 import { required } from "./env.mjs";
 import { chooseProject } from "./day-page.mjs";
+import { reachDate, sameMonth, shiftDays, stockholmToday } from "./wt-dates.mjs";
 
 const BASE = process.env.BASE_URL ?? "http://localhost:3000";
 const ART = "artifacts";
@@ -59,6 +60,10 @@ async function mustNotSee(page, text, why) {
 
 // ---- genuine touch input ----------------------------------------------------
 async function centres(page, dates) {
+  // A grid draws one month, and the day may be in another. Every date one
+  // gesture touches is in the same month (the block is placed so), so paging
+  // to the first is paging to all of them.
+  await reachDate(page, dates[0], fail);
   const out = [];
   for (const d of dates) {
     const cell = page.locator(`[data-date="${d}"]`);
@@ -157,17 +162,31 @@ page.on("pageerror", (e) => fail(`page error: ${e.message}`));
 
 if (!ctx._options?.hasTouch && !devices["Pixel 7"].hasTouch) fail("context is not a touch device");
 
-const today = new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Stockholm" }).format(new Date());
-const ymd = (n) => {
-  const [y, m, d] = today.split("-").map(Number);
-  return new Date(Date.UTC(y, m - 1, d + n, 12)).toISOString().slice(0, 10);
-};
-const MONTH_DAYS = Array.from({ length: 12 }, (_, i) => ymd(7 + i));  // twelve days, all >5 out
-const NEAR = ymd(2);                                                  // inside five days
-const SPARE = ymd(25);
-if (new Set([...MONTH_DAYS, NEAR, SPARE].map((d) => d.slice(0, 7))).size !== 1) {
-  fail("this run straddles a month boundary; the calendar would need paging");
-}
+/*
+ * Any day of the year. This used to refuse from mid-month on, because every
+ * date had to fall in the month the calendar opens on. The calendars are
+ * paged with reachDate now, so the dates only have to obey the scenario:
+ *
+ *   MONTH_DAYS  twelve consecutive days, all more than five out, IN ONE MONTH:
+ *               they are painted and picked by one continuous drag, and a grid
+ *               draws one month. From today+7 when they fit before the month
+ *               ends, otherwise from the 1st of the next -- which is still
+ *               more than five days out, and every month holds twelve days.
+ *   NEAR        inside five days, wherever that falls.
+ *   SPARE       a day after the block, never inside it: the tap-to-toggle
+ *               check needs a day nobody has painted. It used to be today+25,
+ *               which a block moved to the next month could reach.
+ *
+ * reachDate chooses its direction from TODAY, not from the month on screen,
+ * so each page visits its dates in ascending order and only ever pages on.
+ */
+const today = stockholmToday();
+const firstOfNext = (d) => shiftDays(`${d.slice(0, 7)}-01`, 40).slice(0, 7) + "-01";
+let blockStart = shiftDays(today, 7);
+if (!sameMonth(blockStart, shiftDays(blockStart, 11))) blockStart = firstOfNext(blockStart);
+const MONTH_DAYS = Array.from({ length: 12 }, (_, i) => shiftDays(blockStart, i));
+const NEAR = shiftDays(today, 2);
+const SPARE = shiftDays(MONTH_DAYS.at(-1), 3);
 
 console.log(`\nBatch of ${MONTH_DAYS.length} days: ${MONTH_DAYS[0]} … ${MONTH_DAYS.at(-1)}\n`);
 
@@ -201,6 +220,9 @@ try {
     await signIn(page, w.email, w.password);
     await page.goto(`${BASE}/min-kalender/`, { waitUntil: "networkidle" });
 
+    // In date order, NEAR first: the calendar is only ever paged forward.
+    if (i < 2) await touchDrag(page, [NEAR]);   // two of them free on the near day
+
     // One continuous drag across the whole run of days.
     await touchDrag(page, MONTH_DAYS);
     if (i === 0) {
@@ -211,9 +233,10 @@ try {
       await touchTap(page, SPARE);
       await page.locator(`[data-date="${SPARE}"][aria-label*="omarkerad"]`).waitFor({ timeout: 10000 });
     }
-    if (i < 2) await touchDrag(page, [NEAR]);   // two of them free on the near day
 
+    // A reload puts the calendar back on this month.
     await page.reload({ waitUntil: "networkidle" });
+    await reachDate(page, MONTH_DAYS[0], fail);
     for (const d of [MONTH_DAYS[0], MONTH_DAYS[5], MONTH_DAYS.at(-1)]) {
       await page.locator(`[data-date="${d}"][aria-label*="kan jobba"]`)
         .waitFor({ timeout: 15000 })

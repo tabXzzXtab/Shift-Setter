@@ -19,6 +19,7 @@ import { chromium, devices } from "playwright";
 import { mkdirSync } from "node:fs";
 import path from "node:path";
 import { required } from "./env.mjs";
+import { reachDate, shiftDays, stockholmToday } from "./wt-dates.mjs";
 
 const BASE = process.env.BASE_URL ?? "http://localhost:3000";
 const ART = "artifacts";
@@ -82,32 +83,56 @@ async function createPerson(page, name, email, role) {
   return { email, password };
 }
 
-/** Paint days by dragging the finger across the grid, as a worker would. */
+/**
+ * Paint days by dragging the finger across the grid, as a worker would.
+ *
+ * ONE DRAG PER MONTH. A grid draws one month, so a block that crosses a month
+ * end -- today+12 to today+14 does, near the end of one -- is painted as a
+ * drag on each side of it, paging with reachDate in between. Dates are taken
+ * in order, so the paging only ever goes forward.
+ */
 async function paintDays(page, dates, mode = "Kan jobba") {
   await page.goto(`${BASE}/min-kalender/`, { waitUntil: "networkidle" });
   await page.getByRole("button", { name: mode, exact: true }).click();
-  const cells = [];
-  for (const d of dates) {
-    const cell = page.locator(`[data-date="${d}"]`);
-    await cell.waitFor({ timeout: 20000 });
-    cells.push(await cell.boundingBox());
+  const months = new Map();
+  for (const d of [...dates].sort()) {
+    if (!months.has(d.slice(0, 7))) months.set(d.slice(0, 7), []);
+    months.get(d.slice(0, 7)).push(d);
   }
   const mid = (b) => ({ x: b.x + b.width / 2, y: b.y + b.height / 2 });
 
-  await page.mouse.move(...Object.values(mid(cells[0])));
-  await page.mouse.down();
-  for (const b of cells.slice(1)) {
-    const m = mid(b);
-    await page.mouse.move(m.x, m.y, { steps: 6 });
+  for (const run of months.values()) {
+    await reachDate(page, run[0], fail);
+    const cells = [];
+    for (const d of run) {
+      const cell = page.locator(`[data-date="${d}"]`);
+      await cell.waitFor({ timeout: 20000 });
+      cells.push(await cell.boundingBox());
+    }
+    await page.mouse.move(...Object.values(mid(cells[0])));
+    await page.mouse.down();
+    for (const b of cells.slice(1)) {
+      const m = mid(b);
+      await page.mouse.move(m.x, m.y, { steps: 6 });
+    }
+    await page.mouse.up();
+    await page.waitForTimeout(1200);   // the drag commits on release
   }
-  await page.mouse.up();
-  await page.waitForTimeout(1200);   // the drag commits on release
+}
+
+/** After a reload the calendar is back on this month; page to the day first. */
+async function mustBeMarked(page, date, word) {
+  await page.reload({ waitUntil: "networkidle" });
+  await reachDate(page, date, fail);
+  await page.locator(`[data-date="${date}"][aria-label*="${word}"]`).waitFor({ timeout: 20000 });
 }
 
 /** Step 1 of Skapa Pass: tap the days, then confirm with the corner control. */
 async function pickDays(page, dates) {
   await page.getByText("Vilka dagar?").waitFor({ timeout: 20000 });
-  for (const d of dates) {
+  for (const d of [...dates].sort()) {
+    // The picker opens on this month; the day may be in the next one.
+    await reachDate(page, d, fail);
     const cell = page.locator(`[data-date="${d}"]`);
     await cell.waitFor({ timeout: 20000 });
     await cell.scrollIntoViewIfNeeded();
@@ -127,18 +152,13 @@ const ctx = await browser.newContext({
 const page = await ctx.newPage();
 page.on("pageerror", (e) => fail(`page error: ${e.message}`));
 
-// Dates inside the current month, so the calendar needs no navigation.
-const today = new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Stockholm" }).format(new Date());
-const plus = (n) => {
-  const [y, m, d] = today.split("-").map(Number);
-  const t = new Date(Date.UTC(y, m - 1, d + n, 12));
-  return t.toISOString().slice(0, 10);
-};
+// Any month. These used to have to fall inside the current one, and the run
+// refused from mid-month on; the calendars are paged with reachDate now, so
+// the days land wherever today+13 and today+20 are.
+const today = stockholmToday();
+const plus = (n) => shiftDays(today, n);
 const D = plus(13);            // the contested day
 const D2 = plus(20);           // the day nobody pre-picks
-if (D.slice(0, 7) !== today.slice(0, 7) || D2.slice(0, 7) !== today.slice(0, 7)) {
-  fail("this run straddles a month boundary; the calendar would need paging");
-}
 
 console.log(`\nTiers on ${D}, Acceptera Pass on ${D2}\n`);
 
@@ -169,21 +189,18 @@ try {
   // ---- workers paint förval ------------------------------------------------
   await signIn(page, W1.email, W1.password);
   await paintDays(page, [plus(12), D, plus(14)]);
-  await page.reload({ waitUntil: "networkidle" });
-  await page.locator(`[data-date="${D}"][aria-label*="kan jobba"]`).waitFor({ timeout: 20000 });
+  await mustBeMarked(page, D, "kan jobba");
   // ...and marks the OTHER day as one they cannot work. Three states on one
   // screen, and an explicit no that Acceptera Pass must respect later.
   await paintDays(page, [D2], "Kan inte");
-  await page.reload({ waitUntil: "networkidle" });
-  await page.locator(`[data-date="${D2}"][aria-label*="kan inte"]`).waitFor({ timeout: 20000 });
+  await mustBeMarked(page, D2, "kan inte");
   await shot(page, "20-kalender-dragen");
   log("W1 dragged three days as can-work and marked one as cannot");
   await signOut(page);
 
   await signIn(page, W2.email, W2.password);
   await paintDays(page, [D]);
-  await page.reload({ waitUntil: "networkidle" });
-  await page.locator(`[data-date="${D}"][aria-label*="kan jobba"]`).waitFor({ timeout: 20000 });
+  await mustBeMarked(page, D, "kan jobba");
   log("W2 marked the one day");
   await signOut(page);
 
