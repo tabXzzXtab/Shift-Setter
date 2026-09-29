@@ -555,7 +555,7 @@ try {
     closer.evaluate((el) => getComputedStyle(el).height),
     closer.evaluate((el) => getComputedStyle(el).backgroundColor),
   ]);
-  if (closeH !== "56px") fail(`Stäng is ${closeH} tall, the handoff says 56`);
+  if (closeH !== "48px") fail(`Stäng is ${closeH} tall, wanted 48 -- it steps back behind the rows`);
   if (closeBg !== "rgb(238, 243, 254)") {
     fail(`Stäng is ${closeBg}, the handoff says #eef3fe`);
   }
@@ -597,6 +597,8 @@ try {
     fail(`Logga ut still carries a ${utBorder} border -- SignOut is missing its \`soft\` prop`);
   }
   if (utRadius !== "12px") fail(`Logga ut radius is ${utRadius}, the design says 12`);
+  const utBg = await ut.evaluate((el) => getComputedStyle(el).backgroundColor);
+  if (utBg !== "rgba(0, 0, 0, 0)") fail(`Logga ut is filled ${utBg}; in a sheet it is a text button (SignOut quiet)`);
   if (utColour !== "rgb(142, 29, 21)") {
     fail(`Logga ut is ${utColour}, the design's stop ink is #8e1d15`);
   }
