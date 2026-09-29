@@ -1225,6 +1225,63 @@ const CONTROLS = [
    perturbIn("app.require_super_admin()",
              "if not app.is_super_admin() then", "if false then"),
    "ANALYTICS.stats_are_the_operators_only"],
+
+  // ---- BRANDING ---------------------------------------------------------------
+
+  ["branding -- only the admin edits it",
+   "drop policy tenant_branding_update on public.tenant_branding; " +
+   "create policy tenant_branding_update on public.tenant_branding for update to authenticated " +
+   "using (app.in_tenant(tenant_id) and app.is_staff()) with check (app.in_tenant(tenant_id) and app.is_staff())",
+   "BRANDING.a_leader_cannot_edit"],
+
+  ["branding -- one company does not read another's",
+   "drop policy tenant_branding_select on public.tenant_branding; " +
+   "create policy tenant_branding_select on public.tenant_branding for select to authenticated " +
+   "using (app.is_staff())",
+   "BRANDING.another_company_cannot_read"],
+
+  ["branding -- one company does not write another's",
+   "drop policy tenant_branding_insert on public.tenant_branding; " +
+   "create policy tenant_branding_insert on public.tenant_branding for insert to authenticated " +
+   "with check (app.is_admin())",
+   "BRANDING.another_company_cannot_write"],
+
+  ["branding -- the logo path is the row's own",
+   "alter table public.tenant_branding drop constraint tenant_branding_logo_is_its_own",
+   "BRANDING.logo_is_its_own"],
+
+  ["branding -- no document without the sender's details",
+   perturbIn("app.tg_arbetsdagbok_guard()",
+             "  if not exists (\n    select 1 from public.tenant_branding b",
+             "  if false and not exists (\n    select 1 from public.tenant_branding b"),
+   "BRANDING.no_document_without_the_senders_details"],
+
+  ["branding -- a logo goes into your own company's folder",
+   "drop policy branding_write on storage.objects; " +
+   "create policy branding_write on storage.objects for insert to authenticated " +
+   "with check (bucket_id = 'branding' and storage.filename(name) in ('logo.png','logo.jpg') and app.is_admin())",
+   "BRANDING.logo_upload_foreign_rejected"],
+
+  ["branding -- a logo is read inside its company",
+   "drop policy branding_read on storage.objects; " +
+   "create policy branding_read on storage.objects for select to authenticated " +
+   "using (bucket_id = 'branding' and app.is_staff())",
+   "BRANDING.logo_not_across_companies"],
+
+  ["avatars -- an admin reads faces in their own company only",
+   // The policy as it was before 20260929140000: any admin, any face.
+   "drop policy avatars_read on storage.objects; " +
+   "create policy avatars_read on storage.objects for select to authenticated " +
+   "using (bucket_id = 'avatars' and (app.is_admin() or " +
+   "(storage.foldername(name))[1] = (select auth.uid())::text))",
+   "AVATAR.another_company_admin_cannot_read"],
+
+  ["avatars -- an admin writes faces in their own company only",
+   "drop policy avatars_write on storage.objects; " +
+   "create policy avatars_write on storage.objects for insert to authenticated " +
+   "with check (bucket_id = 'avatars' and (app.is_admin() or " +
+   "(storage.foldername(name))[1] = (select auth.uid())::text))",
+   "AVATAR.another_company_admin_cannot_write"],
 ];
 
 const client = new pg.Client({

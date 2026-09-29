@@ -12,6 +12,7 @@ import { addDays, hhmm, stampToTime, stockholmToday } from "@/lib/dates";
 import { Bristsurvey, fetchGaps, hasGaps, type Gaps } from "@/components/bristsurvey";
 import type { DocDay, DocPayload } from "@/lib/doc/arbetsdagbok";
 import { arbetsdagbokFilename, buildArbetsdagbokPdf } from "@/lib/doc/pdf";
+import { loadSender } from "@/lib/doc/sender";
 import { fel } from "@/lib/fel";
 import { tourSignal } from "@/lib/tour/signal";
 
@@ -118,6 +119,8 @@ function RailLeg({
 
 type Project = {
   id: string;
+  /** Whose document it is: the sender printed in its header and footer. */
+  tenant_id: string;
   name: string;
   bestallare_address: string;
   bestallare_bolag: string;
@@ -163,7 +166,7 @@ function Arbetsdagbok() {
   useEffect(() => {
     getSupabase()
       .from("project")
-      .select("id, name, bestallare_address, bestallare_bolag, bestallare_orgnr")
+      .select("id, tenant_id, name, bestallare_address, bestallare_bolag, bestallare_orgnr")
       .order("name")
       .then(({ data }) => {
         const rows = (data ?? []) as Project[];
@@ -244,6 +247,15 @@ function Arbetsdagbok() {
 
     const project = projects.find((p) => p.id === projectId)!;
 
+    let sender;
+    try {
+      sender = await loadSender(project.tenant_id);
+    } catch (e) {
+      setError(fel(e, "Företagets egna uppgifter kunde inte läsas. Ladda om sidan."));
+      setBusy(false);
+      return;
+    }
+
     const { data: passes } = await sb
       .from("pass")
       .select("id, work_date, start_time, end_time")
@@ -310,6 +322,7 @@ function Arbetsdagbok() {
         orgnr: project.bestallare_orgnr,
         project: project.name,
       },
+      sender,
       days: [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date)),
     });
     tourSignal("arbetsdagbok-generated");
@@ -393,6 +406,16 @@ function Arbetsdagbok() {
           }}
         >
           {error && <div className="pb-[10px]"><SoftNotice tone="stop">{error}</SoftNotice></div>}
+          {/* The company has a logo and it could not be read: the name prints
+              in its place, and that is said here rather than discovered by the
+              customer. */}
+          {payload.sender.logoFailed && (
+            <div className="pb-[10px]">
+              <SoftNotice tone="warn">
+                Logotypen kunde inte läsas. Företagets namn står i dess ställe i dokumentet.
+              </SoftNotice>
+            </div>
+          )}
           {/* Shown alongside an error rather than instead of it, now that the
               likeliest error is a share that failed: the file named here IS
               on the phone, and hiding that would answer "kunde inte delas"

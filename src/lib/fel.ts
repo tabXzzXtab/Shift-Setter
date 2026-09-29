@@ -233,6 +233,13 @@ const TABLE: [string, string][] = [
    "Några dagar saknar beskrivning av vad som gjordes. Gör bristsurveyn först."],
   ["the bestallare block is incomplete",
    "Beställaruppgifterna är ofullständiga. Fyll i dem på projektet innan du skapar dokumentet."],
+  // The SENDER's, the same rule for the other side of the document
+  // (20260929140000). Twice: the database's refusal, and the page's own
+  // sentence when the row cannot be read after all.
+  ["the company's own details are incomplete",
+   "Företagets egna uppgifter saknas: adress, kontaktperson och telefon. Fyll i dem under Företaget i menyn."],
+  ["Företagets egna uppgifter saknas",
+   "Företagets egna uppgifter saknas: adress, kontaktperson och telefon. Fyll i dem under Företaget i menyn."],
   ["the clock span for", "Stämplingarna på dagen ger ett orimligt antal timmar. Rätta dem innan du surveyar dagen."],
 
   // ---- things that should not happen, said plainly ------------------------

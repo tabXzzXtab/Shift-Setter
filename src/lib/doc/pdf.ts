@@ -1,6 +1,7 @@
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from "pdf-lib";
-import { COMPANY, formatTimestamp, sumOrdinarieTid, type DocPayload } from "./arbetsdagbok";
-import { LOGO_DATA_URL } from "./logo";
+import {
+  FOOTER, footerRight, formatTimestamp, sumOrdinarieTid, type DocPayload, type DocSender,
+} from "./arbetsdagbok";
 
 /**
  * The Arbetsdagbok as a real PDF, built in the browser.
@@ -63,7 +64,12 @@ function winAnsi(text: string): string {
     .replace(/[^\x00-ÿ]/g, "?");
 }
 
-type Ctx = { doc: PDFDocument; font: PDFFont; bold: PDFFont; logo: Awaited<ReturnType<PDFDocument["embedPng"]>> };
+type Ctx = {
+  doc: PDFDocument; font: PDFFont; bold: PDFFont;
+  /** The sender's logo, or null: then its name is set in the logo's place. */
+  logo: Awaited<ReturnType<PDFDocument["embedPng"]>> | null;
+  sender: DocSender;
+};
 
 function wrap(text: string, font: PDFFont, size: number, maxW: number): string[] {
   const words = winAnsi(text).split(/\s+/).filter(Boolean);
@@ -84,13 +90,24 @@ function wrap(text: string, font: PDFFont, size: number, maxW: number): string[]
 
 /** Header and footer, on every page. Drawn as content, so nothing strips them. */
 function furnish(page: PDFPage, ctx: Ctx) {
-  const scale = LOGO_SIZE / Math.max(ctx.logo.width, ctx.logo.height);
-  page.drawImage(ctx.logo, {
-    x: MARGIN_X,
-    y: PAGE_H - HEADER_TOP - LOGO_SIZE,
-    width: ctx.logo.width * scale,
-    height: ctx.logo.height * scale,
-  });
+  if (ctx.logo) {
+    const scale = LOGO_SIZE / Math.max(ctx.logo.width, ctx.logo.height);
+    page.drawImage(ctx.logo, {
+      x: MARGIN_X,
+      y: PAGE_H - HEADER_TOP - LOGO_SIZE,
+      width: ctx.logo.width * scale,
+      height: ctx.logo.height * scale,
+    });
+  } else {
+    // No logo: the company's name, in the logo's place and on its centre line,
+    // so a document from a company without one still says who issued it.
+    const nameSize = 14;
+    page.drawText(winAnsi(ctx.sender.name), {
+      x: MARGIN_X,
+      y: PAGE_H - HEADER_TOP - LOGO_SIZE / 2 - nameSize * 0.35,
+      size: nameSize, font: ctx.bold, color: INK_HEAD,
+    });
+  }
 
   const title = "Arbetsdagbok";
   const titleSize = 19;
@@ -117,14 +134,14 @@ function furnish(page: PDFPage, ctx: Ctx) {
     });
   };
 
-  line(MARGIN_X, 0, COMPANY.postadressLabel);
-  line(MARGIN_X, 1, COMPANY.postadress.join(", "));
-  line(MARGIN_X + CONTENT_W * 0.42, 0, `${COMPANY.telefonLabel}: ${COMPANY.telefon}`);
+  const s = ctx.sender;
+  line(MARGIN_X, 0, FOOTER.postadressLabel);
+  line(MARGIN_X, 1, s.address);
+  const mid = MARGIN_X + CONTENT_W * 0.42;
+  line(mid, 0, `${FOOTER.telefonLabel}: ${s.phone}`);
+  line(mid, 1, `${FOOTER.kontaktLabel}: ${s.contact}`);
   const right = PAGE_W - MARGIN_X;
-  line(right, 0, `${COMPANY.bankgiroLabel}: ${COMPANY.bankgiro}`, "right");
-  line(right, 1, COMPANY.orgnote, "right");
-  line(right, 2, `${COMPANY.orgnrLabel}: ${COMPANY.orgnr}`, "right");
-  line(right, 3, `${COMPANY.momsregLabel}: ${COMPANY.momsregnr}`, "right");
+  footerRight(s).forEach((text, i) => line(right, i, text, "right"));
 }
 
 function addPage(ctx: Ctx) {
@@ -138,8 +155,10 @@ export async function buildArbetsdagbokPdf(payload: DocPayload): Promise<Uint8Ar
   doc.setTitle("Arbetsdagbok");
   const font = await doc.embedFont(StandardFonts.Helvetica);
   const bold = await doc.embedFont(StandardFonts.HelveticaBold);
-  const logo = await doc.embedPng(LOGO_DATA_URL);
-  const ctx: Ctx = { doc, font, bold, logo };
+  const s = payload.sender;
+  const logo = !s.logo ? null
+    : s.logo.type === "png" ? await doc.embedPng(s.logo.bytes) : await doc.embedJpg(s.logo.bytes);
+  const ctx: Ctx = { doc, font, bold, logo, sender: s };
 
   // ---- page 1: the cover, always this layout and nothing else on it --------
   const cover = addPage(ctx);

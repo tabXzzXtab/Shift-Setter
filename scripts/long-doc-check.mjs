@@ -208,7 +208,7 @@ const doc = await pdfjs.getDocument({
   data: new Uint8Array(readFileSync(OUT)), useSystemFonts: false,
 }).promise;
 
-const FOOTER_WORDS = /Postadress|Telefon:|Bankgiro|F-skatt|Org\.nr|Momsreg/;
+const FOOTER_WORDS = /Postadress|Telefon:|Kontakt:|Bankgiro|F-skatt|Org\.nr|Momsreg/;
 
 console.log(`
 pages: ${doc.numPages}`);

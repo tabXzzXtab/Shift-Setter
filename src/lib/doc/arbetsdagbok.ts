@@ -27,6 +27,34 @@ export type DocDay = {
   rows: DocRow[];
 };
 
+/**
+ * The company issuing the document: its header and its footer.
+ *
+ * FROM THE TENANCY, NOT THE CODE. These were Bella Service AB's constants, so
+ * every company's Arbetsdagbok carried Bella's identity. Name and org.nr come
+ * from public.tenant; the rest from public.tenant_branding (migration
+ * 20260929140000), where address, contact and phone are required -- the
+ * database refuses to file a document without them -- and the rest optional.
+ */
+export type DocSender = {
+  name: string;
+  orgnr: string;
+  address: string;
+  contact: string;
+  phone: string;
+  bankgiro: string | null;
+  momsreg: string | null;
+  fSkatt: boolean;
+  /** Absent: the company name is printed where the logo would be. */
+  logo: { bytes: Uint8Array; type: "png" | "jpg"; url: string } | null;
+  /**
+   * The company HAS a logo and it could not be read. The name still prints in
+   * its place, but the page says so: a document that quietly lost its logo is
+   * the failure an inlined image was chosen to prevent.
+   */
+  logoFailed: boolean;
+};
+
 export type DocPayload = {
   cover: {
     adress: string;
@@ -34,6 +62,7 @@ export type DocPayload = {
     orgnr: string;
     project: string;
   };
+  sender: DocSender;
   days: DocDay[];
 };
 
@@ -78,23 +107,26 @@ export function formatTimestamp(date: Date): string {
 }
 
 /**
- * The company footer.
- *
- * loadCompany() read config/company.json from disk. In a static export there is
- * no disk to read, so the values ship as a constant -- taken verbatim from
- * docs/docmaker-template/company.json. Hardcoded Bella Service, identical on
- * every page (spec Section 8, Settled).
+ * The footer's WORDS. The values are the sender's (DocSender); only the
+ * labels are the document's own, verbatim from the DocMaker template's
+ * company.json, plus Kontakt for the one field the template never had.
  */
-export const COMPANY = {
+export const FOOTER = {
   postadressLabel: "Postadress Adress:",
-  postadress: ["Söderto 3276, 242 93 Hörby"],
   telefonLabel: "Telefon",
-  telefon: "073-398 78 68",
+  kontaktLabel: "Kontakt",
   bankgiroLabel: "Bankgiro",
-  bankgiro: "443-4551",
-  orgnote: "Godkänd för F-skatt",
+  fSkatt: "Godkänd för F-skatt",
   orgnrLabel: "Org.nr",
-  orgnr: "556788-2369",
   momsregLabel: "Momsreg.nr",
-  momsregnr: "CEFFSTA99339001",
 } as const;
+
+/** The footer's right-hand column: only what the sender has, closed up. */
+export function footerRight(s: DocSender): string[] {
+  return [
+    s.bankgiro && `${FOOTER.bankgiroLabel}: ${s.bankgiro}`,
+    s.fSkatt && FOOTER.fSkatt,
+    `${FOOTER.orgnrLabel}: ${s.orgnr}`,
+    s.momsreg && `${FOOTER.momsregLabel}: ${s.momsreg}`,
+  ].filter((l): l is string => Boolean(l));
+}

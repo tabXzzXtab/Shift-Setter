@@ -1,7 +1,8 @@
 "use client";
 
-import { COMPANY, formatTimestamp, sumOrdinarieTid, type DocPayload } from "@/lib/doc/arbetsdagbok";
-import { LOGO_DATA_URL } from "@/lib/doc/logo";
+import {
+  FOOTER, footerRight, formatTimestamp, sumOrdinarieTid, type DocPayload,
+} from "@/lib/doc/arbetsdagbok";
 
 /**
  * The Arbetsdagbok, rendered for print.
@@ -15,7 +16,8 @@ import { LOGO_DATA_URL } from "@/lib/doc/logo";
  *  - The day table as CSS Grid, 1.1fr 1fr 1.3fr 1.6fr. Not a <table>.
  *  - page-break-inside: avoid on day blocks, page-break-after: always on cover.
  *  - The footer's appearance: the three-column grid, 8pt grey, hairline rule.
- *  - The logo base64-inlined, not linked.
+ *  - The logo inlined rather than linked: the page hands it over as an object
+ *    URL made from bytes it already downloaded, never a path to fetch.
  *
  * CHANGED ON PORT:
  *  - No adressChecked / bolagChecked / orgnrChecked. All three beställare
@@ -29,7 +31,8 @@ import { LOGO_DATA_URL } from "@/lib/doc/logo";
  *    now thead/tfoot groups, which repeat AND reserve. Everything visual is
  *    unchanged; only the positioning mechanism differs.
  *  - formatTimestamp is Stockholm-anchored (invariant 9).
- *  - loadCompany() reads a constant, since a static export has no disk.
+ *  - loadCompany() is the sender in the payload: the issuing company's own
+ *    details from tenant_branding, not Bella Service's constants.
  */
 const BAND_HEAD =
   "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4/f7GfwAJbQPCutnCbAAAAABJRU5ErkJggg==";
@@ -55,8 +58,13 @@ export function ArbetsdagbokDocument({ payload }: { payload: DocPayload }) {
           <tr>
             <td>
               <div className="ad-running-header">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img className="logo-img" src={LOGO_DATA_URL} alt="" />
+                {payload.sender.logo ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img className="logo-img" src={payload.sender.logo.url} alt="" />
+                ) : (
+                  // No logo: the company's name in its place, as in the PDF.
+                  <div style={{ fontWeight: 800, fontSize: "14pt" }}>{payload.sender.name}</div>
+                )}
                 <div className="title">Arbetsdagbok</div>
               </div>
             </td>
@@ -67,15 +75,15 @@ export function ArbetsdagbokDocument({ payload }: { payload: DocPayload }) {
             <td>
               <div className="ad-footer">
                 <div>
-                  <div>{COMPANY.postadressLabel}</div>
-                  <div>{COMPANY.postadress.join(", ")}</div>
+                  <div>{FOOTER.postadressLabel}</div>
+                  <div>{payload.sender.address}</div>
                 </div>
-                <div>{COMPANY.telefonLabel}: {COMPANY.telefon}</div>
+                <div>
+                  <div>{FOOTER.telefonLabel}: {payload.sender.phone}</div>
+                  <div>{FOOTER.kontaktLabel}: {payload.sender.contact}</div>
+                </div>
                 <div className="footer-legal">
-                  <div>{COMPANY.bankgiroLabel}: {COMPANY.bankgiro}</div>
-                  <div>{COMPANY.orgnote}</div>
-                  <div>{COMPANY.orgnrLabel}: {COMPANY.orgnr}</div>
-                  <div>{COMPANY.momsregLabel}: {COMPANY.momsregnr}</div>
+                  {footerRight(payload.sender).map((l) => <div key={l}>{l}</div>)}
                 </div>
               </div>
             </td>

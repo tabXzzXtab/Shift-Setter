@@ -1645,6 +1645,53 @@ export type Database = {
         }
         Relationships: []
       }
+      tenant_branding: {
+        Row: {
+          address: string | null
+          bankgiro: string | null
+          contact_name: string | null
+          f_skatt: boolean
+          logo_path: string | null
+          momsreg_nr: string | null
+          phone: string | null
+          tenant_id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          address?: string | null
+          bankgiro?: string | null
+          contact_name?: string | null
+          f_skatt?: boolean
+          logo_path?: string | null
+          momsreg_nr?: string | null
+          phone?: string | null
+          tenant_id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          address?: string | null
+          bankgiro?: string | null
+          contact_name?: string | null
+          f_skatt?: boolean
+          logo_path?: string | null
+          momsreg_nr?: string | null
+          phone?: string | null
+          tenant_id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tenant_branding_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: true
+            referencedRelation: "tenant"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tilldelning: {
         Row: {
           clock_in: string | null

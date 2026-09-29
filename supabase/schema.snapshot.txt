@@ -246,6 +246,16 @@ column tenant.id uuid NOT NULL DEFAULT gen_random_uuid()
 column tenant.invoice_email text
 column tenant.name text NOT NULL
 column tenant.org_nr text NOT NULL
+column tenant_branding.address text
+column tenant_branding.bankgiro text
+column tenant_branding.contact_name text
+column tenant_branding.f_skatt boolean NOT NULL DEFAULT false
+column tenant_branding.logo_path text
+column tenant_branding.momsreg_nr text
+column tenant_branding.phone text
+column tenant_branding.tenant_id uuid NOT NULL DEFAULT app.current_tenant_id()
+column tenant_branding.updated_at timestamp with time zone NOT NULL DEFAULT now()
+column tenant_branding.updated_by uuid DEFAULT auth.uid()
 column tilldelning.clock_in timestamp with time zone
 column tilldelning.clock_in_original timestamp with time zone
 column tilldelning.clock_out timestamp with time zone
@@ -423,6 +433,14 @@ constr tenant CHECK ((btrim(name) <> ''::text))
 constr tenant CHECK ((btrim(org_nr) <> ''::text))
 constr tenant PRIMARY KEY (id)
 constr tenant UNIQUE (org_nr)
+constr tenant_branding CHECK (((btrim(address) <> ''::text) AND (length(address) <= 200)))
+constr tenant_branding CHECK (((btrim(bankgiro) <> ''::text) AND (length(bankgiro) <= 20)))
+constr tenant_branding CHECK (((btrim(contact_name) <> ''::text) AND (length(contact_name) <= 120)))
+constr tenant_branding CHECK (((btrim(momsreg_nr) <> ''::text) AND (length(momsreg_nr) <= 30)))
+constr tenant_branding CHECK (((btrim(phone) <> ''::text) AND (length(phone) <= 40)))
+constr tenant_branding CHECK (((logo_path IS NULL) OR ((logo_path = ((tenant_id)::text || '/logo.png'::text)) OR (logo_path = ((tenant_id)::text || '/logo.jpg'::text)))))
+constr tenant_branding FOREIGN KEY (tenant_id) REFERENCES tenant(id)
+constr tenant_branding PRIMARY KEY (tenant_id)
 constr tilldelning CHECK ((((released_at IS NULL) AND (released_reason IS NULL)) OR ((released_at IS NOT NULL) AND (released_reason IS NOT NULL))))
 constr tilldelning CHECK (((confirmed_hours >= (0)::numeric) AND (confirmed_hours <= (24)::numeric)))
 constr tilldelning CHECK (((own_start IS NULL) = (own_end IS NULL)))
@@ -512,6 +530,7 @@ index  CREATE UNIQUE INDEX project_id_tenant_key ON public.project USING btree (
 index  CREATE UNIQUE INDEX project_leader_pkey ON public.project_leader USING btree (project_id, account_id)
 index  CREATE UNIQUE INDEX project_pkey ON public.project USING btree (id)
 index  CREATE UNIQUE INDEX push_token_pkey ON public.push_token USING btree (token)
+index  CREATE UNIQUE INDEX tenant_branding_pkey ON public.tenant_branding USING btree (tenant_id)
 index  CREATE UNIQUE INDEX tenant_org_nr_key ON public.tenant USING btree (org_nr)
 index  CREATE UNIQUE INDEX tenant_pkey ON public.tenant USING btree (id)
 index  CREATE UNIQUE INDEX tilldelning_id_tenant_key ON public.tilldelning USING btree (id, tenant_id)
@@ -563,6 +582,9 @@ policy project_leader.project_leader_admin_write [ALL] USING((app.in_tenant(tena
 policy project_leader.project_leader_creator_insert [INSERT] USING(-) CHECK((app.in_tenant(tenant_id) AND (app.is_staff() AND app.created_project(project_id))))
 policy project_leader.project_leader_staff_select [SELECT] USING((app.in_tenant(tenant_id) AND app.is_staff())) CHECK(-)
 policy tenant.tenant_member_select [SELECT] USING(app.in_tenant(id)) CHECK(-)
+policy tenant_branding.tenant_branding_insert [INSERT] USING(-) CHECK((app.in_tenant(tenant_id) AND app.is_admin()))
+policy tenant_branding.tenant_branding_select [SELECT] USING((app.in_tenant(tenant_id) AND app.is_staff())) CHECK(-)
+policy tenant_branding.tenant_branding_update [UPDATE] USING((app.in_tenant(tenant_id) AND app.is_admin())) CHECK((app.in_tenant(tenant_id) AND app.is_admin()))
 policy tilldelning.tilldelning_leader_select [SELECT] USING((app.in_tenant(tenant_id) AND (EXISTS ( SELECT 1
    FROM pass p
   WHERE ((p.id = tilldelning.pass_id) AND (app.leads_project(p.project_id) OR app.holds_the_day(p.project_id, tilldelning.work_date))))))) CHECK(-)
@@ -594,6 +616,7 @@ rls    project_day enabled=t
 rls    project_leader enabled=t
 rls    push_token enabled=t
 rls    tenant enabled=t
+rls    tenant_branding enabled=t
 rls    tilldelning enabled=t
 rls    worker enabled=t
 trig   aa_tenant_from_parent on arbetsdagbok -> tg_tenant_from_parent enabled=O
@@ -645,6 +668,7 @@ trig   protect_bucket_control_update_role on storage.buckets -> enforce_bucket_l
 trig   protect_buckets_delete on storage.buckets -> protect_delete enabled=O
 trig   protect_objects_delete on storage.objects -> protect_delete enabled=O
 trig   sync_work_date on tilldelning -> tg_sync_work_date enabled=O
+trig   tenant_branding_touch on tenant_branding -> tg_tenant_branding_touch enabled=O
 trig   tr_check_filters on realtime.subscription -> subscription_check_filters enabled=O
 trig   update_objects_updated_at on storage.objects -> update_updated_at_column enabled=O
 trig   worker_self_edit_guard on worker -> tg_worker_self_edit_guard enabled=O
@@ -668,6 +692,7 @@ func   app.leads_project(p_project uuid) md5=f1d9360a0c4753413b5ac7fa20a587db
 func   app.owns_personal_event(p_event uuid) md5=53a2a7184e8ff014bc28b9ddef92da47
 func   app.pass_end_at(p_date date, p_start time without time zone, p_end time without time zone) md5=5cbed15c09406f178bd3175eac1980f4
 func   app.pass_start_at(p_date date, p_start time without time zone) md5=9fa0f40882eca98efe820667c724d176
+func   app.path_account_in_my_tenant(p_folder text) md5=0d9069d63e433d89bf81e0ed0af3d55c
 func   app.require_super_admin() md5=e00d806a6aba2a1adabbe654677313b4
 func   app.sees_personal_event(p_event uuid) md5=feda599a5891e5e7c8ed2d8f4a2c7e92
 func   app.stockholm_today() md5=8b086d188d946a11d35cafa583ec6465
@@ -676,7 +701,7 @@ func   app.sync_leader_day(p_project uuid, p_date date) md5=fdfa86e5df28983f095d
 func   app.take_leader_off(p_tilldelning uuid) md5=a6cec3a6842e253b2c4fa868f68e1b7a
 func   app.tg_account_pause() md5=00172728bd0502a02a550a4a1e0cfdc9
 func   app.tg_account_unpause() md5=5796a885a774351e6d2b1d4f46170343
-func   app.tg_arbetsdagbok_guard() md5=f86304934a0a46e27e5af4b82d47bd24
+func   app.tg_arbetsdagbok_guard() md5=7f057dbe06f84893c079302373dc7324
 func   app.tg_assignment_write_guard() md5=f881334e120d8c970a332cb2e581f32b
 func   app.tg_block_guard() md5=b26fbbab450281b7deb537ec3212c1bd
 func   app.tg_clock_evidence() md5=6c33ff53dff91ccee095fa5abb4ec25d
@@ -699,6 +724,7 @@ func   app.tg_project_leader_is_a_leader() md5=ad62ec9c666f500380fddff7feeba5d3
 func   app.tg_super_admin_guard() md5=c835d63f2d851bed08cd84c8360480fe
 func   app.tg_super_admin_insert_guard() md5=1b7d486dda2928a8e4e1f42b7fc9886c
 func   app.tg_sync_work_date() md5=205305b41ade44114ec626dc29b463e5
+func   app.tg_tenant_branding_touch() md5=2cd0a5f82ac61406b149da8b7d574ddc
 func   app.tg_tenant_from_parent() md5=97c4126edaaa84cb950a88db798c8ed7
 func   app.tg_worker_self_edit_guard() md5=7e933362e1f8d5f23547d75ed47b6736
 func   app.week_start(d date) md5=4a8f6c192e41cf4a14ebb5f87e671c29
@@ -988,6 +1014,7 @@ grant  INSERT on project_hours to authenticated
 grant  INSERT on project_leader to authenticated
 grant  INSERT on tenant to anon
 grant  INSERT on tenant to authenticated
+grant  INSERT on tenant_branding to authenticated
 grant  INSERT on tilldelning to authenticated
 grant  INSERT on worker to authenticated
 grant  INSERT on worker_roster to authenticated
@@ -1053,6 +1080,7 @@ grant  SELECT on project_hours to authenticated
 grant  SELECT on project_leader to authenticated
 grant  SELECT on tenant to anon
 grant  SELECT on tenant to authenticated
+grant  SELECT on tenant_branding to authenticated
 grant  SELECT on tilldelning to authenticated
 grant  SELECT on worker to authenticated
 grant  SELECT on worker_roster to authenticated
@@ -1149,6 +1177,7 @@ grant  UPDATE on project_hours to authenticated
 grant  UPDATE on project_leader to authenticated
 grant  UPDATE on tenant to anon
 grant  UPDATE on tenant to authenticated
+grant  UPDATE on tenant_branding to authenticated
 grant  UPDATE on tilldelning to authenticated
 grant  UPDATE on worker to authenticated
 grant  UPDATE on worker_roster to authenticated
@@ -1181,6 +1210,7 @@ funcdef app.leads_project(p_project uuid) security=definer volatile=stable confi
 funcdef app.owns_personal_event(p_event uuid) security=definer volatile=stable config=search_path="" returns=boolean md5=fdc76986eacf825a24858f73629d117c
 funcdef app.pass_end_at(p_date date, p_start time without time zone, p_end time without time zone) security=invoker volatile=stable config=search_path="" returns=timestamp with time zone md5=5792689ae892924bf79a0078b34ce998
 funcdef app.pass_start_at(p_date date, p_start time without time zone) security=invoker volatile=stable config=search_path="" returns=timestamp with time zone md5=39e2204d119f5e9073b917d3f247bc9f
+funcdef app.path_account_in_my_tenant(p_folder text) security=definer volatile=stable config=search_path="" returns=boolean md5=85f6d893519ec4c651d53eae986cf5e8
 funcdef app.require_super_admin() security=definer volatile=stable config=search_path="" returns=void md5=7ae8893fc1536e989a9f235e495e9960
 funcdef app.sees_personal_event(p_event uuid) security=definer volatile=stable config=search_path="" returns=boolean md5=d176610d4998c718f7ec6185e3d13202
 funcdef app.stockholm_today() security=invoker volatile=stable config=search_path="" returns=date md5=76e7c1b17d8f90c0488b5594beb49d8c
@@ -1189,7 +1219,7 @@ funcdef app.sync_leader_day(p_project uuid, p_date date) security=definer volati
 funcdef app.take_leader_off(p_tilldelning uuid) security=definer volatile=volatile config=search_path="" returns=tilldelning md5=28db841ca30bdf3df3bad4cc9a5297f7
 funcdef app.tg_account_pause() security=definer volatile=volatile config=search_path="" returns=trigger md5=2cf24bf99e87cbaf959ac4e7591a222b
 funcdef app.tg_account_unpause() security=definer volatile=volatile config=search_path="" returns=trigger md5=0b206fd1e9f0b904a7e08495618acc0f
-funcdef app.tg_arbetsdagbok_guard() security=definer volatile=volatile config=search_path="" returns=trigger md5=ba21ec2b06e3eb1ffd29e9831af777da
+funcdef app.tg_arbetsdagbok_guard() security=definer volatile=volatile config=search_path="" returns=trigger md5=66b794ef65929ac0c59a1b30052c59dc
 funcdef app.tg_assignment_write_guard() security=definer volatile=volatile config=search_path="" returns=trigger md5=1f38f1a6ba7a0e8238ba37cdac90b467
 funcdef app.tg_block_guard() security=definer volatile=volatile config=search_path="" returns=trigger md5=0e76010ffcdaf3fc0d74b36f0eff898f
 funcdef app.tg_clock_evidence() security=definer volatile=volatile config=search_path="" returns=trigger md5=a4bc533747c9dc657cd477e6210e47af
@@ -1212,6 +1242,7 @@ funcdef app.tg_project_leader_is_a_leader() security=definer volatile=volatile c
 funcdef app.tg_super_admin_guard() security=definer volatile=volatile config=search_path="" returns=trigger md5=8d51e89a3eef1b46252e095b1408dee2
 funcdef app.tg_super_admin_insert_guard() security=definer volatile=volatile config=search_path="" returns=trigger md5=1b21bc62b8701c5915a6b49496b5c362
 funcdef app.tg_sync_work_date() security=definer volatile=volatile config=search_path="" returns=trigger md5=818fb4acb91973b818377bf4aea045b7
+funcdef app.tg_tenant_branding_touch() security=definer volatile=volatile config=search_path="" returns=trigger md5=c3efe905bf58f0cd7841d60af6f41da2
 funcdef app.tg_tenant_from_parent() security=definer volatile=volatile config=search_path="" returns=trigger md5=0f5bb63ed2df385b5636b08484e7afde
 funcdef app.tg_worker_self_edit_guard() security=definer volatile=volatile config=search_path="" returns=trigger md5=77bd38466134c019d98b9712d99b5445
 funcdef app.week_start(d date) security=invoker volatile=immutable config=search_path="" returns=date md5=9a761c1ce03a2f776be8f6ecf059b293
@@ -1459,6 +1490,7 @@ grantfn app.leads_project(p_project uuid) EXECUTE=authenticated
 grantfn app.owns_personal_event(p_event uuid) EXECUTE=PUBLIC,authenticated
 grantfn app.pass_end_at(p_date date, p_start time without time zone, p_end time without time zone) EXECUTE=authenticated
 grantfn app.pass_start_at(p_date date, p_start time without time zone) EXECUTE=authenticated
+grantfn app.path_account_in_my_tenant(p_folder text) EXECUTE=authenticated
 grantfn app.require_super_admin() EXECUTE=authenticated
 grantfn app.sees_personal_event(p_event uuid) EXECUTE=PUBLIC,authenticated
 grantfn app.stockholm_today() EXECUTE=authenticated
@@ -1490,6 +1522,7 @@ grantfn app.tg_project_leader_is_a_leader() EXECUTE=PUBLIC,authenticated
 grantfn app.tg_super_admin_guard() EXECUTE=PUBLIC,authenticated
 grantfn app.tg_super_admin_insert_guard() EXECUTE=PUBLIC,authenticated
 grantfn app.tg_sync_work_date() EXECUTE=authenticated
+grantfn app.tg_tenant_branding_touch() EXECUTE=authenticated
 grantfn app.tg_tenant_from_parent() EXECUTE=PUBLIC,authenticated
 grantfn app.tg_worker_self_edit_guard() EXECUTE=authenticated
 grantfn app.week_start(d date) EXECUTE=PUBLIC,authenticated

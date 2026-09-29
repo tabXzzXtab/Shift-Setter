@@ -5470,4 +5470,141 @@ select pg_temp.ok(
 reset role;
 select set_config('request.jwt.claims', '{}', true);
 
+-- ============================================================================
+-- BRANDING -- each company on its own Arbetsdagbok, and its faces kept inside it.
+--
+-- The fixture tenancy is Bella's own id (see the top of this file), so the row
+-- the migration seeded is the one edited here -- rolled back like everything
+-- else. The second client (99999999...) has no branding row at all.
+-- ============================================================================
+
+set local role authenticated;
+select pg_temp.act_as((select v from fx where k = 'admin'));
+
+update public.tenant_branding set phone = '070-111 22 33'
+ where tenant_id = '2f9a6d15-4c83-4e71-9a2b-5d07e3b8c164';
+select pg_temp.ok(
+  (select phone from public.tenant_branding
+    where tenant_id = '2f9a6d15-4c83-4e71-9a2b-5d07e3b8c164') = '070-111 22 33',
+  'BRANDING.admin_edits_their_own',
+  'the company''s admin must be able to change its details');
+
+-- An UPDATE refused by RLS filters to zero rows; it does not raise. So the
+-- assertion is on the value afterwards, read as the owner.
+select pg_temp.act_as((select v from fx where k = 'leaderA'));
+update public.tenant_branding set phone = '000'
+ where tenant_id = '2f9a6d15-4c83-4e71-9a2b-5d07e3b8c164';
+reset role;
+select pg_temp.ok(
+  (select phone from public.tenant_branding
+    where tenant_id = '2f9a6d15-4c83-4e71-9a2b-5d07e3b8c164') = '070-111 22 33',
+  'BRANDING.a_leader_cannot_edit',
+  'an arbetsledare reads the branding but does not change it');
+
+set local role authenticated;
+select pg_temp.act_as((select v from fx where k = 'w1'));
+select pg_temp.ok(
+  (select count(*) from public.tenant_branding) = 0,
+  'BRANDING.an_arbetare_reads_nothing');
+
+select pg_temp.act_as('99999999-9999-9999-9999-99999999999a');
+select pg_temp.ok(
+  (select count(*) from public.tenant_branding
+    where tenant_id = '2f9a6d15-4c83-4e71-9a2b-5d07e3b8c164') = 0,
+  'BRANDING.another_company_cannot_read',
+  'one company''s admin must not see another''s details');
+
+select pg_temp.rejects($rej$
+  insert into public.tenant_branding (tenant_id, address, contact_name, phone)
+  values ('66666666-6666-6666-6666-666666666666', 'Gata 1', 'Någon', '070')
+$rej$, 'BRANDING.another_company_cannot_write');
+
+select pg_temp.act_as((select v from fx where k = 'admin'));
+select pg_temp.rejects($rej$
+  update public.tenant_branding
+     set logo_path = '99999999-9999-9999-9999-999999999999/logo.png'
+   where tenant_id = '2f9a6d15-4c83-4e71-9a2b-5d07e3b8c164'
+$rej$, 'BRANDING.logo_is_its_own');
+
+-- ---- the document refuses without a sender ----------------------------------
+-- The second client has a project and no branding. Its admin's generation must
+-- fail on THAT, not on the shifts it also lacks -- so the message is checked,
+-- and then filled in, the same insert must get past it to the next refusal.
+select pg_temp.act_as('99999999-9999-9999-9999-99999999999a');
+do $$
+begin
+  insert into public.arbetsdagbok (project_id, covered)
+  values ('99999999-0000-0000-0000-0000000000aa',
+          daterange(app.stockholm_today(), app.stockholm_today() + 1));
+  perform pg_temp.ok(false, 'BRANDING.no_document_without_the_senders_details', 'generation was accepted');
+exception when others then
+  if sqlerrm like 'ASSERT_FAIL:%' then raise; end if;
+  perform pg_temp.ok(sqlerrm like '%own details are incomplete%',
+    'BRANDING.no_document_without_the_senders_details',
+    'refused for the wrong reason: ' || sqlerrm);
+end $$;
+
+insert into public.tenant_branding (address, contact_name, phone)
+values ('Gata 99', 'Klientkontakt', '070-999');
+
+do $$
+begin
+  insert into public.arbetsdagbok (project_id, covered)
+  values ('99999999-0000-0000-0000-0000000000aa',
+          daterange(app.stockholm_today(), app.stockholm_today() + 1));
+exception when others then
+  if sqlerrm like 'ASSERT_FAIL:%' then raise; end if;
+  perform pg_temp.ok(sqlerrm not like '%own details are incomplete%',
+    'BRANDING.the_senders_details_are_enough',
+    'still refused for the sender after the details were filled in: ' || sqlerrm);
+end $$;
+
+-- ---- the logo's bucket ---------------------------------------------------------
+-- logo.JPG, not .png: the fixture tenancy is Bella's own id, and Bella's real
+-- logo already lives at <bella>/logo.png -- a second insert of that name
+-- collides with the real file, which is a refusal this assertion must not
+-- mistake for, or be mistaken as, the policy.
+select pg_temp.act_as((select v from fx where k = 'admin'));
+select pg_temp.accepts($acc$
+  insert into storage.objects (bucket_id, name, owner)
+  values ('branding', '2f9a6d15-4c83-4e71-9a2b-5d07e3b8c164/logo.jpg',
+          (select v from fx where k = 'admin'))
+$acc$, 'BRANDING.logo_upload_own');
+
+select pg_temp.rejects($rej$
+  insert into storage.objects (bucket_id, name, owner)
+  values ('branding', '99999999-9999-9999-9999-999999999999/logo.png',
+          (select v from fx where k = 'admin'))
+$rej$, 'BRANDING.logo_upload_foreign_rejected');
+
+select pg_temp.act_as((select v from fx where k = 'w1'));
+select pg_temp.ok(
+  (select count(*) from storage.objects where bucket_id = 'branding') = 0,
+  'BRANDING.logo_not_for_arbetare');
+
+select pg_temp.act_as('99999999-9999-9999-9999-99999999999a');
+select pg_temp.ok(
+  (select count(*) from storage.objects
+    where bucket_id = 'branding' and name like '2f9a6d15-%') = 0,
+  'BRANDING.logo_not_across_companies');
+
+-- ---- the faces, inside their company ---------------------------------------------
+-- w1's face was put up in the KONTO section. The second client's admin is an
+-- admin -- which used to be the whole test.
+select pg_temp.ok(
+  (select count(*) from storage.objects
+    where bucket_id = 'avatars'
+      and name like (select v from fx where k = 'w1')::text || '/%') = 0,
+  'AVATAR.another_company_admin_cannot_read',
+  'an admin of one company must not see a face from another');
+
+select pg_temp.rejects($rej$
+  insert into storage.objects (bucket_id, name, owner)
+  values ('avatars', (select v from fx where k = 'w1')::text || '/planted.webp',
+          '99999999-9999-9999-9999-99999999999a')
+$rej$, 'AVATAR.another_company_admin_cannot_write');
+
+reset role;
+select set_config('request.jwt.claims', '{}', true);
+
 select pg_temp.ok(true, 'SUITE.complete', 'every assertion passed');
