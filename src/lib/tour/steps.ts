@@ -2,7 +2,7 @@ import type { Role } from "@/lib/account";
 import type { TourSignal } from "./signal";
 import { getSupabase } from "@/lib/supabase/client";
 import { pendingDays } from "@/lib/pending-days";
-import { stockholmToday } from "@/lib/dates";
+import { addDays, stockholmToday } from "@/lib/dates";
 
 /**
  * The first-launch tour, one sequence per role, as data.
@@ -49,7 +49,20 @@ export type Requirement =
   | "has-offer"
   | "has-confirmed-day";
 
-export type FormKey = "projekt" | "pass-days" | "pass-detail";
+/** "pass-month" is not a form to fill but the day picker's month: a nav step
+ *  can ask for it (`prepare`) so the days it rings are on screen. */
+export type FormKey = "projekt" | "pass-month" | "pass-detail";
+
+/**
+ * The two days the leader's tour rings on Välj dagar: two weeks out and the
+ * day after -- or the day before, when two weeks out is the last of a month,
+ * so both are always on the same page of the calendar.
+ */
+export function tourDays(): [string, string] {
+  const first = addDays(stockholmToday(), 14);
+  const after = addDays(first, 1);
+  return [first, after.slice(0, 7) === first.slice(0, 7) ? after : addDays(first, -1)];
+}
 
 type Gate = {
   requires?: Requirement;
@@ -64,7 +77,10 @@ export type NavStep = Gate & {
   targets: Target[];
   /** Ring every target found, rather than the first one found. */
   all?: boolean;
+  /** Empty for a step whose rings say it all: no tip, only Hoppa över. */
   tip: string;
+  /** A form state the screen should take first -- the picker's month. */
+  prepare?: FormKey;
   /** "tap" on a target; a signal; or arriving on a route. */
   until: "tap" | TourSignal | { route: string };
   /** Card text when no target has appeared a few seconds after arriving. */
@@ -78,7 +94,10 @@ export type AutofillStep = Gate & {
   forms: FormKey[];
   submit: Partial<Record<FormKey, Target>>;
   tip: Partial<Record<FormKey, string>>;
-  until: TourSignal;
+  /** A real action that succeeded, or "next": the tour shows how and moves on
+   *  when the person presses Nästa, and the ringed submit does nothing -- for
+   *  a step that must not create anything real. */
+  until: TourSignal | "next";
 };
 
 export type CardStep = { type: "card"; text: string };
@@ -101,16 +120,44 @@ const ARBETSLEDARE: Step[] = [
       "Skapa pass behöver ett projekt att lägga passen på. När ditt företag har ett projekt hittar du Skapa pass här på startsidan.",
     missing: "Skapa pass finns här på startsidan.",
   },
+  { type: "card", text: "Välj de dagar du vill ha folk på plats." },
   {
+    // NO TIP. Two rings on two days say what to do; the leader taps both, and
+    // the step ends when both are chosen. The picker is paged to their month
+    // first (prepare), so the rings are never on a page nobody is looking at.
+    type: "nav",
+    route: "/pass/ny",
+    prepare: "pass-month",
+    targets: [
+      { find: () => document.querySelector(`[data-date="${tourDays()[0]}"]`) },
+      { find: () => document.querySelector(`[data-date="${tourDays()[1]}"]`) },
+    ],
+    all: true,
+    tip: "",
+    until: "tour-days-picked",
+    requires: "has-project",
+    missing: "Dagarna att välja visas här.",
+  },
+  { type: "card", text: "Bra. Nu fyller vi i detaljerna." },
+  {
+    type: "nav",
+    route: "/pass/ny",
+    targets: [{ name: "Fortsätt" }],
+    tip: "Tryck på Fortsätt.",
+    until: "tap",
+    requires: "has-project",
+    missing: "Fortsätt finns under kalendern.",
+  },
+  {
+    // A SANDBOX STEP. The form is filled to show how a pass is made, and the
+    // tour moves on at Nästa: the real button is ringed but swallowed, because
+    // a pass created here would go out as real offers to real workers.
     type: "autofill",
     route: "/pass/ny",
-    forms: ["pass-days", "pass-detail"],
-    submit: { "pass-days": { name: "Fortsätt" }, "pass-detail": { name: /^Skapa \d+ pass$/ } },
-    tip: {
-      "pass-days": "Vi har valt en dag om två veckor. Tryck här för att gå vidare.",
-      "pass-detail": "Allt är ifyllt. Ändra det du vill och tryck här. Passet skapas på riktigt.",
-    },
-    until: "passes-created",
+    forms: ["pass-detail"],
+    submit: { "pass-detail": { name: /^Skapa \d+ pass$/ } },
+    tip: { "pass-detail": "Så här skapar du ett pass." },
+    until: "next",
     requires: "has-project",
   },
   {
@@ -125,8 +172,7 @@ const ARBETSLEDARE: Step[] = [
     tip: "Tryck på Bekräfta pass.",
     until: "tap",
     requires: "days-waiting",
-    otherwise:
-      "Bekräfta pass är där du går igenom en dag som är över: vem som var på plats, hur många timmar var och en jobbade, och vad ni gjorde. Du har inga dagar att bekräfta än. När ett pass är över syns dagen på startsidan.",
+    otherwise: "Ingen dag att bekräfta än. När ett pass är över dyker det upp här.",
     missing: "Bekräfta pass finns högst upp på startsidan.",
   },
   {
@@ -227,7 +273,7 @@ const ADMIN: Step[] = [
     forms: ["projekt"],
     submit: { projekt: { name: "Skapa projekt" } },
     tip: {
-      projekt: "Allt är ifyllt med exempel. Ändra det du vill och tryck Skapa projekt. Projektet skapas på riktigt.",
+      projekt: "Ett exempelprojekt. Tryck Skapa projekt. Det tas bort när du trycker Kom igång.",
     },
     until: "project-created",
     requires: "has-leader",

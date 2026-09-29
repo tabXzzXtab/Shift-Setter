@@ -9,11 +9,12 @@ import {
 } from "@/components/soft";
 import { PaintCalendar } from "@/components/paint-calendar";
 import { derivesTenant, getSupabase } from "@/lib/supabase/client";
-import { addDays, stockholmToday } from "@/lib/dates";
+import { stockholmToday } from "@/lib/dates";
 import { defaultHours } from "@/lib/hours";
 import { fel } from "@/lib/fel";
 import { useTourAutofill } from "@/components/tour/use-tour-autofill";
 import { tourSignal } from "@/lib/tour/signal";
+import { tourDays } from "@/lib/tour/steps";
 
 type Project = { id: string; name: string };
 type Worker = { id: string; name: string };
@@ -147,19 +148,24 @@ function NyttPass({ asked }: { asked: string | null }) {
     setDays((d) => (d.includes(date) ? d.filter((x) => x !== date) : [...d, date]));
   }
 
-  // The first-launch tour's example: one day two weeks out, one person,
-  // 07:00-16:00, eight hours. Written into this screen's own state; the leader
-  // moves on and creates it themselves. The hours are TYPED over the prefill
-  // (hoursTouched), because "8" is the figure the example states rather than
-  // the span minus lunch -- and it stays theirs to change before they press.
-  useTourAutofill("pass-days", step === "days", () => {
-    const day = addDays(stockholmToday(), 14);
-    return [{
-      text: day,
-      typed: false,
-      write: (d: string) => { setMonth(d.slice(0, 7)); setDays([d]); },
-    }];
-  });
+  // THE FIRST-LAUNCH TOUR. It rings two days for the leader to tap themselves
+  // (tourDays); all it does to this screen first is turn the picker to their
+  // month, and when both are chosen it is told so.
+  useTourAutofill("pass-month", step === "days", () => [{
+    text: tourDays()[0],
+    typed: false,
+    write: (d: string) => setMonth(d.slice(0, 7)),
+  }]);
+  useEffect(() => {
+    const [a, b] = tourDays();
+    if (days.includes(a) && days.includes(b)) tourSignal("tour-days-picked");
+  }, [days]);
+
+  // Then the example, written into this screen's own state: the first project
+  // the leader has, 07:00-16:00, eight hours, two people. The hours are TYPED
+  // over the prefill (hoursTouched), because "8" is the figure the example
+  // states rather than the span minus lunch. It is a sandbox step -- the tour
+  // shows the filled form and moves on at Nästa; nothing is created.
   useTourAutofill("pass-detail", step === "detail" && projects.length > 0, () => [
     ...(projectId ? [] : [{ text: projects[0]!.id, typed: false, write: setProjectId }]),
     { text: "07:00", typed: false, write: (v: string) => setTime(0, "start", v) },
@@ -167,6 +173,11 @@ function NyttPass({ asked }: { asked: string | null }) {
     {
       text: "8",
       write: (v: string) => setRows((p) => p.map((x, j) => (j === 0 ? { ...x, hours: v, hoursTouched: true } : x))),
+    },
+    {
+      text: "2",
+      typed: false,
+      write: (v: string) => setRows((p) => p.map((x, j) => (j === 0 ? { ...x, headcount: Number(v) } : x))),
     },
   ]);
 

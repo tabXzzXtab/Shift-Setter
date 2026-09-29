@@ -55,11 +55,14 @@ const visible = (b: Box) => b.top + b.height > 0 && b.top < window.innerHeight;
  * no single place to point, and the tip moves to the bar at the foot.
  */
 export function TourSpotlight({
-  resolve, tip, onSkip,
+  resolve, tip, onSkip, action,
 }: {
   resolve: () => Element[];
+  /** Empty: the rings say it all, and only Hoppa över is offered. */
   tip: string;
   onSkip: () => void;
+  /** A step that ends on a press of the tour's own, not the page's. */
+  action?: { label: string; onClick: () => void };
 }) {
   const boxes = useBoxes(resolve);
   const single = boxes.length === 1 ? boxes[0]! : null;
@@ -102,12 +105,14 @@ export function TourSpotlight({
         ))}
       </div>
 
-      {anchored ? (
-        <Tooltip box={single} tip={tip} onSkip={onSkip} />
+      {!tip ? (
+        <TourBar onSkip={onSkip} />
+      ) : anchored ? (
+        <Tooltip box={single} tip={tip} onSkip={onSkip} action={action} />
       ) : (
         <TourBar
           text={tip}
-          action={single ? { label: "Visa", onClick: show } : undefined}
+          action={action ?? (single ? { label: "Visa", onClick: show } : undefined)}
           onSkip={onSkip}
         />
       )}
@@ -115,7 +120,14 @@ export function TourSpotlight({
   );
 }
 
-function Tooltip({ box, tip, onSkip }: { box: Box; tip: string; onSkip: () => void }) {
+function Tooltip({
+  box, tip, onSkip, action,
+}: {
+  box: Box;
+  tip: string;
+  onSkip: () => void;
+  action?: { label: string; onClick: () => void };
+}) {
   const vw = window.innerWidth;
   const width = Math.min(358, vw - 32);
   const left = Math.min(Math.max(box.left + box.width / 2 - width / 2, 16), vw - 16 - width);
@@ -147,8 +159,18 @@ function Tooltip({ box, tip, onSkip }: { box: Box; tip: string; onSkip: () => vo
         <p className="relative text-[16px] font-semibold" style={{ color: C.ink, textWrap: "pretty" }}>
           {tip}
         </p>
-        <div className="relative mt-2 flex justify-end">
+        <div className="relative mt-2 flex justify-end gap-2">
           <SkipButton onSkip={onSkip} />
+          {action && (
+            <button
+              type="button"
+              onClick={action.onClick}
+              className="press-scale h-11 rounded-[10px] px-[18px] text-[15px] font-bold transition-[transform,background] duration-[110ms] hover:bg-[#12206b] active:scale-[.985]"
+              style={{ background: C.accent, color: C.surface }}
+            >
+              {action.label}
+            </button>
+          )}
         </div>
       </div>
     </div>
@@ -176,7 +198,7 @@ function SkipButton({ onSkip }: { onSkip: () => void }) {
 export function TourBar({
   text, action, onSkip,
 }: {
-  text: string;
+  text?: string;
   action?: { label: string; onClick: () => void };
   onSkip?: () => void;
 }) {
@@ -188,9 +210,11 @@ export function TourBar({
       style={{ fontFamily: "var(--font-inter), system-ui, sans-serif" }}
     >
       <div className="rounded-[16px] p-4" style={{ background: C.surface, boxShadow: SHADOW.sheet }}>
-        <p className="text-[16px] font-semibold" style={{ color: C.ink, textWrap: "pretty" }}>{text}</p>
+        {text && (
+          <p className="text-[16px] font-semibold" style={{ color: C.ink, textWrap: "pretty" }}>{text}</p>
+        )}
         {(action || onSkip) && (
-          <div className="mt-3 flex gap-[10px]">
+          <div className={`${text ? "mt-3 " : ""}flex gap-[10px]`}>
             {action && (
               <button
                 type="button"

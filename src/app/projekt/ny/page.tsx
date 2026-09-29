@@ -7,6 +7,7 @@ import {
   C, Card, PrimaryButton, SoftField, SoftInput, SoftNotice, SoftScreen, SoftSelect,
 } from "@/components/soft";
 import { useTourAutofill } from "@/components/tour/use-tour-autofill";
+import { useTour } from "@/components/tour/tour-provider";
 import { useAccount } from "@/lib/account";
 import { derivesTenant, getSupabase } from "@/lib/supabase/client";
 import { addDays, stockholmToday } from "@/lib/dates";
@@ -83,6 +84,7 @@ function NyttProjekt() {
   const into = (name: string, text: string, typed = true) => ({
     text, typed, el: () => input(name), write: (v: string) => { const el = input(name); if (el) el.value = v; },
   });
+  const tour = useTour();
   useTourAutofill("projekt", leaders.length > 0, () => [
     into("name", "Fasad Malmö"),
     into("site_address", "Storgatan 12, 211 34 Malmö"),
@@ -121,6 +123,11 @@ function NyttProjekt() {
       setSaving(false);
       return;
     }
+
+    // Made by the tour's example step? Then it is the tour's, and "Kom igång"
+    // removes it again. Registered here, before the leader rows, so even a
+    // half-made example is cleaned up.
+    tour?.created({ kind: "project", id: project.id });
 
     // One statement, so the named leader and the creator land together or not
     // at all. Deduplicated: a leader who names themselves is one row, and the

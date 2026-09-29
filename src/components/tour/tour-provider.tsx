@@ -8,7 +8,8 @@ import { useAccount, type Role } from "@/lib/account";
 import { getSupabase } from "@/lib/supabase/client";
 import { DONE, SEQUENCES, met, type FormKey, type Step } from "@/lib/tour/steps";
 import {
-  automatedWithoutOptIn, completeTour, saveStep, savedStep, tourComplete,
+  automatedWithoutOptIn, completeTour, createdRows, forgetCreated, rememberCreated, saveStep,
+  savedStep, tourComplete, type TourRow,
 } from "@/lib/tour/storage";
 import { onTourSignal } from "@/lib/tour/signal";
 import { resolveTargets, samePath } from "@/lib/tour/targets";
@@ -34,6 +35,8 @@ type TourApi = {
   wants: (form: FormKey) => boolean;
   started: (form: FormKey) => void;
   finished: (form: FormKey) => void;
+  /** Something the tour's own step created -- removed again at "Kom igång". */
+  created: (row: TourRow) => void;
 };
 
 const TourCtx = createContext<TourApi | null>(null);
@@ -101,8 +104,20 @@ export function TourProvider({ children }: { children: ReactNode }) {
 
   const next = useCallback(() => go(index + 1), [go, index]);
 
-  const finish = useCallback(() => {
+  // THE SANDBOX IS EMPTIED ON THE WAY OUT. What the tour's own steps created
+  // -- the admin's example project -- goes through the same delete_project the
+  // admin would press, so it is soft-deleted like any other (invariant 8) and
+  // the database decides whether it may be. Anything it refuses stays listed
+  // on this device rather than being forgotten.
+  const finish = useCallback(async () => {
     if (!active) return;
+    const rows = createdRows(active.accountId);
+    const kept: TourRow[] = [];
+    for (const row of rows) {
+      const { error } = await getSupabase().rpc("delete_project", { p_project: row.id });
+      if (error) kept.push(row);
+    }
+    forgetCreated(active.accountId, kept);
     completeTour(active.accountId);
     setRun(null);
   }, [active]);
@@ -163,7 +178,7 @@ export function TourProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!step || step.type === "card" || verdict?.state !== "ok") return;
     const until = step.until;
-    if (typeof until !== "string" || until === "tap") return;
+    if (typeof until !== "string" || until === "tap" || until === "next") return;
     return onTourSignal((s) => { if (s === until) go(index + 1); });
   }, [step, index, verdict?.state, go]);
 
@@ -178,14 +193,19 @@ export function TourProvider({ children }: { children: ReactNode }) {
   // ---- the forms' side of autofill ------------------------------------------
   const api = useMemo<TourApi>(() => ({
     wants: (form) =>
-      step?.type === "autofill" && verdict?.state === "ok" &&
-      step.forms.includes(form) && !filled.includes(form),
+      verdict?.state === "ok" && !filled.includes(form) && (
+        (step?.type === "autofill" && step.forms.includes(form)) ||
+        (step?.type === "nav" && step.prepare === form)
+      ),
     started: (form) => setFilling(form),
     finished: (form) => {
       setFilling((f) => (f === form ? null : f));
       setFilled((f) => (f.includes(form) ? f : [...f, form]));
     },
-  }), [step, verdict?.state, filled]);
+    // Only while an autofill step is running: a project the admin makes on
+    // their own mid-tour is theirs, and must not be swept away at the end.
+    created: (row) => { if (active && step?.type === "autofill") rememberCreated(active.accountId, row); },
+  }), [step, verdict?.state, filled, active]);
 
   const lastFilled = filled[filled.length - 1];
   const submitResolve = useCallback((): Element[] => {
@@ -193,6 +213,23 @@ export function TourProvider({ children }: { children: ReactNode }) {
     const t = step.submit[lastFilled];
     return t ? resolveTargets([t]) : [];
   }, [step, lastFilled]);
+
+  // A SANDBOX STEP'S SUBMIT DOES NOTHING. Its button is ringed to show where
+  // the act is, but a press on it is caught before the page sees it: the step
+  // ends at Nästa, and nothing real is created.
+  const sandboxSubmit = step?.type === "autofill" && step.until === "next" && lastFilled !== undefined;
+  useEffect(() => {
+    if (!sandboxSubmit) return;
+    const onClick = (e: MouseEvent) => {
+      const hit = e.target as Node;
+      if (submitResolve().some((el) => el.contains(hit))) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    };
+    document.addEventListener("click", onClick, true);
+    return () => document.removeEventListener("click", onClick, true);
+  }, [sandboxSubmit, submitResolve]);
 
   const navResolve = useCallback(
     (): Element[] => (step?.type === "nav" ? resolveTargets(step.targets, step.all) : []),
@@ -208,7 +245,7 @@ export function TourProvider({ children }: { children: ReactNode }) {
     const progress = 25 + 75 * Math.min(index, last) / last;
 
     if (done) {
-      overlay = <TourCard progress={100} title={DONE.title} line={DONE.line} button={DONE.button} onNext={finish} />;
+      overlay = <TourCard progress={100} title={DONE.title} line={DONE.line} button={DONE.button} onNext={() => { void finish(); }} />;
     } else if (step?.type === "card") {
       overlay = <TourCard progress={progress} title={step.text} button="Nästa" onNext={next} />;
     } else if (step && verdict?.state === "fallback") {
@@ -230,7 +267,13 @@ export function TourProvider({ children }: { children: ReactNode }) {
         overlay = <TourBar text="Vi fyller i formuläret åt dig. Inget sparas förrän du trycker själv." onSkip={next} />;
       } else {
         overlay = (
-          <TourSpotlight key={`${index}|${lastFilled}`} resolve={submitResolve} tip={step.tip[lastFilled] ?? ""} onSkip={next} />
+          <TourSpotlight
+            key={`${index}|${lastFilled}`}
+            resolve={submitResolve}
+            tip={step.tip[lastFilled] ?? ""}
+            onSkip={next}
+            action={step.until === "next" ? { label: "Nästa", onClick: next } : undefined}
+          />
         );
       }
     }

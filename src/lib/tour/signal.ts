@@ -16,7 +16,9 @@ export type TourSignal =
   | "availability-saved"
   | "offer-accepted"
   | "stamped-in"
-  | "arbetsdagbok-generated";
+  | "arbetsdagbok-generated"
+  /** The leader tapped both of the days the tour ringed on Välj dagar. */
+  | "tour-days-picked";
 
 const EVENT = "byggkoll:tour-signal";
 

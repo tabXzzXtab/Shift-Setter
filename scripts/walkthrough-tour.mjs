@@ -268,6 +268,8 @@ async function secondLogin(page, email, password, role) {
 
 const browser = await chromium.launch();
 const t0 = count("select extract(epoch from now())::int as n");
+/** Today in Stockholm, as the app computes it -- the tour rings two days from it. */
+const TODAY = new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Stockholm" }).format(new Date());
 console.log(`\nFörsta-gången-turen at ${BASE}${NEGATIVE ? "   (NEGATIVE CONTROL)" : ""}\n`);
 
 try {
@@ -313,7 +315,7 @@ try {
       const v = document.querySelector('input[name="name"]')?.value ?? "";
       return v.length > 0 && v.length < "Fasad Malmö".length;
     }, null, { timeout: 20000 }).catch(() => fail("admin: never saw the project name part-typed"));
-    await page.getByText("Allt är ifyllt med exempel").waitFor({ timeout: 30000 });
+    await page.getByText("Ett exempelprojekt.").waitFor({ timeout: 30000 });
     const values = await page.evaluate(() =>
       ["name", "site_address", "start_date", "services", "bestallare_bolag", "bestallare_address", "bestallare_orgnr"]
         .map((k) => [k, document.querySelector(`[name="${k}"]`)?.value ?? ""]));
@@ -386,28 +388,46 @@ try {
     await page.waitForURL((u) => u.pathname.startsWith("/pass/ny"), { timeout: 20000 });
     log("leader: two cards, then Skapa pass ringed and tapped");
 
-    await page.waitForFunction(() => document.querySelector("[data-picked-count]")?.getAttribute("data-picked-count") === "1",
-      null, { timeout: 20000 }).catch(() => fail("leader: autofill chose no day"));
-    await page.getByText("Vi har valt en dag om två veckor").waitFor({ timeout: 20000 });
+    // The days: a card, then two ringed days and NO tip -- the leader taps
+    // both, and the tour moves on when both are chosen.
+    await nextCard(page, "Välj de dagar du vill ha folk på plats.", "leader card 4");
+    const [d1, d2] = (() => {
+      const plus = (ymd, n) => { const d = new Date(`${ymd}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
+      const first = plus(TODAY, 14);
+      const after = plus(first, 1);
+      return [first, after.slice(0, 7) === first.slice(0, 7) ? after : plus(first, -1)];
+    })();
+    const day1 = page.locator(`[data-date="${d1}"]`);
+    const day2 = page.locator(`[data-date="${d2}"]`);
+    await expectRingOn(page, day1, "leader step 5, first day", { anchored: false });
+    await expectRingOn(page, day2, "leader step 5, second day", { anchored: false });
+    if (await page.locator('[data-tour-ui="bar"] p, [data-tour-ui="tip"] p').count()) {
+      fail("leader step 5: the two-day step shows a tip; it should show only its rings");
+    }
+    await shot(page, "ledare-5-dagar");
+    await tap(page, day1);
+    await tap(page, day2);
+    await nextCard(page, "Bra. Nu fyller vi i detaljerna.", "leader: tapping both ringed days did not advance");
+    log(`leader: ${d1} and ${d2} ringed with no tip, tapped, and the tour moved on`);
+
     const fortsatt = page.getByRole("button", { name: "Fortsätt" });
-    await expectRingOn(page, fortsatt, "leader step 4, days");
-    await shot(page, "ledare-4-dag");
+    await expectRingOn(page, fortsatt, "leader step 7, Fortsätt");
     await tap(page, fortsatt);
-    await page.getByText("Allt är ifyllt. Ändra det du vill").waitFor({ timeout: 30000 });
+
+    // A SANDBOX STEP: filled, the real button ringed but swallowed, Nästa ends it.
+    await page.getByText("Så här skapar du ett pass.").waitFor({ timeout: 30000 });
     const hours = await page.getByLabel("Timmar på rad 1").inputValue();
     if (hours !== "8") fail(`leader: autofill left Timmar at ${JSON.stringify(hours)}, wanted "8"`);
-    const create = page.getByRole("button", { name: /^Skapa \d+ pass$/ });
-    await expectRingOn(page, create, "leader step 4, detail");
-    await shot(page, "ledare-4-ifylld");
-    log(`leader: a day two weeks out chosen, then project, 07:00-16:00 and ${hours} h filled; Skapa 1 pass ringed`);
-
+    const create = page.getByRole("button", { name: /^Skapa d+ pass$/ });
+    await expectRingOn(page, create, "leader step 8, detail");
+    await shot(page, "ledare-8-ifylld");
+    await tap(page, create);
     await page.waitForTimeout(2500);
     const passes = count(`select count(*)::int as n from public.pass p join auth.users u on u.id = p.created_by
       where lower(u.email) = lower('${esc(email)}') and p.created_at > to_timestamp(${t0})`);
-    if (passes !== 0) fail(`leader: autofill SUBMITTED -- ${passes} pass(es) were created`);
-    log("leader: nothing was created");
-
-    await skip(page);
+    if (passes !== 0) fail(`leader: the sandbox step let Skapa through -- ${passes} pass(es) were created`);
+    log(`leader: form filled (${hours} h), Skapa pressed and swallowed -- nothing was created`);
+    await tap(page, page.locator('[data-tour-ui="tip"], [data-tour-ui="bar"]').getByRole("button", { name: "Nästa", exact: true }));
     await nextCard(page, "Arbetarna som är lediga kan nu se ditt pass.", "leader card 5");
     await nextCard(page, "När passen är över ska du kolla", "leader card 6");
 
@@ -416,7 +436,7 @@ try {
     const seven = await settle(page, "leader step 7");
     await shot(page, "ledare-7");
     if (seven === "card") {
-      await nextCard(page, "Bekräfta pass är där du går igenom en dag", "leader step 7 fallback");
+      await nextCard(page, "Ingen dag att bekräfta än.", "leader step 7 fallback");
       log("leader: no day waiting -- Bekräfta arrived as a card, and step 8 was skipped");
     } else {
       const bek = page.getByRole("link", { name: "Bekräfta pass" });
