@@ -122,7 +122,7 @@ async function markDay(page, date) {
 /** Create a one-slot pass on one day, hand-picking the named person. */
 async function makePass(page, project, date, pick, hours) {
   await page.goto(`${BASE}/pass/ny/`, { waitUntil: "networkidle" });
-  await page.getByText("Vilka dagar?").waitFor({ timeout: 20000 });
+  await page.getByRole("heading", { name: "Välj dagar" }).waitFor({ timeout: 20000 });
   await reachDate(page, date, fail);
   const cell = page.locator(`[data-date="${date}"]`);
   await cell.waitFor({ timeout: 20000 });

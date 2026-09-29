@@ -76,7 +76,7 @@ try {
   // ---- the three + buttons --------------------------------------------------
   const ACTIONS = [
     ["Nytt projekt", "/projekt/ny", "Projektnamn"],
-    ["Skapa pass", "/pass/ny", "Vilka dagar?"],
+    ["Skapa pass", "/pass/ny", "Välj dagar"],
     ["Snabb pass", "/snabb", "Snabb pass"],
   ];
   for (const [label, href, lands] of ACTIONS) {

@@ -264,7 +264,7 @@ try {
   // ---- the leader picks the month, with a finger ---------------------------
   await signIn(page, L.email, L.password);
   await page.goto(`${BASE}/pass/ny/`, { waitUntil: "networkidle" });
-  await page.getByText("Vilka dagar?").waitFor({ timeout: 20000 });
+  await page.getByRole("heading", { name: "Välj dagar" }).waitFor({ timeout: 20000 });
 
   await touchDrag(page, MONTH_DAYS);
   await mustCount(page, MONTH_DAYS.length, "the touch drag did not select the days");

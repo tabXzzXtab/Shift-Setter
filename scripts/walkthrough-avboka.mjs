@@ -112,7 +112,7 @@ async function markDays(page, dates) {
 
 async function makePass(page, project, date, pick) {
   await page.goto(`${BASE}/pass/ny/`, { waitUntil: "networkidle" });
-  await page.getByText("Vilka dagar?").waitFor({ timeout: 20000 });
+  await page.getByRole("heading", { name: "Välj dagar" }).waitFor({ timeout: 20000 });
   await reachDay(page, date);
   const cell = page.locator(`[data-date="${date}"]`);
   await cell.scrollIntoViewIfNeeded();

@@ -287,9 +287,9 @@ function NyttPass({ asked }: { asked: string | null }) {
   if (step === "days") {
     return (
       <SoftScreen
-        title="Vilka dagar?"
+        title="Välj dagar"
         back="/"
-        subtitle="Tryck på en dag, eller dra över flera."
+        subtitle="Välj de dagar du söker folk för."
       >
         <div className="px-4 pt-[14px]">
           <PaintCalendar
@@ -591,7 +591,7 @@ function NyttPassFromUrl() {
 export default function Page() {
   return (
     <AuthGate>
-      <Suspense fallback={<SoftScreen title="Vilka dagar?" back="/"><span /></SoftScreen>}>
+      <Suspense fallback={<SoftScreen title="Välj dagar" back="/"><span /></SoftScreen>}>
         <NyttPassFromUrl />
       </Suspense>
     </AuthGate>

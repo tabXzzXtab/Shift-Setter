@@ -142,7 +142,7 @@ try {
 
   await signIn(page, L.email, L.password);
   await page.goto(`${BASE}/pass/ny/`, { waitUntil: "networkidle" });
-  await page.getByText("Vilka dagar?").waitFor({ timeout: 20000 });
+  await page.getByRole("heading", { name: "Välj dagar" }).waitFor({ timeout: 20000 });
   await reachDate(page, D, fail);
   const c2 = page.locator(`[data-date="${D}"]`);
   await c2.scrollIntoViewIfNeeded();

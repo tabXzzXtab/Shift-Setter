@@ -172,7 +172,7 @@ async function openDay(page, date) {
  */
 async function makeBatch(page, project, dates, hours, pick) {
   await page.goto(`${BASE}/pass/ny/`, { waitUntil: "networkidle" });
-  await page.getByText("Vilka dagar?").waitFor({ timeout: 20000 });
+  await page.getByRole("heading", { name: "Välj dagar" }).waitFor({ timeout: 20000 });
   for (const d of dates) await tapDay(page, d);
   await page.getByRole("button", { name: "Fortsätt", exact: true }).click();
   await page.getByText("Vad behövs?").waitFor({ timeout: 20000 });

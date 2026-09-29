@@ -99,7 +99,7 @@ async function markDay(page, date) {
 
 async function makePass(page, project, date, hours, pick) {
   await page.goto(`${BASE}/pass/ny/`, { waitUntil: "networkidle" });
-  await page.getByText("Vilka dagar?").waitFor({ timeout: 20000 });
+  await page.getByRole("heading", { name: "Välj dagar" }).waitFor({ timeout: 20000 });
   // The lane can put the block in the next month; page to it rather than
   // waiting out twenty seconds on a cell this month will never draw.
   await reachDate(page, date, fail);

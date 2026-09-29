@@ -129,7 +129,7 @@ async function mustBeMarked(page, date, word) {
 
 /** Step 1 of Skapa Pass: tap the days, then confirm with the corner control. */
 async function pickDays(page, dates) {
-  await page.getByText("Vilka dagar?").waitFor({ timeout: 20000 });
+  await page.getByRole("heading", { name: "Välj dagar" }).waitFor({ timeout: 20000 });
   for (const d of [...dates].sort()) {
     // The picker opens on this month; the day may be in the next one.
     await reachDate(page, d, fail);

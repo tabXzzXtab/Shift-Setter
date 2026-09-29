@@ -225,7 +225,7 @@ try {
 
   await signIn(page, L.email, L.password);
   await page.goto(`${BASE}/pass/ny/`, { waitUntil: "networkidle" });
-  await page.getByText("Vilka dagar?").waitFor({ timeout: 20000 });
+  await page.getByRole("heading", { name: "Välj dagar" }).waitFor({ timeout: 20000 });
   await reach(page, TODAY);
   await tap(page, TODAY);
   await page.getByRole("button", { name: "Fortsätt", exact: true }).click();

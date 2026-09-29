@@ -119,7 +119,7 @@ async function tapDay(page, date) {
  */
 async function makeBatch(page, project, dates, hours) {
   await page.goto(`${BASE}/pass/ny/`, { waitUntil: "networkidle" });
-  await page.getByText("Vilka dagar?").waitFor({ timeout: 20000 });
+  await page.getByRole("heading", { name: "Välj dagar" }).waitFor({ timeout: 20000 });
   for (const d of dates) await tapDay(page, d);
   await page.getByRole("button", { name: "Fortsätt", exact: true }).click();
   await page.getByText("Vad behövs?").waitFor({ timeout: 20000 });
@@ -313,7 +313,7 @@ try {
   await openDay(page, DAY);
   await page.getByRole("link", { name: "Skapa Pass", exact: true }).click();
   await page.waitForURL((u) => u.pathname.includes("/pass/ny"), { timeout: 20000 });
-  await page.getByText("Vilka dagar?").waitFor({ timeout: 20000 });
+  await page.getByRole("heading", { name: "Välj dagar" }).waitFor({ timeout: 20000 });
   const picked = await page.locator("[data-picked-count]").first().getAttribute("data-picked-count");
   if (picked !== "1") fail(`Skapa Pass preselected ${picked} days, expected exactly the one tapped`);
   if (!(await page.locator(`[data-date="${DAY}"]`).count())) {

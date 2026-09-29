@@ -122,7 +122,7 @@ async function markCannot(p, date) {
 
 async function makePass(p, project, date, hours) {
   await p.goto(`${BASE}/pass/ny/`, { waitUntil: "networkidle" });
-  await p.getByText("Vilka dagar?").waitFor({ timeout: 20000 });
+  await p.getByRole("heading", { name: "Välj dagar" }).waitFor({ timeout: 20000 });
   await showMonth(p, date.slice(0, 7));
   const cell = p.locator(`[data-date="${date}"]`);
   await cell.waitFor({ timeout: 20000 });

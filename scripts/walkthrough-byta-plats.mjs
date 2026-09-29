@@ -119,7 +119,7 @@ async function markDay(page, date) {
 /** A one-slot pass, with times chosen so the two projects differ. */
 async function makePass(page, project, date, pick, start, end) {
   await page.goto(`${BASE}/pass/ny/`, { waitUntil: "networkidle" });
-  await page.getByText("Vilka dagar?").waitFor({ timeout: 20000 });
+  await page.getByRole("heading", { name: "Välj dagar" }).waitFor({ timeout: 20000 });
   await reachDay(page, date);
   const cell = page.locator(`[data-date="${date}"]`);
   await cell.scrollIntoViewIfNeeded();
