@@ -84,8 +84,15 @@ function Dag({ asked }: { asked: string | null }) {
         {longDayHeading(date)}
       </p>
 
+      {/* THE SHIFTS FIRST. The calendar sent the admin here to see who is where
+          that day, so that is what the first screenful answers; the three
+          actions follow the thing they act on. */}
+      <div className="px-4 pt-[10px]">
+        <DagPanel date={date} heading={false} />
+      </div>
+
       {isAdmin && (
-        <div className="px-4 pt-[10px]">
+        <div className="px-4 pt-[26px]">
           {composing ? (
             <NyHandelse
               date={date}
@@ -107,10 +114,6 @@ function Dag({ asked }: { asked: string | null }) {
       {note && (
         <div className="px-4 pt-[14px]"><SoftNotice tone="quiet">{note}</SoftNotice></div>
       )}
-
-      <div className="px-4 pt-[22px]">
-        <DagPanel date={date} heading={false} />
-      </div>
 
       <DagArenden date={date} tick={tick} me={me} konton={konton} onChanged={() => setTick((t) => t + 1)} />
     </SoftScreen>

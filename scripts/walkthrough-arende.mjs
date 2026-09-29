@@ -7,8 +7,8 @@
  *     Datum field on the day page and the Starttid/Sluttid pair inside the
  *     ärende form -- the flex row being the case that actually broke -- are
  *     each checked against the box that is supposed to contain them.
- *   - the admin's day page reads heading, then the three actions, then the
- *     shifts, in that order down the page
+ *   - the admin's day page reads heading, then the shifts, then the three
+ *     actions, in that order down the page
  *   - Snabb Pass and Skapa Pass carry the tapped date with them
  *   - Hela dagen starts ON, and turning it off reveals Starttid and Sluttid
  *   - the colour picker offers the eight the check constraint permits, and
@@ -292,15 +292,15 @@ try {
 
   if (order.heading === null) fail("the day page draws no date heading");
   if (order.actions === null) fail("the day page draws no action buttons");
-  if (!(order.heading < order.actions && order.actions < order.shifts)) {
+  if (!(order.heading < order.shifts && order.shifts < order.actions)) {
     await shot(page, "FAILED-arende");
     fail(
       `the day page is out of order: heading ${order.heading}px, actions ${order.actions}px, `
-      + `shifts ${order.shifts}px -- expected heading, then actions, then shifts`,
+      + `shifts ${order.shifts}px -- expected heading, then shifts, then actions`,
     );
   }
   await shot(page, "arende-dag");
-  log("the day reads heading, then the three actions, then the shifts");
+  log("the day reads heading, then the shifts, then the three actions");
 
   // ---- 3. the two doors carry the date -------------------------------------
   await page.getByRole("link", { name: "Snabb Pass", exact: true }).click();

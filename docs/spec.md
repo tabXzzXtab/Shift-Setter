@@ -290,7 +290,7 @@ A leader gets buttons where a worker gets a trash icon because a leader is never
 
 ### The admin's three actions on a day
 
-Above the shifts, and **only for the admin**, Öppna Dag carries the three things an owner does to a day. The page reads: the date, the three actions, then the shifts.
+Below the shifts, and **only for the admin**, Öppna Dag carries the three things an owner does to a day. The page reads: the date, the shifts, the three actions, then the day's ärenden. The calendar sends the admin here to see who is where, so the first screenful answers that; the actions follow the thing they act on.
 
 - **Tilldela Ärende** — writes an ärende on this day (below). It is the accent button because it is the only one of the three that happens on this screen; the other two are doors.
 - **Snabb Pass** → `/snabb?datum=`
