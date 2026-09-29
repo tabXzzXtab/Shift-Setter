@@ -348,14 +348,16 @@ function Kalender({ shifts, today }: { shifts: Shift[]; today: string }) {
                     className="text-[16px]"
                     style={{
                       letterSpacing: "-.2px",
-                      fontWeight: chosen || isToday ? 800 : worked ? 700 : 600,
+                      // A held day is the thing to tap, so it carries the
+                      // weight; an empty one stays readable but steps back.
+                      fontWeight: chosen || isToday || worked ? 800 : 500,
                       color: chosen ? C.surface : worked || isToday ? C.ink : C.text2,
                     }}
                   >
                     {day}
                   </span>
                   <span
-                    className="block h-1 w-1 rounded-full"
+                    className="block h-[6px] w-[6px] rounded-full"
                     style={{
                       background: worked ? (chosen ? C.surface : C.accent) : "transparent",
                     }}
