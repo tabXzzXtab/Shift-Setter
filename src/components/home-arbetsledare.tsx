@@ -247,7 +247,7 @@ export function HomeArbetsledare() {
         <SoftSheet onClose={() => setOpen(null)} label="Profil">
           <GroupedList rows={[{ href: "/konto", label: "Min profil" }]} />
           {/* One place signs out, whatever the screen around it looks like. */}
-          <SignOut />
+          <SignOut quiet />
         </SoftSheet>
       )}
     </div>

@@ -317,7 +317,7 @@ export function HomeAdmin() {
         <SoftSheet onClose={() => setOpen(null)} label="Profil">
           <GroupedList rows={PROFILE_MENU} />
           {/* One place signs out, whatever the screen around it looks like. */}
-          <SignOut />
+          <SignOut quiet />
         </SoftSheet>
       )}
     </main>

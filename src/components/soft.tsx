@@ -759,7 +759,13 @@ export function SoftNotice({
  * stop ink on white rather than a stop-tint fill: it ends a session, it does
  * not destroy anything, and the sheet it sits in is already quiet.
  */
-export function SignOut() {
+/**
+ * `quiet` inside a sheet: a text button on the sheet's ground rather than a
+ * third white slab. The sheet's rows are where the thumb is going; signing out
+ * is available, not suggested. Without it -- the paused-account screen, where
+ * it is the only thing there is to do -- it keeps the full card.
+ */
+export function SignOut({ quiet = false }: { quiet?: boolean } = {}) {
   const router = useRouter();
   return (
     <button
@@ -777,8 +783,16 @@ export function SignOut() {
         await getSupabase().auth.signOut();
         router.replace("/login");
       }}
-      className="press-scale mt-3 flex h-14 w-full items-center justify-center rounded-[12px] text-[17px] font-bold transition-transform duration-[110ms] hover:bg-[#f6f9ff] active:scale-[.985]"
-      style={{ letterSpacing: "-.2px", background: C.surface, color: C.stopInk, boxShadow: SHADOW.group }}
+      className={
+        quiet
+          ? "press-scale mt-2 flex h-12 w-full items-center justify-center rounded-[12px] text-[16px] font-bold transition-transform duration-[110ms] hover:bg-[#eef3fe] active:scale-[.985]"
+          : "press-scale mt-3 flex h-14 w-full items-center justify-center rounded-[12px] text-[17px] font-bold transition-transform duration-[110ms] hover:bg-[#f6f9ff] active:scale-[.985]"
+      }
+      style={
+        quiet
+          ? { letterSpacing: "-.2px", color: C.stopInk }
+          : { letterSpacing: "-.2px", background: C.surface, color: C.stopInk, boxShadow: SHADOW.group }
+      }
     >
       Logga ut
     </button>
@@ -946,7 +960,7 @@ export function SoftSheet({
         <button
           type="button"
           onClick={onClose}
-          className="press-scale mt-3 h-14 w-full rounded-[12px] text-[17px] font-bold transition-transform duration-[110ms] hover:bg-[#dbe4f9] active:scale-[.985]"
+          className="press-scale mt-2 h-12 w-full rounded-[12px] text-[16px] font-bold transition-transform duration-[110ms] hover:bg-[#dbe4f9] active:scale-[.985]"
           style={{ letterSpacing: "-.2px", background: C.panel2, color: C.inkHover }}
         >
           Stäng
