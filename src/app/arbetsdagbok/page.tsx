@@ -438,9 +438,9 @@ function Arbetsdagbok() {
 
   return (
     <SoftScreen
-      title="Arbetsdagbok"
+      title="Skapa arbetsdagboken"
       back="/"
-      subtitle="En period i taget. Perioden skrivs på dokumentets försättsblad."
+      subtitle="Kontrollera att perioden inte redan är dokumenterad."
     >
       {gaps && (
         <Bristsurvey
