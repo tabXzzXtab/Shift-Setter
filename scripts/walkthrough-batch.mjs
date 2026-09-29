@@ -177,8 +177,12 @@ if (!ctx._options?.hasTouch && !devices["Pixel 7"].hasTouch) fail("context is no
  *               check needs a day nobody has painted. It used to be today+25,
  *               which a block moved to the next month could reach.
  *
- * reachDate chooses its direction from TODAY, not from the month on screen,
- * so each page visits its dates in ascending order and only ever pages on.
+ * The dates used to have to be visited in ascending order, because reachDate
+ * chose its direction from TODAY rather than from the month on screen and
+ * would page the wrong way once it had already moved forward. It reads the
+ * screen now (298f5d2), so that constraint is gone -- the ordering below is
+ * left as it is because it is also the order the scenario reads in, not
+ * because anything depends on it.
  */
 const today = stockholmToday();
 const firstOfNext = (d) => shiftDays(`${d.slice(0, 7)}-01`, 40).slice(0, 7) + "-01";
@@ -365,10 +369,37 @@ try {
   log("the next day's instance still reads 07:00–16:00 — siblings untouched");
 
   // ---- the cascade ----------------------------------------------------------
+  //
+  // WHICH OF THE THREE ANSWERS THIS IS. dag-panel offers a replacement panel
+  // when a förval worker is free, and otherwise says one of two sentences
+  // depending on whether the day is more than five out. This lands on the
+  // second, and the fixture forces it rather than hoping for it:
+  //
+  //   * MONTH_DAYS are all more than five days out by construction -- the
+  //     block starts at today+7, or the 1st of the next month -- so
+  //     beyond_five_days is true and the within-five-days sentence cannot be
+  //     the one that appears. The day inside five days is NEAR, and the block
+  //     below is what tests that branch.
+  //   * There is no förval replacement to offer. The batch asks for one slot
+  //     per day MORE than the roster holds, so every worker who marked these
+  //     days is already placed on this one; removing one leaves nobody who
+  //     marked it and is free. That is the same guarantee the shortfall step
+  //     above leans on, used here for the opposite purpose.
+  //
+  // The old assertion wanted "Platsen öppnades igen", which the app stopped
+  // saying on 05 Sep in 93d3a23. It went unnoticed for 24 days because the run
+  // never reached this line -- first the month boundary, then the headcount
+  // stepper, both fixed since.
+  //
+  // Matched on the clause that carries the meaning rather than the whole
+  // sentence: the name in front of it and the count after it are both runtime
+  // values, and asserting them would break on the fixture rather than on the
+  // cascade.
   await field(page, "Datum").fill(MONTH_DAYS[6]);
   await page.getByRole("button", { name: /^Ta bort / }).first().waitFor({ timeout: 20000 });
   await page.getByRole("button", { name: /^Ta bort / }).first().click();
-  await mustSee(page, "Platsen öppnades igen", "the vacated slot did not reopen and cascade");
+  await mustSee(page, "platsen gick ut som Acceptera Pass till",
+                "the vacated slot did not reopen and cascade");
   await shot(page, "36-kaskad");
   log("removed a worker more than five days out: the slot reopened and cascaded");
 
