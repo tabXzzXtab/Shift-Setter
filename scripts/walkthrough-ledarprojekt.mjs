@@ -190,17 +190,17 @@ try {
   await shot(page, "lp4-alla-projekt");
   log(`the creator sees it in Alla Projekt (${projectId})`);
 
-  // The card is the control, and for a leader it opens ONE thing. The other
-  // two are the admin's and bounce an arbetsledare back to their landing page,
-  // so on a list that is mostly this leader's own projects they would be two
-  // dead controls per row.
-  await row.getByRole("button").first().click();
-  const actions = (await row.getByRole("link").allInnerTexts()).map((t) => t.trim()).sort();
-  if (JSON.stringify(actions) !== JSON.stringify(["Kolla Pass"])) {
+  // For a leader the card IS the way in: one link, to this project's shifts,
+  // and nothing to expand. The other two errands are the admin's and bounce an
+  // arbetsledare back to their landing page, so on a list that is mostly this
+  // leader's own projects they would be two dead controls per row.
+  const hrefs = await row.getByRole("link").evaluateAll((as) => as.map((a) => a.getAttribute("href") ?? ""));
+  const toggles = await row.getByRole("button").count();
+  if (hrefs.length !== 1 || !hrefs[0].includes("/pass") || !hrefs[0].includes(projectId) || toggles !== 0) {
     await shot(page, "FAILED");
-    fail(`the leader's project card offers ${JSON.stringify(actions)}, wanted only Kolla Pass`);
+    fail(`the leader's project card should be one link to its shifts; links ${JSON.stringify(hrefs)}, buttons ${toggles}`);
   }
-  log("the card opens Kolla Pass and nothing else -- the other two are the admin's");
+  log("the card goes straight to Kolla Pass -- nothing to open, and the other two are the admin's");
 
   // ---- but creating is not editing -----------------------------------------
   //

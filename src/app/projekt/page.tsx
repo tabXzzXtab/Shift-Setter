@@ -7,7 +7,7 @@ import { C, EmptyState, SHADOW, SoftScreen } from "@/components/soft";
 import { useAccount } from "@/lib/account";
 import { getSupabase } from "@/lib/supabase/client";
 
-type Project = { id: string; name: string; site_address: string; start_date: string };
+type Project = { id: string; name: string; site_address: string };
 
 /**
  * Alla Projekt -- every project the caller can see, and what they may do to one.
@@ -37,6 +37,14 @@ type Project = { id: string; name: string; site_address: string; start_date: str
  * them puts two dead controls on every row of a list that is mostly their own
  * projects. A control that cannot do anything for the person looking at it is
  * not a courtesy to them.
+ *
+ * AND SO A LEADER'S CARD DOES NOT OPEN AT ALL. With one errand behind it, an
+ * expanding card is two taps and a divider to reach the only thing it offers;
+ * the card is the link to Kolla Pass instead. The admin's still opens, because
+ * three errands are a choice.
+ *
+ * No start date on the card, for either role. Nobody opens this screen to learn
+ * when a project began; it is on Redigera Projekt for the one who edits it.
  */
 function AllaProjekt() {
   const { account } = useAccount();
@@ -48,7 +56,7 @@ function AllaProjekt() {
   useEffect(() => {
     getSupabase()
       .from("project")
-      .select("id, name, site_address, start_date")
+      .select("id, name, site_address")
       .order("name")
       .then(({ data }) => setProjects((data ?? []) as Project[]));
   }, []);
@@ -68,6 +76,45 @@ function AllaProjekt() {
 
         {projects.map((p) => {
           const shown = open === p.id;
+          // Name and address, then a chevron -- the whole of a card at rest.
+          // The chevron turns to point at what it opened on the admin's card,
+          // which is the only thing there that says the card is a control.
+          const face = (
+            <span className="flex items-center justify-between gap-3 px-4 py-[15px] text-left">
+              <span className="min-w-0">
+                <span className="block text-[18px] font-bold" style={{ letterSpacing: "-.4px" }}>
+                  {p.name}
+                </span>
+                <span className="mt-[2px] block text-[15px] font-medium" style={{ color: C.text2 }}>
+                  {p.site_address}
+                </span>
+              </span>
+              <svg
+                width="9" height="15" viewBox="0 0 9 15" fill="none" aria-hidden
+                className="shrink-0 transition-transform duration-150"
+                style={{ transform: shown ? "rotate(90deg)" : undefined }}
+              >
+                <path d="M1.5 1.5 7 7.5l-5.5 6" stroke={C.chevron} strokeWidth="2.2"
+                  strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </span>
+          );
+
+          if (!isAdmin) {
+            return (
+              <section
+                key={p.id}
+                data-project={p.id}
+                className="rounded-[14px]"
+                style={{ background: C.surface, boxShadow: SHADOW.group }}
+              >
+                <Link href={`/pass?projekt=${p.id}`} className="block rounded-[14px] hover:bg-[#f6f9ff]">
+                  {face}
+                </Link>
+              </section>
+            );
+          }
+
           return (
             <section
               key={p.id}
@@ -79,35 +126,9 @@ function AllaProjekt() {
                 type="button"
                 aria-expanded={shown}
                 onClick={() => setOpen(shown ? null : p.id)}
-                className="w-full px-4 py-[15px] text-left"
+                className="block w-full"
               >
-                <span className="block text-[18px] font-bold" style={{ letterSpacing: "-.4px" }}>
-                  {p.name}
-                </span>
-                <span
-                  className="mb-3 mt-[2px] block text-[15px] font-medium"
-                  style={{ color: C.text2 }}
-                >
-                  {p.site_address}
-                </span>
-                <span className="flex items-center justify-between gap-[10px]">
-                  <span
-                    className="text-[12px] font-bold"
-                    style={{ letterSpacing: ".4px", color: C.text2 }}
-                  >
-                    Start {p.start_date}
-                  </span>
-                  {/* The chevron turns to point at what it opened, which is the
-                      only thing on the card that says the card is a control. */}
-                  <svg
-                    width="9" height="15" viewBox="0 0 9 15" fill="none" aria-hidden
-                    className="transition-transform duration-150"
-                    style={{ transform: shown ? "rotate(90deg)" : undefined }}
-                  >
-                    <path d="M1.5 1.5 7 7.5l-5.5 6" stroke={C.chevron} strokeWidth="2.2"
-                      strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                </span>
+                {face}
               </button>
 
               {shown && (
@@ -123,12 +144,8 @@ function AllaProjekt() {
                       does not exist until long after the build.
                     */}
                     {[
-                      ...(isAdmin
-                        ? [
-                            { href: `/arbetsdagbok?projekt=${p.id}`, label: "Generera Arbetsdagbok" },
-                            { href: `/projekt/redigera?id=${p.id}`, label: "Redigera Projekt" },
-                          ]
-                        : []),
+                      { href: `/arbetsdagbok?projekt=${p.id}`, label: "Generera Arbetsdagbok" },
+                      { href: `/projekt/redigera?id=${p.id}`, label: "Redigera Projekt" },
                       { href: `/pass?projekt=${p.id}`, label: "Kolla Pass" },
                     ].map((a) => (
                       <Link
