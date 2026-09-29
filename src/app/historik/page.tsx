@@ -99,21 +99,16 @@ function Bekraftelser() {
 
   const showing: View = queue ? view : "historik";
 
-  // THE NOTE BELONGS TO THE TITLE, NOT TO THE LIST. It says what the view
-  // being looked at means, so it is read before the days rather than found
-  // under them -- an explanation that follows the thing it explains is one
-  // nobody needed by the time they reach it. Only the leader is told, and only
-  // on Historik, which is the tab the sentence is about.
+  // THE TITLE IS THE ACT OF THE TAB, per role: picking a day to confirm or to
+  // review, or looking back at the ones already closed. No line on any of
+  // them -- picking a day is not where anything goes wrong; the day it opens
+  // carries its own check.
+  const title = showing === "att"
+    ? (isAdmin ? "Välj en dag att granska" : "Välj en dag att bekräfta")
+    : (isAdmin ? "Se godkända dagar" : "Se bekräftade dagar");
+
   return (
-    <SoftScreen
-      title="Bekräftelser"
-      back="/"
-      subtitle={
-        isLeader && showing === "historik"
-          ? "Dagar du bekräftat visas här när admin har godkänt dem."
-          : undefined
-      }
-    >
+    <SoftScreen title={title} back="/">
       {/* Both states always visible, the current one on the white thumb. A
           control that hides the thing it switches to makes people press it to
           find out. */}

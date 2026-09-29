@@ -232,7 +232,7 @@ try {
 
   // ---- item 2: the switch --------------------------------------------------
   await page.goto(`${BASE}/historik/`, { waitUntil: "networkidle" });
-  await page.getByRole("heading", { name: "Bekräftelser" }).waitFor({ timeout: 20000 });
+  await page.getByRole("heading", { name: "Välj en dag att bekräfta" }).waitFor({ timeout: 20000 });
 
   const att = page.getByRole("button", { name: "Att bekräfta", exact: true });
   const hist = page.getByRole("button", { name: "Historik", exact: true });
@@ -403,8 +403,9 @@ try {
   log("the confirmed day leaves Att bekräfta; the unconfirmed one stays");
 
   await hist.click();
-  await mustSee(page, "Dagar du bekräftat visas här när admin har godkänt dem.",
-    "Historik does not say where a just-confirmed day went");
+  // The tab's title is its act; the old line explaining where a confirmed
+  // day goes was removed with the two-line header rule.
+  await page.getByRole("heading", { name: "Se bekräftade dagar" }).waitFor({ timeout: 20000 });
   if (await page.getByText(heading(newer), { exact: false }).count()) {
     fail("a leader_confirmed day is in Historik; day_history takes it at stage 2");
   }
@@ -426,7 +427,7 @@ try {
   // fixture's day on the same date would otherwise read as ours.
   await signIn(page, ADMIN.email, ADMIN.password);
   await page.goto(`${BASE}/historik/`, { waitUntil: "networkidle" });
-  await page.getByRole("heading", { name: "Bekräftelser" }).waitFor({ timeout: 20000 });
+  await page.getByRole("heading", { name: "Välj en dag att granska" }).waitFor({ timeout: 20000 });
 
   const adminAtt = page.getByRole("button", { name: "Att bekräfta", exact: true });
   if (!(await adminAtt.count())) fail("the admin has no Att bekräfta view; stage 2 is his queue");
@@ -518,7 +519,7 @@ try {
   log("the admin sent it back with a reason");
 
   await page.goto(`${BASE}/historik/`, { waitUntil: "networkidle" });
-  await page.getByRole("heading", { name: "Bekräftelser" }).waitFor({ timeout: 20000 });
+  await page.getByRole("heading", { name: "Välj en dag att granska" }).waitFor({ timeout: 20000 });
   await page.waitForTimeout(2000);
   const left = (await page.locator('a[href*="/granska"]').allInnerTexts()).filter((t) => t.includes(project));
   if (left.length > 0) {
