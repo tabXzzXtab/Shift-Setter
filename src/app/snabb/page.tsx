@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { AuthGate } from "@/components/auth-gate";
 import {
   C, Card, PrimaryButton, Segmented, SoftField, SoftInput, SoftNotice, SoftScreen,
-  SoftSelect, SoftTextarea,
+  SoftSelect, SoftTextarea, SoftDone,
 } from "@/components/soft";
 import { NyArbetareForm, type CreatedWorker } from "@/components/ny-arbetare";
 import { getSupabase } from "@/lib/supabase/client";
@@ -281,10 +281,8 @@ function SnabbPass({ asked }: { asked: string | null }) {
 
   if (done) {
     return (
-      <SoftScreen title="Snabb Pass skapat" back="/">
-        <div className="px-4 pt-[2px]">
-          <SoftNotice tone="live">{done} är inlagd på {date}.</SoftNotice>
-        </div>
+      <SoftScreen title="" back="/">
+        <SoftDone title="Passet är inlagt" line={`${done} är inlagd på ${date}.`} />
 
         {/* WHICH ROUTE RAN, SAID PLAINLY. These two end in different places --
             one day is finished and one is waiting on a person -- and an admin

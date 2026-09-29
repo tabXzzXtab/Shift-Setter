@@ -2,8 +2,8 @@
 
 import { useState, type FormEvent } from "react";
 import {
-  C, Card, PrimaryButton, SecondaryButton, SoftField, SoftInput, SoftNotice,
-  SoftScreen,
+  Card, PrimaryButton, SecondaryButton, SoftField, SoftInput, SoftNotice,
+  SoftScreen, SoftDone,
 } from "@/components/soft";
 
 /**
@@ -72,22 +72,13 @@ export default function GlomtLosenordPage() {
 
   if (sent) {
     return (
-      <SoftScreen title="Återställ lösenordet" back="/login">
+      <SoftScreen title="" back="/login">
         {/* The same sentence whatever the address was. There is no "no such
             user" branch to draw, because there is no such answer to give. */}
-        <div className="px-4 pt-[2px]">
-          <SoftNotice tone="live">
-            Om e-postadressen finns i systemet har ett återställningsmail skickats.
-          </SoftNotice>
-        </div>
-
-        <p
-          className="px-5 pt-[14px] text-[15px] font-medium"
-          style={{ color: C.text2, textWrap: "pretty" }}
-        >
-          Kolla skräpposten om det inte dyker upp. Länken går ut efter en stund —
-          begär en ny om den hunnit bli gammal.
-        </p>
+        <SoftDone
+          title="Kolla din e-post"
+          line="Om adressen finns har vi skickat en länk. Kolla skräpposten om den inte kommer."
+        />
 
         <div className="px-4 pt-[22px]">
           <SecondaryButton href="/login">Till inloggningen</SecondaryButton>

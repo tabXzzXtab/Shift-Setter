@@ -145,9 +145,13 @@ export function SoftScreen({
     >
       <div className={`flex items-center gap-3 px-4 pt-[14px] ${subtitle ? "pb-[6px]" : "pb-3"}`}>
         {back && <IconButton label="Tillbaka" href={back}><BackArrow /></IconButton>}
-        <h1 className="text-[22px] font-extrabold" style={{ letterSpacing: "-.7px" }}>
-          {title}
-        </h1>
+        {/* An empty title draws no heading: an end state's SoftDone carries
+            the page's heading itself, centred, rather than saying it twice. */}
+        {title && (
+          <h1 className="text-[22px] font-extrabold" style={{ letterSpacing: "-.7px" }}>
+            {title}
+          </h1>
+        )}
       </div>
 
       {subtitle && (
@@ -866,6 +870,35 @@ export function SignOut({ quiet = false }: { quiet?: boolean } = {}) {
     >
       Logga ut
     </button>
+  );
+}
+
+/**
+ * An end state: the thing is done, and the screen says so and little else.
+ * A filled check circle, the result as the page's heading, and at most one
+ * line -- no box around it. Pair with SoftScreen title="" so the heading is
+ * not said twice.
+ */
+export function SoftDone({ title, line }: { title: string; line?: ReactNode }) {
+  return (
+    <div role="status" className="px-6 pb-[6px] pt-[18px] text-center">
+      <span
+        aria-hidden
+        className="mx-auto mb-[14px] flex h-14 w-14 items-center justify-center rounded-full"
+        style={{ background: C.liveInk }}
+      >
+        <svg width="24" height="19" viewBox="0 0 11 9" fill="none">
+          <path d="M1 4.6 4 7.6 10 1.4" stroke={C.surface} strokeWidth="1.6"
+            strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </span>
+      <h1 className="text-[22px] font-extrabold" style={{ letterSpacing: "-.7px" }}>{title}</h1>
+      {line && (
+        <p className="mx-auto mt-1 max-w-[320px] text-[15px] font-medium" style={{ color: C.text2, textWrap: "pretty" }}>
+          {line}
+        </p>
+      )}
+    </div>
   );
 }
 

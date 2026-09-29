@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { AuthGate } from "@/components/auth-gate";
-import { C, Card, PrimaryButton, SoftNotice, SoftScreen } from "@/components/soft";
+import { C, Card, PrimaryButton, SoftDone, SoftScreen } from "@/components/soft";
 import { NyArbetareForm } from "@/components/ny-arbetare";
 
 /**
@@ -15,10 +15,8 @@ function NyArbetare() {
 
   if (done) {
     return (
-      <SoftScreen title="Klar" back="/">
-        <div className="px-4 pt-[2px]">
-          <SoftNotice tone="live">{done.name} skapad.</SoftNotice>
-        </div>
+      <SoftScreen title="" back="/">
+        <SoftDone title="Kontot är klart" line={`Ge inloggningen till ${done.name}. Den visas inte igen.`} />
 
         <div className="px-4 pt-[14px]">
           <Card radius={16} pad="p-[18px]">
@@ -39,10 +37,6 @@ function NyArbetare() {
             </pre>
           </Card>
         </div>
-
-        <p className="px-5 pt-[14px] text-[15px] font-medium" style={{ color: C.text2 }}>
-          Ge blocket till arbetaren. Det visas inte igen.
-        </p>
 
         <div className="px-4 pt-[22px]">
           <PrimaryButton onClick={() => { setDone(null); setKey((k) => k + 1); }}>

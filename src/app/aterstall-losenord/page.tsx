@@ -6,7 +6,7 @@ import { getSupabase } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/supabase/auth";
 import {
   C, Card, PrimaryButton, SecondaryButton, SHADOW, SoftField, SoftInput,
-  SoftNotice, SoftScreen,
+  SoftNotice, SoftScreen, SoftDone,
 } from "@/components/soft";
 
 /**
@@ -67,10 +67,8 @@ export default function AterstallLosenordPage() {
     return (
       // No back button on any of these: a recovery link was not opened from
       // anywhere inside this app, so there is nowhere behind it to return to.
-      <SoftScreen title="Nytt lösenord">
-        <div className="px-4 pt-[2px]">
-          <SoftNotice tone="live">Lösenordet är ändrat.</SoftNotice>
-        </div>
+      <SoftScreen title="">
+        <SoftDone title="Lösenordet är ändrat" />
         <div className="px-4 pt-[22px]">
           <Link
             href="/login"
