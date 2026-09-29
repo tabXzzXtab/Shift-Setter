@@ -17,9 +17,9 @@ export default function Page() {
   return (
     <AuthGate>
       <SoftScreen
-        title="Min kalender"
+        title="Markera dina dagar"
         back="/"
-        subtitle="Tryck på en dag, eller dra över flera."
+        subtitle="Kontrollera att rätt läge är valt, Kan jobba eller Kan inte."
       >
         <Tillganglighet />
       </SoftScreen>
