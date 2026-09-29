@@ -345,7 +345,7 @@ try {
 
   await stampBtn().click();
   await page.waitForFunction(
-    () => /Inget pass att stämpla|Stämpla In/.test(document.body.innerText),
+    () => /Dina pass|Svara på pass|Stämpla In/.test(document.body.innerText),
     null, { timeout: 20000 },
   );
   log("stamping out finishes the day");

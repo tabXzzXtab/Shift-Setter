@@ -369,21 +369,10 @@ export function HomeArbetare() {
       )}
 
       {/* ---- 2. hero, the clock ------------------------------------------ */}
-      {/* NOTHING TO STAMP IS AN EMPTY STATE, NOT A HERO. A white hero card is
-          the loudest shape on the screen, and with nothing in it but a grey
-          sentence it drew the eye to the one place there was nothing to do.
-          The hero comes back the moment there is a shift, carrying Stämpla. */}
-      {shift === null && (
-        <div className="px-4 pt-[6px]">
-          <div
-            className="rounded-[14px] px-5 py-[18px] text-[15px] font-medium"
-            style={{ background: PANEL, color: TEXT_2 }}
-          >
-            Inget pass att stämpla just nu.
-          </div>
-        </div>
-      )}
-
+      {/* NOTHING TO STAMP DRAWS NOTHING. The title above already says what to
+          do instead, and a panel saying there is no stamp only pushed the offer
+          below the fold. The hero comes back the moment there is a shift,
+          carrying Stämpla. */}
       {shift !== null && (
       <div className="px-4 pt-[6px]">
         <div
