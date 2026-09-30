@@ -9,7 +9,7 @@ import { getSupabase } from "@/lib/supabase/client";
 import { DONE, SEQUENCES, met, type FormKey, type Step } from "@/lib/tour/steps";
 import {
   automatedWithoutOptIn, completeTour, createdRows, forgetCreated, markSeen, rememberCreated,
-  saveStep, sessionStep, tourComplete, type TourRow,
+  requestReplay, saveStep, sessionStep, tourComplete, type TourRow,
 } from "@/lib/tour/storage";
 import { onTourSignal } from "@/lib/tour/signal";
 import { resolveTargets, samePath } from "@/lib/tour/targets";
@@ -45,6 +45,12 @@ export function useTour(): TourApi | null {
   return useContext(TourCtx);
 }
 
+/** Guide: replay the tour from its first step. Always available, running or not. */
+const ReplayCtx = createContext<(() => void) | null>(null);
+export function useTourReplay(): (() => void) | null {
+  return useContext(ReplayCtx);
+}
+
 /**
  * The first-launch tour: which step, whether it can happen, what to draw.
  *
@@ -68,6 +74,8 @@ export function TourProvider({ children }: { children: ReactNode }) {
   const [filled, setFilled] = useState<FormKey[]>([]);
   const [filling, setFilling] = useState<FormKey | null>(null);
   const [offRouteFor, setOffRouteFor] = useState<string | null>(null);
+  /** Bumped by Guide, so the start effect runs again for the same account. */
+  const [replays, setReplays] = useState(0);
 
   // ---- starting ------------------------------------------------------------
   useEffect(() => {
@@ -91,7 +99,17 @@ export function TourProvider({ children }: { children: ReactNode }) {
       setRun({ accountId: account.id, role: account.role, steps });
     })();
     return () => { live = false; };
-  }, [account, loading, run]);
+  }, [account, loading, run, replays]);
+
+  const replay = useCallback(() => {
+    if (!account) return;
+    requestReplay(account.id);
+    setRun(null);
+    setGate(null);
+    setFilled([]);
+    setFilling(null);
+    setReplays((n) => n + 1);
+  }, [account]);
 
   // Signed out, or somebody else signed in: the tour belongs to the account.
   const active = run && account?.id === run.accountId ? run : null;
@@ -287,9 +305,11 @@ export function TourProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <TourCtx.Provider value={active ? api : null}>
-      {children}
-      {overlay}
-    </TourCtx.Provider>
+    <ReplayCtx.Provider value={account?.active ? replay : null}>
+      <TourCtx.Provider value={active ? api : null}>
+        {children}
+        {overlay}
+      </TourCtx.Provider>
+    </ReplayCtx.Provider>
   );
 }

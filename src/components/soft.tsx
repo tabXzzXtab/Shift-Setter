@@ -613,25 +613,32 @@ export function SecondaryButton({
 }
 
 /** A grouped list card: 60px rows, 17/700, chevron, divider inset 18. */
-export function GroupedList({ rows }: { rows: { href: string; label: string }[] }) {
+/** A row goes somewhere (href) or does something on this screen (onClick). */
+export type GroupedRow = { label: string } & ({ href: string } | { onClick: () => void });
+
+export function GroupedList({ rows }: { rows: GroupedRow[] }) {
+  const cls = "flex h-[60px] w-full items-center justify-between px-[18px] text-left hover:bg-[#f6f9ff]";
+  const face = (label: string) => (
+    <>
+      <span className="text-[17px] font-bold" style={{ letterSpacing: "-.2px" }}>{label}</span>
+      <ChevronRight />
+    </>
+  );
   return (
     <div
       className="overflow-hidden rounded-[14px]"
       style={{ background: C.surface, boxShadow: SHADOW.group }}
     >
       {rows.map((r, i) => (
-        <div key={r.href}>
+        <div key={r.label}>
           {i > 0 && <div className="ml-[18px] h-px" style={{ background: C.hairline }} />}
-          <Link
-            href={r.href}
-            className="flex h-[60px] items-center justify-between px-[18px] hover:bg-[#f6f9ff]"
-            style={{ color: C.ink }}
-          >
-            <span className="text-[17px] font-bold" style={{ letterSpacing: "-.2px" }}>
-              {r.label}
-            </span>
-            <ChevronRight />
-          </Link>
+          {"href" in r ? (
+            <Link href={r.href} className={cls} style={{ color: C.ink }}>{face(r.label)}</Link>
+          ) : (
+            <button type="button" onClick={r.onClick} className={cls} style={{ color: C.ink }}>
+              {face(r.label)}
+            </button>
+          )}
         </div>
       ))}
     </div>

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { useTourReplay } from "./tour/tour-provider";
 import { SoftNastaPass } from "./nasta-pass-card";
 import {
   C, Card, GroupedList, HomeTitle, SHADOW, SignOut, SoftNotice, SoftSheet,
@@ -52,6 +53,8 @@ const MENU = [
  * the project rows, and neither is a leader's daily work.
  */
 export function HomeArbetsledare() {
+  /** Guide: the first-launch tour again, from its first step. */
+  const replay = useTourReplay();
   const [waiting, setWaiting] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState<"menu" | "profile" | null>(null);
@@ -253,7 +256,7 @@ export function HomeArbetsledare() {
 
       {open === "profile" && (
         <SoftSheet onClose={() => setOpen(null)} label="Profil">
-          <GroupedList rows={[{ href: "/konto", label: "Min profil" }]} />
+          <GroupedList rows={[{ href: "/konto", label: "Min profil" }, ...(replay ? [{ label: "Guide", onClick: () => { setOpen(null); replay?.(); } }] : [])]} />
           {/* One place signs out, whatever the screen around it looks like. */}
           <SignOut quiet />
         </SoftSheet>

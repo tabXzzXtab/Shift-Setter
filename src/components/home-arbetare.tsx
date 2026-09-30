@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { useTourReplay } from "./tour/tour-provider";
 import { SoftNastaPass } from "./nasta-pass-card";
 import { OfferStack, type Offer } from "./offer-stack";
 import { GroupedList, HomeTitle, SignOut, SoftSheet } from "./soft";
@@ -94,6 +95,8 @@ const Chevron = () => (
  * "Logga ut" inside one of them is the app's single SignOut.
  */
 export function HomeArbetare() {
+  /** Guide: the first-launch tour again, from its first step. */
+  const replay = useTourReplay();
   const [shift, setShift] = useState<Shift | null | undefined>(undefined);
   const [offers, setOffers] = useState<Offer[] | null>(null);
   /** Stamped when the offers arrive; see `front` below. */
@@ -600,7 +603,7 @@ export function HomeArbetare() {
 
       {open === "profile" && (
         <SoftSheet onClose={() => setOpen(null)} label="Profil">
-          <GroupedList rows={[{ href: "/konto", label: "Min profil" }]} />
+          <GroupedList rows={[{ href: "/konto", label: "Min profil" }, ...(replay ? [{ label: "Guide", onClick: () => { setOpen(null); replay?.(); } }] : [])]} />
           {/* One place signs out, whatever the screen around it looks like. */}
           <SignOut quiet />
         </SoftSheet>
