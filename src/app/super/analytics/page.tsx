@@ -133,11 +133,11 @@ function AnalysScreen() {
   }, [chosen?.screen, chosen?.role, period, tenant]);
 
   if (loading || isSuper === null) {
-    return <SoftScreen title="Analys" back="/super"><div className="px-4 pt-[14px]" /></SoftScreen>;
+    return <SoftScreen title="Se användningen" back="/super"><div className="px-4 pt-[14px]" /></SoftScreen>;
   }
   if (!isSuper) {
     return (
-      <SoftScreen title="Analys" back="/">
+      <SoftScreen title="Se användningen" back="/">
         <div className="px-4 pt-[2px]">
           <SoftNotice tone="quiet">Den här sidan är för dem som driver ByggKoll.</SoftNotice>
         </div>
@@ -153,9 +153,8 @@ function AnalysScreen() {
 
   return (
     <SoftScreen
-      title="Analys"
+      title="Se användningen"
       back="/super"
-      subtitle="Tid per skärm och var man trycker. Inga namn, bara roll och företag."
     >
       {error && <div className="px-4 pt-[10px]"><SoftNotice tone="stop">{error}</SoftNotice></div>}
 

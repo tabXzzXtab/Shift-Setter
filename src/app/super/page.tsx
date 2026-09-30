@@ -106,12 +106,12 @@ function SuperScreen() {
   }
 
   if (loading || isSuper === null) {
-    return <SoftScreen title="Företag"><div className="px-4 pt-[14px]" /></SoftScreen>;
+    return <SoftScreen title="Välj ett företag"><div className="px-4 pt-[14px]" /></SoftScreen>;
   }
 
   if (!isSuper) {
     return (
-      <SoftScreen title="Företag" back="/">
+      <SoftScreen title="Välj ett företag" back="/">
         <div className="px-4 pt-[2px]">
           <SoftNotice tone="quiet">
             Den här sidan är för dem som driver ByggKoll. Ditt konto hör till ett
@@ -124,9 +124,8 @@ function SuperScreen() {
 
   return (
     <SoftScreen
-      title="Företag"
+      title="Välj ett företag"
       back="/"
-      subtitle="Välj ett företag för att arbeta inuti det."
     >
       {error && <div className="px-4 pt-[10px]"><SoftNotice tone="stop">{error}</SoftNotice></div>}
 
