@@ -36,10 +36,18 @@ in production.
 
 ## 1. The design language
 
-Light, quiet, heavy where it counts. Cards on a warm-free pale blue ground, no borders
-anywhere — a soft shadow *is* the edge. One accent, used only on numbers that change
-and on the single most important action per screen. Radii are small and consistent;
-nothing is pill-shaped except status tags.
+Light, quiet, heavy where it counts. White cards flat on a pale blue ground — the white
+against the blue *is* the edge; shadows are kept for what should stand up (the hero, a
+sheet, a dialog, the primary action). One accent, on the single most important action
+per screen, the selected state and today. Contrast comes from SIZE: big titles and big
+numbers over regular-weight copy.
+
+**The Ro / GO Club pass (2026-09-30).** Buttons are pills. Inputs are white with a
+hairline border. Lists are separate tiles with gaps, not grouped cards with dividers.
+Numbers a screen exists to show are 34px ink with a small grey label under them. Empty
+states are a sentence, not a box. The values below are the current ones; where a
+screen section further down still names an older figure (64px primary, radius 10
+inputs, grouped rows), this section wins.
 
 ### Colour
 
@@ -74,14 +82,14 @@ Inter (or the codebase's UI font). Tabular figures wherever a number can change.
 
 | Role | Spec |
 | --- | --- |
-| Display XL | 34px / 800 / −1.4px — the hero number (shift span, "2 dagar") |
+| Display XL | 34px / 800 / −1.4px, **ink** — every figure a screen exists to show (hours, counts, platser, "2 dagar"), with a 13px / 500 `#4a5578` label under it. Component: `BigNumber` |
 | Display L | 26px / 800 / −0.9px — screen subject (project name on a review screen) |
 | Display M | 23px / 800 / −0.5px — primary action label |
 | Hours input | 26px / 800 / −0.6px — typed hours; the biggest thing in its card |
-| Title L | 22px / 800 / −0.7px — screen title next to the back button |
+| Title L | 28px / 800 / −1px, line-height 1.1 — screen title, sub-screen and home alike |
 | Title M | 18–19px / 700 / −0.4px — card subject, list row heading |
 | Row label | 17px / 700 / −0.2px — grouped list rows |
-| Body | 16px / 600 (inputs) · 15px / 500 (copy) — never below 15px |
+| Body | 16px / 500 (inputs) · 15px / 400 (copy) — never below 15px. Bold carries meaning; copy does not |
 | Kicker | 12px / 700, +1px, uppercase — section labels, day headers, field labels |
 | Tag | 12px / 700, +0.4px — status pills |
 
@@ -90,15 +98,14 @@ Inter (or the codebase's UI font). Tabular figures wherever a number can change.
 - Gutter 16px on every screen. Card padding 18–20px. Divider inset 18px from the left.
 - Block rhythm: 14px between adjacent cards, 26px between sections. Section label sits
   **outside** its card, 10px above it.
-- Radius: 9 map · 10 buttons/inputs/inset panels · 11 icon buttons · 12 primary buttons
-  and segmented track · 14 grouped cards & empty states · 15 offer card · 16 hero and
-  form cards · 22 sheet/phone · 999 tags.
-- Shadow: flat `0 1px 3px rgba(9,21,64,.08)` · group `0 4px 18px rgba(9,21,64,.07), 0 1px 2px rgba(9,21,64,.04)`
+- Radius: 9 map · 11 icon buttons · 12 segmented track · 14 inputs · 16 cards and list
+  tiles · 20 hero cards, dialogs, sheets · 999 buttons and tags.
+- Shadow: flat `0 1px 3px rgba(9,21,64,.08)` · group `0 1px 2px rgba(9,21,64,.04)` (ordinary cards — near flat)
   · hero `0 8px 28px rgba(9,21,64,.09), 0 1px 2px rgba(9,21,64,.05)`
   · offer `0 10px 30px rgba(9,21,64,.10), 0 1px 2px rgba(9,21,64,.05)`
   · action `0 6px 18px rgba(27,44,193,.28)` · sheet `0 -12px 40px rgba(9,21,64,.22)`.
 - Tap targets: 44 icon buttons · 44 calendar cells and segmented options · 48 min ·
-  54 accept/deny · 60 list rows and secondary actions · 64–66 the one primary action.
+  54 secondary pills and accept/deny · 56 the one primary pill · 60 list tiles.
   Nothing below 44.
 
 ### States & motion
@@ -112,13 +119,21 @@ Respect reduced-motion: drop the status-dot pulse and the press scale.
 ### Shared components
 
 - **Icon button** 44×44, radius 11, white, flat shadow.
-- **Sub-screen header** back icon button + 22/800 title, flush left, 14/16/12 padding.
-  A one-line 15/500 `#4a5578` subtitle may sit under it, indented 72px to clear the button.
-- **Grouped list card** rows 60px, 17/700 label, `#8b98c4` chevron, 1px `#e3eafb`
-  divider inset 18px.
-- **Empty state** `#e7edfb`, radius 14, centred; 17/700 headline + 15/500 `#4a5578` line.
-- **Field** 12/700 uppercase label (+ optional 14/500 help line) over a 52px `#eef3fe`
-  input, radius 10, no border, accent focus ring. Hours fields are 60px tall with 26/800 text.
+- **Sub-screen header** back icon button + 28/800 title, flush left, 14/16/12 padding.
+  A one-line 15/400 `#4a5578` subtitle may sit under it, indented 72px to clear the button.
+- **List** separate white tiles, 60px, radius 16, 8px apart, no dividers, no shadow;
+  17/700 label, `#8b98c4` chevron. White, not `#eef3fe`: panel-2 on the ground is too
+  close to read as an edge.
+- **Empty state** no box. Left-aligned 20/600 sentence, a 15/400 `#4a5578` line, then
+  the next action if there is one.
+- **Big number** 34/800 ink, −1.4px, unit at 18/700 beside it, 13/500 `#4a5578` label under.
+- **Field** 12/700 uppercase label (+ optional 14/500 help line) over a 52px white input,
+  radius 14, 1px `#e3eafb` border that turns accent on focus. Hours fields are 60px tall
+  with 26/800 text.
+- **Buttons** pills. Primary 56px accent, 17/700, action shadow. Secondary 54px
+  `#eef3fe`, ink label. Danger 56px `#fbe9ec` / `#8e1d15`. Disabled `#e3eafb` / `#8b98c4`.
+- **Dialog** white, radius 20, hero shadow, capped at the viewport with 16px clear on
+  every side; its content scrolls inside it.
 - **Segmented control** 4px-padded `#e7edfb` track, radius 12; active option is a white
   9px-radius thumb with the flat shadow, 44px tall.
 - **Calendar** 7-column grid, 44px cells, radius 10, no borders. Today = 2px inset ink
@@ -126,7 +141,7 @@ Respect reduced-motion: drop the status-dot pulse and the press scale.
   1.5px `#f0cdd2` inset ring and `#8e1d15` numeral. Past = transparent, `#8b98c4`,
   not tappable. Weekday letters 11px/700 `#4a5578` (weekend 600).
 - **Status tag** pill, 12/700, one of the three signal pairs.
-- **Bottom sheet** (menus) `#f3f6fd`, radius 22 top, 38×4 grab handle, scrim
+- **Bottom sheet** (menus) `#f3f6fd`, radius 20 top, 38×4 grab handle, scrim
   `rgba(9,21,64,.42)`, sheet shadow, grouped list inside, "Stäng" secondary button.
 
 ---

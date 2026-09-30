@@ -528,8 +528,8 @@ try {
   }
   // 22 on the two top corners and 0 on the two bottom ones -- which is what
   // makes it a sheet rising off the edge rather than a floating card.
-  if (sheetRadius !== "22px 22px 0px 0px") {
-    fail(`the sheet radius is ${sheetRadius}, the handoff says 22px on the top corners only`);
+  if (sheetRadius !== "20px 20px 0px 0px") {
+    fail(`the sheet radius is ${sheetRadius}, the handoff says 20px on the top corners only`);
   }
   if (!sheetShadow.includes("rgba(9, 21, 64, 0.22)")) {
     fail(`the sheet has no upward shadow: ${sheetShadow}`);
@@ -596,7 +596,9 @@ try {
   if (parseFloat(utBorder) > 0) {
     fail(`Logga ut still carries a ${utBorder} border -- SignOut is missing its \`soft\` prop`);
   }
-  if (utRadius !== "12px") fail(`Logga ut radius is ${utRadius}, the design says 12`);
+  // A pill since the Ro pass: the radius resolves to at least half the height.
+  const utHeight = await ut.evaluate((el) => el.getBoundingClientRect().height);
+  if (!(parseFloat(utRadius) >= utHeight / 2)) fail(`Logga ut radius is ${utRadius}, the design says a pill`);
   const utBg = await ut.evaluate((el) => getComputedStyle(el).backgroundColor);
   if (utBg !== "rgba(0, 0, 0, 0)") fail(`Logga ut is filled ${utBg}; in a sheet it is a text button (SignOut quiet)`);
   if (utColour !== "rgb(142, 29, 21)") {

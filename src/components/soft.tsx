@@ -49,9 +49,16 @@ export const C = {
   stopBg: "#fbe9ec",
 } as const;
 
+/**
+ * FLAT BY DEFAULT. A card on the ground is told apart by its white against the
+ * pale blue, not by a shadow under it -- the Ro pass (handoff §1). `group`, the
+ * shadow every ordinary card used to wear, is now a hairline's worth of depth;
+ * hero, offer, sheet and the action shadow keep their lift because those are
+ * the things on a screen that should stand up.
+ */
 export const SHADOW = {
   flat: "0 1px 3px rgba(9,21,64,.08)",
-  group: "0 4px 18px rgba(9,21,64,.07), 0 1px 2px rgba(9,21,64,.04)",
+  group: "0 1px 2px rgba(9,21,64,.04)",
   hero: "0 8px 28px rgba(9,21,64,.09), 0 1px 2px rgba(9,21,64,.05)",
   offer: "0 10px 30px rgba(9,21,64,.10), 0 1px 2px rgba(9,21,64,.05)",
   action: "0 6px 18px rgba(27,44,193,.28)",
@@ -77,18 +84,18 @@ export const ChevronRight = ({ colour = C.chevron }: { colour?: string }) => (
 /**
  * A landing page's two lines, under its bar of icon buttons: what to do now,
  * and -- only when something can go wrong -- what to check first. The same
- * 22/800 and 15/500 as every sub-screen's title and subtitle, so a home reads
+ * 28/800 and 15/400 as every sub-screen's title and subtitle, so a home reads
  * like any other screen, just without a back button. Dynamic by design: the
  * caller passes whatever the screen's state makes true.
  */
 export function HomeTitle({ title, line }: { title: string; line?: string | null }) {
   return (
     <div className="px-5 pb-[14px] pt-[2px]">
-      <h1 className="text-[22px] font-extrabold" style={{ letterSpacing: "-.7px" }}>
+      <h1 className="text-[28px] font-extrabold leading-[1.1]" style={{ letterSpacing: "-1px" }}>
         {title}
       </h1>
       {line && (
-        <p className="mt-[2px] text-[15px] font-medium" style={{ color: C.text2, textWrap: "pretty" }}>
+        <p className="mt-1 text-[15px] font-normal" style={{ color: C.text2, textWrap: "pretty" }}>
           {line}
         </p>
       )}
@@ -119,7 +126,7 @@ export function IconButton({
 }
 
 /**
- * A sub-screen: the ground, the back button, the 22/800 title, and an optional
+ * A sub-screen: the ground, the back button, the 28/800 title, and an optional
  * subtitle indented 72px so it clears the button rather than wrapping under it.
  */
 export function SoftScreen({
@@ -150,7 +157,7 @@ export function SoftScreen({
         {/* An empty title draws no heading: an end state's SoftDone carries
             the page's heading itself, centred, rather than saying it twice. */}
         {title && (
-          <h1 className="min-w-0 flex-1 text-[22px] font-extrabold" style={{ letterSpacing: "-.7px" }}>
+          <h1 className="min-w-0 flex-1 text-[28px] font-extrabold leading-[1.1]" style={{ letterSpacing: "-1px" }}>
             {title}
           </h1>
         )}
@@ -159,7 +166,7 @@ export function SoftScreen({
 
       {subtitle && (
         <p
-          className={`pb-[10px] pr-4 text-[15px] font-medium ${back ? "pl-[72px]" : "pl-4"}`}
+          className={`pb-[10px] pr-4 text-[15px] font-normal ${back ? "pl-[72px]" : "pl-4"}`}
           style={{ color: C.text2, textWrap: "pretty" }}
         >
           {subtitle}
@@ -171,7 +178,7 @@ export function SoftScreen({
   );
 }
 
-/** A white card. radius 16 for forms and heroes, 14 for grouped lists. */
+/** A white card, flat on the ground. Radius 16; 20 for a hero. */
 export function Card({
   children, radius = 16, pad = "p-[18px] pb-5", shadow = SHADOW.group, className = "",
 }: {
@@ -204,21 +211,62 @@ export function SectionLabel({ children }: { children: ReactNode }) {
 }
 
 /**
- * The empty state: #e7edfb, radius 14, centred. A headline plus a line when
- * there is something to explain, one line when there is not.
+ * The empty state: NO BOX. A plain sentence, left-aligned, then one grey line,
+ * then -- when there is one -- the thing to do about it. An empty list is a
+ * moment to say what happens next, not a grey slab saying "nothing".
  */
-export function EmptyState({ headline, children }: { headline?: string; children: ReactNode }) {
+export function EmptyState({
+  headline, children, action,
+}: {
+  headline?: string;
+  children: ReactNode;
+  /** The next step, drawn directly under the line. */
+  action?: ReactNode;
+}) {
   return (
-    <div
-      className={`rounded-[14px] text-center ${headline ? "px-[22px] py-[34px]" : "p-[22px]"}`}
-      style={{ background: C.panel }}
-    >
+    <div className="px-1 py-[10px]">
       {headline && (
-        <div className="mb-1 text-[17px] font-bold" style={{ letterSpacing: "-.2px" }}>
+        <div className="mb-1 text-[20px] font-semibold leading-[1.25]" style={{ letterSpacing: "-.4px", textWrap: "pretty" }}>
           {headline}
         </div>
       )}
-      <div className="text-[15px] font-medium" style={{ color: C.text2 }}>{children}</div>
+      <div
+        className={headline ? "text-[15px] font-normal" : "text-[17px] font-medium leading-[1.35]"}
+        style={{ color: headline ? C.text2 : C.ink, textWrap: "pretty" }}
+      >
+        {children}
+      </div>
+      {action && <div className="pt-[14px]">{action}</div>}
+    </div>
+  );
+}
+
+/**
+ * The GO Club number: huge, heavy, ink, with a small grey label under it.
+ * Hours, counts, platser -- any figure a screen exists to show. Ink rather
+ * than accent: the size already says "this is the point", and accent stays
+ * for the one action.
+ */
+export function BigNumber({
+  value, unit, label, align = "left",
+}: {
+  value: ReactNode;
+  /** "h", "st" -- set smaller beside the figure, so the number stays the number. */
+  unit?: string;
+  label?: ReactNode;
+  align?: "left" | "right" | "center";
+}) {
+  return (
+    <div className={align === "right" ? "text-right" : align === "center" ? "text-center" : ""}>
+      <div className="text-[34px] font-extrabold leading-none" style={{ letterSpacing: "-1.4px", color: C.ink }}>
+        {value}
+        {unit && <span className="ml-[3px] text-[18px] font-bold" style={{ letterSpacing: "-.3px" }}>{unit}</span>}
+      </div>
+      {label && (
+        <div className="mt-[6px] text-[13px] font-medium" style={{ color: C.text2 }}>
+          {label}
+        </div>
+      )}
     </div>
   );
 }
@@ -374,8 +422,8 @@ export function Segmented<T extends string>({
 }
 
 /**
- * A field: 12/700 uppercase label over a 52px #eef3fe input, radius 10, no
- * border, accent focus ring. `big` is the hours variant -- 60px at 26/800,
+ * A field: 12/700 uppercase label over a 52px white input, radius 14, a 1px
+ * #e3eafb border that turns accent on focus -- Ro's field, in the handoff's inks. `big` is the hours variant -- 60px at 26/800,
  * because on a confirmation screen the hours are the biggest thing in the card.
  */
 export function SoftField({
@@ -439,12 +487,12 @@ export function SoftInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
   if (picker) {
     return (
       <span
-        className="flex h-[52px] w-full min-w-0 overflow-hidden rounded-[10px] outline-none focus-within:bg-white focus-within:outline-2 focus-within:outline-[#1b2cc1]"
-        style={{ background: C.panel2 }}
+        className="flex h-[52px] w-full min-w-0 overflow-hidden rounded-[14px] border border-[#e3eafb] outline-none focus-within:border-[#1b2cc1] focus-within:outline-1 focus-within:outline-[#1b2cc1]"
+        style={{ background: C.surface }}
       >
         <input
           {...rest}
-          className={`h-full w-full min-w-0 border-0 bg-transparent px-[14px] text-[16px] font-semibold outline-none ${className}`}
+          className={`h-full w-full min-w-0 border-0 bg-transparent px-[14px] text-[16px] font-medium outline-none ${className}`}
           style={{
             color: C.ink,
             WebkitAppearance: "none",
@@ -460,8 +508,8 @@ export function SoftInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
   return (
     <input
       {...rest}
-      className={`h-[52px] w-full min-w-0 rounded-[10px] border-0 px-[14px] text-[16px] font-semibold outline-none focus:bg-white focus:outline-2 focus:outline-[#1b2cc1] ${className}`}
-      style={{ background: C.panel2, color: C.ink, ...style }}
+      className={`h-[52px] w-full min-w-0 rounded-[14px] border border-[#e3eafb] px-[14px] text-[16px] font-medium outline-none focus:border-[#1b2cc1] focus:outline-1 focus:outline-[#1b2cc1] ${className}`}
+      style={{ background: C.surface, color: C.ink, ...style }}
     />
   );
 }
@@ -478,8 +526,8 @@ export function SoftTextarea(props: React.TextareaHTMLAttributes<HTMLTextAreaEle
   return (
     <textarea
       {...rest}
-      className={`min-h-[76px] w-full resize-y rounded-[10px] border-0 p-[14px] text-[16px] font-medium leading-[1.45] outline-none focus:bg-white focus:outline-2 focus:outline-[#1b2cc1] ${className}`}
-      style={{ background: C.panel2, color: C.ink, ...style }}
+      className={`min-h-[76px] w-full resize-y rounded-[14px] border border-[#e3eafb] p-[14px] text-[16px] font-medium leading-[1.45] outline-none focus:border-[#1b2cc1] focus:outline-1 focus:outline-[#1b2cc1] ${className}`}
+      style={{ background: C.surface, color: C.ink, ...style }}
     />
   );
 }
@@ -497,9 +545,9 @@ export function SoftSelect(props: React.SelectHTMLAttributes<HTMLSelectElement>)
   return (
     <select
       {...rest}
-      className={`h-[52px] w-full min-w-0 cursor-pointer appearance-none rounded-[10px] border-0 py-0 pl-[14px] pr-[38px] text-[16px] font-semibold outline-none focus:bg-white focus:outline-2 focus:outline-[#1b2cc1] ${className}`}
+      className={`h-[52px] w-full min-w-0 cursor-pointer appearance-none rounded-[14px] border border-[#e3eafb] py-0 pl-[14px] pr-[38px] text-[16px] font-medium outline-none focus:border-[#1b2cc1] focus:outline-1 focus:outline-[#1b2cc1] ${className}`}
       style={{
-        background: `${C.panel2} url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='13' height='8' viewBox='0 0 13 8' fill='none'%3E%3Cpath d='M1.5 1.5 6.5 6.5l5-5' stroke='%238b98c4' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 14px center`,
+        background: `${C.surface} url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='13' height='8' viewBox='0 0 13 8' fill='none'%3E%3Cpath d='M1.5 1.5 6.5 6.5l5-5' stroke='%238b98c4' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 14px center`,
         color: C.ink,
         ...style,
       }}
@@ -510,7 +558,7 @@ export function SoftSelect(props: React.SelectHTMLAttributes<HTMLSelectElement>)
 /**
  * The one control in the app that destroys something: 56px, #fbe9ec, #8e1d15.
  *
- * NEVER THE LOUDEST BUTTON ON ITS SCREEN. It is shorter than the 64px primary
+ * NEVER THE LOUDEST BUTTON ON ITS SCREEN. It carries no shadow, unlike the primary
  * above it and it is a tint rather than a fill, because the handoff puts "Ta
  * bort projekt" below "Spara ändringar" and separated by 26px -- deletion is
  * reachable, not offered.
@@ -547,7 +595,7 @@ export function DangerButton({
       aria-label={label}
       className={`press-scale flex items-center justify-center rounded-[12px] text-[17px] font-bold transition-transform duration-[110ms] active:scale-[.985] ${
         solid ? "hover:bg-[#71170f]" : "hover:bg-[#f6d8dd]"
-      } ${full ? "h-14 w-full" : "h-12 w-12 rounded-[10px]"}`}
+      } ${full ? "h-14 w-full !rounded-full" : "h-12 w-12"}`}
       style={{
         letterSpacing: "-.2px",
         background: solid ? C.stopInk : C.stopBg,
@@ -561,7 +609,7 @@ export function DangerButton({
   );
 }
 
-/** The one primary action per screen: 64px, accent, its own shadow. */
+/** The one primary action per screen: a 56px accent pill with its own shadow. */
 export function PrimaryButton({
   children, onClick, disabled, type = "button",
 }: {
@@ -575,9 +623,9 @@ export function PrimaryButton({
       type={type}
       onClick={onClick}
       disabled={disabled}
-      className="press-scale h-16 w-full rounded-[12px] text-[20px] font-extrabold transition-[transform,background] duration-150 active:scale-[.985]"
+      className="press-scale h-14 w-full rounded-full text-[17px] font-bold transition-[transform,background] duration-150 active:scale-[.985]"
       style={{
-        letterSpacing: "-.4px",
+        letterSpacing: "-.2px",
         background: disabled ? C.hairline : C.accent,
         color: disabled ? C.chevron : C.surface,
         boxShadow: disabled ? undefined : SHADOW.action,
@@ -589,7 +637,7 @@ export function PrimaryButton({
   );
 }
 
-/** 60px, #eef3fe, ink label. The second-rank action. */
+/** A 54px #eef3fe pill, ink label. The second-rank action. */
 export function SecondaryButton({
   children, onClick, href, disabled,
 }: {
@@ -599,7 +647,7 @@ export function SecondaryButton({
   disabled?: boolean;
 }) {
   const cls =
-    "press-scale flex h-[60px] w-full items-center justify-center rounded-[12px] text-[17px] font-bold " +
+    "press-scale flex h-[54px] w-full items-center justify-center rounded-full text-[17px] font-bold " +
     "transition-transform duration-[110ms] hover:bg-[#dbe4f9] active:scale-[.985]";
   const style = {
     letterSpacing: "-.2px",
@@ -615,12 +663,17 @@ export function SecondaryButton({
   );
 }
 
-/** A grouped list card: 60px rows, 17/700, chevron, divider inset 18. */
+/**
+ * A list, Ro's way: every row its own white tile, radius 16, 8px apart, no
+ * dividers and no shadow -- the gap is the separator. White rather than
+ * #eef3fe, because #eef3fe on the #f3f6fd ground is a difference the eye cannot
+ * find; white on it is the contrast Ro gets from grey on white.
+ */
 /** A row goes somewhere (href) or does something on this screen (onClick). */
 export type GroupedRow = { label: string } & ({ href: string } | { onClick: () => void });
 
 export function GroupedList({ rows }: { rows: GroupedRow[] }) {
-  const cls = "flex h-[60px] w-full items-center justify-between px-[18px] text-left hover:bg-[#f6f9ff]";
+  const cls = "flex h-[60px] w-full items-center justify-between rounded-[16px] px-[18px] text-left hover:bg-[#f6f9ff]";
   const face = (label: string) => (
     <>
       <span className="text-[17px] font-bold" style={{ letterSpacing: "-.2px" }}>{label}</span>
@@ -628,17 +681,13 @@ export function GroupedList({ rows }: { rows: GroupedRow[] }) {
     </>
   );
   return (
-    <div
-      className="overflow-hidden rounded-[14px]"
-      style={{ background: C.surface, boxShadow: SHADOW.group }}
-    >
-      {rows.map((r, i) => (
+    <div className="flex flex-col gap-2">
+      {rows.map((r) => (
         <div key={r.label}>
-          {i > 0 && <div className="ml-[18px] h-px" style={{ background: C.hairline }} />}
           {"href" in r ? (
-            <Link href={r.href} className={cls} style={{ color: C.ink }}>{face(r.label)}</Link>
+            <Link href={r.href} className={cls} style={{ color: C.ink, background: C.surface }}>{face(r.label)}</Link>
           ) : (
-            <button type="button" onClick={r.onClick} className={cls} style={{ color: C.ink }}>
+            <button type="button" onClick={r.onClick} className={cls} style={{ color: C.ink, background: C.surface }}>
               {face(r.label)}
             </button>
           )}
@@ -869,8 +918,8 @@ export function SignOut({ quiet = false }: { quiet?: boolean } = {}) {
       }}
       className={
         quiet
-          ? "press-scale mt-2 flex h-12 w-full items-center justify-center rounded-[12px] text-[16px] font-bold transition-transform duration-[110ms] hover:bg-[#eef3fe] active:scale-[.985]"
-          : "press-scale mt-3 flex h-14 w-full items-center justify-center rounded-[12px] text-[17px] font-bold transition-transform duration-[110ms] hover:bg-[#f6f9ff] active:scale-[.985]"
+          ? "press-scale mt-2 flex h-12 w-full items-center justify-center rounded-full text-[16px] font-bold transition-transform duration-[110ms] hover:bg-[#eef3fe] active:scale-[.985]"
+          : "press-scale mt-3 flex h-14 w-full items-center justify-center rounded-full text-[17px] font-bold transition-transform duration-[110ms] hover:bg-[#f6f9ff] active:scale-[.985]"
       }
       style={
         quiet
@@ -902,9 +951,9 @@ export function SoftDone({ title, line }: { title: string; line?: ReactNode }) {
             strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       </span>
-      <h1 className="text-[22px] font-extrabold" style={{ letterSpacing: "-.7px" }}>{title}</h1>
+      <h1 className="text-[28px] font-extrabold leading-[1.1]" style={{ letterSpacing: "-1px" }}>{title}</h1>
       {line && (
-        <p className="mx-auto mt-1 max-w-[320px] text-[15px] font-medium" style={{ color: C.text2, textWrap: "pretty" }}>
+        <p className="mx-auto mt-[6px] max-w-[320px] text-[15px] font-normal" style={{ color: C.text2, textWrap: "pretty" }}>
           {line}
         </p>
       )}
@@ -978,29 +1027,37 @@ export function SoftDialog({
 
   return (
     <div
-      className="fixed inset-0 z-50 overflow-y-auto p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
       style={{ background: "rgba(9,21,64,.42)" }}
       role="dialog"
       aria-modal="true"
       aria-label={label}
     >
+      {/* CAPPED AT THE VIEWPORT, 16px clear on every side, and the content
+          scrolls inside it. The scrim used to scroll instead, so a long list
+          -- Avboka Pass on an arbetsledare, every candidate who could cover --
+          carried the card's own edge and its buttons off the bottom of a
+          phone (UI audit). */}
       <div
-        className="mx-auto mt-[40px] w-full max-w-[358px] pb-[40px]"
+        className="w-full max-w-[358px] overflow-y-auto overscroll-contain rounded-[20px] p-5"
         style={{
+          maxHeight: "calc(100dvh - 32px)",
+          background: C.surface,
+          boxShadow: SHADOW.hero,
           color: C.ink,
           fontFamily: "var(--font-inter), system-ui, sans-serif",
           fontVariantNumeric: "tabular-nums",
         }}
       >
-        <Card radius={16} shadow={SHADOW.hero} pad="p-[18px]">{children}</Card>
+        {children}
       </div>
     </div>
   );
 }
 
 /**
- * A grouped card of things to pick between -- 60px rows, a chevron, dividers
- * inset 18px. The same object as GroupedList, except these do something here
+ * Things to pick between, as separate white tiles 8px apart -- 60px, a
+ * chevron, no dividers. The same object as GroupedList, except these do something here
  * rather than going somewhere, so they are buttons and carry an onClick.
  */
 export function ChoiceList({
@@ -1010,18 +1067,15 @@ export function ChoiceList({
   disabled?: boolean;
 }) {
   return (
-    <div
-      className="overflow-hidden rounded-[14px]"
-      style={{ background: C.surface, boxShadow: SHADOW.group }}
-    >
-      {choices.map((c, i) => (
+    <div className="flex flex-col gap-2">
+      {choices.map((c) => (
         <div key={c.key}>
-          {i > 0 && <div className="ml-[18px] h-px" style={{ background: C.hairline }} />}
           <button
             type="button"
             onClick={c.onClick}
             disabled={disabled}
-            className={`flex w-full items-center justify-between gap-3 px-[18px] text-left hover:bg-[#f6f9ff] disabled:opacity-40 ${
+            style={{ background: C.surface }}
+            className={`flex w-full rounded-[16px] items-center justify-between gap-3 px-[18px] text-left hover:bg-[#f6f9ff] disabled:opacity-40 ${
               c.sub ? "py-[13px]" : "h-[60px]"
             }`}
           >
@@ -1030,7 +1084,7 @@ export function ChoiceList({
                 {c.label}
               </span>
               {c.sub && (
-                <span className="block text-[15px] font-medium" style={{ color: C.text2 }}>
+                <span className="block text-[15px] font-normal" style={{ color: C.text2 }}>
                   {c.sub}
                 </span>
               )}
@@ -1097,7 +1151,7 @@ export function SoftSheet({
         style={{
           background: C.ground,
           color: C.ink,
-          borderRadius: "22px 22px 0 0",
+          borderRadius: "20px 20px 0 0",
           boxShadow: SHADOW.sheet,
           fontFamily: "var(--font-inter), system-ui, sans-serif",
         }}
@@ -1110,7 +1164,7 @@ export function SoftSheet({
         <button
           type="button"
           onClick={onClose}
-          className="press-scale mt-2 h-12 w-full rounded-[12px] text-[16px] font-bold transition-transform duration-[110ms] hover:bg-[#dbe4f9] active:scale-[.985]"
+          className="press-scale mt-2 h-12 w-full rounded-full text-[16px] font-bold transition-transform duration-[110ms] hover:bg-[#dbe4f9] active:scale-[.985]"
           style={{ letterSpacing: "-.2px", background: C.panel2, color: C.inkHover }}
         >
           Stäng
