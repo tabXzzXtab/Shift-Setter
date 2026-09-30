@@ -6,6 +6,7 @@ import { AuthGate } from "@/components/auth-gate";
 import {
   C, Card, PrimaryButton, SoftField, SoftInput, SoftNotice, SoftScreen, SoftSelect,
 } from "@/components/soft";
+import { CardTitle } from "@/components/card-title";
 import { useTourAutofill } from "@/components/tour/use-tour-autofill";
 import { useAccount } from "@/lib/account";
 import { derivesTenant, getSupabase } from "@/lib/supabase/client";
@@ -159,12 +160,7 @@ function NyttProjekt() {
             project must not be two different forms. */}
         <div className="px-4 pt-[14px]">
           <Card radius={16} pad="p-[18px]">
-            <div
-              className="mb-[14px] text-[12px] font-bold uppercase"
-              style={{ letterSpacing: "1px", color: C.text2 }}
-            >
-              Projektet
-            </div>
+            <CardTitle>Projektet</CardTitle>
 
             <div className="mb-[14px]">
               <SoftField label="Projektnamn">
@@ -218,12 +214,7 @@ function NyttProjekt() {
 
         <div className="px-4 pt-[14px]">
           <Card radius={16} pad="p-[18px]">
-            <div
-              className="mb-1 text-[12px] font-bold uppercase"
-              style={{ letterSpacing: "1px", color: C.text2 }}
-            >
-              Beställaren
-            </div>
+            <CardTitle mb={4}>Beställaren</CardTitle>
             <div className="mb-[14px] text-[14px] font-medium" style={{ color: C.text2 }}>
               Skrivs ut på arbetsdagboken.
             </div>

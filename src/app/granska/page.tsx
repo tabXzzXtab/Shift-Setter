@@ -455,6 +455,11 @@ function Granska({ askedProject, askedDate }: { askedProject: string | null; ask
       </div>
 
       <div className="px-4 pt-[14px]">
+        {/* Said BEFORE the press, as the handoff asks of both review screens
+            (§3.3): once admin_confirmed, nothing edits the day (invariant 5). */}
+        <div className="pb-[14px]">
+          <SoftNotice tone="quiet">Det går inte att ändra efter bekräftelse.</SoftNotice>
+        </div>
         <PrimaryButton onClick={approve} disabled={busy || gjorde.trim() === ""}>
           {busy ? "Sparar…" : day.flagged_as ? "Bekräfta dagen" : "Godkänn"}
         </PrimaryButton>

@@ -218,14 +218,17 @@ function OppnaPass() {
                   </Tag>
                 </div>
 
-                {/* Same height and same fill as Acceptera on the cards: it is
-                    the same act, so it should not look like a lesser one. */}
+                {/* The SECONDARY weight, not the accent. A screen of five offers
+                    carried five equally loud primaries, and the handoff keeps
+                    the accent for the single most important action on a
+                    screen (UI audit). Same 54px as Acceptera: the size says
+                    it is the same act, the fill that there are several. */}
                 <button
                   type="button"
                   onClick={() => void boka(o.pass_id)}
                   disabled={busy !== null}
-                  className="press-scale mt-[14px] h-[54px] w-full rounded-[10px] text-[17px] font-bold text-white transition-transform duration-[120ms] hover:bg-[#12206b] active:scale-[.985] disabled:opacity-60"
-                  style={{ letterSpacing: "-.2px", background: C.accent }}
+                  className="press-scale mt-[14px] h-[54px] w-full rounded-[10px] text-[17px] font-bold transition-transform duration-[120ms] hover:bg-[#dbe4f9] active:scale-[.985] disabled:opacity-60"
+                  style={{ letterSpacing: "-.2px", background: C.panel2, color: C.inkHover }}
                 >
                   {busy === o.pass_id ? "Bokar…" : "Boka Pass"}
                 </button>

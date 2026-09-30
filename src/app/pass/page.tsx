@@ -272,14 +272,23 @@ function AllaPass({ askedProject }: { askedProject: string | null }) {
                   className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-[#f6f9ff]"
                   style={{ color: C.ink }}
                 >
-                  <span className="min-w-0">
-                    <span className="block truncate text-[16px] font-bold" style={{ letterSpacing: "-.3px" }}>
-                      {p.project?.name ?? "Projekt"}
-                    </span>
-                    <span className="block text-[14px] font-medium" style={{ color: C.text2 }}>
+                  {/* Scoped to one project, the title already names it: repeating
+                      it on every row made the heading carry nothing and demoted
+                      the time (UI audit). There the TIME is the heading. */}
+                  {askedProject ? (
+                    <span className="min-w-0 truncate text-[16px] font-bold" style={{ letterSpacing: "-.3px" }}>
                       {hhmm(p.start_time)}–{hhmm(p.end_time)}
                     </span>
-                  </span>
+                  ) : (
+                    <span className="min-w-0">
+                      <span className="block truncate text-[16px] font-bold" style={{ letterSpacing: "-.3px" }}>
+                        {p.project?.name ?? "Projekt"}
+                      </span>
+                      <span className="block text-[14px] font-medium" style={{ color: C.text2 }}>
+                        {hhmm(p.start_time)}–{hhmm(p.end_time)}
+                      </span>
+                    </span>
+                  )}
                   <span className="flex shrink-0 items-center gap-[6px]">
                     {/* Colour is never the only carrier: the running pass gets
                         the live pair AND the word. */}

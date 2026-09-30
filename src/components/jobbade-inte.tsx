@@ -16,17 +16,17 @@ import { C, DangerButton, SecondaryButton, SoftDialog } from "@/components/soft"
  */
 
 /**
- * The mark: a red square, drawn and nothing else.
+ * The mark: the handoff's status tag -- "Ej stämplad" in the warn pair.
  *
- * NO TILE BEHIND IT. Every other icon control in the app sits on a fill --
- * the Konton trash on #fbe9ec, the Dag-panel remove on the same -- because
- * those are buttons among other buttons and need an edge. This one sits at the
- * end of a name on a card that has no other controls in that line, and a
- * second rounded rectangle inside a card made of rounded rectangles reads as a
- * badge rather than as something to press. The square IS the affordance.
+ * A WORD, NOT A SQUARE. It used to be a 14px red square in a 28px target: a
+ * signal in colour alone, under the 44px minimum, and not recognisable as the
+ * thing to press (UI audit, Granska). The handoff draws the unstamped state as
+ * a tag ("Ej utstämplad", amber) and says colour is never the only carrier, so
+ * this is that tag, pressable.
  *
- * The tap target is still 28px around a 14px glyph, and the negative margin
- * keeps that from pushing the name's line taller than it was.
+ * The tap target is the full 44px; the pill inside it is the tag's own size,
+ * and the negative margin keeps the target from pushing the name's line
+ * taller than it was.
  */
 export function EjStampladMark({
   name, onClick, disabled,
@@ -44,11 +44,14 @@ export function EjStampladMark({
       aria-label={`Jobbade ${name} inte idag?`}
       onClick={onClick}
       disabled={disabled}
-      className="press-scale -my-[7px] flex h-[28px] w-[28px] shrink-0 items-center justify-center transition-transform duration-[110ms] active:scale-[.92] disabled:opacity-40"
+      className="press-scale -my-[9px] flex h-11 shrink-0 items-center transition-transform duration-[110ms] active:scale-[.97] disabled:opacity-40"
     >
-      <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden>
-        <rect width="14" height="14" rx="3" fill={C.stopInk} />
-      </svg>
+      <span
+        className="inline-flex items-center whitespace-nowrap rounded-full px-[10px] py-[5px] text-[12px] font-bold"
+        style={{ letterSpacing: ".4px", color: C.tagWarnInk, background: C.warnBg }}
+      >
+        Ej stämplad
+      </span>
     </button>
   );
 }

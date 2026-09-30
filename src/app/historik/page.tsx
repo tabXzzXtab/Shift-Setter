@@ -196,7 +196,11 @@ function AttGranska() {
                   <div className="text-[18px] font-bold" style={{ letterSpacing: "-.4px" }}>
                     {d.project_name}
                   </div>
-                  <div className="shrink-0 text-[15px] font-bold" style={{ color: C.accent }}>
+                  {/* Accent only for a real figure. A day with no hours yet is
+                      #4a5578, as "0 h" is on the startsida -- in accent the dash
+                      read as a minus or a collapse control (UI audit). */}
+                  <div className="shrink-0 text-[15px] font-bold"
+                       style={{ color: d.hours === null ? C.text2 : C.accent }}>
                     {d.hours === null ? "—" : `${hh(d.hours)} h`}
                   </div>
                 </div>
@@ -465,7 +469,10 @@ function Historik() {
               <div className="mt-[6px] text-[15px] font-medium" style={{ color: C.text2 }}>
                 {routeLabel(d.route, d.reviewed_by_name)}
               </div>
-              <div className="mt-[2px] text-[14px] font-medium" style={{ color: C.chevron }}>
+              {/* #4a5578, not #8b98c4: the handoff keeps that for chevrons and
+                  disabled labels, never text. Kept rather than dropped -- it
+                  carries the names and "arkiverad", which the line above does not. */}
+              <div className="mt-[2px] text-[14px] font-medium" style={{ color: C.text2 }}>
                 {d.confirmed_by_name ?? "—"}
                 {d.reviewed_by_name ? ` · godkänd av ${d.reviewed_by_name}` : ""}
                 {d.filed ? " · arkiverad i en arbetsdagbok" : ""}
@@ -478,8 +485,10 @@ function Historik() {
                     className="flex items-baseline justify-between gap-3 py-[8px]"
                     style={i > 0 ? { boxShadow: "inset 0 1px 0 #dbe4f9" } : undefined}
                   >
-                    <span className="text-[15px] font-semibold">{r.worker_name}</span>
-                    <span className="shrink-0 text-[15px] font-bold">
+                    {/* The name gives way, on one line; the span and hours hold
+                        the right edge, so a long name never wraps under them. */}
+                    <span className="min-w-0 flex-1 truncate text-[15px] font-semibold">{r.worker_name}</span>
+                    <span className="shrink-0 text-right text-[15px] font-bold">
                       {r.tider} · {r.hours === null ? "—" : String(r.hours).replace(".", ",")} h
                     </span>
                   </div>

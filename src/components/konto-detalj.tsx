@@ -5,6 +5,7 @@ import {
   Avatar, C, Card, PrimaryButton, SectionLabel, SHADOW, SoftField, SoftInput,
   SoftNotice, SoftScreen, SoftSelect, SoftToast,
 } from "@/components/soft";
+import { CardTitle } from "@/components/card-title";
 import { getSupabase } from "@/lib/supabase/client";
 import { useAccount, type Role } from "@/lib/account";
 import { removeAvatar, signAvatar, uploadAvatar } from "@/lib/avatar";
@@ -402,10 +403,7 @@ export function KontoDetalj({ askedId }: { askedId: string | null }) {
         // data-card so a test can ask which card a field is in.
         <div key={card.title} data-card={card.title} className="px-4 pt-[14px]">
           <Card>
-            <div className="mb-[14px] text-[12px] font-bold uppercase"
-                 style={{ letterSpacing: "1px", color: C.text2 }}>
-              {card.title}
-            </div>
+            <CardTitle>{card.title}</CardTitle>
             <div className="flex flex-col gap-[14px]">
               {card.rows.map((r, i) => (
                 <div key={i} className="flex gap-[10px]">
@@ -465,7 +463,7 @@ export function KontoDetalj({ askedId }: { askedId: string | null }) {
       {form.har_foretag && (
         <div className="px-4 pt-[14px]">
           <Card>
-            <SectionLabel>Företag</SectionLabel>
+            <CardTitle>Företag</CardTitle>
             <div className="flex flex-col gap-[14px]">
               {COMPANY.map(([k, label, type]) => (
                 <SoftField key={k} label={label}>

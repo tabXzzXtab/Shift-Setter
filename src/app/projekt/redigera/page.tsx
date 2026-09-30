@@ -8,6 +8,7 @@ import {
   C, Card, DangerButton, PrimaryButton, SecondaryButton, SoftField, SoftInput,
   SoftNotice, SoftScreen, SoftToast,
 } from "@/components/soft";
+import { CardTitle } from "@/components/card-title";
 import { getSupabase } from "@/lib/supabase/client";
 import { fel } from "@/lib/fel";
 
@@ -218,12 +219,7 @@ function RedigeraProjekt({ id }: { id: string | null }) {
       <form onSubmit={onSave}>
         <div className="px-4 pt-[2px]">
           <Card radius={16} pad="p-[18px]">
-            <div
-              className="mb-[14px] text-[12px] font-bold uppercase"
-              style={{ letterSpacing: "1px", color: C.text2 }}
-            >
-              Projektet
-            </div>
+            <CardTitle>Projektet</CardTitle>
             {PROJEKTET.map((f) => (
               <div key={f.key} className="mb-[14px]">{field(f)}</div>
             ))}
@@ -239,12 +235,7 @@ function RedigeraProjekt({ id }: { id: string | null }) {
 
         <div className="px-4 pt-[14px]">
           <Card radius={16} pad="p-[18px]">
-            <div
-              className="mb-1 text-[12px] font-bold uppercase"
-              style={{ letterSpacing: "1px", color: C.text2 }}
-            >
-              Beställaren
-            </div>
+            <CardTitle mb={4}>Beställaren</CardTitle>
             <div className="mb-[14px] text-[14px] font-medium" style={{ color: C.text2 }}>
               Skrivs ut på arbetsdagboken.
             </div>
@@ -278,7 +269,6 @@ function RedigeraProjekt({ id }: { id: string | null }) {
         {!confirming ? (
           <>
             <DangerButton
-              solid
               onClick={() => {
                 setError(null);
                 setConfirming(true);

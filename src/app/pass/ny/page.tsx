@@ -396,6 +396,11 @@ function NyttPass({ asked, fromDay = false }: { asked: string | null; fromDay?: 
       </div>
 
       {/*
+        THE 26px IS A MARGIN, NOT PADDING. A legend is drawn ON the fieldset's
+        top border, so top padding lands BELOW it: the kicker sat flush on the
+        card above with the gap under it instead, reading as that card's
+        caption (UI audit; measured at 0px). Margin puts the gap above.
+
         fieldset/legend, not a label: a label may only name one control, and
         wrapping a whole row of them in one makes its text part of the first
         control's accessible name.
@@ -407,7 +412,7 @@ function NyttPass({ asked, fromDay = false }: { asked: string | null; fromDay?: 
         screen, however hard the row itself is told to shrink. Nothing else in
         the app needs this, because nothing else in the app is a fieldset.
       */}
-      <fieldset className="block min-w-0 border-0 p-0 px-4 pt-[26px]">
+      <fieldset className="mt-[26px] block min-w-0 border-0 p-0 px-4">
         <legend
           className="px-1 pb-1 text-[12px] font-bold uppercase"
           style={{ letterSpacing: "1px", color: C.text2 }}
@@ -527,7 +532,7 @@ function NyttPass({ asked, fromDay = false }: { asked: string | null; fromDay?: 
         </div>
       )}
 
-      <fieldset className="block min-w-0 border-0 p-0 px-4 pt-[26px]">
+      <fieldset className="mt-[26px] block min-w-0 border-0 p-0 px-4">
         <legend
           className="px-1 pb-1 text-[12px] font-bold uppercase"
           style={{ letterSpacing: "1px", color: C.text2 }}
@@ -577,7 +582,16 @@ function NyttPass({ asked, fromDay = false }: { asked: string | null; fromDay?: 
         </div>
       </fieldset>
 
-      <div className="px-4 pt-[26px]">
+      {/* STICKY TO THE FOOT OF THE SCREEN. It sat below the whole hand-pick
+          roster -- every worker in the company, ~7000px down on Bella's data
+          (UI audit) -- so the one action on the screen was the one nobody could
+          find. It rides the bottom edge instead, over a fade of the ground so
+          the list scrolling beneath it stays legible, and above the phone's
+          own home indicator. */}
+      <div
+        className="sticky bottom-0 z-10 px-4 pb-[max(16px,env(safe-area-inset-bottom))] pt-[22px]"
+        style={{ background: `linear-gradient(to top, ${C.ground} 72%, rgba(243,246,253,0))` }}
+      >
         <PrimaryButton
           onClick={generate}
           disabled={
