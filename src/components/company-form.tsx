@@ -78,6 +78,7 @@ export function CompanyForm({
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [form, setForm] = useState({
     address: "", contact_name: "", phone: "", bankgiro: "", momsreg_nr: "",
+    f_skatt: false,
   });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -139,6 +140,7 @@ export function CompanyForm({
             phone: b.phone ?? "",
             bankgiro: b.bankgiro ?? "",
             momsreg_nr: b.momsreg_nr ?? "",
+            f_skatt: b.f_skatt,
           });
         }
         setLogoUrl(await signLogo(b.logo_path));
@@ -148,7 +150,9 @@ export function CompanyForm({
         setRow({
           tenant_id: tenants![0].id, logo_path: null, address: null,
           contact_name: null, phone: null, bankgiro: null, momsreg_nr: null,
-          f_skatt: true,
+          // OFF until the company says so: "Godkänd för F-skatt" is a claim
+          // printed on a legal document, not a default. The column agrees.
+          f_skatt: false,
         });
       }
     })();
@@ -177,6 +181,7 @@ export function CompanyForm({
         phone: orNull(form.phone),
         bankgiro: orNull(form.bankgiro),
         momsreg_nr: orNull(form.momsreg_nr),
+        f_skatt: form.f_skatt,
       }, { onConflict: "tenant_id" });
 
     setBusy(false);
@@ -331,6 +336,33 @@ export function CompanyForm({
             onChange={(e) => { dirty.current = true; setForm((f) => ({ ...f, momsreg_nr: e.target.value })); }}
           />
         </SoftField>
+        {/* The footer prints "Godkänd för F-skatt" only while this is on. The
+            same 26px box the profile form uses for the same question. */}
+        <button
+          type="button"
+          role="checkbox"
+          aria-checked={form.f_skatt}
+          disabled={!isAdmin || busy}
+          onClick={() => { dirty.current = true; setForm((f) => ({ ...f, f_skatt: !f.f_skatt })); }}
+          className="flex h-[52px] w-full items-center justify-between rounded-[10px] px-[14px] disabled:cursor-not-allowed"
+          style={{ background: C.panel2 }}
+        >
+          <span className="text-[16px] font-semibold">Godkänd för F-skatt</span>
+          <span
+            className="flex h-[26px] w-[26px] items-center justify-center rounded-[7px]"
+            style={{
+              background: form.f_skatt ? C.accent : C.surface,
+              boxShadow: form.f_skatt ? undefined : `inset 0 0 0 1.5px ${C.hairline}`,
+            }}
+          >
+            {form.f_skatt && (
+              <svg width="14" height="11" viewBox="0 0 14 11" fill="none" aria-hidden>
+                <path d="M1.5 5.6 5 9.2 12.5 1.6" stroke="#ffffff" strokeWidth="2.4"
+                  strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            )}
+          </span>
+        </button>
       </Card>
 
       {isAdmin && (
