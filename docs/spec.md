@@ -279,7 +279,7 @@ Visible to admin and arbetsledare. Not to arbetare — they see their own shifts
 
 ### Tapping a person in Öppna Dag
 
-**A worker** shows **Avboka Pass** — the trash icon beside the name is the same act. It takes them off that day (Step 5b).
+**A worker** shows **Avboka Pass** — the trash icon beside the name is the same act. It asks first — **Avboka bokning?**, naming the person and the pass, with **Bekräfta** and **Avbryt** — and only Bekräfta takes them off that day (Step 5b).
 
 **An arbetsledare** shows two buttons instead:
 
@@ -522,7 +522,7 @@ More than five days out: the slot reopens and refills down the list normally. In
 
 **Step 5b — Removing a worker from a pass**
 
-The leader taps the day in the calendar, opens Öppna Dag, sees everyone working it, and takes someone off with **Avboka Pass** — the trash icon beside the name. That worker is off that day.
+The leader taps the day in the calendar, opens Öppna Dag, sees everyone working it, and takes someone off with **Avboka Pass** — the trash icon beside the name, confirmed in the **Avboka bokning?** dialog. That worker is off that day.
 
 There is no "move" feature and nothing splits automatically. If that person is needed on another day, the leader creates a separate shift for that day — one day, one slot, one person, who takes it directly — or uses a Snabb Pass.
 

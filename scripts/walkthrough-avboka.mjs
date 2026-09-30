@@ -139,6 +139,10 @@ async function avboka(page, date, name, project) {
   const bin = page.getByRole("button", { name: `Ta bort ${name}`, exact: true });
   await bin.waitFor({ timeout: 20000 });
   await bin.click();
+  // The bin asks first now: nothing is cancelled until Bekräfta.
+  const ask = page.getByRole("dialog", { name: "Avboka bokning?" });
+  await ask.waitFor({ timeout: 10000 }).catch(() => fail("the trash icon cancelled without asking"));
+  await ask.getByRole("button", { name: "Bekräfta", exact: true }).click();
 }
 
 const browser = await chromium.launch();

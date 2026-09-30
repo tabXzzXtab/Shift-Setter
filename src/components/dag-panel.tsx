@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import {
-  C, Card, ChoiceList, EmptyState, SecondaryButton, SHADOW, SoftDialog,
+  C, Card, ChoiceList, DangerButton, EmptyState, SecondaryButton, SHADOW, SoftDialog,
   SoftField, SoftInput, SoftNotice, Tag,
 } from "@/components/soft";
 import { BytArbetsledare, replacementOptions, type Options } from "./byt-arbetsledare";
@@ -87,6 +87,9 @@ export function DagPanel({ date, heading = true }: {
   const [note, setNote] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [vacancy, setVacancy] = useState<Vacancy | null>(null);
+  /** The booking whose trash icon was pressed: nothing is cancelled until the
+   *  dialog's Bekräfta, because avboka_pass writes on the first call. */
+  const [asking, setAsking] = useState<{ pass: PassRow; person: Person } | null>(null);
   const [swap, setSwap] = useState<Options | null>(null);
   const [trade, setTrade] = useState<SwapOptions | null>(null);
 
@@ -347,6 +350,26 @@ export function DagPanel({ date, heading = true }: {
         </SoftDialog>
       )}
 
+      {/* AVBOKA BOKNING? -- the one press that cancels somebody's booking, and
+          until now it did so on the first tap. One question, the person's
+          name in it, and the destructive answer is the tinted one. */}
+      {asking && (
+        <SoftDialog label="Avboka bokning?" onDismiss={() => setAsking(null)}>
+          <h2 className="text-[19px] font-extrabold" style={{ letterSpacing: "-.5px" }}>
+            Avboka bokning?
+          </h2>
+          <p className="mb-[18px] mt-1 text-[15px] font-medium" style={{ color: C.text2, textWrap: "pretty" }}>
+            {asking.person.name} tas bort från passet {hhmm(asking.pass.start_time)}–{hhmm(asking.pass.end_time)}.
+          </p>
+          <div className="mb-[10px]">
+            <DangerButton onClick={() => { const a = asking; setAsking(null); void remove(a.pass, a.person); }}>
+              Bekräfta
+            </DangerButton>
+          </div>
+          <SecondaryButton onClick={() => setAsking(null)}>Avbryt</SecondaryButton>
+        </SoftDialog>
+      )}
+
       {trade && (
         <BytaPlats
           options={trade}
@@ -504,7 +527,7 @@ export function DagPanel({ date, heading = true }: {
                     <button
                       type="button"
                       aria-label={`Ta bort ${person.name}`}
-                      onClick={() => remove(p, person)}
+                      onClick={() => setAsking({ pass: p, person })}
                       disabled={busy === person.tilldelning_id}
                       className="press-scale flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-[10px] transition-transform duration-[110ms] hover:bg-[#f6d8dd] active:scale-[.985] disabled:opacity-40"
                       style={{ background: C.stopBg }}

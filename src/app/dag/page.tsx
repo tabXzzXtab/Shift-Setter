@@ -64,7 +64,11 @@ function Dag({ asked }: { asked: string | null }) {
     // Back to the calendar when the calendar sent us, and only then. Sending a
     // person who opened this page directly to a screen they never saw is worse
     // than no shortcut at all.
-    <SoftScreen title="Öppna dag" back={asked ? "/kalender" : "/"}>
+    <SoftScreen
+      title="Ändra dagens pass"
+      back={asked ? "/kalender" : "/"}
+      subtitle="Kontrollera vem som står på passet innan du avbokar."
+    >
       <div className="px-4 pt-[2px]">
         <Card radius={16} pad="p-[18px]">
           <SoftField label="Datum">
@@ -132,13 +136,6 @@ function Dag({ asked }: { asked: string | null }) {
 function Atgarder({ date, onArende }: { date: string; onArende: () => void }) {
   return (
     <Card radius={16} shadow={SHADOW.hero} pad="px-[18px] pb-5 pt-[18px]">
-      <div
-        className="mb-3 text-[12px] font-bold uppercase"
-        style={{ letterSpacing: "1px", color: C.text2 }}
-      >
-        Lägg till
-      </div>
-
       <button
         type="button"
         onClick={onArende}
@@ -310,7 +307,7 @@ function DagFromUrl() {
 export default function Page() {
   return (
     <AuthGate>
-      <Suspense fallback={<SoftScreen title="Öppna dag" back="/"><span /></SoftScreen>}>
+      <Suspense fallback={<SoftScreen title="Ändra dagens pass" back="/"><span /></SoftScreen>}>
         <DagFromUrl />
       </Suspense>
     </AuthGate>
