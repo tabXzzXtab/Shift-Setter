@@ -1,0 +1,476 @@
+{
+  "base": "http://localhost:3000",
+  "taken": [
+    {
+      "name": "alla_opened-app-signed-out_logga-in",
+      "role": "alla",
+      "entry": "opened-app-signed-out",
+      "screen": "logga-in",
+      "url": "/login/",
+      "note": ""
+    },
+    {
+      "name": "alla_pressed-glomt-losenord_glomt-losenord",
+      "role": "alla",
+      "entry": "pressed-glomt-losenord",
+      "screen": "glomt-losenord",
+      "url": "/glomt-losenord/",
+      "note": ""
+    },
+    {
+      "name": "admin_logged-in_startsida",
+      "role": "admin",
+      "entry": "logged-in",
+      "screen": "startsida",
+      "url": "/",
+      "note": ""
+    },
+    {
+      "name": "admin_pressed-meny_meny-sheet",
+      "role": "admin",
+      "entry": "pressed-meny",
+      "screen": "meny-sheet",
+      "url": "/",
+      "note": ""
+    },
+    {
+      "name": "admin_pressed-profil-ikon_profil-sheet",
+      "role": "admin",
+      "entry": "pressed-profil-ikon",
+      "screen": "profil-sheet",
+      "url": "/",
+      "note": ""
+    },
+    {
+      "name": "admin_pressed-projekt-rad_startsida-projekt-oppet",
+      "role": "admin",
+      "entry": "pressed-projekt-rad",
+      "screen": "startsida-projekt-oppet",
+      "url": "/",
+      "note": ""
+    },
+    {
+      "name": "admin_pressed-nytt-projekt_nytt-projekt",
+      "role": "admin",
+      "entry": "pressed-nytt-projekt",
+      "screen": "nytt-projekt",
+      "url": "/projekt/ny/",
+      "note": ""
+    },
+    {
+      "name": "admin_pressed-skapa-pass_vilka-dagar",
+      "role": "admin",
+      "entry": "pressed-skapa-pass",
+      "screen": "vilka-dagar",
+      "url": "/pass/ny/",
+      "note": ""
+    },
+    {
+      "name": "admin_pressed-fortsatt_vad-behovs",
+      "role": "admin",
+      "entry": "pressed-fortsatt",
+      "screen": "vad-behovs",
+      "url": "/pass/ny/",
+      "note": ""
+    },
+    {
+      "name": "admin_pressed-snabb-pass_snabb-pass",
+      "role": "admin",
+      "entry": "pressed-snabb-pass",
+      "screen": "snabb-pass",
+      "url": "/snabb/",
+      "note": ""
+    },
+    {
+      "name": "admin_pressed-efter-bekraftelse_snabb-pass-efter",
+      "role": "admin",
+      "entry": "pressed-efter-bekraftelse",
+      "screen": "snabb-pass-efter",
+      "url": "/snabb/",
+      "note": ""
+    },
+    {
+      "name": "admin_chose-ny-arbetare-i-vem_snabb-pass-ny-arbetare",
+      "role": "admin",
+      "entry": "chose-ny-arbetare-i-vem",
+      "screen": "snabb-pass-ny-arbetare",
+      "url": "/snabb/",
+      "note": ""
+    },
+    {
+      "name": "admin_pressed-generera-arbetsdagbok_arbetsdagbok-valj-period",
+      "role": "admin",
+      "entry": "pressed-generera-arbetsdagbok",
+      "screen": "arbetsdagbok-valj-period",
+      "url": "/arbetsdagbok/?projekt=0a4910d5-6c30-40df-8d2e-c99d3fc942bf",
+      "note": ""
+    },
+    {
+      "name": "admin_pressed-generera_bristsurvey-varning",
+      "role": "admin",
+      "entry": "pressed-generera",
+      "screen": "bristsurvey-varning",
+      "url": "/arbetsdagbok/?projekt=0a4910d5-6c30-40df-8d2e-c99d3fc942bf",
+      "note": "gaps in default period"
+    },
+    {
+      "name": "admin_pressed-redigera-projekt_redigera-projekt",
+      "role": "admin",
+      "entry": "pressed-redigera-projekt",
+      "screen": "redigera-projekt",
+      "url": "/projekt/redigera/?id=0a4910d5-6c30-40df-8d2e-c99d3fc942bf",
+      "note": ""
+    },
+    {
+      "name": "admin_pressed-kolla-pass_projektets-pass",
+      "role": "admin",
+      "entry": "pressed-kolla-pass",
+      "screen": "projektets-pass",
+      "url": "/pass/?projekt=0a4910d5-6c30-40df-8d2e-c99d3fc942bf",
+      "note": ""
+    },
+    {
+      "name": "admin_pressed-meny-kalender_skiftkalender",
+      "role": "admin",
+      "entry": "pressed-meny-kalender",
+      "screen": "skiftkalender",
+      "url": "/kalender/",
+      "note": ""
+    },
+    {
+      "name": "admin_pressed-personlig_personlig-kalender",
+      "role": "admin",
+      "entry": "pressed-personlig",
+      "screen": "personlig-kalender",
+      "url": "/kalender/",
+      "note": ""
+    },
+    {
+      "name": "admin_pressed-kalenderdag_oppna-dag",
+      "role": "admin",
+      "entry": "pressed-kalenderdag",
+      "screen": "oppna-dag",
+      "url": "/dag/?datum=2026-09-19",
+      "note": ""
+    },
+    {
+      "name": "admin_pressed-andra-detta-pass_oppna-dag-andra-pass",
+      "role": "admin",
+      "entry": "pressed-andra-detta-pass",
+      "screen": "oppna-dag-andra-pass",
+      "url": "/dag/?datum=2026-09-19",
+      "note": ""
+    },
+    {
+      "name": "admin_pressed-avboka-pass-arbetsledare_vem-tar-over",
+      "role": "admin",
+      "entry": "pressed-avboka-pass-arbetsledare",
+      "screen": "vem-tar-over",
+      "url": "/dag/?datum=2026-09-19",
+      "note": ""
+    },
+    {
+      "name": "admin_pressed-tilldela-arende_tilldela-arende",
+      "role": "admin",
+      "entry": "pressed-tilldela-arende",
+      "screen": "tilldela-arende",
+      "url": "/dag/?datum=2026-09-19",
+      "note": ""
+    },
+    {
+      "name": "admin_pressed-meny-alla-projekt_alla-projekt",
+      "role": "admin",
+      "entry": "pressed-meny-alla-projekt",
+      "screen": "alla-projekt",
+      "url": "/projekt/",
+      "note": ""
+    },
+    {
+      "name": "admin_pressed-projektkort_alla-projekt-kort-oppet",
+      "role": "admin",
+      "entry": "pressed-projektkort",
+      "screen": "alla-projekt-kort-oppet",
+      "url": "/projekt/",
+      "note": ""
+    },
+    {
+      "name": "admin_pressed-meny-bekraftelser_bekraftelser-att-godkanna",
+      "role": "admin",
+      "entry": "pressed-meny-bekraftelser",
+      "screen": "bekraftelser-att-godkanna",
+      "url": "/historik/",
+      "note": ""
+    },
+    {
+      "name": "admin_pressed-dag-att-godkanna_granska-pass",
+      "role": "admin",
+      "entry": "pressed-dag-att-godkanna",
+      "screen": "granska-pass",
+      "url": "/granska/?projekt=b2dd565a-1943-46ff-b24a-5823736b9893&datum=2026-09-20",
+      "note": ""
+    },
+    {
+      "name": "admin_pressed-historik_bekraftelser-historik",
+      "role": "admin",
+      "entry": "pressed-historik",
+      "screen": "bekraftelser-historik",
+      "url": "/historik/",
+      "note": ""
+    },
+    {
+      "name": "admin_pressed-min-profil_min-profil",
+      "role": "admin",
+      "entry": "pressed-min-profil",
+      "screen": "min-profil",
+      "url": "/konto/",
+      "note": ""
+    },
+    {
+      "name": "admin_pressed-alla-konton_alla-konton",
+      "role": "admin",
+      "entry": "pressed-alla-konton",
+      "screen": "alla-konton",
+      "url": "/installningar/",
+      "note": ""
+    },
+    {
+      "name": "admin_pressed-kontorad_konto-annan-person",
+      "role": "admin",
+      "entry": "pressed-kontorad",
+      "screen": "konto-annan-person",
+      "url": "/konto/?id=34ca2459-300b-4785-ae41-f29e5eee76dc",
+      "note": ""
+    },
+    {
+      "name": "admin_pressed-tillverka-konto_ny-arbetare",
+      "role": "admin",
+      "entry": "pressed-tillverka-konto",
+      "screen": "ny-arbetare",
+      "url": "/arbetare/ny/",
+      "note": ""
+    },
+    {
+      "name": "admin_pressed-kopiera-inloggning_ny-arbetare-inloggning-kopierad",
+      "role": "admin",
+      "entry": "pressed-kopiera-inloggning",
+      "screen": "ny-arbetare-inloggning-kopierad",
+      "url": "/arbetare/ny/",
+      "note": ""
+    },
+    {
+      "name": "arbetsledare_logged-in_startsida",
+      "role": "arbetsledare",
+      "entry": "logged-in",
+      "screen": "startsida",
+      "url": "/",
+      "note": ""
+    },
+    {
+      "name": "arbetsledare_pressed-meny_meny-sheet",
+      "role": "arbetsledare",
+      "entry": "pressed-meny",
+      "screen": "meny-sheet",
+      "url": "/",
+      "note": ""
+    },
+    {
+      "name": "arbetsledare_pressed-profil-ikon_profil-sheet",
+      "role": "arbetsledare",
+      "entry": "pressed-profil-ikon",
+      "screen": "profil-sheet",
+      "url": "/",
+      "note": ""
+    },
+    {
+      "name": "arbetsledare_pressed-bekrafta-pass_bekrafta-pass",
+      "role": "arbetsledare",
+      "entry": "pressed-bekrafta-pass",
+      "screen": "bekrafta-pass",
+      "url": "/bekrafta/",
+      "note": ""
+    },
+    {
+      "name": "arbetsledare_pressed-skapa-pass_vilka-dagar",
+      "role": "arbetsledare",
+      "entry": "pressed-skapa-pass",
+      "screen": "vilka-dagar",
+      "url": "/pass/ny/",
+      "note": ""
+    },
+    {
+      "name": "arbetsledare_pressed-fortsatt_vad-behovs",
+      "role": "arbetsledare",
+      "entry": "pressed-fortsatt",
+      "screen": "vad-behovs",
+      "url": "/pass/ny/",
+      "note": ""
+    },
+    {
+      "name": "arbetsledare_pressed-nytt-projekt_nytt-projekt",
+      "role": "arbetsledare",
+      "entry": "pressed-nytt-projekt",
+      "screen": "nytt-projekt",
+      "url": "/projekt/ny/",
+      "note": ""
+    },
+    {
+      "name": "arbetsledare_pressed-mina-pass_mina-pass-kommande",
+      "role": "arbetsledare",
+      "entry": "pressed-mina-pass",
+      "screen": "mina-pass-kommande",
+      "url": "/mina-pass/",
+      "note": ""
+    },
+    {
+      "name": "arbetsledare_pressed-kalender-flik_mina-pass-kalender",
+      "role": "arbetsledare",
+      "entry": "pressed-kalender-flik",
+      "screen": "mina-pass-kalender",
+      "url": "/mina-pass/",
+      "note": ""
+    },
+    {
+      "name": "arbetsledare_pressed-tillganglighet-flik_mina-pass-tillganglighet",
+      "role": "arbetsledare",
+      "entry": "pressed-tillganglighet-flik",
+      "screen": "mina-pass-tillganglighet",
+      "url": "/mina-pass/",
+      "note": ""
+    },
+    {
+      "name": "arbetsledare_pressed-bekraftelser_bekraftelser-att-bekrafta",
+      "role": "arbetsledare",
+      "entry": "pressed-bekraftelser",
+      "screen": "bekraftelser-att-bekrafta",
+      "url": "/historik/",
+      "note": ""
+    },
+    {
+      "name": "arbetsledare_pressed-historik_bekraftelser-historik",
+      "role": "arbetsledare",
+      "entry": "pressed-historik",
+      "screen": "bekraftelser-historik",
+      "url": "/historik/",
+      "note": ""
+    },
+    {
+      "name": "arbetsledare_pressed-alla-projekt_alla-projekt",
+      "role": "arbetsledare",
+      "entry": "pressed-alla-projekt",
+      "screen": "alla-projekt",
+      "url": "/projekt/",
+      "note": ""
+    },
+    {
+      "name": "arbetsledare_pressed-projektkort_alla-projekt-kort-oppet",
+      "role": "arbetsledare",
+      "entry": "pressed-projektkort",
+      "screen": "alla-projekt-kort-oppet",
+      "url": "/projekt/",
+      "note": ""
+    },
+    {
+      "name": "arbetsledare_pressed-kolla-pass_projektets-pass",
+      "role": "arbetsledare",
+      "entry": "pressed-kolla-pass",
+      "screen": "projektets-pass",
+      "url": "/pass/?projekt=57b6d4fc-292e-4936-abcc-76c5083fe92f",
+      "note": ""
+    },
+    {
+      "name": "arbetsledare_pressed-min-profil_min-profil",
+      "role": "arbetsledare",
+      "entry": "pressed-min-profil",
+      "screen": "min-profil",
+      "url": "/konto/",
+      "note": ""
+    },
+    {
+      "name": "arbetare_logged-in_startsida",
+      "role": "arbetare",
+      "entry": "logged-in",
+      "screen": "startsida",
+      "url": "/",
+      "note": ""
+    },
+    {
+      "name": "arbetare_pressed-meny_meny-sheet",
+      "role": "arbetare",
+      "entry": "pressed-meny",
+      "screen": "meny-sheet",
+      "url": "/",
+      "note": ""
+    },
+    {
+      "name": "arbetare_pressed-profil-ikon_profil-sheet",
+      "role": "arbetare",
+      "entry": "pressed-profil-ikon",
+      "screen": "profil-sheet",
+      "url": "/",
+      "note": ""
+    },
+    {
+      "name": "arbetare_pressed-visa-alla_acceptera-pass",
+      "role": "arbetare",
+      "entry": "pressed-visa-alla",
+      "screen": "acceptera-pass",
+      "url": "/acceptera/",
+      "note": ""
+    },
+    {
+      "name": "arbetare_pressed-mina-pass_mina-pass-kommande",
+      "role": "arbetare",
+      "entry": "pressed-mina-pass",
+      "screen": "mina-pass-kommande",
+      "url": "/mina-pass/",
+      "note": ""
+    },
+    {
+      "name": "arbetare_pressed-kalender-flik_mina-pass-kalender",
+      "role": "arbetare",
+      "entry": "pressed-kalender-flik",
+      "screen": "mina-pass-kalender",
+      "url": "/mina-pass/",
+      "note": ""
+    },
+    {
+      "name": "arbetare_pressed-tillganglighet-flik_mina-pass-tillganglighet",
+      "role": "arbetare",
+      "entry": "pressed-tillganglighet-flik",
+      "screen": "mina-pass-tillganglighet",
+      "url": "/mina-pass/",
+      "note": ""
+    },
+    {
+      "name": "arbetare_pressed-arbetsdagar_min-kalender",
+      "role": "arbetare",
+      "entry": "pressed-arbetsdagar",
+      "screen": "min-kalender",
+      "url": "/min-kalender/",
+      "note": ""
+    },
+    {
+      "name": "arbetare_pressed-meny-oppna-pass_oppna-pass",
+      "role": "arbetare",
+      "entry": "pressed-meny-oppna-pass",
+      "screen": "oppna-pass",
+      "url": "/oppna-pass/",
+      "note": ""
+    },
+    {
+      "name": "arbetare_pressed-min-profil_min-profil",
+      "role": "arbetare",
+      "entry": "pressed-min-profil",
+      "screen": "min-profil",
+      "url": "/konto/",
+      "note": ""
+    }
+  ],
+  "failed": [
+    {
+      "name": "admin_pressed-byta-plats-med-arbetsledare_byta-plats",
+      "why": "locator.click: Timeout 8000ms exceeded."
+    }
+  ],
+  "blocked": []
+}
