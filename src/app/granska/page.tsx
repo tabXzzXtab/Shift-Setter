@@ -257,7 +257,7 @@ function Granska({ askedProject, askedDate }: { askedProject: string | null; ask
 
   if (day === undefined) {
     return (
-      <SoftScreen title="Granska pass" back="/">
+      <SoftScreen title="Granska dagen" back="/">
         <p className="px-5 text-[15px] font-medium" style={{ color: C.text2 }}>Laddar…</p>
       </SoftScreen>
     );
@@ -265,7 +265,7 @@ function Granska({ askedProject, askedDate }: { askedProject: string | null; ask
 
   if (day === null) {
     return (
-      <SoftScreen title="Granska pass" back="/">
+      <SoftScreen title="Granska dagen" back="/">
         <div className="px-4 pt-[2px]">
           {error && <div className="pb-[10px]"><SoftNotice tone="stop">{error}</SoftNotice></div>}
           <EmptyState headline="Inget att granska">
@@ -277,7 +277,17 @@ function Granska({ askedProject, askedDate }: { askedProject: string | null; ask
   }
 
   return (
-    <SoftScreen title="Granska pass" back="/">
+    <SoftScreen
+      title="Granska dagen"
+      back="/"
+      // A flagged day has no claim to check: the admin states it. A reviewed
+      // one does, and the stamps are what the hours are held against.
+      subtitle={
+        day.flagged_as
+          ? "Skriv timmarna och vad ni gjorde."
+          : "Kontrollera timmarna mot stämplingarna innan du godkänner."
+      }
+    >
       {error && <div className="px-4 pb-[10px] pt-[2px]"><SoftNotice tone="stop">{error}</SoftNotice></div>}
 
       {/* Day kicker, project at 26/800 -- the same head the leader's screen
@@ -526,7 +536,7 @@ function GranskaFromUrl() {
 export default function Page() {
   return (
     <AuthGate>
-      <Suspense fallback={<SoftScreen title="Granska pass" back="/"><span /></SoftScreen>}>
+      <Suspense fallback={<SoftScreen title="Granska dagen" back="/"><span /></SoftScreen>}>
         <GranskaFromUrl />
       </Suspense>
     </AuthGate>
