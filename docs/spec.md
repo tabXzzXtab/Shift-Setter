@@ -78,14 +78,50 @@ a document that has dropped half its rows is geometrically clean.
 
 Two columns are renamed from DocMaker: **Pass Typ → Pass Tider**, and the per-row **Project → Vad Vi Gjorde**. Everything else about the template stays.
 
-### Footer — identical on every page, hardcoded
+### Footer — identical on every page, and the company's own
 
 ```
-Postadress Adress:            Telefon: 073-398 78 68      Bankgiro: 443-4551
-Söderto 3276, 242 93 Hörby                                Godkänd för F-skatt
-                                                          Org.nr: 556788-2369
-                                                          Momsreg.nr: CEFFSTA99339001
+Postadress Adress:            Telefon: <telefon>          Bankgiro: <bankgiro>
+<adress>                      Kontakt: <kontaktperson>    Godkänd för F-skatt
+                                                          Org.nr: <org.nr>
+                                                          Momsreg.nr: <momsreg>
 ```
+
+**These are the sending company's, not a constant.** They were hardcoded —
+Bella Service AB's address, telephone, bankgiro and organisation number, in
+`src/lib/doc/arbetsdagbok.ts` — which was correct while there was one company
+and wrong the moment there were two. Since `create-tenant` shipped, the second
+company to generate an Arbetsdagbok would have printed the first one's identity
+on it. They now come from `tenant_branding`, one row per tenancy.
+
+The right column prints each line **only when it is set**, except Org.nr, which
+is always there because it comes from `tenant` and every tenancy has one.
+
+**Three of them are required and one is not.** Invariant 6 reaches the footer:
+without adress, kontaktperson and telefon the day refuses to generate, in
+`tg_arbetsdagbok_guard`. Bankgiro and momsreg may be blank and simply do not
+print.
+
+**The logotype may be blank, and then the company's name prints where it would
+have been**, at 14pt bold in the header. There is deliberately no default: a
+fallback logotype would be Bella Service AB's, appearing on every other
+company's document, which is the bug this replaced. If a company has a logotype
+that cannot be read, the Arbetsdagbok page says so — *"Logotypen kunde inte
+läsas. Företagets namn står i dess ställe i dokumentet."* — rather than dropping
+it silently, which is how a path-linked image used to fail.
+
+### Företaget — where the footer comes from
+
+The admin edits these on **Företaget**, behind the profile icon. It is the
+permanent home of what onboarding collects on the first day: logotyp, adress,
+kontaktperson, telefonnummer, and the two optional numbers.
+
+An arbetsledare may look and not touch, and is told who changes them. That is a
+courtesy: the boundary is `tenant_branding`'s policies, which admit a SELECT to
+staff of the tenancy and an INSERT or UPDATE only to its admin. The logotype
+lives in the private `branding` bucket under the tenancy's own folder, named
+`logo.png` or `logo.jpg` and nothing else, and the generator downloads the bytes
+and embeds them rather than linking to them.
 
 ### Generation is a date range, not a whole project
 
@@ -1151,7 +1187,10 @@ Nothing here is open. Anything discovered later that is not covered is a stop-an
 - One row, one late mark, however many fields were edited.
 - Ongoing shifts cannot be deleted. Workers are notified when a future one is.
 - Beställare fields always print. No per-document toggles.
-- Footer is hardcoded Bella Service, identical on every page.
+- Footer is identical on every page and carries the SENDING COMPANY's own
+  details, from tenant_branding. It was hardcoded Bella Service until a
+  second company existed, at which point that became the first one's
+  identity printed on everybody's document.
 - Generation is a date range per export, and generated ranges are remembered and warned about on overlap.
 
 **Platform and design**
@@ -1185,7 +1224,11 @@ Source lives at `docs/docmaker-template/`. It is a single string-template module
 - **Drop the `adressChecked` / `bolagChecked` / `orgnrChecked` conditionals.** All three beställare fields always print.
 - **Rename the payload fields.** `passTyp1` → `hours`, `passTyp2` → `passTider`, `project` → `vadViGjorde`. The old names exist only to keep DocMaker's saved drafts importable, and there are none to keep.
 - **`formatTimestamp` must be Stockholm-anchored**, not machine-local. Invariant 9.
-- **`loadCompany()` reads from disk.** In a static export the footer values ship as a module or a constant.
+- **`loadCompany()` reads from disk.** In a static export there is no disk. The
+  footer values shipped as a constant for one company, and now come from
+  tenant_branding for each -- read by `src/lib/doc/sender.ts`, which also
+  downloads the logotype's bytes so the generator can embed rather than link
+  them.
 
 **The header repeats on every page**, like the footer. Logo and the word "Arbetsdagbok", nothing else. The current template renders it once after the cover, so pages 3 onward lose it — that is a bug to fix in the port, not behaviour to keep.
 

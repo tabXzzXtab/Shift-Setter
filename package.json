@@ -41,6 +41,7 @@
     "walkthrough:bytaplats": "node scripts/walkthrough-byta-plats.mjs",
     "walkthrough:pausa": "node scripts/walkthrough-pausa.mjs",
     "walkthrough:borttagning": "node scripts/walkthrough-borttagning.mjs",
+    "walkthrough:foretag": "node scripts/walkthrough-foretag.mjs",
     "walkthrough:geofence": "node scripts/walkthrough-geofence.mjs",
     "walkthrough:nastapass": "node scripts/walkthrough-nastapass.mjs",
     "walkthrough:stangpass": "node scripts/walkthrough-stangpass.mjs",

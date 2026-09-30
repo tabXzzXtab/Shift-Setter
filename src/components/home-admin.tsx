@@ -53,8 +53,19 @@ const MENU = [
 // one person and are now one; listing the same page twice under two names was
 // the menu describing an old seam rather than what is there. "Min profil" is
 // what that screen calls itself when it is about you.
+// Företaget is the third, and the note above is not a bar on it. What that
+// said was that Konto and Profil had been ONE screen listed under two names --
+// a seam in the menu rather than a place to go. This is a different screen
+// about a different thing: the company itself, as opposed to the people in it.
+// It sits here rather than in the hamburger for the same reason Alla Konton
+// does. The menu is the work; this is the installation.
+//
+// Its label matches what fel.ts tells an admin when the Arbetsdagbok refuses
+// to generate -- "Företaget i menyn" -- so the sentence names something they
+// can see.
 const PROFILE_MENU = [
   { href: "/konto", label: "Min profil" },
+  { href: "/foretag", label: "Företaget" },
   { href: "/installningar", label: "Alla Konton" },
 ];
 

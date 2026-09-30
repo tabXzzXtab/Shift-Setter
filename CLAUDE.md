@@ -72,7 +72,16 @@ Full specification: [docs/spec.md](docs/spec.md).
     admin_confirmed, nothing edits it.
 6.  The Arbetsdagbok cannot generate with any cell empty — not shifts, not the
     "Vad Vi Gjorde" text, not the bestallare fields.
-7.  Every field the document needs is captured and validated at project creation.
+7.  Every field the document needs is captured and validated BEFORE it can be
+    needed. Two places, because the document draws on two things: the project's
+    own fields at project creation, and the COMPANY's at onboarding and on
+    Företaget afterwards. Adress, kontaktperson and telefon are the second
+    kind -- they belong to the company rather than to any project, so no amount
+    of care at project creation could ever have supplied them. Until
+    tenant_branding they were a constant naming one company, which is why every
+    other company's Arbetsdagbok carried Bella Service AB's address and
+    telephone. Invariant 6 reaches them: the day refuses to generate without
+    all three. The logotype does not, and prints the company's name instead.
 8.  Deleted projects and workers make their shifts count nowhere, in every read.
 9.  Dates are Stockholm-anchored. Month windows half-open.
 10. A worker sees their hours only once an Arbetsdagbok covering that date has
@@ -270,6 +279,7 @@ before writing framework code.
 | `npm run walkthrough:arende` | Öppna Dag's three actions and Tilldela Ärende; no date or time input escapes its card |
 | `npm run walkthrough:nastapass` | Nästa Pass leaves when the SHIFT ends, not when the day does — on a faked clock |
 | `npm run walkthrough:stangpass` | Stäng Pågående Pass: closing tells apart who clocked in from who never turned up |
+| `npm run walkthrough:foretag` | Företaget: the four fields save and persist, invariant 6 refuses without three of them, no logotype prints the name. Restores the company's own details afterwards |
 | `npm run walkthrough:analytics` | Analytics: rows filed silently and without text, the keepalive exit, no opt-in means nothing sent, a client admin refused. Deletes its own rows. `OPERATOR_EMAIL`/`OPERATOR_PASSWORD` add the operator's view |
 | `npm run demo:reset` | Clear demo data **and** recreate the stable demo logins |
 | `npm run test:race` | Two concurrent accepts on a one-slot pass, N rounds |
