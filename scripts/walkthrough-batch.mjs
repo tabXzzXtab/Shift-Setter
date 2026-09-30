@@ -26,7 +26,7 @@ import { mkdirSync } from "node:fs";
 import path from "node:path";
 import pg from "pg";
 import { connectionString, required } from "./env.mjs";
-import { chooseProject } from "./day-page.mjs";
+import { openDayPage } from "./day-page.mjs";
 import { reachDate, sameMonth, shiftDays, stockholmToday } from "./wt-dates.mjs";
 
 const BASE = process.env.BASE_URL ?? "http://localhost:3000";
@@ -351,12 +351,8 @@ try {
 
   // ---- one instance edited, siblings untouched -----------------------------
   const D = MONTH_DAYS[2], NEXT = MONTH_DAYS[3];
-  await page.goto(`${BASE}/dag/`, { waitUntil: "networkidle" });
-  await field(page, "Datum").fill(D);
-  // The day shows ONE project at a time, and which one it opens on is a sort
-  // order this run does not control. Both of this day's passes belong to this
-  // project, so choosing its tab is what puts them on screen.
-  await chooseProject(page, project);
+  // The project's day on D: both of this day's passes belong to it.
+  await openDayPage(page, BASE, D, project);
   await mustSee(page, "07:00–16:00", "the day view shows no 07:00 pass to edit");
 
   await page.getByRole("button", { name: "Ändra detta pass" }).first().click();
@@ -372,7 +368,7 @@ try {
   log("edited one instance: 05:30 / 3,25 h");
 
   // the same row on the NEXT day is untouched
-  await field(page, "Datum").fill(NEXT);
+  await openDayPage(page, BASE, NEXT, project);
   await mustSee(page, "07:00–16:00", "the next day's instance is missing");
   await mustNotSee(page, "05:30", "the edit reached the next day's instance");
   await shot(page, "35-syskon-orort");
@@ -405,7 +401,7 @@ try {
   // sentence: the name in front of it and the count after it are both runtime
   // values, and asserting them would break on the fixture rather than on the
   // cascade.
-  await field(page, "Datum").fill(MONTH_DAYS[6]);
+  await openDayPage(page, BASE, MONTH_DAYS[6], project);
   await page.getByRole("button", { name: /^Ta bort / }).first().waitFor({ timeout: 20000 });
   await page.getByRole("button", { name: /^Ta bort / }).first().click();
   await mustSee(page, "platsen gick ut som Acceptera Pass till",
@@ -455,9 +451,7 @@ try {
   await page.getByRole("button", { name: /Skapa 1 pass/ }).click();
   await mustSee(page, "Passen är skapade", "the near-day pass was not created");
 
-  await page.goto(`${BASE}/dag/`, { waitUntil: "networkidle" });
-  await field(page, "Datum").fill(NEAR);
-  await chooseProject(page, project);
+  await openDayPage(page, BASE, NEAR, project);
   await page.getByRole("button", { name: /^Ta bort / }).first().waitFor({ timeout: 20000 });
   await page.getByRole("button", { name: /^Ta bort / }).first().click();
   await mustSee(page, "inom fem dagar", "the five-day cutoff did not hold");

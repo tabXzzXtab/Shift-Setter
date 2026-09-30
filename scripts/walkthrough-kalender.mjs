@@ -152,12 +152,9 @@ async function openDay(page, date) {
     timeout: 20000,
   });
   await page.waitForLoadState("networkidle");
-  await page.locator(`[data-day-panel="${date}"]`).waitFor({ timeout: 20000 });
-  // The panel renders before its shifts arrive, so the wrapper appearing is
-  // not the day being ready. Wait for a pass card -- every day this walkthrough
-  // opens has one, and asserting against the loading state is how a check for
-  // something the page will show in 200ms fails for no reason at all.
-  await page.locator(`[data-day-panel="${date}"] section`).first().waitFor({ timeout: 20000 });
+  // The day is a timeline now. Every day this walkthrough opens has a pass,
+  // so wait for a block rather than for the loading line to go.
+  await page.locator(`[data-day-timeline="${date}"] [data-pass-block]`).first().waitFor({ timeout: 20000 });
 }
 
 /**
@@ -418,14 +415,14 @@ try {
   await openDay(page, BUSY);
   log(`tapping ${BUSY} navigated to ${new URL(page.url()).pathname}${new URL(page.url()).search}`);
 
-  // Every project working the day has a tab, even the three that were behind
-  // the "+N" on the calendar and had no stripe of their own.
+  // Every project working the day has a block on its timeline, even the three
+  // that were behind the "+N" on the calendar and had no stripe of their own.
   for (const name of [A, B, ...EXTRA]) {
-    if (!(await page.locator(`[data-project-tab="${name}"]`).count())) {
-      fail(`the day page has no tab for "${name}"`);
+    if (!(await page.locator(`[data-block-project="${name}"]`).count())) {
+      fail(`the day's timeline has no block for "${name}"`);
     }
   }
-  log(`all ${2 + EXTRA.length} projects on the day have a tab, including those counted as "+N"`);
+  log(`all ${2 + EXTRA.length} projects on the day have a block, including those counted as "+N"`);
 
   /**
    * The tab wears the colour the calendar gave the project.
@@ -436,20 +433,20 @@ try {
    * both screens looked right on their own and disagreed with each other.
    */
   const tabColour = async (name) =>
-    page.locator(`[data-tab-swatch="${name}"]`).first()
+    page.locator(`[data-block-swatch="${name}"]`).first()
       .evaluate((s) => getComputedStyle(s).backgroundColor);
   for (const name of [A, B]) {
     const stripe = calendarColours[name];
     if (!stripe) fail(`no calendar stripe was sampled for "${name}"`);
     const tab = await tabColour(name);
     if (!tab || tab === "rgba(0, 0, 0, 0)") {
-      fail(`the day page drew no colour on the tab for "${name}" (the calendar drew ${stripe})`);
+      fail(`the day's timeline drew no colour on the block for "${name}" (the calendar drew ${stripe})`);
     }
     if (tab !== stripe) {
       fail(`"${name}" is ${stripe} on the calendar and ${tab} on the day page`);
     }
   }
-  log("each project's tab carries the same colour it wears on the calendar");
+  log("each project's block carries the same colour it wears on the calendar");
 
   /**
    * ONE PROJECT AT A TIME.

@@ -1,56 +1,54 @@
 /**
- * Open one day's page, the way the shift calendar now opens it.
+ * Open one day, the way the calendars now open it -- and, when a project is
+ * named, that project's day, where the controls on its passes live.
  *
- * Two things changed underneath every walkthrough that used to tap a day in the
- * calendar and read the panel that unfolded below the grid:
- *
- *   1. The day is its own page at /dag?datum= . Tapping a cell navigates.
- *   2. That page shows ONE project at a time. On a day holding two sites, the
- *      other one's controls are not off-screen -- they are not rendered. Any
- *      suite reaching for a control on a particular project has to name it.
+ * The day is a timeline at /dag?datum= : every pass and ärende as a block,
+ * nothing to act on. Tapping a pass's block opens /dag/projekt?datum=&projekt=,
+ * the project's day (DagPanel scoped to it), which carries the trash icons,
+ * Avboka Pass, Byta Plats, Ändra detta pass and Ta bort detta pass. So a suite
+ * reaching for one of those names the project, and this taps its block.
  *
  * Goes straight to the URL rather than paging the calendar to the right month
- * and tapping. Proving that a tap navigates is walkthrough-kalender's job;
- * repeating it in five other suites only gives the month paging five more
- * places to go wrong, in tests that are about something else entirely.
+ * and tapping. Proving that a tap navigates is walkthrough-kalender's job.
  *
- * `project` is optional. A day holding one project has no tabs at all, and that
- * is not a failure -- so is a day where the named project has no shifts left,
- * which is exactly what several of these suites are checking for.
+ * `project` is optional. Unnamed, a day holding exactly one project opens that
+ * project's day (as the old single-project page showed its controls outright);
+ * otherwise, and when the named project has no block on the day -- which is
+ * exactly what several of these suites are checking for -- the day screen
+ * itself stays open, and it says "Inställd dag" when the day was emptied.
  */
 export async function openDayPage(page, base, date, project) {
   await page.goto(`${base}/dag/?datum=${date}`, { waitUntil: "networkidle" });
+  const day = page.locator(`[data-day-timeline="${date}"]`);
+  await day.waitFor({ timeout: 20000 });
+
+  const blocks = page.locator("[data-pass-block]");
+  let name = project;
+  if (!name) {
+    const names = new Set(await blocks.evaluateAll((els) => els.map((e) => e.getAttribute("data-block-project"))));
+    if (names.size !== 1) return;
+    name = [...names][0];
+  }
+  const block = page.locator(`[data-block-project="${name}"]`).first();
+  if (!(await block.count())) return;
+  await block.click();
   const panel = page.locator(`[data-day-panel="${date}"]`);
   await panel.waitFor({ timeout: 20000 });
-
-  // The panel renders before its shifts arrive, so the wrapper appearing is not
-  // the day being ready. Waiting for the loading line to go covers the empty
-  // day and the cancelled one as well as the ordinary case.
-  await panel.getByText("Laddar…", { exact: true })
-    .waitFor({ state: "detached", timeout: 20000 });
-
-  if (project) await chooseProject(page, project);
+  // The panel renders before its shifts arrive: wait for the loading line to go.
+  await panel.getByText("Laddar…", { exact: true }).waitFor({ state: "detached", timeout: 20000 });
 }
 
 /**
- * Bring one project's tab to the front of a day that is already open.
+ * Show one project's passes on the day already open.
  *
- * A missing tab is a no-op, not a failure: a day holding one project has no
- * tab strip at all. So is a day where the named project has no shifts left,
- * which is what several of these suites are checking for.
- *
- * Waits for the tab rather than counting it once. The panel keeps showing the
- * previous date while the new one loads -- the date picker does not blank it --
- * so a caller that has just typed a date would otherwise look for the tabs
- * before they exist and silently read the wrong day.
+ * The day used to hold every project behind tabs on one page; each project's
+ * passes are their own screen now, so this re-opens the current date with that
+ * project named. A project with no block on the day is a no-op, as a missing
+ * tab was.
  */
 export async function chooseProject(page, project) {
-  const tab = page.locator(`[data-project-tab="${project}"]`);
-  try {
-    await tab.waitFor({ timeout: 5000 });
-  } catch {
-    return;
-  }
-  await tab.click();
-  await page.waitForTimeout(400);
+  const url = new URL(page.url());
+  const date = url.searchParams.get("datum");
+  if (!date) return;
+  await openDayPage(page, url.origin, date, project);
 }

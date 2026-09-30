@@ -65,8 +65,14 @@ const newRow = (): Row => ({
  * Editing or cancelling a Tuesday must leave every other Tuesday alone, so
  * there is no series object to accidentally edit through.
  */
-function NyttPass({ asked }: { asked: string | null }) {
-  const [step, setStep] = useState<"days" | "detail">("days");
+function NyttPass({ asked, fromDay = false }: { asked: string | null; fromDay?: boolean }) {
+  // FROM A DAY'S +, the day is already chosen: open on the form, not the
+  // picker. Only for a day still ahead -- a past one never reaches here (the
+  // choice screen shows Pass disabled), and the picker refuses it anyway.
+  const direct = fromDay && asked !== null && asked >= stockholmToday();
+  const [step, setStep] = useState<"days" | "detail">(direct ? "detail" : "days");
+  /** Where back goes: the day that sent us, or the start page. */
+  const back = direct ? `/dag?datum=${asked}` : "/";
   // The day page hands the date over in ?datum=, so the picker opens on the
   // month the admin was already looking at instead of on today's.
   const [month, setMonth] = useState(() => (asked ?? stockholmToday()).slice(0, 7));
@@ -247,7 +253,7 @@ function NyttPass({ asked }: { asked: string | null }) {
   // ---- result ---------------------------------------------------------------
   if (result) {
     return (
-      <SoftScreen title="Passen är skapade" back="/">
+      <SoftScreen title="Passen är skapade" back={back}>
         <div className="px-4 pt-[2px]">
           <Card radius={16} shadow={SHADOW.hero} pad="px-5 pb-5 pt-[18px]">
             <div
@@ -361,7 +367,7 @@ function NyttPass({ asked }: { asked: string | null }) {
   // out of the same pieces anyway, because a wizard that changes language
   // between its two steps reads as two different apps.
   return (
-    <SoftScreen title="Beskriv passen" back="/" subtitle="Kontrollera tiderna och antalet personer.">
+    <SoftScreen title="Beskriv passen" back={back} subtitle="Kontrollera tiderna och antalet personer.">
       {error && <div className="px-4 pb-[10px] pt-[2px]"><SoftNotice tone="stop">{error}</SoftNotice></div>}
 
       <div className="px-4 pt-[2px]">
@@ -595,8 +601,14 @@ function NyttPass({ asked }: { asked: string | null }) {
  * that is not a date must not reach the picker's selection or its month.
  */
 function NyttPassFromUrl() {
-  const asked = useSearchParams().get("datum");
-  return <NyttPass asked={asked && /^\d{4}-\d{2}-\d{2}$/.test(asked) ? asked : null} />;
+  const params = useSearchParams();
+  const asked = params.get("datum");
+  return (
+    <NyttPass
+      asked={asked && /^\d{4}-\d{2}-\d{2}$/.test(asked) ? asked : null}
+      fromDay={params.get("fran") === "dag"}
+    />
+  );
 }
 
 export default function Page() {

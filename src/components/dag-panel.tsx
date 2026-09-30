@@ -69,8 +69,11 @@ type PassRow = {
  * Editing a pass here edits THAT pass. A batch generates independent rows, not
  * a series, so changing this Tuesday cannot reach the next one.
  */
-export function DagPanel({ date, heading = true }: {
+export function DagPanel({ date, heading = true, project }: {
   date: string;
+  /** One project's day: its passes only, and no tab strip. The day screen's
+   *  timeline sends a tapped pass here, so the choice is already made. */
+  project?: string;
   /** False where the SCREEN already names the day above its own controls --
    *  the day page puts the heading over the admin's three actions, and the
    *  same string again here would be the second time in four inches. */
@@ -306,8 +309,8 @@ export function DagPanel({ date, heading = true }: {
    * real -- an id held in state would go on pointing at a project that is no
    * longer on the day and the panel would render nothing at all.
    */
-  const active =
-    projectsToday.find((p) => p.id === openProject)?.id ?? projectsToday[0]?.id ?? null;
+  const active = project
+    ?? projectsToday.find((p) => p.id === openProject)?.id ?? projectsToday[0]?.id ?? null;
   const showing = (passes ?? []).filter((p) => p.project_id === active);
 
   return (
@@ -408,7 +411,7 @@ export function DagPanel({ date, heading = true }: {
         Scrolls sideways rather than wrapping: a day with six sites on it would
         otherwise push the shifts off the bottom of a phone.
       */}
-      {projectsToday.length > 1 && (
+      {!project && projectsToday.length > 1 && (
         <>
           <p className="mb-2 px-1 text-[15px] font-medium" style={{ color: C.text2 }}>
             {projectsToday.length} projekt den här dagen. Välj vilket du vill se.

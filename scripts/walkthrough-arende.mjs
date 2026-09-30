@@ -1,27 +1,27 @@
 #!/usr/bin/env node
 /**
- * Öppna dag's three actions, and Tilldela Ärende, in a browser.
+ * The day screen's +, and an ärende from it onto the timeline, in a browser.
  *
  * What it proves:
  *   - NO DATE OR TIME INPUT ESCAPES ITS CARD. Measured, not eyeballed: the
- *     Datum field on the day page and the Starttid/Sluttid pair inside the
- *     ärende form -- the flex row being the case that actually broke -- are
- *     each checked against the box that is supposed to contain them.
- *   - the admin's day page reads heading, then the shifts, then the three
- *     actions, in that order down the page
- *   - Snabb Pass and Skapa Pass carry the tapped date with them
+ *     ärende form's Datum field and its Starttid/Sluttid pair -- the flex row
+ *     being the case that actually broke -- are each checked against the box
+ *     that is supposed to contain them.
+ *   - the day is a timeline titled with its date, its pass a block on it, and
+ *     no actions card; the admin's + offers Pass and Ärende on their own screen
+ *   - Pass carries the tapped date: it opens straight on "Beskriv passen"
  *   - Hela dagen starts ON, and turning it off reveals Starttid and Sluttid
  *   - the colour picker offers the eight the check constraint permits, and
  *     nothing to type into
  *   - the viewer picker sorts arbetsledare to the top and names everyone's role
- *   - saving writes the ärende, closes the form and says so
- *   - the ärende shows on the day page and as a DOT on the calendar -- a dot,
- *     not a stripe, because it is not a site working
+ *   - saving writes the ärende and goes back to the day, where it is a block
+ *     on the timeline; its own screen says who it is shared with
+ *   - the ärende shows as a DOT on the calendar -- a dot, not a stripe,
+ *     because it is not a site working
  *   - AND ONLY FOR THE OWNER AND THE PEOPLE NAMED. The leader who was named
  *     sees it; the leader who was not sees neither the card nor the dot. That
  *     is RLS, and this is the browser agreeing with the suite about it.
- *   - an arbetsledare gets no Tilldela Ärende button: the three actions are
- *     the admin's
+ *   - an arbetsledare's + makes passes only -- no Ärende
  */
 import { chromium, devices } from "playwright";
 import { mkdirSync } from "node:fs";
@@ -136,7 +136,7 @@ async function openDay(page, date) {
     timeout: 20000,
   });
   await page.waitForLoadState("networkidle");
-  await page.locator(`[data-day-panel="${date}"]`).waitFor({ timeout: 20000 });
+  await page.locator(`[data-day-timeline="${date}"]`).waitFor({ timeout: 20000 });
 }
 
 /**
@@ -226,13 +226,50 @@ try {
   await makeBatch(page, PROJECT, [DAY], "8");
   log(`created two arbetsledare, a project, and one pass on ${DAY} for the dot to be told apart from`);
 
-  // ---- 1. the day page, and the field that used to escape it ---------------
+  // ---- 1. the day screen ---------------------------------------------------
   await openDay(page, DAY);
+  const title = (await page.locator("h1").first().innerText()).trim();
+  if (!/^[A-ZÅÄÖ][a-zåäö]+dag \d{1,2} [a-zåäö]+$/.test(title)) {
+    fail(`the day screen is not titled with its date: "${title}"`);
+  }
+  if (!(await page.locator(`[data-day-timeline="${DAY}"] [data-pass-block]`).count())) {
+    await shot(page, "FAILED-arende");
+    fail("the day's pass is not a block on its timeline");
+  }
+  // Creating is behind the + now; the day itself carries nothing to act on.
+  for (const gone of ["Tilldela Ärende", "Snabb Pass", "Skapa Pass"]) {
+    if (await page.getByText(gone, { exact: true }).count()) {
+      fail(`the day screen still carries "${gone}"`);
+    }
+  }
+  await shot(page, "arende-dag");
+  log(`the day is a timeline titled "${title}", its pass a block, and no actions card`);
 
-  // One hop: input -> span -> span -> label -> the Card's div.
-  const datum = await mustFitInside(
-    page, 'input[type="date"]', 1, "the Datum field on Öppna dag",
-  );
+  // ---- 2. the admin's +: Pass or Ärende, on their own screen ---------------
+  await page.getByRole("link", { name: "Lägg till" }).click();
+  await page.getByRole("heading", { name: "Lägg till" }).waitFor({ timeout: 20000 });
+  for (const choice of ["Pass", "Ärende"]) {
+    if (!(await page.getByText(choice, { exact: true }).count())) fail(`the admin's + does not offer ${choice}`);
+  }
+  log("the admin's + offers Pass and Ärende");
+
+  // ---- 3. Pass carries the date: straight to the form ----------------------
+  await page.getByRole("link", { name: /^Pass/ }).click();
+  await page.waitForURL((u) => u.pathname.includes("/pass/ny"), { timeout: 20000 });
+  await page.getByRole("heading", { name: "Beskriv passen" }).waitFor({ timeout: 20000 })
+    .catch(() => fail("Pass from the day did not open straight on the form"));
+  const back = await page.getByRole("link", { name: "Tillbaka" }).first().getAttribute("href");
+  if (!back || !back.includes(DAY)) fail(`the form's back does not return to ${DAY}: ${back}`);
+  log(`Pass opens straight on Beskriv passen for ${DAY}, and back returns to that day`);
+
+  // ---- 4. the ärende form, on its own screen -------------------------------
+  await openDay(page, DAY);
+  await page.getByRole("link", { name: "Lägg till" }).click();
+  await page.getByRole("link", { name: /^Ärende/ }).click();
+  await page.getByRole("heading", { name: "Lägg in ett ärende" }).waitFor({ timeout: 20000 });
+
+  // One hop: input -> its wrapper -> the card's div.
+  const datum = await mustFitInside(page, 'input[type="date"]', 1, "the Datum field on the ärende form");
   log(`the Datum field fits its card (${datum.width}px wide, ${datum.left.toFixed(0)}px / ${datum.right.toFixed(0)}px clear)`);
 
   /**
@@ -240,15 +277,10 @@ try {
    *
    * Measuring the box is a floor, and on its own it is close to vacuous: the
    * overflow this fixes is iOS Safari sizing a date control to its own value,
-   * and headless Chromium does not reproduce it -- stripping the wrapper and
-   * the shadow-part CSS leaves the measurement above still passing. Verified
-   * by doing exactly that, which is the only way to find out.
-   *
-   * So the guarantee is asserted directly: the wrapper may shrink below the
-   * control's intrinsic width (min-width: 0) and clips whatever it still
-   * draws (overflow: hidden), and the input may shrink inside it. Those three
-   * are what make the box no longer the input's to decide, and removing any of
-   * them fails here even on a browser that would not show the symptom.
+   * and headless Chromium does not reproduce it. So the guarantee is asserted
+   * directly: the wrapper may shrink below the control's intrinsic width
+   * (min-width: 0) and clips whatever it still draws (overflow: hidden), and
+   * the input may shrink inside it.
    */
   const clip = await page.evaluate(() => {
     const i = document.querySelector('input[type="date"]');
@@ -265,66 +297,6 @@ try {
     fail(`the date field cannot shrink to its box (wrapper min-width ${clip.wrapperMin}, input min-width ${clip.inputMin}) -- a flex child defaults to min-content and pushes its row wider`);
   }
   log("its wrapper clips, and both it and the input may shrink below the control's own idea of its width");
-
-  // ---- 2. heading, then the three actions, then the shifts -----------------
-  for (const label of ["Tilldela Ärende", "Snabb Pass", "Skapa Pass"]) {
-    if (!(await page.getByText(label, { exact: true }).count())) {
-      await shot(page, "FAILED-arende");
-      fail(`the admin's day page does not offer "${label}"`);
-    }
-  }
-
-  const order = await page.evaluate((date) => {
-    const y = (sel) => {
-      const el = document.querySelector(sel);
-      return el ? el.getBoundingClientRect().top : null;
-    };
-    const heading = [...document.querySelectorAll("p")]
-      .find((p) => /^[A-ZÅÄÖ]+DAG /.test(p.innerText.trim()));
-    return {
-      heading: heading ? heading.getBoundingClientRect().top : null,
-      // href, not text: trailingSlash rewrites the query onto "/snabb/?datum=",
-      // so the link is matched on the route rather than on an exact string.
-      actions: y('a[href*="/snabb"]'),
-      shifts: y(`[data-day-panel="${date}"]`),
-    };
-  }, DAY);
-
-  if (order.heading === null) fail("the day page draws no date heading");
-  if (order.actions === null) fail("the day page draws no action buttons");
-  if (!(order.heading < order.shifts && order.shifts < order.actions)) {
-    await shot(page, "FAILED-arende");
-    fail(
-      `the day page is out of order: heading ${order.heading}px, actions ${order.actions}px, `
-      + `shifts ${order.shifts}px -- expected heading, then shifts, then actions`,
-    );
-  }
-  await shot(page, "arende-dag");
-  log("the day reads heading, then the shifts, then the three actions");
-
-  // ---- 3. the two doors carry the date -------------------------------------
-  await page.getByRole("link", { name: "Snabb Pass", exact: true }).click();
-  await page.waitForURL((u) => u.pathname.includes("/snabb"), { timeout: 20000 });
-  await page.waitForLoadState("networkidle");
-  const snabbDate = await field(page, "Datum").inputValue();
-  if (snabbDate !== DAY) fail(`Snabb Pass opened on ${snabbDate}, not the day that was tapped (${DAY})`);
-  log(`Snabb Pass opens on ${DAY} rather than on today`);
-
-  await openDay(page, DAY);
-  await page.getByRole("link", { name: "Skapa Pass", exact: true }).click();
-  await page.waitForURL((u) => u.pathname.includes("/pass/ny"), { timeout: 20000 });
-  await page.getByRole("heading", { name: "Välj dagar" }).waitFor({ timeout: 20000 });
-  const picked = await page.locator("[data-picked-count]").first().getAttribute("data-picked-count");
-  if (picked !== "1") fail(`Skapa Pass preselected ${picked} days, expected exactly the one tapped`);
-  if (!(await page.locator(`[data-date="${DAY}"]`).count())) {
-    fail(`Skapa Pass did not open on the month holding ${DAY}`);
-  }
-  log(`Skapa Pass opens on ${DAY}'s month with that one day already picked`);
-
-  // ---- 4. the form ---------------------------------------------------------
-  await openDay(page, DAY);
-  await page.getByRole("button", { name: "Tilldela Ärende" }).click();
-  await mustSee(page, "Tilldela ärende", "the ärende form did not open");
 
   const helaDagen = page.getByRole("checkbox", { name: "Hela dagen" });
   if ((await helaDagen.getAttribute("aria-checked")) !== "true") {
@@ -391,14 +363,15 @@ try {
   await shot(page, "arende-form");
   await page.getByRole("button", { name: /Spara ärende/ }).click();
 
-  await mustSee(page, "Ärendet är sparat", "saving the ärende said nothing");
-  await mustNotSee(page, "Spara ärende", "the form stayed open after saving");
+  // Saving goes back to the day, where the ärende is a block on the timeline.
+  await page.locator(`[data-day-timeline="${DAY}"]`).waitFor({ timeout: 20000 })
+    .catch(() => fail("saving the ärende did not go back to the day"));
   await mustSee(page, TITLE, "the saved ärende is not on the day it was written for");
-  if (!(await page.locator(`[data-day-arenden="${DAY}"] [data-handelse]`).count())) {
-    fail("the ärende is on the page but not in the day's Ärenden section");
-  }
-  await mustSee(page, `Delad med ${NAMED.name}`, "the day does not say who the ärende was shared with");
-  log(`"${TITLE}" is saved, the form is closed, and the day names who can see it`);
+  const block = page.locator(`[data-day-timeline="${DAY}"] [data-handelse]`).first();
+  if (!(await block.count())) fail("the ärende is on the page but not on the day's timeline");
+  await block.click();
+  await mustSee(page, `Delad med ${NAMED.name}`, "the ärende does not say who it was shared with");
+  log(`"${TITLE}" is saved, it is a block on the day, and its screen names who can see it`);
 
   // ---- 6. the dot on the calendar -----------------------------------------
   await page.goto(`${BASE}/kalender/`, { waitUntil: "networkidle" });
@@ -480,12 +453,13 @@ try {
   await page.locator(`[data-date="${DAY}"] [data-arende-dot]`).first().waitFor({ timeout: 20000 });
   await page.goto(`${BASE}/dag/?datum=${DAY}`, { waitUntil: "networkidle" });
   await mustSee(page, TITLE, "the arbetsledare who was named cannot see the ärende");
+  // A leader's + makes passes only: it goes straight to the pass form.
+  const plus = await page.getByRole("link", { name: "Lägg till" }).getAttribute("href");
+  if (!plus || !plus.includes("/pass/ny")) fail(`an arbetsledare's + does not go straight to a pass: ${plus}`);
+  await page.locator(`[data-day-timeline="${DAY}"] [data-handelse]`).first().click();
   await mustSee(page, "Delad med dig", "a named viewer is not told the ärende is somebody else's");
   await mustNotSee(page, "Ta bort", "a named viewer is offered a delete they cannot perform");
-  // The three actions are the admin's. A leader reading somebody else's day
-  // gets the day, not the controls.
-  await mustNotSee(page, "Tilldela Ärende", "an arbetsledare is offered the admin's actions");
-  log(`${NAMED.name} was named, and sees the ärende -- read-only, with none of the admin's actions`);
+  log(`${NAMED.name} was named, and sees the ärende -- read-only; their + makes passes only`);
   await signOut(page);
 
   await signIn(page, UNNAMED.email, UNNAMED.password);

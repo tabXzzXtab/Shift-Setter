@@ -302,9 +302,10 @@ A single calendar showing every project's shifts.
 - Each project has a colour, and it is the **same** colour on the day page the calendar opens into. The palette is eight, assigned by a project's position among the projects holding shifts **that month** — so the projects that appear on screen together are the ones competing for it, rather than every project that has ever existed. Past eight the palette wraps, and the names in the legend and on the day's tabs are what tell them apart.
 - **A day cell is a fixed height, whatever the day holds.** Every project working that day is one colour stripe, stacked; past four, the remainder becomes a `+N` counter rather than a taller cell. The stripes carry no names — there is no room for one at a seventh of a phone — so the **legend under the grid names every project in the month**, including any whose stripes were all counted rather than drawn.
 - **Superseded:** a shift repeating across consecutive days used to render as one continuous bar spanning those days. That required every project to hold a reserved line in every cell all month, so a month with twenty sites on it grew cells taller than the screen and the grid stopped reading as a calendar. The bar is gone. Stripes are packed per day, which is what makes the cell a fixed size and what costs a run its continuity.
-- **Tapping a day opens Öppna Dag at `/dag?datum=`** — its own page, navigated to, not a panel unfolding under the grid. The answer is long (every project, every shift, every name on it) and reading it while the calendar scrolls above is reading it twice.
-- **Öppna Dag shows ONE project at a time** when the day holds several, chosen from a strip of coloured tabs carrying the same colours the calendar drew. A stripe that was pressed and the tab it lands on are recognisably the same site. Showing every project at once would put three sites' delete and Avboka controls in a single scroll, which is how the wrong day gets edited.
-- Öppna Dag also stands alone with a date picker, opening on today when reached without `?datum=`. It has no landing-page button: the calendar is the way in that anyone is expected to use.
+- **Tapping a day opens the day screen at `/dag?datum=`** — full screen, titled with the date ("Tisdag 6 oktober"), with a week strip under the title to step between days. The body is a **timeline**: hours down the left, every pass and every timed ärende a block at its own time, all-day ärenden in a "Hela dagen" row above the grid, a line at the current time on today. No cards inside cards and nothing to act on — the day answers "who is where, and when", and the controls are one tap further in. Overlapping blocks sit side by side. A block carries the project's colour, its name, its times and, where there is room, how many places are filled.
+- **Tapping a pass's block opens that project's day** at `/dag/projekt?datum=&projekt=` — the shifts and the names on them, with the trash icons, Avboka Pass, Byta Plats, Ändra detta pass and Ta bort detta pass. One project per screen, so two sites' delete and Avboka controls never share a scroll, which is how the wrong day gets edited. The block and the calendar stripe are the same colour, so the site that was pressed is recognisably the site that opened.
+- **The + top right creates, on its own full screen.** The admin's + opens a choice of **Pass** and **Ärende**; an arbetsledare's goes straight to the pass form, because an ärende is the admin's. On a day already past, Pass is drawn disabled with *Kan inte skapa pass på ett passerat datum.* — the database refuses a pass on a past date, so the screen says so before anybody fills in a form. Snabb Pass is not here; it stays on the landing page.
+- The same day screen opens from **Mina Pass → Kalender**: for an arbetsledare read-only with the + for passes; for an arbetare fully read-only, no +, showing only their own shifts (`my_shift`) with times and never an hours figure, so invariant 10 has nothing to leak.
 - **Only admin can delete a shift**, and this is where it happens.
 
 - **An ongoing shift cannot be deleted.** Once it has started, it is a fact that has to be confirmed, not erased.
@@ -313,7 +314,7 @@ A single calendar showing every project's shifts.
 
 Visible to admin and arbetsledare. Not to arbetare — they see their own shifts, not the company's schedule.
 
-### Tapping a person in Öppna Dag
+### Tapping a person on a project's day
 
 **A worker** shows **Avboka Pass** — the trash icon beside the name is the same act. It asks first — **Avboka bokning?**, naming the person and the pass, with **Bekräfta** and **Avbryt** — and only Bekräfta takes them off that day (Step 5b).
 
@@ -324,17 +325,14 @@ Visible to admin and arbetsledare. Not to arbetare — they see their own shifts
 
 A leader gets buttons where a worker gets a trash icon because a leader is never simply absent. Somebody has to be answerable for the day, and the choice of who cannot be skipped.
 
-### The admin's three actions on a day
+### Creating from a day
 
-Below the shifts, and **only for the admin**, Öppna Dag carries the three things an owner does to a day. The page reads: the date, the shifts, the three actions, then the day's ärenden. The calendar sends the admin here to see who is where, so the first screenful answers that; the actions follow the thing they act on.
+The + on the day screen is the only way to create from a day.
 
-- **Tilldela Ärende** — writes an ärende on this day (below). It is the accent button because it is the only one of the three that happens on this screen; the other two are doors.
-- **Snabb Pass** → `/snabb?datum=`
-- **Skapa Pass** → `/pass/ny?datum=`
+- **Pass** → `/pass/ny?datum=&fran=dag`. **The date travels with the link**, and the form opens straight on *Beskriv passen* with that one day chosen — the day was already picked by tapping it, so the day picker is skipped rather than shown again. Back returns to the day. Pressing the 3rd and then typing "3rd" again is the step that gets skipped once and puts a shift on the wrong day.
+- **Ärende** (admin only) → `/dag/arende?datum=`, the ärende form alone on a screen, titled *Lägg in ett ärende*. Saving or cancelling returns to the day, where the ärende is now a block.
 
-**The date travels with the link.** Both destinations shape-check it and open on that day rather than on today — pressing the 3rd and then typing "3rd" again is the step that gets skipped once and puts a shift on the wrong day. Skapa Pass preselects the day only if it has not happened yet: its picker draws a past day transparent whether or not it is chosen, so a past date arriving already ticked would show an unmarked calendar over a count of 1.
-
-Admin-gated because two of the three are — the database refuses a Snabb Pass from anybody else. An arbetsledare opening this page gets the day, not the controls; an ärende they were **named on** still shows, because being told about a day is not the same as arranging one.
+An arbetsledare opening a day gets the day and a + for passes, not the ärende; an ärende they were **named on** still shows, because being told about a day is not the same as arranging one.
 
 ### Ärenden — what else is in the way
 
@@ -363,7 +361,7 @@ Captured when one is written:
 
 **On the shift calendar an ärende is a round dot beside the day number**, in the colour it was given — never a stripe. A stripe is a full-bleed bar below the numeral and says a site is working; both draw from the same eight colours, so shape and position are what tell them apart. Three dots fit; past that the cell stops drawing them, exactly as stripes cap at four. The cell stays the fixed 64px either way.
 
-Öppna Dag lists the day's ärenden **below the shifts, in their own section**, and draws nothing at all on a day with none. Only the owner is offered Ta bort — and that is a courtesy, not the boundary: `personal_event_write` is `owner_id = auth.uid()` in both the USING and the WITH CHECK.
+On the day screen an ärende is a block on the timeline in its colour — timed ones at their hours, all-day ones in the Hela dagen row. Tapping it opens it on its own screen (`/dag/arende?id=`), saying who it is shared with. Only the owner is offered Ta bort — and that is a courtesy, not the boundary: `personal_event_write` is `owner_id = auth.uid()` in both the USING and the WITH CHECK.
 
 ### Mina Pass — the leader's day list
 
@@ -371,7 +369,7 @@ Captured when one is written:
 
 Splitting the future off from the past would mean choosing between two pages before you know what you are looking for, and what a leader wants is nearly always the shift on one side or the other of right now.
 
-**Three tabs, on the Segmented control Bekräftelser and Kalender already use.** **Kommande Pass** is the list above and the default on open. **Kalender** is the same rows as a month grid — every day holding a shift gets the same pale fill and the same accent dot, and which project it was is answered by the day section below rather than by a legend. **Tillgänglighet** is the availability calendar that writes `forval`, which was the separate Arbetsdagar page until it moved in here.
+**Three tabs, on the Segmented control Bekräftelser and Kalender already use.** **Kommande Pass** is the list above and the default on open. **Kalender** is the same rows as a month grid — every day holding a shift gets the same pale fill and the same accent dot, and tapping a day opens the day screen, which answers which project it was rather than a legend. **Tillgänglighet** is the availability calendar that writes `forval`, which was the separate Arbetsdagar page until it moved in here.
 
 The third tab is a different subject from the first two and that is the point: Kommande Pass and Kalender are days already held, Tillgänglighet is days offerable. They sat one line apart in the same hamburger menu, under two names whose only job was to say they were not each other, and a leader weighing whether to say yes to a week reads both halves at once. Nothing about what any tab does changed in the move — same component, same rows, same writes.
 
@@ -558,7 +556,7 @@ More than five days out: the slot reopens and refills down the list normally. In
 
 **Step 5b — Removing a worker from a pass**
 
-The leader taps the day in the calendar, opens Öppna Dag, sees everyone working it, and takes someone off with **Avboka Pass** — the trash icon beside the name, confirmed in the **Avboka bokning?** dialog. That worker is off that day.
+The leader taps the day in the calendar, taps the project's block, sees everyone working it, and takes someone off with **Avboka Pass** — the trash icon beside the name, confirmed in the **Avboka bokning?** dialog. That worker is off that day.
 
 There is no "move" feature and nothing splits automatically. If that person is needed on another day, the leader creates a separate shift for that day — one day, one slot, one person, who takes it directly — or uses a Snabb Pass.
 
@@ -572,7 +570,7 @@ There is no "move" feature and nothing splits automatically. If that person is n
 
 **Step 5c — Avboka Pass on an arbetsledare**
 
-A leader is never simply removed. Somebody has to be answerable for the day, so taking one off forces the question of who takes their place. Pressing **Avboka Pass** on a leader in Öppna Dag opens a popup:
+A leader is never simply removed. Somebody has to be answerable for the day, so taking one off forces the question of who takes their place. Pressing **Avboka Pass** on a leader on the project's day opens a popup:
 
 > **Vem ska byta ut [Arbetsledare Name]?**
 
@@ -598,7 +596,7 @@ Two leaders trading the same day. Not Step 5c: nobody is being taken off anythin
 
 **Admin only**, and offered only on a day that actually holds a second arbetsledare on another project. A swap moves somebody else's day as well as your own, so it is not a leader's to make, and with nobody to trade with the button would open a list of nothing.
 
-Pressing **Byta Plats Med Arbetsledare** on a leader in Öppna Dag opens:
+Pressing **Byta Plats Med Arbetsledare** on a leader on the project's day opens:
 
 > **Vem ska [Arbetsledare Name] byta plats med?**
 
@@ -617,13 +615,13 @@ Pressing **Byta Plats Med Arbetsledare** on a leader in Öppna Dag opens:
 
 **Deleting a pass entirely — admin only**
 
-From the shift calendar, and nowhere else. **Ta bort detta pass** appears on a pass in Öppna Dag for the admin alone; an arbetsledare runs the day but does not un-book it.
+From the shift calendar, and nowhere else. **Ta bort detta pass** appears on a pass on the project's day for the admin alone; an arbetsledare runs the day but does not un-book it.
 
 **A shift that has started cannot be deleted.** It is a fact to be confirmed, not a plan to be withdrawn — and neither can one somebody has already clocked in on, which is the same rule reached from invariant 3.
 
 **Everyone on it is released, told, and never re-offered it.** The assignments are released as `shift_deleted`, a notification goes to each person, open offers are withdrawn, and a `pass_block` row makes sure the tier walk never hands the shift back to somebody it was taken from. Snabb Pass is the deliberate way back. An auto-assigned arbetsledare is released but NOT blocked: they were never offered the pass, and blocking them would be a lie the next time the day has people on it.
 
-**A cancelled day says so.** The shift is soft-deleted, so an emptied day would otherwise read exactly like a day nobody ever booked — and those are different facts. When a project's shifts on a date are all deleted, Öppna Dag shows **Inställd dag**, naming the project and counting what went. A day with one shift called off and another still running is not a cancelled day: somebody is still working it. The fact reaches the interface through `public.cancelled_day` rather than by loosening the pass policy — invariant 8's rule is that deleted rows count nowhere, and widening the policy would put cancelled shifts back into the month grid, the confirmation queue and the tier walk.
+**A cancelled day says so.** The shift is soft-deleted, so an emptied day would otherwise read exactly like a day nobody ever booked — and those are different facts. When a project's shifts on a date are all deleted, the day screen shows **Inställd dag**, naming the project and counting what went. A day with one shift called off and another still running is not a cancelled day: somebody is still working it. The fact reaches the interface through `public.cancelled_day` rather than by loosening the pass policy — invariant 8's rule is that deleted rows count nowhere, and widening the policy would put cancelled shifts back into the month grid, the confirmation queue and the tier walk.
 
 **Step 6 — The day happens**
 Workers clock themselves in and out. The timestamp is the server's, never the phone's — a phone running ten minutes fast writes ten minutes of error into evidence of hours worked and nobody would notice.
@@ -1201,7 +1199,7 @@ Nothing here is open. Anything discovered later that is not covered is a stop-an
 - Built so a child could use it: large targets, obvious affordances, minimal per screen.
 - Notifications are in-app for the browser and push for the phone shell — the in-app-only decision is reversed (Section 6b). Every push still has a `notification` row behind it; the row is the record, the push is best effort.
 - Payload fields renamed on port: `hours`, `passTider`, `vadViGjorde`.
-- Öppna Dag opens from the calendar only. No standalone page, no landing-page button.
+- The day screen opens from the calendars only (Skiftkalender, Mina Pass → Kalender). No landing-page button.
 - The Arbetsdagbok lives inside the project. Direct download, no print dialog, named `20Jul-28Aug-2026-demoprojektet.pdf` — capitalised month, lowercased project slug.
 - Mina Pass is one page: future shifts by default, scroll back for the current day and the past. It carries the leader's availability calendar as a third tab; Arbetsdagar is no longer a menu entry of its own.
 - Landing pages and hamburger menus are settled for admin and arbetsledare (Section 7). The arbetare landing is not finalised.

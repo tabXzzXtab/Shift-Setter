@@ -190,7 +190,7 @@ function Skiftkalender() {
               return (
                 <Link
                   key={date}
-                  href={`/dag?datum=${date}`}
+                  href={`/dag?datum=${date}&fran=%2Fkalender`}
                   data-date={date}
                   data-arenden={arenden.length}
                   aria-label={

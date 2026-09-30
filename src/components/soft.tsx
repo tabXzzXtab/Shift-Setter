@@ -123,13 +123,15 @@ export function IconButton({
  * subtitle indented 72px so it clears the button rather than wrapping under it.
  */
 export function SoftScreen({
-  title, back, subtitle, children,
+  title, back, subtitle, action, children,
 }: {
   title: string;
   /** Omitted where there is nowhere to go back TO -- the screen a recovery
    *  link lands on was not opened from anywhere in this app. */
   back?: string;
   subtitle?: ReactNode;
+  /** The trailing corner of the title row -- the day screen's +. */
+  action?: ReactNode;
   children: ReactNode;
 }) {
   return (
@@ -148,10 +150,11 @@ export function SoftScreen({
         {/* An empty title draws no heading: an end state's SoftDone carries
             the page's heading itself, centred, rather than saying it twice. */}
         {title && (
-          <h1 className="text-[22px] font-extrabold" style={{ letterSpacing: "-.7px" }}>
+          <h1 className="min-w-0 flex-1 text-[22px] font-extrabold" style={{ letterSpacing: "-.7px" }}>
             {title}
           </h1>
         )}
+        {action && <div className="ml-auto shrink-0">{action}</div>}
       </div>
 
       {subtitle && (

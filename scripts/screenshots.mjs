@@ -185,27 +185,28 @@ if (ROLES.includes("admin")) {
 
   await step(page, "admin-kalender-dag-open", async () => {
     await page.goto(`${BASE}/dag/?datum=${TODAY}`, { waitUntil: "networkidle" });
-    await page.getByRole("button", { name: "Tilldela Ärende" }).waitFor({ timeout: 20000 });
+    await page.locator(`[data-day-timeline="${TODAY}"]`).waitFor({ timeout: 20000 });
+  });
+
+  await step(page, "admin-dag-lagg-till", async () => {
+    await page.getByRole("link", { name: "Lägg till" }).click();
+    await page.getByRole("heading", { name: "Lägg till" }).waitFor({ timeout: 20000 });
   });
 
   await step(page, "admin-dag-tilldela-arende-form", async () => {
-    await page.getByRole("button", { name: "Tilldela Ärende" }).click();
-    await page.waitForTimeout(900);
+    await page.getByRole("link", { name: /^Ärende/ }).click();
+    await page.getByRole("heading", { name: "Lägg in ett ärende" }).waitFor({ timeout: 20000 });
   });
 
   // The list with something in it: an ärende that exists is a different screen
   // from the button that would make one.
   await step(page, "admin-dag-tilldela-arende", async () => {
-    await page.goto(`${BASE}/dag/?datum=${TODAY}`, { waitUntil: "networkidle" });
-    await page.getByRole("button", { name: "Tilldela Ärende" }).click();
+    await page.goto(`${BASE}/dag/arende/?datum=${TODAY}`, { waitUntil: "networkidle" });
     await field(page, "Titel").fill("Leverans betong");
     await field(page, "Beskrivning").fill("Betongbil kommer 09:00, grind 2.");
     await page.getByRole("button", { name: "Spara ärende" }).click();
-    await page.getByText("Ärendet är sparat", { exact: false }).waitFor({ timeout: 20000 });
-    // Re-read the day so the ärende is drawn in the list rather than only
-    // reported by the notice above it.
-    await page.goto(`${BASE}/dag/?datum=${TODAY}`, { waitUntil: "networkidle" });
-    await page.getByText("Leverans betong", { exact: false }).first().waitFor({ timeout: 20000 });
+    // Saving goes back to the day, where the ärende is a block.
+    await page.locator(`[data-day-timeline="${TODAY}"] [data-handelse]`).first().waitFor({ timeout: 20000 });
   });
 
   await step(page, "admin-snabb-pass-fore", async () => {

@@ -276,14 +276,24 @@ try {
   }
   log("a day with nothing on it carries no mark at all");
 
-  // Tapping a day opens it.
+  // Tapping a day opens the day screen: a read-only timeline of the worker's
+  // own shifts. It prints no hours figure at all -- times, not hours -- so
+  // invariant 10 holds there by having nothing to leak.
   await worked.click();
-  await page.waitForTimeout(600);
+  await page.waitForURL((u) => u.pathname.startsWith("/dag") && u.search.includes(PAST), { timeout: 20000 });
+  await page.locator(`[data-day-timeline="${PAST}"]`).waitFor({ timeout: 20000 });
   await mustSee(page, P1, "tapping a worked day did not open that day");
-  await mustSee(page, "Väntar på arbetsdagbok",
-    "the day panel must apply invariant 10 exactly as the list does");
+  if (await page.getByRole("link", { name: "Lägg till" }).count()) {
+    fail("an arbetare's day screen offers a +; it is read-only");
+  }
+  const dayText = await page.locator("main").innerText();
+  if (/\d+([,.]\d+)?\s*(tim|h)\b/.test(dayText)) {
+    fail(`the worker's day screen shows an hours figure: ${JSON.stringify(dayText.slice(0, 300))}`);
+  }
   await shot(page, "m2-kalender");
-  log("tapping a day opens that day's shift, with the same hours rule as the list");
+  log("tapping a day opens the day screen: the shift, read-only, no +, no hours figure");
+  await page.goBack();
+  await toggle.waitFor({ timeout: 20000 });
 
   // ---- TILLGÄNGLIGHET ------------------------------------------------------
   // The Arbetsdagar page, now the third tab. Asserting on the mode switch and

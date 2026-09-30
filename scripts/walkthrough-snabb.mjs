@@ -21,7 +21,7 @@ import { chromium, devices } from "playwright";
 import { mkdirSync } from "node:fs";
 import path from "node:path";
 import { required } from "./env.mjs";
-import { chooseProject } from "./day-page.mjs";
+import { openDayPage } from "./day-page.mjs";
 import { reachDate, runLane, shiftDays, stockholmToday } from "./wt-dates.mjs";
 
 const BASE = process.env.BASE_URL ?? "http://localhost:3000";
@@ -220,11 +220,8 @@ try {
   // ---- the earlier assignment is gone, exactly one stands -------------------
   await signOut(page);
   await signIn(page, L.email, L.password);
-  await page.goto(`${BASE}/dag/`, { waitUntil: "networkidle" });
-  await field(page, "Datum").fill(D);
-  // The day shows ONE project at a time, and which one it opens on is a sort
-  // order this run does not control.
-  await chooseProject(page, project);
+  // The project's day on D: its passes and who stands on them.
+  await openDayPage(page, BASE, D, project);
   await mustSee(page, "0 av 1 platser", "the ordinary pass should have lost its worker");
   const adaRows = await page.getByText(`Ada S${RUN}`, { exact: false }).count();
   if (adaRows !== 1) fail(`Ada appears ${adaRows} times on ${D}; the Snabb Pass must win, not duplicate`);

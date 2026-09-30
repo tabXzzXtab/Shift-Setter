@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
 import { AuthGate } from "@/components/auth-gate";
 import {
   C, Card, EmptyState, SHADOW, Segmented, SoftNotice, SoftScreen,
@@ -248,7 +249,11 @@ function SectionKicker({ children, faded }: { children: ReactNode; faded?: boole
 }
 
 /**
- * The calendar. A month grid, then the selected day underneath it.
+ * The calendar. A month grid; tapping a day opens that day's screen (/dag),
+ * which lays the day out on its timeline -- read-only for an arbetare, with a
+ * + for passes for an arbetsledare. It used to open a short summary under the
+ * grid, which meant scrolling to read it. Filed hours (invariant 10) are
+ * shown on the Kommande Pass tab.
  *
  * NO PER-PROJECT MARK, which is a change the handoff makes deliberately: every
  * day holding a shift gets the same pale fill and the same accent dot, and
@@ -259,7 +264,7 @@ function SectionKicker({ children, faded }: { children: ReactNode; faded?: boole
  */
 function Kalender({ shifts, today }: { shifts: Shift[]; today: string }) {
   const [month, setMonth] = useState(() => today.slice(0, 7));
-  const [open, setOpen] = useState<string | null>(null);
+  const router = useRouter();
 
   const first = `${month}-01`;
   const daysInMonth = new Date(Number(month.slice(0, 4)), Number(month.slice(5, 7)), 0).getDate();
@@ -283,7 +288,7 @@ function Kalender({ shifts, today }: { shifts: Shift[]; today: string }) {
             <button
               type="button"
               aria-label="Föregående månad"
-              onClick={() => { setMonth(addDays(first, -1).slice(0, 7)); setOpen(null); }}
+              onClick={() => setMonth(addDays(first, -1).slice(0, 7))}
               className="press-scale flex h-10 w-10 items-center justify-center rounded-[11px] transition-transform duration-[110ms] hover:bg-[#dbe4f9] active:scale-[.985]"
               style={{ background: C.panel2 }}
             >
@@ -305,7 +310,7 @@ function Kalender({ shifts, today }: { shifts: Shift[]; today: string }) {
             <button
               type="button"
               aria-label="Nästa månad"
-              onClick={() => { setMonth(addDays(first, daysInMonth).slice(0, 7)); setOpen(null); }}
+              onClick={() => setMonth(addDays(first, daysInMonth).slice(0, 7))}
               className="press-scale flex h-10 w-10 items-center justify-center rounded-[11px] transition-transform duration-[110ms] hover:bg-[#dbe4f9] active:scale-[.985]"
               style={{ background: C.panel2 }}
             >
@@ -338,7 +343,8 @@ function Kalender({ shifts, today }: { shifts: Shift[]; today: string }) {
               const date = `${month}-${String(day).padStart(2, "0")}`;
               const worked = byDate.get(date);
               const isToday = date === today;
-              const chosen = open === date;
+              // No selected state: a tap opens the day rather than choosing it.
+              const chosen = false;
 
               return (
                 <button
@@ -346,8 +352,7 @@ function Kalender({ shifts, today }: { shifts: Shift[]; today: string }) {
                   type="button"
                   data-date={date}
                   aria-label={`${day}${worked ? `, ${worked.length} pass` : ", inget pass"}`}
-                  aria-pressed={chosen}
-                  onClick={() => setOpen((d) => (d === date ? null : date))}
+                  onClick={() => router.push(`/dag?datum=${date}&fran=%2Fmina-pass`)}
                   className="flex h-11 flex-col items-center justify-center gap-[3px] rounded-[10px]"
                   style={{
                     background: chosen ? C.accent : worked ? C.panel2 : "transparent",
@@ -379,43 +384,6 @@ function Kalender({ shifts, today }: { shifts: Shift[]; today: string }) {
         </Card>
       </div>
 
-      {open && (
-        <div className="px-4 pt-[22px]">
-          <SectionKicker>{longDayHeading(open)}</SectionKicker>
-          {(byDate.get(open) ?? []).length === 0 ? (
-            <EmptyState>Inga pass denna dag.</EmptyState>
-          ) : (
-            <div className="flex flex-col gap-[10px]">
-              {(byDate.get(open) ?? []).map((s) => (
-                <div
-                  key={s.id}
-                  className="rounded-[14px] px-4 pb-[14px] pt-[15px]"
-                  style={{ background: C.surface, boxShadow: SHADOW.group }}
-                >
-                  <div className="mb-[3px] flex items-baseline justify-between gap-[10px]">
-                    <div className="text-[18px] font-bold" style={{ letterSpacing: "-.4px" }}>
-                      {s.project_name}
-                    </div>
-                    <div
-                      data-hours
-                      className="whitespace-nowrap text-[15px] font-bold"
-                      style={{ color: s.filed && s.confirmed_hours !== null ? C.accent : C.text2 }}
-                    >
-                      {hoursLine(s)}
-                    </div>
-                  </div>
-                  <div className="mb-3 text-[15px] font-medium" style={{ color: C.text2 }}>
-                    {s.site_address}
-                  </div>
-                  <div className="text-[16px] font-bold" style={{ letterSpacing: "-.2px" }}>
-                    {hhmm(s.start_time)}–{hhmm(s.end_time)}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
     </div>
   );
 }
