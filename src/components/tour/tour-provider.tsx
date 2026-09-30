@@ -6,6 +6,7 @@ import {
 import { usePathname, useRouter } from "next/navigation";
 import { useAccount, type Role } from "@/lib/account";
 import { getSupabase } from "@/lib/supabase/client";
+import { SETUP_ROUTE, companySetupNeeded } from "@/lib/company-setup";
 import { DONE, SEQUENCES, met, type FormKey, type Step } from "@/lib/tour/steps";
 import {
   automatedWithoutOptIn, completeTour, markSeen, requestReplay, saveStep, sessionStep,
@@ -17,7 +18,7 @@ import { TourCard } from "./tour-card";
 import { TourBar, TourSpotlight } from "./tour-spotlight";
 
 /** Screens nobody is being shown around: signed out, or not a tenancy's app. */
-const OFF_ROUTES = ["/login", "/onboarding", "/super", "/glomt-losenord", "/aterstall-losenord"];
+const OFF_ROUTES = ["/login", "/onboarding", "/super", "/glomt-losenord", "/aterstall-losenord", SETUP_ROUTE];
 
 /** How long a nav step waits for its element before it becomes a card. */
 const MISSING_AFTER_MS = 8000;
@@ -89,6 +90,12 @@ export function TourProvider({ children }: { children: ReactNode }) {
     void (async () => {
       const { data } = await getSupabase().rpc("acting_tenant");
       if (!live || (Array.isArray(data) && data.length > 0)) return;
+      // THE COMPANY FIRST. An admin whose company has no address, contact or
+      // phone is sent to Ställ in ditt företag, and the tour waits -- nothing
+      // is marked seen -- until it is saved. The effect runs again on the way
+      // back from that screen, which is what starts the tour.
+      if (await companySetupNeeded(account.id, account.role)) return;
+      if (!live) return;
       const steps = SEQUENCES[account.role];
       markSeen(account.id);
       const from = Math.min(resume ?? 0, steps.length);
@@ -97,7 +104,8 @@ export function TourProvider({ children }: { children: ReactNode }) {
       setRun({ accountId: account.id, role: account.role, steps });
     })();
     return () => { live = false; };
-  }, [account, loading, run, replays]);
+    // pathname: coming back from Ställ in ditt företag is what lets it start.
+  }, [account, loading, run, replays, pathname]);
 
   const replay = useCallback(() => {
     if (!account) return;

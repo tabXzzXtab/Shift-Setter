@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useAccount } from "@/lib/account";
+import { SETUP_ROUTE, companySetupNeeded } from "@/lib/company-setup";
 import { registerToken } from "@/lib/push";
 import { HomeAdmin } from "./home-admin";
 import { HomeArbetsledare } from "./home-arbetsledare";
@@ -46,6 +48,27 @@ export function Home() {
     void registerToken();
   }, [accountId]);
 
+  /**
+   * THE COMPANY BEFORE THE APP, for its admin. While the company has no
+   * address, kontaktperson or telefon, the admin is sent to Ställ in ditt
+   * företag first (src/lib/company-setup.ts, which asks the database and
+   * fails open). "Laddar…" until the answer is in, so the start page is never
+   * glimpsed on the way past.
+   */
+  const router = useRouter();
+  const [homeFor, setHomeFor] = useState<string | null>(null);
+  useEffect(() => {
+    if (!account || account.role !== "admin") return;
+    let live = true;
+    void (async () => {
+      const needed = await companySetupNeeded(account.id, account.role);
+      if (!live) return;
+      if (needed) router.replace(SETUP_ROUTE);
+      else setHomeFor(account.id);
+    })();
+    return () => { live = false; };
+  }, [account, router]);
+
   if (loading) return <SoftScreen title="Laddar…"><span /></SoftScreen>;
 
   // No account row, or a paused one: app.current_role() is NULL and every
@@ -63,7 +86,9 @@ export function Home() {
     );
   }
 
-  if (account.role === "admin") return <HomeAdmin />;
+  if (account.role === "admin") {
+    return homeFor === account.id ? <HomeAdmin /> : <SoftScreen title="Laddar…"><span /></SoftScreen>;
+  }
   if (account.role === "arbetsledare") return <HomeArbetsledare />;
   return <HomeArbetare />;
 }
