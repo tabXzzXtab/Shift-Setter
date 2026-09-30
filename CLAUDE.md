@@ -281,7 +281,7 @@ before writing framework code.
 | `npm run walkthrough:stangpass` | Stäng Pågående Pass: closing tells apart who clocked in from who never turned up |
 | `npm run walkthrough:foretag` | Företaget: the four fields save and persist, invariant 6 refuses without three of them, no logotype prints the name. Restores the company's own details afterwards |
 | `npm run walkthrough:analytics` | Analytics: rows filed silently and without text, the keepalive exit, no opt-in means nothing sent, a client admin refused. Deletes its own rows. `OPERATOR_EMAIL`/`OPERATOR_PASSWORD` add the operator's view |
-| `npm run demo:reset` | Clear demo data **and** recreate the stable demo logins |
+| `npm run demo:reset` | Clear **Bella Service AB's** demo data and recreate the stable demo logins. Optional, not a pre-sweep reflex — see Running the walkthroughs |
 | `npm run test:race` | Two concurrent accepts on a one-slot pass, N rounds |
 | `node scripts/long-doc-check.mjs` | Print a long Arbetsdagbok; assert no header/footer overlap |
 | `node scripts/pdf-download-check.mjs <from> <to> [projekt]` | Download the PDF; assert filename, pages, bands |
@@ -453,8 +453,10 @@ along the way. Purging Korperation's shadow dataset needed
 
 **Treat it as a stop-and-ask, every time.** Compute the row counts first, show
 them, get the go-ahead, then run it — the same way the Korperation purge was
-done. `demo:reset` is not this: it clears non-admin accounts and demo data, and
-leaves every tenancy standing.
+done. `demo:reset` is not this: it clears non-admin accounts and demo data
+INSIDE BELLA'S TENANCY ONLY, and leaves every tenancy standing. It was not
+always scoped — until 30 Sep it deleted from every table with no tenant clause,
+which emptied a third company's tenancy during a routine sweep.
 
 If a supported route is ever wanted, that is a product decision to make
 deliberately — not a convenience to add on the way past something else.
@@ -478,30 +480,46 @@ probe run without it once left fixture rows in the database.
 
 ### Running the walkthroughs
 
-**`npm run demo:reset` FIRST, every sweep. This is not optional.**
+**`npm run demo:reset` is OPTIONAL, and run deliberately when the suite needs a
+clean slate — not as a reflex before every sweep.**
 
-The walkthroughs write real rows and clean up almost nothing, so the suite
-poisons itself. Two sweeps of the same commit on the same day gave different
-results: `2026-09-27` reached **24 projects and 28 passes**, and `snabb` — which
-has to find its own project on that day — failed on a day it had passed on two
-hours earlier. `pausa` failed with `2 projekt den här dagen`, one from each
-sweep. Nothing had regressed; the second run was reading the first run's data.
+It used to say the opposite, in bold, and that was a mistake with a cost. The
+reset was mandatory when the database held one company's demo data; by the time
+a third tenancy existed, `reset-demo-data.sql` was still deleting from every
+table with no tenant clause at all. Running it on 30 Sep emptied another
+company's tenancy — its workers, its projects, its profile and two of its three
+accounts — as the documented first step of a routine sweep. The file is scoped
+to Bella Service AB now and fails loudly if it cannot find exactly that
+tenancy, but the procedure is what made a destructive step routine, so the
+procedure changed too.
 
-A red without a reset means one of three different things — a regression, a
-calendar month boundary, or simply that the suite has been run before — and
-they are indistinguishable from the output.
+WHY IT IS STILL SOMETIMES NEEDED. The walkthroughs write real rows and clean up
+almost nothing, so the suite poisons itself. Two sweeps of the same commit on
+the same day gave different results: `2026-09-27` reached **24 projects and 28
+passes**, and `snabb` — which has to find its own project on that day — failed
+on a day it had passed on two hours earlier. `pausa` failed with `2 projekt den
+här dagen`, one from each sweep. Nothing had regressed; the second run was
+reading the first run's data. `batch` is the sharpest case: it creates five
+accounts a run and the headcount stepper refuses past twenty, so four runs make
+it unrunnable.
+
+So a red can mean a regression, a calendar month boundary, or simply that the
+suite has been run before. Those are indistinguishable from the output, and
+that is the argument for a reset — but it is an argument for judgement, not for
+a habit.
 
 `scripts/wt-dates.mjs` spreads each run's dates across a lane derived from its
 run stamp, which stops consecutive sweeps landing on top of each other. That is
 a mitigation with a horizon, not a fix: it delays collisions and removes no
 rows. The pool of days is finite and every sweep fills more of it.
 
-Read the reset's own cost above before running it: it clears every non-admin
-account across every tenancy, and it resets `admin@bellaservice.se`'s password.
-
-The maintenance reset deletes every non-admin account, so a login handed to
-someone stops working the moment it runs. Always use `npm run demo:reset`,
-which recreates the stable demo accounts from `.env.local` afterwards.
+Before running it, know what it costs. It deletes every non-admin account in
+Bella's tenancy, so a login handed to somebody stops working the moment it
+runs, and it resets `admin@bellaservice.se`'s password. Always use
+`npm run demo:reset` rather than the SQL file alone — the script recreates the
+stable demo accounts from `.env.local` afterwards, and running the file by hand
+leaves the demo with an admin and nobody else. That happened, and
+`ledare@bellaservice.se` was missing until the next proper reset.
 
 **`DEMO_ADMIN_EMAIL` must be `admin@bellaservice.se`, not `demo-admin@`.** Demo
 data belongs in the CLIENT tenant. demo-admin@ is one of Korperation's super
