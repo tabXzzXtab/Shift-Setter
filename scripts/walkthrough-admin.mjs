@@ -177,7 +177,7 @@ try {
   // The heading is drawn by the loading state too -- SoftScreen carries the
   // title before the rows arrive -- so waiting on it proves nothing about the
   // list. Wait for something only the LOADED screen has.
-  await page.getByRole("heading", { name: "Alla Konton" }).waitFor({ timeout: 20000 });
+  await page.getByRole("heading", { name: "Hitta ett konto" }).waitFor({ timeout: 20000 });
   try {
     await page.getByRole("link", { name: /Tillverka Konto/ }).waitFor({ timeout: 20000 });
   } catch {

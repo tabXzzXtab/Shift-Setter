@@ -152,12 +152,10 @@ function AllaKonton() {
     setTick((t) => t + 1);
   }
 
-  const me = rows?.find((k) => k.id === account?.id) ?? null;
-
   /**
-   * Everyone else, filtered and grouped. Self is excluded: they are already at
-   * the top of the screen, and a list that shows you twice is a list that is
-   * wrong about how many people work here.
+   * Everyone else, filtered and grouped. Self is excluded: the admin is here
+   * for somebody else, and their own account is Profil -> Min profil, one tap
+   * from any screen.
    */
   const groups = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -176,14 +174,14 @@ function AllaKonton() {
 
   if (rows === null) {
     return (
-      <SoftScreen title="Alla Konton" back="/">
+      <SoftScreen title="Hitta ett konto" back="/">
         <p className="px-5 text-[15px] font-medium" style={{ color: C.text2 }}>Laddar…</p>
       </SoftScreen>
     );
   }
 
   return (
-    <SoftScreen title="Alla Konton" back="/">
+    <SoftScreen title="Hitta ett konto" back="/">
       <SoftToast message={toast} onDone={() => setToast(null)} />
       {(error || note) && (
         <div className="flex flex-col gap-[10px] px-4 pb-[10px] pt-[2px]">
@@ -192,38 +190,8 @@ function AllaKonton() {
         </div>
       )}
 
-      {/* YOU, above everything. The owner opening this screen is usually here
-          for somebody else, but their own details were previously two menu
-          levels away behind an icon -- and the one account an admin can always
-          edit should not be the hardest one to reach. Press it and it is the
-          same screen every other row opens. */}
-      {me && (
-        <div className="px-4 pt-[2px]">
-          <Link
-            href="/konto"
-            className="press-scale flex items-center gap-[14px] rounded-[16px] p-[14px] transition-transform duration-[110ms] hover:bg-[#f6f9ff] active:scale-[.99]"
-            style={{ background: C.surface, boxShadow: SHADOW.hero, color: C.ink }}
-          >
-            <Avatar src={faces.get(me.avatar_path ?? "")} name={me.name} email={me.email} size={56} />
-            <div className="min-w-0 flex-1">
-              <div className="truncate text-[18px] font-extrabold" style={{ letterSpacing: "-.4px" }}>
-                {me.name ?? "Namn saknas"}
-              </div>
-              <div className="truncate text-[14px] font-medium" style={{ color: C.text2 }}>
-                {me.email ?? "—"}
-              </div>
-              <div className="pt-[1px] text-[12px] font-bold uppercase"
-                   style={{ letterSpacing: "1px", color: C.text2 }}>
-                Din profil · {ROLE_HEADING[me.role]}
-              </div>
-            </div>
-            <ChevronRight />
-          </Link>
-        </div>
-      )}
-
       {/* The one thing on this screen the list itself cannot show. */}
-      <div className="px-4 pt-[14px]">
+      <div className="px-4 pt-[2px]">
         <Link
           href="/arbetare/ny"
           className="press-scale flex h-14 w-full items-center justify-center gap-[10px] rounded-[12px] text-[17px] font-extrabold transition-[transform,background] duration-150 hover:bg-[#12206b] active:scale-[.985]"

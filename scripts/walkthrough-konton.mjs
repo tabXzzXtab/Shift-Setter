@@ -126,20 +126,16 @@ try {
   await page.waitForURL((u) => u.pathname.includes("/installningar"), { timeout: 20000 });
   log("profile icon opens Alla Konton, and no longer says Inställningar");
 
-  await page.getByRole("heading", { name: "Alla Konton" }).waitFor({ timeout: 20000 });
+  await page.getByRole("heading", { name: "Hitta ett konto" }).waitFor({ timeout: 20000 });
   await page.getByRole("link", { name: /Tillverka Konto/ }).waitFor({ timeout: 20000 });
 
-  // ---- YOUR OWN CARD, ABOVE the create button -------------------------------
-  const mine = page.getByRole("link", { name: /Din profil/ }).first();
-  await mine.waitFor({ timeout: 20000 });
-  const mineBox = await mine.boundingBox();
-  const makeBox = await page.getByRole("link", { name: /Tillverka Konto/ }).boundingBox();
-  if (!mineBox || !makeBox) fail("could not measure the header cards");
-  if (mineBox.y + mineBox.height > makeBox.y) {
-    fail(`your own card must sit ABOVE Tillverka Konto (own ends ${
-      Math.round(mineBox.y + mineBox.height)}, create starts ${Math.round(makeBox.y)})`);
+  // ---- NO OWN CARD: the admin is here for somebody else ---------------------
+  // Their own account is Profil -> Min profil; a card for it here duplicated
+  // that and was removed.
+  if (await page.getByRole("link", { name: /Din profil/ }).count()) {
+    fail("Alla Konton still carries your own profile card");
   }
-  log(`your own profile card sits above Tillverka Konto (${Math.round(mineBox.height)}px tall)`);
+  log("no own profile card: Tillverka Konto is the first thing on the screen");
 
   await shot(page, "k1-alla-konton");
 
@@ -244,30 +240,18 @@ try {
   log(`face uploaded, signed and drawn at ${drawn}px -- squared and downscaled from 600x400`);
   await shot(page, "k6-med-bild");
 
-  // And it reaches the list, which signs every path in one call.
-  await page.goto(`${BASE}/installningar/`, { waitUntil: "networkidle" });
-  const ownImg = page.getByRole("link", { name: /Din profil/ }).locator("img").first();
-  await ownImg.waitFor({ timeout: 20000 });
-  await ownImg.evaluate((el) => el.complete && el.naturalWidth > 0
-    ? true
-    : new Promise((res, rej) => {
-        el.addEventListener("load", res, { once: true });
-        setTimeout(() => rej(new Error("the face never loaded in the list")), 30000);
-      }));
-  if (await ownImg.evaluate((el) => el.naturalWidth) < 2) {
-    fail("the face does not reach Alla Konton");
-  }
-  log("the face reaches Alla Konton");
+  // The list no longer shows your own row, so there is no own face on it to
+  // check; the face was proven drawn above, on your own page.
 
   // Taking it off again puts the initials back, same box.
-  await page.getByRole("link", { name: /Din profil/ }).click();
+  await page.goto(`${BASE}/konto/`, { waitUntil: "networkidle" });
   await page.getByRole("button", { name: "Ta bort bild" }).click();
   await page.getByText("Bilden är borttagen.").waitFor({ timeout: 30000 });
   if (await page.locator("main img").count()) fail("the face is still drawn after removal");
   log("removing the face puts the initials back");
 
   // ---- somebody else's is the same screen, plus Roll and Pausa ---------------
-  await page.goBack();
+  await page.goto(`${BASE}/installningar/`, { waitUntil: "networkidle" });
   await page.locator("[data-konto]").first().waitFor({ timeout: 20000 });
   await page.locator("[data-konto] a").first().click();
   await page.waitForURL((u) => u.searchParams.get("id"), { timeout: 20000 });
