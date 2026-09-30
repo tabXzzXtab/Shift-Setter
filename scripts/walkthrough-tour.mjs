@@ -16,11 +16,11 @@
  *     onboarding_step_{id}, and a second login shows no tour
  *   - a browser that has not opted in (every other walkthrough) never sees it
  *
- * WHAT IT DELIBERATELY DOES NOT PRESS: Skapa projekt, Skapa N pass, Acceptera,
- * Stämpla In, Bekräfta dagen, Generera Arbetsdagbok. Each of those is a real
- * write in the client tenancy, and the tour's job ends at pointing to them --
- * the run skips past each with "Hoppa över" instead. The one real write it
- * makes is one availability day for the demo worker, which it clears again.
+ * THE TOUR IS FRONTEND-ONLY. Every control that would write -- Skapa projekt,
+ * Skapa N pass, a day on Min kalender, Acceptera, Stämpla In, Bekräfta dagen,
+ * Generera Arbetsdagbok -- is caught by the tour and never reaches the page.
+ * The run PRESSES the ones it reaches and asserts that nothing was written:
+ * no Fasad Malmö project, no pass, the worker's day still unmarked.
  *
  * NEGATIVE CONTROL: TOUR_NEGATIVE=1 swallows every write of an
  * onboarding_complete_ key, as if "Kom igång" no longer saved it. The run must
@@ -40,12 +40,9 @@ const ART = "artifacts";
 mkdirSync(ART, { recursive: true });
 
 let n = 0;
-/** The availability day this run marked and has not yet cleared. */
-let marked = null;
 const log = (m) => console.log(`  ${String(++n).padStart(2, "0")}. ${m}`);
 const fail = (m) => {
   console.error(`\nFAILED: ${m}`);
-  if (marked) console.error(`LEFT BEHIND: the demo worker's ${marked} is still marked "kan jobba". Clear it in Min kalender.`);
   process.exit(1);
 };
 const shot = (page, name) => page.screenshot({ path: path.join(ART, `tour-${name}.png`), fullPage: false });
@@ -327,13 +324,15 @@ try {
     await shot(page, "admin-3-ifylld");
     log(`admin: autofill typed every field (${values.map(([, v]) => v).join(" | ")}) and ringed Skapa projekt`);
 
-    await page.waitForTimeout(2500);
-    if (!page.url().includes("/projekt/ny")) fail("admin: the form left its page on its own");
+    // The press is caught: the tour moves on, the page stays, nothing is made.
+    await tap(page, page.getByRole("button", { name: "Skapa projekt" }));
+    await expectCard(page, "Din arbetsledare söker folk", "admin: pressing Skapa projekt did not move the tour on");
+    await page.waitForTimeout(1500);
+    if (!page.url().includes("/projekt/ny")) fail("admin: Skapa projekt went through -- the page left the form");
     const made = count(`select count(*)::int as n from public.project where name = 'Fasad Malmö' and created_at > to_timestamp(${t0})`);
-    if (made !== 0) fail(`admin: autofill SUBMITTED -- ${made} Fasad Malmö project(s) exist`);
-    log("admin: nothing was created -- the press is the person's");
+    if (made !== 0) fail(`admin: the tour let Skapa projekt through -- ${made} Fasad Malmö project(s) exist`);
+    log("admin: Skapa projekt pressed, caught, and nothing was created");
 
-    await skip(page);
     for (const text of [
       "Din arbetsledare söker folk",
       "Arbetarna väljer själva",
@@ -472,10 +471,7 @@ try {
     await page.waitForURL((u) => u.pathname.startsWith("/min-kalender"), { timeout: 20000 });
     log("worker: Arbetsdagar ringed and tapped");
 
-    // A real write, and the one this run makes: the last unmarked day of NEXT
-    // month -- well clear of anything the tier walk is about to place --
-    // marked as one they can work. Cleared again once the tour is closed,
-    // because until then a card covers the calendar.
+    // The tap is caught: the tour moves on and the day stays unmarked.
     const grid = page.locator("[data-date]").first().locator("..");
     await expectRingOn(page, grid, "worker step 3");
     await shot(page, "arbetare-3-kalender");
@@ -486,11 +482,12 @@ try {
         .filter((c) => /omarkerad$/.test(c.getAttribute("aria-label") ?? ""));
       return cells.at(-1)?.getAttribute("data-date") ?? null;
     });
-    if (!day) fail("worker: no unmarked day next month to mark");
-    marked = day;
+    if (!day) fail("worker: no unmarked day next month to tap");
     await tap(page, page.locator(`[data-date="${day}"]`));
-    await expectCard(page, "När arbetsledaren skapar pass på de dagarna du bokat", "worker: marking a day did not advance the tour");
-    log(`worker: marked ${day} as kan jobba; the saved write moved the tour on`);
+    await expectCard(page, "När arbetsledaren skapar pass på de dagarna du bokat", "worker: tapping a day did not advance the tour");
+    const still = await page.locator(`[data-date="${day}"]`).getAttribute("aria-label");
+    if (!/omarkerad$/.test(still ?? "")) fail(`worker: the tour let the tap through -- ${day} reads "${still}"`);
+    log(`worker: tapped ${day}; the tour moved on and the day is still unmarked`);
     await nextCard(page, "När arbetsledaren skapar pass på de dagarna du bokat", "worker card 4");
     await nextCard(page, "Har du inte förbokat?", "worker card 5");
 
@@ -524,20 +521,6 @@ try {
     }
 
     await finish(page, "worker");
-
-    // The tour is closed, so the calendar is reachable: put the day back.
-    await page.goto(`${BASE}/min-kalender/`, { waitUntil: "networkidle" });
-    await tap(page, page.getByRole("button", { name: "Nästa månad" }));
-    // The marks arrive after the grid does. Tapping before they have would
-    // mark an "unmarked" day rather than clear a marked one.
-    await page.locator(`[data-date="${marked}"][aria-label$="kan jobba"]`).waitFor({ timeout: 15000 })
-      .catch(() => fail(`worker: ${marked} never showed as marked after the reload`));
-    await tap(page, page.locator(`[data-date="${marked}"]`));
-    await page.locator(`[data-date="${marked}"][aria-label$="omarkerad"]`).waitFor({ timeout: 10000 })
-      .catch(() => fail(`worker: could not clear ${marked} again`));
-    await page.getByText("Sparas automatiskt").waitFor({ timeout: 15000 });
-    log(`worker: ${marked} cleared again, through the same screen`);
-    marked = null;
 
     await secondLogin(page, email, password, "worker");
     await ctx.close();

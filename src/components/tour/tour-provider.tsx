@@ -8,8 +8,8 @@ import { useAccount, type Role } from "@/lib/account";
 import { getSupabase } from "@/lib/supabase/client";
 import { DONE, SEQUENCES, met, type FormKey, type Step } from "@/lib/tour/steps";
 import {
-  automatedWithoutOptIn, completeTour, createdRows, forgetCreated, markSeen, rememberCreated,
-  requestReplay, saveStep, sessionStep, tourComplete, type TourRow,
+  automatedWithoutOptIn, completeTour, markSeen, requestReplay, saveStep, sessionStep,
+  tourComplete,
 } from "@/lib/tour/storage";
 import { onTourSignal } from "@/lib/tour/signal";
 import { resolveTargets, samePath } from "@/lib/tour/targets";
@@ -35,8 +35,6 @@ type TourApi = {
   wants: (form: FormKey) => boolean;
   started: (form: FormKey) => void;
   finished: (form: FormKey) => void;
-  /** Something the tour's own step created -- removed again at "Kom igång". */
-  created: (row: TourRow) => void;
 };
 
 const TourCtx = createContext<TourApi | null>(null);
@@ -129,20 +127,9 @@ export function TourProvider({ children }: { children: ReactNode }) {
 
   const next = useCallback(() => go(index + 1), [go, index]);
 
-  // THE SANDBOX IS EMPTIED ON THE WAY OUT. What the tour's own steps created
-  // -- the admin's example project -- goes through the same delete_project the
-  // admin would press, so it is soft-deleted like any other (invariant 8) and
-  // the database decides whether it may be. Anything it refuses stays listed
-  // on this device rather than being forgotten.
-  const finish = useCallback(async () => {
+  // Nothing to clean up on the way out: the tour writes nothing.
+  const finish = useCallback(() => {
     if (!active) return;
-    const rows = createdRows(active.accountId);
-    const kept: TourRow[] = [];
-    for (const row of rows) {
-      const { error } = await getSupabase().rpc("delete_project", { p_project: row.id });
-      if (error) kept.push(row);
-    }
-    forgetCreated(active.accountId, kept);
     completeTour(active.accountId);
     setRun(null);
   }, [active]);
@@ -203,7 +190,7 @@ export function TourProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!step || step.type === "card" || verdict?.state !== "ok") return;
     const until = step.until;
-    if (typeof until !== "string" || until === "tap" || until === "next") return;
+    if (typeof until !== "string" || until === "tap" || until === "next" || until === "press") return;
     return onTourSignal((s) => { if (s === until) go(index + 1); });
   }, [step, index, verdict?.state, go]);
 
@@ -227,10 +214,7 @@ export function TourProvider({ children }: { children: ReactNode }) {
       setFilling((f) => (f === form ? null : f));
       setFilled((f) => (f.includes(form) ? f : [...f, form]));
     },
-    // Only while an autofill step is running: a project the admin makes on
-    // their own mid-tour is theirs, and must not be swept away at the end.
-    created: (row) => { if (active && step?.type === "autofill") rememberCreated(active.accountId, row); },
-  }), [step, verdict?.state, filled, active]);
+  }), [step, verdict?.state, filled]);
 
   const lastFilled = filled[filled.length - 1];
   const submitResolve = useCallback((): Element[] => {
@@ -239,22 +223,45 @@ export function TourProvider({ children }: { children: ReactNode }) {
     return t ? resolveTargets([t]) : [];
   }, [step, lastFilled]);
 
-  // A SANDBOX STEP'S SUBMIT DOES NOTHING. Its button is ringed to show where
-  // the act is, but a press on it is caught before the page sees it: the step
-  // ends at Nästa, and nothing real is created.
-  const sandboxSubmit = step?.type === "autofill" && step.until === "next" && lastFilled !== undefined;
+  // ---- THE TOUR IS FRONTEND-ONLY ---------------------------------------------
+  // A control that would write is ringed, and every event of a press on it is
+  // caught in the capture phase on the document -- above React's root, so no
+  // handler of the page ever runs. For a "press" step (and an autofill's
+  // submit) the caught press IS the step: the tour moves on. On a "next" step
+  // the swallowed controls simply do nothing until Nästa.
+  //
+  // It advances on the LAST event of a press -- click for a mouse, touchend
+  // for a finger (whose touchstart is cancelled, so no click follows) --
+  // because advancing earlier would leave the trailing click to land, uncaught,
+  // on the very button the step just caught.
+  const catching: { resolve: () => Element[]; advances: boolean } | null =
+    verdict?.state !== "ok" || !step ? null
+      : step.type === "nav" && step.until === "press"
+        ? { resolve: () => resolveTargets(step.targets, step.all), advances: true }
+        : step.type === "nav" && step.until === "next" && step.swallow
+          ? { resolve: () => resolveTargets(step.swallow ?? [], true), advances: false }
+          : step.type === "autofill" && lastFilled !== undefined
+            ? { resolve: submitResolve, advances: true }
+            : null;
+  const catchResolve = catching?.resolve;
+  const catchAdvances = catching?.advances ?? false;
   useEffect(() => {
-    if (!sandboxSubmit) return;
-    const onClick = (e: MouseEvent) => {
+    if (!catchResolve) return;
+    let done = false;
+    const onEvent = (e: Event) => {
       const hit = e.target as Node;
-      if (submitResolve().some((el) => el.contains(hit))) {
-        e.preventDefault();
-        e.stopPropagation();
+      if (!catchResolve().some((el) => el.contains(hit))) return;
+      e.preventDefault();
+      e.stopPropagation();
+      if (catchAdvances && !done && (e.type === "click" || e.type === "touchend")) {
+        done = true;
+        go(index + 1);
       }
     };
-    document.addEventListener("click", onClick, true);
-    return () => document.removeEventListener("click", onClick, true);
-  }, [sandboxSubmit, submitResolve]);
+    const types = ["pointerdown", "pointerup", "mousedown", "mouseup", "touchstart", "touchend", "click"];
+    for (const t of types) document.addEventListener(t, onEvent, { capture: true, passive: false });
+    return () => { for (const t of types) document.removeEventListener(t, onEvent, { capture: true }); };
+  }, [catchResolve, catchAdvances, go, index]);
 
   const navResolve = useCallback(
     (): Element[] => (step?.type === "nav" ? resolveTargets(step.targets, step.all) : []),
@@ -270,7 +277,7 @@ export function TourProvider({ children }: { children: ReactNode }) {
     const progress = 25 + 75 * Math.min(index, last) / last;
 
     if (done) {
-      overlay = <TourCard progress={100} title={DONE.title} line={DONE.line} button={DONE.button} onNext={() => { void finish(); }} />;
+      overlay = <TourCard progress={100} title={DONE.title} line={DONE.line} button={DONE.button} onNext={finish} />;
     } else if (step?.type === "card") {
       overlay = <TourCard progress={progress} title={step.text} button="Nästa" onNext={next} />;
     } else if (step && verdict?.state === "fallback") {
@@ -287,7 +294,15 @@ export function TourProvider({ children }: { children: ReactNode }) {
           );
         }
       } else if (step.type === "nav") {
-        overlay = <TourSpotlight key={index} resolve={navResolve} tip={step.tip} onSkip={next} />;
+        overlay = (
+          <TourSpotlight
+            key={index}
+            resolve={navResolve}
+            tip={step.tip}
+            onSkip={next}
+            action={step.until === "next" ? { label: "Nästa", onClick: next } : undefined}
+          />
+        );
       } else if (filling || !lastFilled) {
         overlay = <TourBar text="Vi fyller i formuläret åt dig. Inget sparas förrän du trycker själv." onSkip={next} />;
       } else {

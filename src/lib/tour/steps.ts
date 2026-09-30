@@ -15,10 +15,12 @@ import { addDays, stockholmToday } from "@/lib/dates";
  *   autofill  the real form, filled in by the tour a character at a time,
  *             then a tooltip at the button. The person presses it.
  *
- * NOTHING HERE WRITES. Autofill sets what a form shows; the submit is the
- * person's own press, and what it creates is as real as any other -- the tips
- * on those steps say so. Every step that waits for an action waits for the
- * action to SUCCEED (see signal.ts), never for the press.
+ * NOTHING HERE WRITES, AND NOTHING THE TOUR ASKS FOR DOES EITHER. Autofill
+ * sets what a form shows. A step whose button would write -- Skapa projekt,
+ * Skapa pass, Bekräfta dagen, a day painted on Min kalender, Acceptera,
+ * Stämpla In, Generera Arbetsdagbok -- rings the real control and CATCHES the
+ * press ("press", or "next" with `swallow`): the tour advances and the page
+ * never sees it. Only navigation taps go through.
  *
  * A STEP THAT CANNOT HAPPEN BECOMES A CARD. A first login usually has no offer
  * to accept, no day to confirm and no shift to stamp into, and a step waiting
@@ -81,8 +83,17 @@ export type NavStep = Gate & {
   tip: string;
   /** A form state the screen should take first -- the picker's month. */
   prepare?: FormKey;
-  /** "tap" on a target; a signal; or arriving on a route. */
-  until: "tap" | TourSignal | { route: string };
+  /**
+   * What ends the step:
+   *   "tap"    a real tap on a target, which still does what it does (navigation)
+   *   "press"  a press on a target, CAUGHT before the page sees it -- the tour
+   *            is frontend-only, so a button that would write is shown, not run
+   *   "next"   the tour's own Nästa; presses on `swallow` are caught meanwhile
+   *   a signal, or arriving on a route.
+   */
+  until: "tap" | "press" | "next" | TourSignal | { route: string };
+  /** On a "next" step: controls on the page whose press must not go through. */
+  swallow?: Target[];
   /** Card text when no target has appeared a few seconds after arriving. */
   missing: string;
 };
@@ -94,10 +105,10 @@ export type AutofillStep = Gate & {
   forms: FormKey[];
   submit: Partial<Record<FormKey, Target>>;
   tip: Partial<Record<FormKey, string>>;
-  /** A real action that succeeded, or "next": the tour shows how and moves on
-   *  when the person presses Nästa, and the ringed submit does nothing -- for
-   *  a step that must not create anything real. */
-  until: TourSignal | "next";
+  /** "next": the tour shows how and moves on at Nästa or at a press on the
+   *  ringed submit, which is caught -- nothing real is created. Every autofill
+   *  step in the tour is this now: the tour writes nothing. */
+  until: "next";
 };
 
 export type CardStep = { type: "card"; text: string };
@@ -183,8 +194,9 @@ const ARBETSLEDARE: Step[] = [
     route: "/bekrafta",
     targets: [{ field: "Timmar" }, { css: "#vad-vi-gjorde" }],
     all: true,
-    tip: "Skriv hur många timmar var och en jobbade och vad ni gjorde. Tryck sedan Bekräfta dagen. En bekräftad dag går inte att ändra.",
-    until: "day-confirmed",
+    tip: "Här skriver du hur många timmar var och en jobbade och vad ni gjorde. En bekräftad dag går inte att ändra.",
+    until: "next",
+    swallow: [{ name: "Bekräfta dagen" }],
     requires: "days-waiting",
     missing: "Dagen du ska bekräfta visas här.",
   },
@@ -204,8 +216,8 @@ const ARBETARE: Step[] = [
     type: "nav",
     route: "/min-kalender",
     targets: [{ find: () => document.querySelector("[data-date]")?.parentElement ?? null }],
-    tip: "Tryck på en dag du kan jobba. Den sparas direkt.",
-    until: "availability-saved",
+    tip: "Tryck på en dag du kan jobba.",
+    until: "press",
     missing: "Kalendern med dina arbetsdagar visas här.",
   },
   {
@@ -231,8 +243,8 @@ const ARBETARE: Step[] = [
     type: "nav",
     route: "/acceptera",
     targets: [{ name: "Acceptera" }],
-    tip: "Tryck Acceptera på ett pass du vill ta. Det blir ditt på riktigt.",
-    until: "offer-accepted",
+    tip: "Tryck Acceptera på ett pass du vill ta.",
+    until: "press",
     requires: "has-offer",
     missing: "Passen du kan ta visas här.",
   },
@@ -245,7 +257,7 @@ const ARBETARE: Step[] = [
     route: "/",
     targets: [{ name: "Stämpla In" }],
     tip: "Tryck Stämpla In när du är på plats.",
-    until: "stamped-in",
+    until: "press",
     missing:
       "När du har ett pass idag visas Stämpla In högst upp på startsidan. Tryck på den när du är på plats. Det går när du är inom 4 km från arbetsplatsen.",
   },
@@ -273,9 +285,9 @@ const ADMIN: Step[] = [
     forms: ["projekt"],
     submit: { projekt: { name: "Skapa projekt" } },
     tip: {
-      projekt: "Ett exempelprojekt. Tryck Skapa projekt. Det tas bort när du trycker Kom igång.",
+      projekt: "Ett exempelprojekt. Tryck Skapa projekt.",
     },
-    until: "project-created",
+    until: "next",
     requires: "has-leader",
   },
   { type: "card", text: "Din arbetsledare söker folk och lägger in passen." },
@@ -301,7 +313,7 @@ const ADMIN: Step[] = [
     route: "/arbetsdagbok",
     targets: [{ name: "Generera Arbetsdagbok" }],
     tip: "Välj period och tryck Generera Arbetsdagbok.",
-    until: "arbetsdagbok-generated",
+    until: "press",
     requires: "has-confirmed-day",
     otherwise:
       "Här genererar du Arbetsdagboken: välj projekt och period och tryck Generera Arbetsdagbok. Just nu finns inga bekräftade dagar att ta med. När arbetsledaren har bekräftat sina dagar gör du det här.",

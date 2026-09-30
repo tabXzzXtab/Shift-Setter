@@ -17,38 +17,7 @@
  */
 
 const completeKey = (accountId: string) => `onboarding_complete_${accountId}`;
-const createdKey = (accountId: string) => `onboarding_created_${accountId}`;
 const stepKey = (accountId: string) => `onboarding_step_${accountId}`;
-
-/**
- * What the tour created, so "Kom igång" can take it away again: the admin's
- * example project is a sandbox, not a real project. Kept per account on this
- * device, beside the step, so a tour resumed after a reload still cleans up.
- */
-export type TourRow = { kind: "project"; id: string };
-
-export function rememberCreated(accountId: string, row: TourRow) {
-  try {
-    const rows = createdRows(accountId).filter((r) => r.id !== row.id);
-    window.localStorage.setItem(createdKey(accountId), JSON.stringify([...rows, row]));
-  } catch { /* private mode: nothing to clean up later, and nothing breaks */ }
-}
-
-export function createdRows(accountId: string): TourRow[] {
-  try {
-    const raw = JSON.parse(window.localStorage.getItem(createdKey(accountId)) ?? "[]");
-    return Array.isArray(raw) ? raw.filter((r) => r?.kind === "project" && typeof r.id === "string") : [];
-  } catch {
-    return [];
-  }
-}
-
-export function forgetCreated(accountId: string, keep: TourRow[] = []) {
-  try {
-    if (keep.length) window.localStorage.setItem(createdKey(accountId), JSON.stringify(keep));
-    else window.localStorage.removeItem(createdKey(accountId));
-  } catch { /* private mode */ }
-}
 
 /** Set by the tour's own walkthrough. See the note on AUTOMATED BROWSERS. */
 export const TOUR_TEST_KEY = "byggkoll.tour-test";
