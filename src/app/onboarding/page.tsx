@@ -60,7 +60,7 @@ export default function OnboardingPage() {
  * Vertically centred, like the login screen and for the same reason: there is
  * one thing to do here and nothing above it to scroll past.
  */
-function Frame({ children }: { children: ReactNode }) {
+function Frame({ title, line, children }: { title: string; line: string; children: ReactNode }) {
   return (
     <main
       data-soft-screen="Onboarding"
@@ -72,19 +72,13 @@ function Frame({ children }: { children: ReactNode }) {
         fontVariantNumeric: "tabular-nums",
       }}
     >
-      <div className="px-1 pb-[26px]">
-        <div
-          className="pb-[6px] text-[12px] font-bold uppercase"
-          style={{ letterSpacing: "1px", color: C.text2 }}
-        >
-          Onboarding
-        </div>
-        <h1
-          className="text-[38px] font-extrabold leading-[1.02]"
-          style={{ letterSpacing: "-1.6px" }}
-        >
-          ByggKoll
+      <div className="px-1 pb-[22px]">
+        <h1 className="text-[22px] font-extrabold" style={{ letterSpacing: "-.7px" }}>
+          {title}
         </h1>
+        <p className="pt-1 text-[15px] font-medium" style={{ color: C.text2, textWrap: "pretty" }}>
+          {line}
+        </p>
       </div>
       {children}
     </main>
@@ -238,7 +232,7 @@ function PinGate({ onPass }: { onPass: (pin: string) => void }) {
   }
 
   return (
-    <Frame>
+    <Frame title="Ange din kod" line="Koden fick du av din kontaktperson på ByggKoll.">
       {error && (
         <div className="pb-[14px]">
           <SoftNotice tone="stop">{error}</SoftNotice>
@@ -293,9 +287,11 @@ function PinGate({ onPass }: { onPass: (pin: string) => void }) {
         </div>
       </div>
 
-      <p className="pt-[22px] text-center text-[15px] font-medium" style={{ color: C.text2 }}>
-        {busy ? "Kontrollerar…" : "Koden får du av ByggKoll."}
-      </p>
+      {busy && (
+        <p className="pt-[22px] text-center text-[15px] font-medium" style={{ color: C.text2 }}>
+          Kontrollerar…
+        </p>
+      )}
     </Frame>
   );
 }
@@ -325,7 +321,7 @@ const ROUTES: { key: Route; title: string; body: string }[] = [
 
 function RouteChoice({ onChoose }: { onChoose: (r: Route) => void }) {
   return (
-    <Frame>
+    <Frame title="Välj typ av konto" line="Välj rätt typ — det går inte att ändra efteråt.">
       {ROUTES.map((r, i) => (
         <button
           key={r.key}
@@ -589,7 +585,7 @@ function SignupForm({
   /* ---- made: the login, and copying it ------------------------------------ */
   if (made && password) {
     return (
-      <FormFrame title="Företaget är skapat" line="Kopiera inloggningen — lösenordet visas bara här.">
+      <FormFrame title="Kontot är skapat" line="Kopiera inloggningen nu — den visas bara en gång.">
         <Card radius={16} pad="p-5" shadow={SHADOW.hero}>
           <div className="mb-[14px] flex items-baseline justify-between gap-3">
             <div className="min-w-0 text-[22px] font-extrabold" style={{ letterSpacing: "-.7px" }}>
