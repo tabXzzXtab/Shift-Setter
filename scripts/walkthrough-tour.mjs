@@ -11,8 +11,9 @@
  *   - a step that waits for a real write advances on that write (availability)
  *   - a step whose precondition is unmet, or whose element never appears,
  *     arrives as a card instead of stranding anybody
- *   - "Kom igång" writes onboarding_complete_{id}, removes onboarding_step_{id},
- *     and a second login shows no tour
+ *   - starting the tour writes onboarding_complete_{id} (the first visit is the
+ *     one that counts; progress is per session), "Kom igång" leaves no
+ *     onboarding_step_{id}, and a second login shows no tour
  *   - a browser that has not opted in (every other walkthrough) never sees it
  *
  * WHAT IT DELIBERATELY DOES NOT PRESS: Skapa projekt, Skapa N pass, Acceptera,

@@ -8,8 +8,8 @@ import { useAccount, type Role } from "@/lib/account";
 import { getSupabase } from "@/lib/supabase/client";
 import { DONE, SEQUENCES, met, type FormKey, type Step } from "@/lib/tour/steps";
 import {
-  automatedWithoutOptIn, completeTour, createdRows, forgetCreated, rememberCreated, saveStep,
-  savedStep, tourComplete, type TourRow,
+  automatedWithoutOptIn, completeTour, createdRows, forgetCreated, markSeen, rememberCreated,
+  saveStep, sessionStep, tourComplete, type TourRow,
 } from "@/lib/tour/storage";
 import { onTourSignal } from "@/lib/tour/signal";
 import { resolveTargets, samePath } from "@/lib/tour/targets";
@@ -73,14 +73,21 @@ export function TourProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (loading || !account?.active) return;
     if (run?.accountId === account.id) return;
-    if (tourComplete(account.id) || automatedWithoutOptIn()) return;
+    if (automatedWithoutOptIn()) return;
+    // Seen already, and not running in this session (a reload mid-tour) or
+    // asked for again (Guide): nothing to show.
+    const resume = sessionStep(account.id);
+    if (tourComplete(account.id) && resume === null) return;
 
     let live = true;
     void (async () => {
       const { data } = await getSupabase().rpc("acting_tenant");
       if (!live || (Array.isArray(data) && data.length > 0)) return;
       const steps = SEQUENCES[account.role];
-      setIndex(Math.min(savedStep(account.id), steps.length));
+      markSeen(account.id);
+      const from = Math.min(resume ?? 0, steps.length);
+      saveStep(account.id, from);
+      setIndex(from);
       setRun({ accountId: account.id, role: account.role, steps });
     })();
     return () => { live = false; };

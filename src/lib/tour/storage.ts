@@ -7,10 +7,13 @@
  * wrapped: a private window or blocked storage throws on access, and a tour
  * that cannot remember must still let the app underneath work.
  *
- * Two keys. `onboarding_complete_{id}` is set once, by "Kom igång", and ends
- * the tour for good on this device. `onboarding_step_{id}` is the step to
- * resume at, so a reload in the middle does not start again from the first
- * card -- it is removed when the tour completes.
+ * THE FIRST VISIT IS THE ONE THAT COUNTS. `onboarding_complete_{id}` is set
+ * in localStorage the moment the tour STARTS, not when "Kom igång" is pressed:
+ * a person who closed the app halfway had it back on every later visit, which
+ * read as a tour that never remembered them. The step to resume at lives in
+ * sessionStorage instead, so a reload in the same session carries on where it
+ * was, and a new visit does not bring it back. Guide (menu) replays it on
+ * request.
  */
 
 const completeKey = (accountId: string) => `onboarding_complete_${accountId}`;
@@ -60,24 +63,37 @@ export function tourComplete(accountId: string): boolean {
   }
 }
 
-export function savedStep(accountId: string): number {
+/** The step to resume at in THIS session, or null when none is running. */
+export function sessionStep(accountId: string): number | null {
   try {
-    const n = Number(window.localStorage.getItem(stepKey(accountId)));
-    return Number.isInteger(n) && n > 0 ? n : 0;
+    const raw = window.sessionStorage.getItem(stepKey(accountId));
+    if (raw === null) return null;
+    const n = Number(raw);
+    return Number.isInteger(n) && n >= 0 ? n : 0;
   } catch {
-    return 0;
+    return null;
   }
 }
 
 export function saveStep(accountId: string, step: number) {
-  try { window.localStorage.setItem(stepKey(accountId), String(step)); } catch { /* private mode */ }
+  try { window.sessionStorage.setItem(stepKey(accountId), String(step)); } catch { /* private mode */ }
+}
+
+/** Starting counts as seen: the tour will not open by itself again. */
+export function markSeen(accountId: string) {
+  try { window.localStorage.setItem(completeKey(accountId), "1"); } catch { /* private mode */ }
+  // An older build kept the step here; it would otherwise linger forever.
+  try { window.localStorage.removeItem(stepKey(accountId)); } catch { /* private mode */ }
 }
 
 export function completeTour(accountId: string) {
-  try {
-    window.localStorage.setItem(completeKey(accountId), "1");
-    window.localStorage.removeItem(stepKey(accountId));
-  } catch { /* private mode */ }
+  markSeen(accountId);
+  try { window.sessionStorage.removeItem(stepKey(accountId)); } catch { /* private mode */ }
+}
+
+/** Guide: play the tour again from the first step, in this session. */
+export function requestReplay(accountId: string) {
+  try { window.sessionStorage.setItem(stepKey(accountId), "0"); } catch { /* private mode */ }
 }
 
 /**
