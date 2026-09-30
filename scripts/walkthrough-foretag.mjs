@@ -34,6 +34,7 @@ import path from "node:path";
 import pg from "pg";
 import { createClient } from "@supabase/supabase-js";
 import { connectionString, required } from "./env.mjs";
+import { reachDate, shiftDays, stockholmToday } from "./wt-dates.mjs";
 
 const BASE = process.env.BASE_URL ?? "http://localhost:3000";
 const ART = "artifacts";
@@ -94,17 +95,35 @@ async function signIn(page, email, password) {
  * exactly that. A fixture that depends on those accounts existing is a fixture
  * that fails for a reason having nothing to do with what it tests.
  */
-async function createLeader(page, name, email) {
+async function createPerson(page, name, email, role) {
   await page.goto(`${BASE}/arbetare/ny/`, { waitUntil: "networkidle" });
   await field(page, "Namn").fill(name);
   await field(page, "E-post").fill(email);
-  await field(page, "Roll").selectOption("arbetsledare");
+  await field(page, "Roll").selectOption(role);
   await page.getByRole("button", { name: /Kopiera inloggning/ }).click();
   const password = (await page.locator("[data-password]").first().innerText()).trim();
   if (!password) fail(`no password was shown for ${name}`);
   await page.getByRole("button", { name: "Tillverka arbetare" }).click();
   await page.getByText("Klar", { exact: false }).first().waitFor({ timeout: 30000 });
   return { name, email, password };
+}
+
+/** Tap a day on the availability calendar, which is the entry ticket a tier needs. */
+async function markDay(page, date) {
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    await page.goto(`${BASE}/min-kalender/`, { waitUntil: "networkidle" });
+    await reachDate(page, date, fail);
+    await page.waitForTimeout(800);
+    if (await page.locator(`[data-date="${date}"][aria-label*="kan jobba"]`).count()) return;
+    await page.getByRole("button", { name: "Kan jobba", exact: true }).click();
+    const cell = page.locator(`[data-date="${date}"]`);
+    await cell.scrollIntoViewIfNeeded();
+    const b = await cell.boundingBox();
+    await page.touchscreen.tap(b.x + b.width / 2, b.y + b.height / 2);
+    await page.waitForTimeout(2000);
+  }
+  await shot(page, "FAILED");
+  fail(`could not mark ${date} as a day ${date} can be worked`);
 }
 
 async function signOut(page) {
@@ -115,6 +134,8 @@ async function signOut(page) {
 }
 
 const RUN = String(Date.now()).slice(-6);
+/** A day already over: only an ended day reaches the confirmation queue. */
+const YESTERDAY = shiftDays(stockholmToday(), -1);
 const ADDRESS = `Provgatan ${RUN}, 242 93 Hörby`;
 const CONTACT = `Kontakt ${RUN}`;
 const PHONE = `070-000 ${RUN}`;
@@ -209,6 +230,19 @@ page.on("pageerror", (e) => fail(`page error: ${e.message}`));
 
 console.log(`\nFöretaget at ${BASE}\n`);
 
+/**
+ * A SIGNAL MUST NOT SKIP THE RESTORE EITHER.
+ *
+ * process.exit() was the first way the finally got bypassed and throwing fixed
+ * it. `timeout 420 npm run ...` is the second: SIGTERM ends the process without
+ * unwinding, so a run that took too long left the company carrying a test
+ * address, and every later run then faithfully "restored" the corruption it
+ * found at ITS start. That is how one skipped restore becomes permanent.
+ *
+ * These handlers close the ordinary cases. They do not close SIGKILL or the
+ * power going out, and nothing in-process can -- which is worth knowing about
+ * the only fixture here that edits a row it does not own.
+ */
 /** Read before anything is touched, put back in the finally. */
 let original = null;
 let tenantId = null;
@@ -222,6 +256,18 @@ let tenantId = null;
  * the real one rather than sitting beside it.
  */
 let originalLogo = null;
+let restored = false;
+
+for (const sig of ["SIGINT", "SIGTERM"]) {
+  process.on(sig, () => {
+    void (async () => {
+      await restoreCompany().catch((e) => console.error(`  !! restore failed: ${e.message}`));
+      await browser.close().catch(() => {});
+      await db.end().catch(() => {});
+      process.exit(1);
+    })();
+  });
+}
 
 try {
   // ---- what the company looks like before this run ---------------------------
@@ -245,8 +291,71 @@ try {
 
   // ---- the screen is behind the profile icon, not the hamburger --------------
   await signIn(page, required("WALKTHROUGH_ADMIN_EMAIL"), required("WALKTHROUGH_ADMIN_PASSWORD"));
-  const LEADER = await createLeader(page, `Ledare F${RUN}`, `ledare.f${RUN}@bella.test`);
-  log(`created ${LEADER.name} to look at the screen as somebody who may not edit it`);
+  const LEADER = await createPerson(page, `Ledare F${RUN}`, `ledare.f${RUN}@bella.test`, "arbetsledare");
+  const WORKER = await createPerson(page, `Arbetare F${RUN}`, `arbetare.f${RUN}@bella.test`, "arbetare");
+  log(`created ${LEADER.name} and ${WORKER.name}`);
+
+  // ---- a day the Arbetsdagbok can actually be made from ----------------------
+  //
+  // BUILT RATHER THAN BORROWED. The document check below is the only assertion
+  // that proves these values reach the deliverable, which is the entire reason
+  // the screen exists -- and it needs a confirmed day to generate from. It used
+  // to take whatever the database happened to hold and skip when there was
+  // none, which on a freshly reset database is always: the run went green
+  // having tested the form and nothing else. A check that silently does not run
+  // is worse than one that is missing, because the green says otherwise.
+  //
+  // So the run makes its own: a project, a day already over, a worker who said
+  // they could work it, and the leader's confirmation. Yesterday because a day
+  // has to have ENDED before it reaches the confirmation queue.
+  const PROJECT = `Företagsprojektet ${RUN}`;
+  await page.goto(`${BASE}/projekt/ny/`, { waitUntil: "networkidle" });
+  await field(page, "Projektnamn").fill(PROJECT);
+  await field(page, "Projektets adress").fill(`Storgatan ${RUN}, 242 30 Hörby`);
+  await field(page, "Beställarens adress").fill("Kundvägen 4, 241 38 Eslöv");
+  await field(page, "Beställarens bolag").fill("Eslövs Fastigheter AB");
+  await field(page, "Beställarens org nummer").fill("556123-4567");
+  await field(page, "Tjänster").fill("Takarbete och plåt");
+  await field(page, "Startdatum").fill(YESTERDAY);
+  await field(page, "Arbetsledare").selectOption({ label: LEADER.name });
+  await page.getByRole("button", { name: "Skapa projekt" }).click();
+  await page.waitForURL((u) => u.pathname.endsWith("/projekt/"), { timeout: 20000 });
+  await signOut(page);
+
+  // The förval is the entry ticket: no tier can reach somebody who has not said
+  // they can work the day.
+  await signIn(page, WORKER.email, WORKER.password);
+  await markDay(page, YESTERDAY);
+  await signOut(page);
+
+  await signIn(page, LEADER.email, LEADER.password);
+  await page.goto(`${BASE}/pass/ny/`, { waitUntil: "networkidle" });
+  await page.getByRole("heading", { name: "Välj dagar" }).waitFor({ timeout: 20000 });
+  await reachDate(page, YESTERDAY, fail);
+  {
+    const cell = page.locator(`[data-date="${YESTERDAY}"]`);
+    await cell.scrollIntoViewIfNeeded();
+    const b = await cell.boundingBox();
+    await page.touchscreen.tap(b.x + b.width / 2, b.y + b.height / 2);
+  }
+  await page.getByRole("button", { name: "Fortsätt", exact: true }).click();
+  await page.getByRole("heading", { name: "Beskriv passen" }).waitFor({ timeout: 20000 });
+  await field(page, "Projekt").selectOption({ label: PROJECT });
+  await page.getByLabel("Timmar på rad 1").fill("8");
+  await page.getByRole("button", { name: WORKER.name, exact: true }).click();
+  await page.getByRole("button", { name: /Skapa 1 pass/ }).click();
+  await mustSee(page, "Passen är skapade", "the fixture pass was not created");
+
+  await page.goto(`${BASE}/bekrafta/`, { waitUntil: "networkidle" });
+  await mustSee(page, WORKER.name, "the fixture day did not reach the confirmation queue");
+  await field(page, "Timmar").fill("8");
+  await page.getByLabel("Vad vi gjorde").fill(`Provarbete ${RUN} på taket.`);
+  await page.getByRole("button", { name: "Bekräfta dagen" }).click();
+  await mustSee(page, "Inget att bekräfta", "the fixture day was not confirmed");
+  await signOut(page);
+  log(`built a confirmed day on ${YESTERDAY} for "${PROJECT}" to generate from`);
+
+  await signIn(page, required("WALKTHROUGH_ADMIN_EMAIL"), required("WALKTHROUGH_ADMIN_PASSWORD"));
 
   await page.goto(`${BASE}/`, { waitUntil: "networkidle" });
   await page.getByRole("button", { name: "Profil", exact: true }).click();
@@ -296,35 +405,40 @@ try {
 
   // ---- it reaches the Arbetsdagbok -------------------------------------------
   //
-  // The reason the screen exists. A confirmed day already in the database is
-  // what makes a document generable; this run does not create one, so it uses
-  // whichever the demo data holds and skips the check loudly rather than
-  // quietly if there is none.
+  // THE ASSERTION THE SCREEN EXISTS FOR. Everything above proves a form saves;
+  // only this proves the saved values print on the deliverable, which is the
+  // bug the whole feature closes -- every company's document carried Bella
+  // Service AB's address and telephone until tenant_branding.
+  //
+  // The day is the one this run built, looked up rather than remembered so the
+  // lookup also proves it was confirmed. Finding none is now a failure, not a
+  // skip: the fixture above guarantees one, so its absence means the fixture
+  // broke and the check that matters would otherwise pass by not running.
   const day = await db.query(
     `select pr.name, pd.work_date::text as d
        from public.project_day pd
        join public.project pr on pr.id = pd.project_id
       where pd.stage in ('leader_confirmed','admin_confirmed')
-        and pr.deleted_at is null and pr.tenant_id = $1
-      order by pd.work_date desc limit 1`, [tenantId]);
-
-  if (day.rowCount === 1) {
-    const { name, d } = day.rows[0];
-    await page.goto(`${BASE}/arbetsdagbok/`, { waitUntil: "networkidle" });
-    await field(page, "Projekt").selectOption({ label: name });
-    await field(page, "Från och med").fill(d);
-    await field(page, "Till och med").fill(d);
-    await page.getByRole("button", { name: "Generera Arbetsdagbok" }).click();
-    await page.getByRole("button", { name: /Ladda ner PDF/ }).waitFor({ timeout: 30000 });
-    // The stamp is what only this run could have put there. "Adress" alone
-    // would match the label, and the old constant, and anything else.
-    await mustSee(page, ADDRESS, "the document footer does not carry this company's address");
-    await mustSee(page, PHONE, "the document footer does not carry this company's telephone");
-    await shot(page, "ft2-dokumentet");
-    log("the preview's footer carries this run's address and telephone");
-  } else {
-    log("no confirmed day in this tenancy -- the document check needs one, skipped");
+        and pr.deleted_at is null and pr.tenant_id = $1 and pr.name = $2`,
+    [tenantId, PROJECT]);
+  if (day.rowCount !== 1) {
+    fail(`expected the run's own confirmed day for "${PROJECT}", found ${day.rowCount}`);
   }
+
+  const { name, d } = day.rows[0];
+  await page.goto(`${BASE}/arbetsdagbok/`, { waitUntil: "networkidle" });
+  await field(page, "Projekt").selectOption({ label: name });
+  await field(page, "Från och med").fill(d);
+  await field(page, "Till och med").fill(d);
+  await page.getByRole("button", { name: "Generera Arbetsdagbok" }).click();
+  await page.getByRole("button", { name: /Ladda ner PDF/ }).waitFor({ timeout: 30000 });
+  // The run stamp is what only this run could have put there. "Adress" alone
+  // would match the label, the old constant, and anything else on the page.
+  await mustSee(page, ADDRESS, "the document footer does not carry this company's address");
+  await mustSee(page, CONTACT, "the document footer does not carry this company's contact");
+  await mustSee(page, PHONE, "the document footer does not carry this company's telephone");
+  await shot(page, "ft2-dokumentet");
+  log("the document's footer carries this run's address, contact and telephone");
 
   // ---- invariant 6, extended to the footer ------------------------------------
   await page.goto(`${BASE}/foretag/`, { waitUntil: "networkidle" });
@@ -383,7 +497,15 @@ try {
   else console.error(e);
   process.exitCode = 1;
 } finally {
-  // ---- put the company back exactly as it was --------------------------------
+  await restoreCompany();
+  await browser.close().catch(() => {});
+  await db.end().catch(() => {});
+}
+
+/** Idempotent: the handlers and the finally may both reach it. */
+async function restoreCompany() {
+  if (restored) return;
+  restored = true;
   if (original && tenantId) {
     await db.query(
       `update public.tenant_branding
@@ -401,6 +523,4 @@ try {
     }
     console.log(`  -- the company's original details${originalLogo ? " and logo" : ""} were restored`);
   }
-  await browser.close();
-  await db.end();
 }
