@@ -191,10 +191,21 @@ try {
   await page.locator("[data-konto]").first().waitFor({ timeout: 10000 });
   log(`search narrows ${before} rows to none and back again`);
 
-  // ---- your own card opens the merged screen ---------------------------------
-  await mine.click();
-  await page.waitForURL((u) => u.pathname.includes("/konto"), { timeout: 20000 });
+  // ---- your own screen, reached from the profile sheet now -------------------
+  //
+  // 056d212 took the admin's own card off this list -- the screen is a
+  // directory of other people, and a row for the person reading it was a seam
+  // rather than a destination. It removed the card and the `mine` locator that
+  // found it, and left `mine.click()` here, so the run died on a ReferenceError
+  // at this line every time.
+  //
+  // The own profile is reached from the profile sheet instead, which is where
+  // "Min profil" has lived since the two screens merged. The name is read here
+  // because the list below has to be checked for it.
+  await page.goto(`${BASE}/konto/`, { waitUntil: "networkidle" });
   await page.getByRole("heading", { name: "Uppdatera dina uppgifter" }).waitFor({ timeout: 20000 });
+  const myName = (await field(page, "Namn").inputValue()).trim();
+  if (!myName) fail("could not read the signed-in admin's own name from their profile");
 
   // Both halves of the old pair, on one screen.
   await field(page, "Namn").waitFor({ timeout: 10000 });
@@ -205,7 +216,7 @@ try {
     }
   }
   await page.getByRole("button", { name: /bild$/ }).first().waitFor({ timeout: 10000 });
-  log("your own card opens one screen holding the identity fields AND the profile cards");
+  log(`your own screen holds the identity fields AND the profile cards (${myName})`);
   await shot(page, "k3-min-profil");
 
   // Pausing yourself is not offered.
@@ -250,9 +261,36 @@ try {
   if (await page.locator("main img").count()) fail("the face is still drawn after removal");
   log("removing the face puts the initials back");
 
-  // ---- somebody else's is the same screen, plus Roll and Pausa ---------------
+  // ---- the admin is not in their own directory --------------------------------
+  //
+  // The assertion that replaces "your own card opens the merged screen". That
+  // card is gone on purpose, so the thing worth holding is its absence: a list
+  // of the people an admin manages should not contain the admin reading it.
+  //
+  // Checked twice, because not-visible and not-present are different claims. No
+  // rendered row carries the name, AND searching for it finds nothing -- a row
+  // merely scrolled out of view would pass the first and fail the second, and a
+  // list that filtered the name out of the markup but kept it searchable would
+  // do the reverse.
   await page.goto(`${BASE}/installningar/`, { waitUntil: "networkidle" });
   await page.locator("[data-konto]").first().waitFor({ timeout: 20000 });
+
+  const names = await page.locator("[data-konto]").allInnerTexts();
+  if (names.some((t) => t.includes(myName))) {
+    await shot(page, "FAILED");
+    fail(`the admin's own account ("${myName}") is still a row in Alla Konton`);
+  }
+  await page.getByRole("searchbox", { name: "Sök bland kontona" }).fill(myName);
+  await page.getByText("Ingen träff").waitFor({ timeout: 10000 });
+  if (await page.locator("[data-konto]").count()) {
+    await shot(page, "FAILED");
+    fail(`searching for the admin's own name ("${myName}") surfaced a row`);
+  }
+  await page.getByRole("searchbox", { name: "Sök bland kontona" }).fill("");
+  await page.locator("[data-konto]").first().waitFor({ timeout: 10000 });
+  log(`the admin's own account is neither listed nor findable by name`);
+
+  // ---- somebody else's is the same screen, plus Roll and Pausa ---------------
   await page.locator("[data-konto] a").first().click();
   await page.waitForURL((u) => u.searchParams.get("id"), { timeout: 20000 });
   await page.getByRole("heading", { name: /^Ändra .+ konto$/ }).waitFor({ timeout: 20000 });
