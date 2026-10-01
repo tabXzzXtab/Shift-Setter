@@ -22,6 +22,7 @@ import { chromium, devices } from "playwright";
 import { mkdirSync } from "node:fs";
 import path from "node:path";
 import { required } from "./env.mjs";
+import { reachDate } from "./wt-dates.mjs";
 
 const BASE = process.env.BASE_URL ?? "http://localhost:3000";
 const ART = "artifacts";
@@ -99,7 +100,12 @@ async function markDay(page, date) {
 
   for (let attempt = 1; attempt <= 3; attempt++) {
     await page.goto(`${BASE}/min-kalender/`, { waitUntil: "networkidle" });
-    await page.locator(`[data-date="${date}"]`).waitFor({ timeout: 20000 });
+    // Page to the month holding the date. The fixture runs on days just past,
+    // so on the 1st of a month every one of them is in the previous one and the
+    // calendar opens on this one -- waiting for a cell it was never going to
+    // draw timed out after twenty seconds and reported a missing day rather
+    // than a month that had turned.
+    await reachDate(page, date, fail);
     await page.waitForTimeout(800);
 
     if (await marked().count()) return;
@@ -120,6 +126,7 @@ async function markDay(page, date) {
 async function makePass(page, project, date, pick, hours) {
   await page.goto(`${BASE}/pass/ny/`, { waitUntil: "networkidle" });
   await page.getByRole("heading", { name: "Välj dagar" }).waitFor({ timeout: 20000 });
+  await reachDate(page, date, fail);
   const cell = page.locator(`[data-date="${date}"]`);
   await cell.waitFor({ timeout: 20000 });
   await cell.scrollIntoViewIfNeeded();
