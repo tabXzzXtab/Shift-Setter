@@ -4,10 +4,11 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { AuthGate } from "@/components/auth-gate";
 import {
-  C, Card, PrimaryButton, SoftField, SoftInput, SoftNotice, SoftScreen, SoftSelect,
+  C, Card, PrimaryButton, SoftField, SoftInput, SoftNotice, SoftScreen,
 } from "@/components/soft";
 import { CardTitle } from "@/components/card-title";
 import { DateField } from "@/components/date-field";
+import { PickField } from "@/components/pick-field";
 import { useTourAutofill } from "@/components/tour/use-tour-autofill";
 import { useAccount } from "@/lib/account";
 import { derivesTenant, getSupabase } from "@/lib/supabase/client";
@@ -192,23 +193,19 @@ function NyttProjekt() {
             {/* Part of creation, not an afterthought: this is the per-row scope
                 for invariant 4b, and a project with no leader can never have a
                 day confirmed, so it could never produce a document. */}
-            <SoftField
+            <PickField
               label="Arbetsledare"
               help={
                 iAmLeader
                   ? "Personen som bekräftar projektets dagar. Du läggs till på projektet också."
                   : "Endast denna person kan bekräfta projektets dagar."
               }
-            >
-              <SoftSelect required value={leaderId} onChange={(e) => setChosen(e.target.value)}>
-                <option value="">Välj…</option>
-                {leaders.map((l) => (
-                  <option key={l.id} value={l.id}>
-                    {l.name ?? l.id.slice(0, 8)}
-                  </option>
-                ))}
-              </SoftSelect>
-            </SoftField>
+              required
+              people
+              value={leaderId}
+              onChange={setChosen}
+              options={leaders.map((l) => ({ value: l.id, label: l.name ?? l.id.slice(0, 8) }))}
+            />
           </Card>
         </div>
 
