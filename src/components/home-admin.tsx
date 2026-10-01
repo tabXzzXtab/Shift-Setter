@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useTourReplay } from "./tour/tour-provider";
 import {
-  C, Card, EmptyState, GroupedList, HomeTitle, SHADOW, SignOut, SoftNotice, SoftSheet,
+  C, EmptyState, GroupedList, HomeTitle, SHADOW, SignOut, SoftNotice, SoftSheet,
 } from "./soft";
 import { getSupabase } from "@/lib/supabase/client";
 import { fel } from "@/lib/fel";
@@ -162,16 +162,17 @@ export function HomeAdmin() {
         {error && <div className="px-4 pb-[6px]"><SoftNotice tone="stop">{error}</SoftNotice></div>}
 
         {/* ---- skapa ------------------------------------------------------ */}
+        {/* No card around these: the title says what the screen is for and the
+            actions follow it straight on the ground (the Ro pass). */}
         <div className="px-4 pt-[6px]">
-          <Card radius={16} shadow={SHADOW.hero} pad="px-[18px] pb-5 pt-[18px]">
             <Link
               href="/projekt/ny"
-              className="press-scale mb-[10px] flex h-[60px] w-full items-center justify-center gap-[10px] rounded-[12px] text-[18px] font-extrabold transition-[transform,background] duration-150 hover:bg-[#12206b] active:scale-[.985]"
+              className="press-scale mb-[10px] flex h-14 w-full items-center justify-center gap-[10px] rounded-full text-[17px] font-bold transition-[transform,background] duration-150 hover:bg-[#12206b] active:scale-[.985]"
               style={{
-                letterSpacing: "-.4px",
+                letterSpacing: "-.2px",
                 background: C.accent,
                 color: C.surface,
-                boxShadow: "0 6px 18px rgba(27,44,193,.26)",
+                boxShadow: SHADOW.action,
               }}
             >
               <svg width="15" height="15" viewBox="0 0 15 15" fill="none" aria-hidden>
@@ -188,14 +189,13 @@ export function HomeAdmin() {
                 <Link
                   key={a.href}
                   href={a.href}
-                  className="press-scale flex h-14 flex-1 items-center justify-center rounded-[12px] text-[16px] font-bold transition-transform duration-[110ms] hover:bg-[#dbe4f9] active:scale-[.985]"
-                  style={{ letterSpacing: "-.2px", background: C.panel2, color: C.inkHover }}
+                  className="press-scale flex h-[54px] flex-1 items-center justify-center rounded-full text-[16px] font-bold transition-transform duration-[110ms] hover:bg-[#dbe4f9] active:scale-[.985]"
+                  style={{ letterSpacing: "-.2px", background: C.surface, color: C.inkHover }}
                 >
                   {a.label}
                 </Link>
               ))}
             </div>
-          </Card>
         </div>
 
         {/* ---- alla projekt ------------------------------------------------ */}
@@ -212,15 +212,16 @@ export function HomeAdmin() {
           {rows !== null && rows.length === 0 && <EmptyState>Inga projekt än.</EmptyState>}
 
           {rows !== null && rows.length > 0 && (
-            <div
-              className="overflow-hidden rounded-[14px]"
-              style={{ background: C.surface, boxShadow: SHADOW.group }}
-            >
-              {rows.map((p, i) => {
+            <div className="flex flex-col gap-2">
+              {rows.map((p) => {
                 const shown = openProject === p.project_id;
                 return (
-                <div key={p.project_id} data-project={p.project_id}>
-                  {i > 0 && <div className="ml-[18px] h-px" style={{ background: C.hairline }} />}
+                <div
+                  key={p.project_id}
+                  data-project={p.project_id}
+                  className="overflow-hidden rounded-[16px]"
+                  style={{ background: C.surface }}
+                >
                   {/*
                     THE ROW IS A CONTROL, not a link, and it opens the same
                     three actions Alla Projekt opens. It used to go straight to
@@ -233,7 +234,7 @@ export function HomeAdmin() {
                     type="button"
                     aria-expanded={shown}
                     onClick={() => setOpenProject(shown ? null : p.project_id)}
-                    className="flex w-full items-center justify-between gap-3 px-[18px] py-[13px] text-left hover:bg-[#f6f9ff]"
+                    className="flex w-full items-center justify-between gap-3 px-[18px] py-[14px] text-left hover:bg-[#f6f9ff]"
                     style={{ color: C.ink }}
                   >
                     <span className="min-w-0">
@@ -243,7 +244,7 @@ export function HomeAdmin() {
                       >
                         {p.name}
                       </span>
-                      <span className="block truncate text-[14px] font-medium" style={{ color: C.text2 }}>
+                      <span className="block truncate text-[14px] font-normal" style={{ color: C.text2 }}>
                         {p.site_address}
                       </span>
                     </span>
@@ -278,7 +279,7 @@ export function HomeAdmin() {
                           <Link
                             key={a.href}
                             href={a.href}
-                            className="press-scale flex h-12 w-full items-center justify-center rounded-[10px] text-[15px] font-bold transition-transform duration-[110ms] hover:bg-[#dbe4f9] active:scale-[.985]"
+                            className="press-scale flex h-12 w-full items-center justify-center rounded-full text-[15px] font-bold transition-transform duration-[110ms] hover:bg-[#dbe4f9] active:scale-[.985]"
                             style={{ background: C.panel2, color: C.inkHover }}
                           >
                             {a.label}
