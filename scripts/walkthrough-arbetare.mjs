@@ -176,7 +176,6 @@ try {
   await field(page, "Beställarens adress").fill("Fakturagatan 9, 111 22 Stockholm");
   await field(page, "Beställarens bolag").fill("Malmö Fastigheter AB");
   await field(page, "Beställarens org nummer").fill("556123-4567");
-  await field(page, "Tjänster").fill("Stenläggning");
   await field(page, "Startdatum").fill(today);
   await field(page, "Arbetsledare").selectOption({ label: L.name });
   await page.getByRole("button", { name: "Skapa projekt" }).click();

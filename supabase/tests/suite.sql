@@ -5607,4 +5607,24 @@ $rej$, 'AVATAR.another_company_admin_cannot_write');
 reset role;
 select set_config('request.jwt.claims', '{}', true);
 
+-- ---- Tjänster: optional, never blank ------------------------------------------
+-- Skapa ett projekt no longer asks for it (20261001100000), so a project with
+-- no services line must go in. A line of spaces must still not: absent is a
+-- fact, blank is a mistake.
+select pg_temp.accepts($$
+  insert into public.project (name, site_address, bestallare_address, bestallare_bolag,
+                              bestallare_orgnr, start_date, tenant_id)
+  select 'Utan tjänster', 'Sitegatan 9', 'Kundgatan 9', 'Kund AB', '556788-2369',
+         current_date, tenant_id
+  from public.project where id = 'aaaaaaaa-0000-0000-0000-00000000000a'
+$$, 'PROJECT.services_optional');
+
+select pg_temp.rejects($$
+  insert into public.project (name, site_address, bestallare_address, bestallare_bolag,
+                              bestallare_orgnr, services, start_date, tenant_id)
+  select 'Tomma tjänster', 'Sitegatan 9', 'Kundgatan 9', 'Kund AB', '556788-2369',
+         '   ', current_date, tenant_id
+  from public.project where id = 'aaaaaaaa-0000-0000-0000-00000000000a'
+$$, 'PROJECT.services_never_blank');
+
 select pg_temp.ok(true, 'SUITE.complete', 'every assertion passed');

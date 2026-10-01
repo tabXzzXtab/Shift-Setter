@@ -1235,7 +1235,7 @@ export type Database = {
           deleted_at: string | null
           id: string
           name: string
-          services: string
+          services: string | null
           site_address: string
           start_date: string
           tenant_id: string
@@ -1250,7 +1250,7 @@ export type Database = {
           deleted_at?: string | null
           id?: string
           name: string
-          services: string
+          services?: string | null
           site_address: string
           start_date: string
           tenant_id?: string
@@ -1265,7 +1265,7 @@ export type Database = {
           deleted_at?: string | null
           id?: string
           name?: string
-          services?: string
+          services?: string | null
           site_address?: string
           start_date?: string
           tenant_id?: string

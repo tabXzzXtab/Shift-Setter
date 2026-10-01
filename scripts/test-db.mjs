@@ -286,6 +286,13 @@ const CONTROLS = [
    "alter table public.tenant drop constraint tenant_org_nr_key",
    "TENANT.one_company_one_tenancy"],
 
+  ["project -- Tjänster may be absent, never blank",
+   // 20261001100000 dropped the NOT NULL and kept the check on purpose. With
+   // the check gone a line of spaces lands, and rejects() reports it at this
+   // assertion -- nothing else in the suite writes a blank services line.
+   "alter table public.project drop constraint project_services_check",
+   "PROJECT.services_never_blank"],
+
   ["stage 2 -- a leader's times go to the leader's row",
    // The routing forced down the OLD path: every corrected span written to the
    // pass. The leader's own_start then never moves, which is the gap this

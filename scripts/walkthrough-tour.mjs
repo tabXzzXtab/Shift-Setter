@@ -315,7 +315,7 @@ try {
     }, null, { timeout: 20000 }).catch(() => fail("admin: never saw the project name part-typed"));
     await page.getByText("Ett exempelprojekt.").waitFor({ timeout: 30000 });
     const values = await page.evaluate(() =>
-      ["name", "site_address", "start_date", "services", "bestallare_bolag", "bestallare_address", "bestallare_orgnr"]
+      ["name", "site_address", "start_date", "bestallare_bolag", "bestallare_address", "bestallare_orgnr"]
         .map((k) => [k, document.querySelector(`[name="${k}"]`)?.value ?? ""]));
     const empty = values.filter(([, v]) => !v);
     if (empty.length) fail(`admin: autofill left fields empty: ${JSON.stringify(empty)}`);

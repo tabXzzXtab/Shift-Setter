@@ -44,7 +44,8 @@ type Project = {
   name: string;
   site_address: string;
   start_date: string;
-  services: string;
+  /** Optional since 20261001100000: Skapa ett projekt no longer asks for it. */
+  services: string | null;
   bestallare_address: string;
   bestallare_bolag: string;
   bestallare_orgnr: string;
@@ -145,7 +146,8 @@ function RedigeraProjekt({ id }: { id: string | null }) {
         name: project.name,
         site_address: project.site_address,
         start_date: project.start_date,
-        services: project.services,
+        // Empty is NULL, never blank: project_services_check refuses spaces.
+        services: project.services?.trim() || null,
         bestallare_address: project.bestallare_address,
         bestallare_bolag: project.bestallare_bolag,
         bestallare_orgnr: project.bestallare_orgnr,
@@ -192,8 +194,8 @@ function RedigeraProjekt({ id }: { id: string | null }) {
     <SoftField key={key} label={label} help={help}>
       <SoftInput
         type={key === "start_date" ? "date" : "text"}
-        value={project[key]}
-        required
+        value={project[key] ?? ""}
+        required={key !== "services"}
         autoComplete="off"
         onChange={(e) => {
           setSaved(false);

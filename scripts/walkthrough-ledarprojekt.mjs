@@ -163,7 +163,6 @@ try {
   await field(page, "Beställarens adress").fill("Kundvägen 8, 241 38 Eslöv");
   await field(page, "Beställarens bolag").fill("Eslövs Fastigheter AB");
   await field(page, "Beställarens org nummer").fill("556123-4567");
-  await field(page, "Tjänster").fill("Takarbete och plåt");
   await picker.selectOption({ label: B.name });
   await shot(page, "lp3-nytt-projekt");
   await page.getByRole("button", { name: "Skapa projekt" }).click();

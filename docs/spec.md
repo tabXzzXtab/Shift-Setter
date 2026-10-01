@@ -398,9 +398,10 @@ Captured at creation, all required:
 - **Beställare address** — the customer's address, printed on the document
 - Beställare bolag
 - Beställare org nummer
-- Services performed
 - Start date
 - **One or more assigned arbetsledare** — these and only these can confirm days for this project
+
+**Services (Tjänster) is not asked for at creation** (2026-10-01). A project's history is what its leaders write in "Vad vi gjorde idag", not a line typed once when it was made, and nothing that builds the Arbetsdagbok reads it. The column is optional — NULL when nobody wrote one, never blank — and Redigera Projekt still shows and edits it.
 
 No end date — that is the leader's call, made by declaring the work finished, not by a field set in advance. Soft-deletable. Auto-deactivates after a period with no shifts.
 
@@ -1021,7 +1022,7 @@ of them on the card permanently made that one look like what a project is for.
 One open at a time, because three buttons under every row is a wall of
 identical controls on a screen with three projects.
 
-**Redigera Projekt** opens an edit page on all seven of the project's business fields — name, site address, start date, services, and the three bestallare fields. Admin only; anyone else is sent to their own landing page. The route is `/projekt/redigera?id=<uuid>` and **not** `/projekt/<id>/redigera`, because there is no server (Section 6): a static export writes one file per route at build time, and a project id does not exist until long after the build. Next refuses a dynamic route without `generateStaticParams` under `output: "export"`, and no build could enumerate a uuid minted later.
+**Redigera Projekt** opens an edit page on all seven of the project's business fields — name, site address, start date, services (optional; empty saves as nothing), and the three bestallare fields. Admin only; anyone else is sent to their own landing page. The route is `/projekt/redigera?id=<uuid>` and **not** `/projekt/<id>/redigera`, because there is no server (Section 6): a static export writes one file per route at build time, and a project id does not exist until long after the build. Next refuses a dynamic route without `generateStaticParams` under `output: "export"`, and no build could enumerate a uuid minted later.
 
 **Ta bort projekt** sits at the bottom of that page, behind a confirmation step — *Är du säker? Detta går inte att ångra.* It is refused while anybody is still booked onto a day that has not happened yet: *Projektet har aktiva pass och kan inte tas bort.* Today and future only. Work already done is what a finished project is made of, and blocking on it would make every completed project permanent — while a live assignment on a future day is a person whose booking the deletion would take away.
 

@@ -205,7 +205,7 @@ column project.deactivated_at timestamp with time zone
 column project.deleted_at timestamp with time zone
 column project.id uuid NOT NULL DEFAULT gen_random_uuid()
 column project.name text NOT NULL
-column project.services text NOT NULL
+column project.services text
 column project.site_address text NOT NULL
 column project.start_date date NOT NULL
 column project.tenant_id uuid NOT NULL DEFAULT app.current_tenant_id()

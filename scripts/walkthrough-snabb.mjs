@@ -118,7 +118,6 @@ try {
   await field(page, "Beställarens adress").fill("Kundvägen 4, 241 38 Eslöv");
   await field(page, "Beställarens bolag").fill("Eslövs Fastigheter AB");
   await field(page, "Beställarens org nummer").fill("556123-4567");
-  await field(page, "Tjänster").fill("Akut");
   await field(page, "Startdatum").fill(today);
   await field(page, "Arbetsledare").selectOption({ label: `Ledare S${RUN}` });
   await page.getByRole("button", { name: "Skapa projekt" }).click();

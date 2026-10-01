@@ -93,7 +93,6 @@ function NyttProjekt() {
     // State, not the element: the visible field shows words, and the hidden
     // input follows `start`.
     { text: addDays(stockholmToday(), 14), typed: false, write: (v: string) => setStart(v) },
-    into("services", "Fasadrenovering"),
     ...(leaderId ? [] : [{ text: leaders[0]!.id, typed: false, write: (v: string) => setChosen(v) }]),
     into("bestallare_bolag", "Exempelbolaget AB"),
     into("bestallare_address", "Södra Förstadsgatan 4, 211 43 Malmö"),
@@ -116,7 +115,6 @@ function NyttProjekt() {
         bestallare_address: String(f.get("bestallare_address")),
         bestallare_bolag: String(f.get("bestallare_bolag")),
         bestallare_orgnr: String(f.get("bestallare_orgnr")),
-        services: String(f.get("services")),
         start_date: String(f.get("start_date")),
       })
       .select("id")
@@ -179,15 +177,11 @@ function NyttProjekt() {
               </SoftField>
             </div>
 
-            <div className="mb-[14px] flex gap-[10px]">
-              <div className="min-w-0 flex-1">
-                <DateField label="Startdatum" name="start_date" value={start} onChange={setStart} />
-              </div>
-              <div className="min-w-0 flex-1">
-                <SoftField label="Tjänster">
-                  <SoftInput name="services" required autoComplete="off" />
-                </SoftField>
-              </div>
+            {/* No Tjänster here: a project's history is what the leaders write
+                in "Vad vi gjorde idag", not a line typed once at creation. The
+                column is optional (20261001100000); Redigera still edits it. */}
+            <div className="mb-[14px]">
+              <DateField label="Startdatum" name="start_date" value={start} onChange={setStart} />
             </div>
 
             {/* Part of creation, not an afterthought: this is the per-row scope
