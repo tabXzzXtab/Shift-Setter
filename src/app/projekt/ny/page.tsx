@@ -7,6 +7,7 @@ import {
   C, Card, PrimaryButton, SoftField, SoftInput, SoftNotice, SoftScreen, SoftSelect,
 } from "@/components/soft";
 import { CardTitle } from "@/components/card-title";
+import { DateField } from "@/components/date-field";
 import { useTourAutofill } from "@/components/tour/use-tour-autofill";
 import { useAccount } from "@/lib/account";
 import { derivesTenant, getSupabase } from "@/lib/supabase/client";
@@ -52,6 +53,7 @@ function NyttProjekt() {
   // the empty choice: picking "Välj…" back out has to leave it empty rather
   // than snap to the default again.
   const [chosen, setChosen] = useState<string | null>(null);
+  const [start, setStart] = useState(stockholmToday);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -87,7 +89,9 @@ function NyttProjekt() {
   useTourAutofill("projekt", leaders.length > 0, () => [
     into("name", "Fasad Malmö"),
     into("site_address", "Storgatan 12, 211 34 Malmö"),
-    into("start_date", addDays(stockholmToday(), 14), false),
+    // State, not the element: the visible field shows words, and the hidden
+    // input follows `start`.
+    { text: addDays(stockholmToday(), 14), typed: false, write: (v: string) => setStart(v) },
     into("services", "Fasadrenovering"),
     ...(leaderId ? [] : [{ text: leaders[0]!.id, typed: false, write: (v: string) => setChosen(v) }]),
     into("bestallare_bolag", "Exempelbolaget AB"),
@@ -176,11 +180,7 @@ function NyttProjekt() {
 
             <div className="mb-[14px] flex gap-[10px]">
               <div className="min-w-0 flex-1">
-                <SoftField label="Startdatum">
-                  <SoftInput
-                    type="date" name="start_date" required defaultValue={stockholmToday()}
-                  />
-                </SoftField>
+                <DateField label="Startdatum" name="start_date" value={start} onChange={setStart} />
               </div>
               <div className="min-w-0 flex-1">
                 <SoftField label="Tjänster">
