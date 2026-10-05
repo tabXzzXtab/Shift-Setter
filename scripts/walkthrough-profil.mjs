@@ -33,11 +33,11 @@ const shot = (page, n) => page.screenshot({ path: path.join(ART, `${n}.png`), fu
 const boxes = (page, label) =>
   page.locator(`label:has(> span:text-is("${label}"))`).locator("input, textarea");
 const field = (page, label, i = 0) => boxes(page, label).nth(i);
-// The handoff draws its own 26px box, so these are role="checkbox" buttons
-// rather than native inputs. Asked for by ROLE, which is the thing that has to
-// be right: a drawn control that does not announce itself as a checkbox is the
-// failure, and getByRole is the only locator that would notice.
-const check = (page, label) => page.getByRole("checkbox", { name: label, exact: true });
+// Yes/no rows are switches (owner's brief, 2026-10-05): role="switch" buttons.
+// Asked for by ROLE, which is the thing that has to be right: a drawn control
+// that does not announce itself as a switch is the failure, and getByRole is
+// the only locator that would notice.
+const check = (page, label) => page.getByRole("switch", { name: label, exact: true });
 
 async function mustSee(page, text, why) {
   try {

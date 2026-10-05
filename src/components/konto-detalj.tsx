@@ -2,8 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import {
-  Avatar, C, Card, PrimaryButton, SectionLabel, SHADOW, SoftField, SoftInput,
-  SoftNotice, SoftScreen, SoftSelect, SoftToast,
+  C, Avatar, Card, PrimaryButton, SHADOW, SectionLabel, SoftField, SoftInput, SoftNotice, SoftScreen, SoftSelect, SoftToast, Switch,
 } from "@/components/soft";
 import { CardTitle } from "@/components/card-title";
 import { getSupabase } from "@/lib/supabase/client";
@@ -54,7 +53,7 @@ const CARDS = [
       [["postnummer", "Postnr", "text", 1], ["stad", "Stad", "text", 1.6]],
   ] },
   { title: "Utbetalning", rows: [
-      [["clearingnummer", "Clearing", "text", 1], ["kontonummer", "Kontonummer", "text", 1.6]],
+      [["clearingnummer", "Clearing", "number", 1], ["kontonummer", "Kontonummer", "number", 1.6]],
   ] },
   { title: "Närmast anhörig", rows: [
       [["anhorig_namn", "Namn", "text", 1]],
@@ -410,11 +409,17 @@ export function KontoDetalj({ askedId }: { askedId: string | null }) {
                   {r.map(([k, label, type, flex]) => (
                     <div key={k} style={{ flex }}>
                       <SoftField label={label}>
+                        {/* "number" is a NUMBER PAD, not a stepper: nobody steps to
+                            an account number. Digits, dashes and spaces only, and
+                            what is typed is what is stored -- reformatting a bank
+                            detail behind somebody's back is how a payout goes astray. */}
                         <SoftInput
-                          type={type}
-                          inputMode={type === "tel" ? "tel" : undefined}
+                          type={type === "number" ? "text" : type}
+                          inputMode={type === "tel" ? "tel" : type === "number" ? "numeric" : undefined}
+                          autoComplete="off"
+                          placeholder={k === "clearingnummer" ? "8327-9" : k === "kontonummer" ? "123 456 789-0" : undefined}
                           value={form[k] ?? ""}
-                          onChange={(e) => set(k, e.target.value)}
+                          onChange={(e) => set(k, type === "number" ? e.target.value.replace(/[^\d\- ]/g, "") : e.target.value)}
                         />
                       </SoftField>
                     </div>
@@ -426,36 +431,21 @@ export function KontoDetalj({ askedId }: { askedId: string | null }) {
         </div>
       ))}
 
-      {/* 60px row, 26px box, radius 7, accent when checked. role="checkbox"
-          rather than aria-pressed: the handoff draws a checkbox and this
-          behaves like one, so a screen reader should say "checkbox, checked". */}
+      {/* A yes/no is a switch (owner's brief, 2026-10-05), on a 60px row. */}
       <div className="px-4 pt-[14px]">
-        <button
-          type="button"
-          role="checkbox"
-          onClick={() => setForm((f) => (f ? { ...f, har_foretag: !f.har_foretag } : f))}
-          aria-checked={form.har_foretag}
-          className="flex h-[60px] w-full items-center justify-between rounded-[14px] px-[18px] hover:bg-[#f4f3f0]"
+        <div
+          className="flex h-[60px] w-full items-center justify-between rounded-[14px] px-[18px]"
           style={{ background: C.surface, boxShadow: SHADOW.group }}
         >
           <span className="text-[17px] font-bold" style={{ letterSpacing: "-.2px" }}>
             Har du företag?
           </span>
-          <span
-            className="flex h-[26px] w-[26px] items-center justify-center rounded-[7px]"
-            style={{
-              background: form.har_foretag ? C.accent : C.panel2,
-              boxShadow: form.har_foretag ? undefined : `inset 0 0 0 1.5px ${C.hairline}`,
-            }}
-          >
-            {form.har_foretag && (
-              <svg width="14" height="11" viewBox="0 0 14 11" fill="none" aria-hidden>
-                <path d="M1.5 5.6 5 9.2 12.5 1.6" stroke={C.onAccent} strokeWidth="2.4"
-                  strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            )}
-          </span>
-        </button>
+          <Switch
+            label="Har du företag?"
+            checked={form.har_foretag}
+            onChange={(v) => setForm((f) => (f ? { ...f, har_foretag: v } : f))}
+          />
+        </div>
       </div>
 
       {/* Hidden until the toggle is on. Nine boxes that do not apply to most
@@ -470,30 +460,14 @@ export function KontoDetalj({ askedId }: { askedId: string | null }) {
                   <SoftInput type={type} value={form[k] ?? ""} onChange={(e) => set(k, e.target.value)} />
                 </SoftField>
               ))}
-              <button
-                type="button"
-                role="checkbox"
-                onClick={() => setForm((f) => (f ? { ...f, f_skatt: !f.f_skatt } : f))}
-                aria-checked={form.f_skatt}
-                className="flex h-[52px] w-full items-center justify-between rounded-[10px] px-[14px]"
-                style={{ background: C.panel2 }}
-              >
+              <div className="flex h-[52px] w-full items-center justify-between">
                 <span className="text-[16px] font-semibold">F-skatt</span>
-                <span
-                  className="flex h-[26px] w-[26px] items-center justify-center rounded-[7px]"
-                  style={{
-                    background: form.f_skatt ? C.accent : C.surface,
-                    boxShadow: form.f_skatt ? undefined : `inset 0 0 0 1.5px ${C.hairline}`,
-                  }}
-                >
-                  {form.f_skatt && (
-                    <svg width="14" height="11" viewBox="0 0 14 11" fill="none" aria-hidden>
-                      <path d="M1.5 5.6 5 9.2 12.5 1.6" stroke={C.onAccent} strokeWidth="2.4"
-                        strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                  )}
-                </span>
-              </button>
+                <Switch
+                  label="F-skatt"
+                  checked={form.f_skatt}
+                  onChange={(v) => setForm((f) => (f ? { ...f, f_skatt: v } : f))}
+                />
+              </div>
             </div>
           </Card>
         </div>
