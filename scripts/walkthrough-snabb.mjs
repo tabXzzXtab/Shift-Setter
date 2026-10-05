@@ -116,6 +116,10 @@ try {
   await field(page, "Projektnamn").fill(project);
   await field(page, "Projektets adress").fill("Bruksgatan 8, 242 30 Hörby");
   await field(page, "Beställarens adress").fill("Kundvägen 4, 241 38 Eslöv");
+  // Earlier beställare are a picker now; "Ny beställare" opens the fields. __ny_best_opened__
+  if (await page.locator('label:has(span:text-is("Beställare")) select').count()) {
+    await field(page, "Beställare").selectOption("__ny__");
+  }
   await field(page, "Beställarens bolag").fill("Eslövs Fastigheter AB");
   await field(page, "Beställarens org nummer").fill("556123-4567");
   await field(page, "Startdatum").fill(today);

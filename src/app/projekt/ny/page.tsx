@@ -54,6 +54,38 @@ function NyttProjekt() {
   // the empty choice: picking "Välj…" back out has to leave it empty rather
   // than snap to the default again.
   const [chosen, setChosen] = useState<string | null>(null);
+
+  // EARLIER BESTÄLLARE, from the company's own projects -- there is no table of
+  // them, and none is needed: a beställare is the three fields a project
+  // already carries. Unique by name and org nr, newest wording first.
+  type Bestallare = { bolag: string; address: string; orgnr: string };
+  const [tidigare, setTidigare] = useState<Bestallare[]>([]);
+  const [valdBest, setValdBest] = useState("");
+  const [nyBest, setNyBest] = useState(false);
+  useEffect(() => {
+    void (async () => {
+      const { data } = await getSupabase()
+        .from("project")
+        .select("bestallare_bolag, bestallare_address, bestallare_orgnr, created_at")
+        .is("deleted_at", null)
+        .order("created_at", { ascending: false });
+      const seen = new Set<string>();
+      const list: Bestallare[] = [];
+      for (const r of data ?? []) {
+        const b = { bolag: r.bestallare_bolag ?? "", address: r.bestallare_address ?? "", orgnr: r.bestallare_orgnr ?? "" };
+        const key = `${b.bolag.trim().toLowerCase()}|${b.orgnr.trim()}`;
+        if (!b.bolag.trim() || seen.has(key)) continue;
+        seen.add(key);
+        list.push(b);
+      }
+      list.sort((a, b) => a.bolag.localeCompare(b.bolag, "sv"));
+      setTidigare(list);
+    })();
+  }, []);
+  // The picker is the way in whenever there is anything to pick; the empty
+  // fields are for "Ny beställare", or for a company with no projects yet.
+  const visaFalt = nyBest || tidigare.length === 0;
+  const best = valdBest === "" ? null : tidigare[Number(valdBest)] ?? null;
   const [start, setStart] = useState(stockholmToday);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -94,6 +126,8 @@ function NyttProjekt() {
     // input follows `start`.
     { text: addDays(stockholmToday(), 14), typed: false, write: (v: string) => setStart(v) },
     ...(leaderId ? [] : [{ text: leaders[0]!.id, typed: false, write: (v: string) => setChosen(v) }]),
+    // The example is a new beställare, so its fields have to be on screen.
+    { text: "Ny beställare", typed: false, write: () => setNyBest(true) },
     into("bestallare_bolag", "Exempelbolaget AB"),
     into("bestallare_address", "Södra Förstadsgatan 4, 211 43 Malmö"),
     into("bestallare_orgnr", "556000-0000"),
@@ -206,27 +240,64 @@ function NyttProjekt() {
         <div className="px-4 pt-[14px]">
           <Card radius={16} pad="p-[18px]">
             <CardTitle mb={4}>Beställaren</CardTitle>
-            <div className="mb-[14px] text-[14px] font-medium" style={{ color: C.text2 }}>
-              Skrivs ut på arbetsdagboken.
-            </div>
 
-            <div className="mb-[14px]">
-              <SoftField label="Beställarens bolag">
-                <SoftInput name="bestallare_bolag" required autoComplete="off" />
-              </SoftField>
-            </div>
+            {!visaFalt && (
+              <div className="fade-rise">
+                <PickField
+                  label="Beställare"
+                  value={valdBest}
+                  onChange={setValdBest}
+                  options={tidigare.map((t, i) => ({
+                    value: String(i),
+                    label: t.bolag,
+                    sub: [t.address, t.orgnr].filter(Boolean).join(" · "),
+                  }))}
+                  action={{ value: "__ny__", label: "Ny beställare", onPick: () => { setValdBest(""); setNyBest(true); } }}
+                />
+                {/* What prints on the Arbetsdagbok, carried as the form's own
+                    fields so the submit reads them exactly as it always has. */}
+                {best && (
+                  <>
+                    <input type="hidden" name="bestallare_bolag" value={best.bolag} />
+                    <input type="hidden" name="bestallare_address" value={best.address} />
+                    <input type="hidden" name="bestallare_orgnr" value={best.orgnr} />
+                  </>
+                )}
+              </div>
+            )}
 
-            <div className="mb-[14px]">
-              <SoftField label="Beställarens adress" help="Kundens adress.">
-                <SoftInput name="bestallare_address" required autoComplete="off" />
-              </SoftField>
-            </div>
+            {visaFalt && (
+              <div className="fade-rise">
+                <div className="mb-[14px]">
+                  <SoftField label="Beställarens bolag">
+                    <SoftInput name="bestallare_bolag" required autoComplete="off" />
+                  </SoftField>
+                </div>
 
-            <SoftField label="Beställarens org nummer">
-              <SoftInput
-                name="bestallare_orgnr" required autoComplete="off" placeholder="556788-2369"
-              />
-            </SoftField>
+                <div className="mb-[14px]">
+                  <SoftField label="Beställarens adress">
+                    <SoftInput name="bestallare_address" required autoComplete="off" />
+                  </SoftField>
+                </div>
+
+                <SoftField label="Beställarens org nummer">
+                  <SoftInput
+                    name="bestallare_orgnr" required autoComplete="off" placeholder="556788-2369"
+                  />
+                </SoftField>
+
+                {tidigare.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setNyBest(false)}
+                    className="mt-[10px] h-[36px] text-[14px] font-semibold"
+                    style={{ color: C.text2 }}
+                  >
+                    Tidigare beställare
+                  </button>
+                )}
+              </div>
+            )}
           </Card>
         </div>
 
@@ -239,7 +310,7 @@ function NyttProjekt() {
         )}
 
         <div className="px-4 pt-[22px]">
-          <PrimaryButton type="submit" disabled={saving || !leaderId}>
+          <PrimaryButton type="submit" disabled={saving || !leaderId || (!visaFalt && !best)}>
             {saving ? "Sparar…" : "Skapa projekt"}
           </PrimaryButton>
         </div>

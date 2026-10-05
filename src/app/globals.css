@@ -130,3 +130,14 @@ input::-webkit-datetime-edit-fields-wrapper {
   min-width: 0;
   padding: 0;
 }
+
+/* A section changing in place (Skapa ett projekt: the beställare picker and its
+   empty fields swap). 200ms, a 6px rise; nothing moves for reduced motion. */
+@keyframes fade-rise {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: none; }
+}
+.fade-rise { animation: fade-rise 200ms ease-out both; }
+@media (prefers-reduced-motion: reduce) {
+  .fade-rise { animation: none; }
+}
