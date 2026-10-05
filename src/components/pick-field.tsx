@@ -19,7 +19,7 @@ import { Avatar, C, SHADOW, SoftField } from "@/components/soft";
  * trigger rather than opening the native wheel underneath it.
  */
 export function PickField({
-  label, help, value, onChange, options, placeholder = "Välj…", required, people = false,
+  label, help, value, onChange, options, placeholder = "Välj…", required, people = false, action,
 }: {
   label: string;
   help?: string;
@@ -30,6 +30,12 @@ export function PickField({
   required?: boolean;
   /** Draw initials beside each option: the options are people. */
   people?: boolean;
+  /**
+   * A last row that does something rather than choosing somebody -- Snabb
+   * Pass's "+ Ny arbetare". Its value is never stored: picking it (here or
+   * through the hidden select) calls onPick and leaves the value alone.
+   */
+  action?: { value: string; label: string; onPick: () => void };
 }) {
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLDivElement>(null);
@@ -78,11 +84,15 @@ export function PickField({
             aria-hidden
             required={required}
             value={value}
-            onChange={(e) => onChange(e.target.value)}
+            onChange={(e) => {
+              if (action && e.target.value === action.value) { action.onPick(); return; }
+              onChange(e.target.value);
+            }}
             className="pointer-events-none absolute inset-0 h-full w-full opacity-0"
           >
             <option value="">{placeholder}</option>
             {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+            {action && <option value={action.value}>{action.label}</option>}
           </select>
         </span>
       </SoftField>
@@ -122,6 +132,26 @@ export function PickField({
               </button>
             );
           })}
+          {action && (
+            <button
+              type="button"
+              onClick={() => { setOpen(false); action.onPick(); }}
+              className="flex min-h-[56px] w-full items-center gap-3 rounded-[14px] px-3 text-left hover:bg-[#f6f9ff]"
+            >
+              <span
+                aria-hidden
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
+                style={{ background: C.panel2 }}
+              >
+                <svg width="13" height="13" viewBox="0 0 15 15" fill="none">
+                  <path d="M7.5 1v13M1 7.5h13" stroke={C.accent} strokeWidth="2.4" strokeLinecap="round" />
+                </svg>
+              </span>
+              <span className="min-w-0 flex-1 truncate text-[16px] font-bold" style={{ color: C.accent }}>
+                {action.label}
+              </span>
+            </button>
+          )}
         </div>
       )}
     </div>

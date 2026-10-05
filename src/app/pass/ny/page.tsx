@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { AuthGate } from "@/components/auth-gate";
 import {
   C, Card, PrimaryButton, SecondaryButton, SHADOW, SoftField, SoftInput,
@@ -27,7 +28,6 @@ type Row = {
    *  theirs and the span stops touching it. */
   hoursTouched: boolean;
 };
-type Short = { work_date: string; available: number; slots: number; short: number };
 
 const newRow = (): Row => ({
   headcount: 1,
@@ -88,19 +88,23 @@ function NyttPass({ asked, fromDay = false }: { asked: string | null; fromDay?: 
   );
 
   const [projects, setProjects] = useState<Project[]>([]);
+  const [projectsLoaded, setProjectsLoaded] = useState(false);
   const [workers, setWorkers] = useState<Worker[]>([]);
   const [projectId, setProjectId] = useState("");
   const [rows, setRows] = useState<Row[]>([newRow()]);
   const [handpicked, setHandpicked] = useState<string[]>([]);
-  const [shortfall, setShortfall] = useState<Short[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [result, setResult] = useState<{ passes: number; filled: number; slots: number; offered: number } | null>(null);
 
   const today = stockholmToday();
-  const slotsPerDay = rows.reduce((n, r) => n + r.headcount, 0);
   const totalPasses = days.length * rows.length;
-  const totalSlots = days.length * slotsPerDay;
+  const totalSlots = days.length * rows.reduce((n, r) => n + r.headcount, 0);
+  const missing =
+    !projectId ? "Välj ett projekt för att skapa passen."
+    : days.length === 0 ? "Välj minst en dag."
+    : rows.some((r) => !(Number(r.hours.replace(",", ".")) > 0)) ? "Fyll i timmar på varje rad."
+    : null;
 
   useEffect(() => {
     const sb = getSupabase();
@@ -108,6 +112,7 @@ function NyttPass({ asked, fromDay = false }: { asked: string | null; fromDay?: 
       const { data: p } = await sb.from("project").select("id, name").order("name");
       const list = (p ?? []).map((x) => ({ id: x.id, name: x.name }));
       setProjects(list);
+      setProjectsLoaded(true);
       if (list.length === 1) setProjectId(list[0]!.id);
       // Handplocka fills the slots the pass DEMANDED, and an arbetsledare never
       // occupies one -- Step 4b places them the moment a worker holds a slot.
@@ -119,22 +124,6 @@ function NyttPass({ asked, fromDay = false }: { asked: string | null; fromDay?: 
       setWorkers((w ?? []).flatMap((x) => (x.id && x.name ? [{ id: x.id, name: x.name }] : [])));
     })();
   }, []);
-
-  // Coverage across the WHOLE batch. Capacity does not pool: someone free on
-  // Monday cannot also cover Tuesday, so it is counted per day and summed.
-  useEffect(() => {
-    if (step !== "detail" || days.length === 0) return;
-    let active = true;
-    void (async () => {
-      const { data } = await getSupabase()
-        .rpc("batch_shortfall", { p_dates: days, p_slots_per_day: slotsPerDay });
-      if (active) setShortfall((data ?? []) as Short[]);
-    })();
-    return () => { active = false; };
-  }, [step, days, slotsPerDay]);
-
-  const shortDays = (shortfall ?? []).filter((s) => s.short > 0);
-  const shortTotal = shortDays.reduce((n, s) => n + s.short, 0);
 
   /**
    * Changing a time re-suggests the hours -- but only while the leader has not
@@ -206,7 +195,7 @@ function NyttPass({ asked, fromDay = false }: { asked: string | null; fromDay?: 
       const { error: hErr } = await sb.from("pass_batch_handpick")
         .insert(derivesTenant(handpicked.map((worker_id) => ({ batch_id: batch.id, worker_id }))));
       if (hErr) {
-        setError(fel(hErr, "De handplockade kunde inte sparas. Kontakta administratören."));
+        setError(fel(hErr, "De prioriterade arbetarna kunde inte sparas. Kontakta administratören."));
         setSaving(false);
         return;
       }
@@ -392,6 +381,18 @@ function NyttPass({ asked, fromDay = false }: { asked: string | null; fromDay?: 
               ))}
             </SoftSelect>
           </SoftField>
+          {/* A pass belongs to a project, so an empty list is the one thing
+              that genuinely stops creation -- say so and point at the fix,
+              rather than leaving a grey button to explain itself. */}
+          {projectsLoaded && projects.length === 0 && (
+            <div className="pt-[12px]">
+              <SoftNotice tone="warn">
+                Det finns inga projekt att välja än.{" "}
+                <Link href="/projekt/ny" className="font-bold underline">Skapa ett projekt</Link>{" "}
+                först, så kan du lägga pass på det.
+              </SoftNotice>
+            </div>
+          )}
         </Card>
       </div>
 
@@ -446,7 +447,10 @@ function NyttPass({ asked, fromDay = false }: { asked: string | null; fromDay?: 
                 )}
               </div>
 
-              {/* The headcount stepper: minus, the number, plus. */}
+              {/* The headcount stepper: minus, the number, plus. The ceiling is
+                  the database's (pass_headcount_check, 99), not the roster's:
+                  a pass may ask for more people than exist, and the slots
+                  nobody fills go out as Acceptera Pass. */}
               <div className="mb-[14px] flex items-stretch gap-[10px]">
                 <button
                   type="button"
@@ -466,7 +470,7 @@ function NyttPass({ asked, fromDay = false }: { asked: string | null; fromDay?: 
                 <button
                   type="button"
                   aria-label={`Fler på rad ${i + 1}`}
-                  onClick={() => setRows((p) => p.map((x, j) => j === i ? { ...x, headcount: Math.min(20, x.headcount + 1) } : x))}
+                  onClick={() => setRows((p) => p.map((x, j) => j === i ? { ...x, headcount: Math.min(99, x.headcount + 1) } : x))}
                   className="press-scale h-[52px] w-16 rounded-[10px] text-[24px] font-extrabold leading-none transition-transform duration-[110ms] hover:bg-[#dbe4f9] active:scale-[.985]"
                   style={{ background: C.panel2, color: C.inkHover }}
                 >
@@ -511,40 +515,26 @@ function NyttPass({ asked, fromDay = false }: { asked: string | null; fromDay?: 
         </div>
       </fieldset>
 
-      <div className="px-4 pt-[22px]">
-        <div
-          className="rounded-[12px] px-4 py-[14px] text-[15px] font-semibold"
-          style={{ background: C.panel2, color: C.inkHover }}
-        >
-          {rows.length} rad(er) × {days.length} dag(ar) = {totalPasses} pass, {totalSlots} platser
-        </div>
-      </div>
-
-      {shortTotal > 0 && (
-        <div className="px-4 pt-[14px]">
-          <SoftNotice tone="warn">
-            {shortTotal} plats(er) saknar folk som markerat dagen
-            {shortDays.length > 0 && (
-              <> — sämst {shortDays[0]!.work_date} ({shortDays[0]!.available} av {shortDays[0]!.slots})</>
-            )}
-            . Resten går ut som Acceptera Pass.
-          </SoftNotice>
+      {/* Only across two or more days, where the multiplication is news. On
+          one day it restates the rows the leader is looking at. */}
+      {days.length > 1 && (
+        <div className="px-4 pt-[22px]">
+          <div
+            className="rounded-[12px] px-4 py-[14px] text-[15px] font-semibold"
+            style={{ background: C.panel2, color: C.inkHover }}
+          >
+            {rows.length} rad(er) × {days.length} dag(ar) = {totalPasses} pass, {totalSlots} platser
+          </div>
         </div>
       )}
 
       <fieldset className="mt-[26px] block min-w-0 border-0 p-0 px-4">
         <legend
-          className="px-1 pb-1 text-[12px] font-bold uppercase"
+          className="px-1 pb-[10px] text-[12px] font-bold uppercase"
           style={{ letterSpacing: "1px", color: C.text2 }}
         >
-          Handplocka ({handpicked.length})
+          Prioriterade Arbetare ({handpicked.length})
         </legend>
-        <p
-          className="px-1 pb-[10px] text-[14px] font-medium"
-          style={{ color: C.text2, textWrap: "pretty" }}
-        >
-          Frivilligt. Ger förtur — men bara till dem som markerat dagen. Arbetsledare står inte i listan, de placeras automatiskt.
-        </p>
 
         <div
           className="overflow-hidden rounded-[14px]"
@@ -592,12 +582,17 @@ function NyttPass({ asked, fromDay = false }: { asked: string | null; fromDay?: 
         className="sticky bottom-0 z-10 px-4 pb-[max(16px,env(safe-area-inset-bottom))] pt-[22px]"
         style={{ background: `linear-gradient(to top, ${C.ground} 72%, rgba(243,246,253,0))` }}
       >
+        {/* The ONLY things that hold the button back: what a pass cannot exist
+            without. How many workers are free is never one of them -- a slot
+            nobody takes goes out as Acceptera Pass. A grey button says why. */}
+        {missing && !saving && (
+          <p className="pb-[8px] text-center text-[14px] font-semibold" style={{ color: C.text2 }}>
+            {missing}
+          </p>
+        )}
         <PrimaryButton
           onClick={generate}
-          disabled={
-            saving || !projectId || days.length === 0 ||
-            rows.some((r) => !(Number(r.hours.replace(",", ".")) > 0))
-          }
+          disabled={saving || missing !== null}
         >
           {saving ? `Skapar ${totalPasses} pass…` : `Skapa ${totalPasses} pass`}
         </PrimaryButton>

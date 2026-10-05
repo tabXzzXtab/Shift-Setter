@@ -8,6 +8,8 @@ import {
   SoftSelect, SoftTextarea, SoftDone,
 } from "@/components/soft";
 import { NyArbetareForm, type CreatedWorker } from "@/components/ny-arbetare";
+import { DateField } from "@/components/date-field";
+import { PickField } from "@/components/pick-field";
 import { getSupabase } from "@/lib/supabase/client";
 import { stockholmToday } from "@/lib/dates";
 import { defaultHours } from "@/lib/hours";
@@ -386,31 +388,23 @@ function SnabbPass({ asked }: { asked: string | null }) {
           </div>
 
           <div className="mb-[14px]">
-            <SoftField label="Vem?" help="Finns personen inte i listan — välj Ny arbetare.">
-              <SoftSelect
-                value={workerId}
-                onChange={(e) => {
-                  if (e.target.value === NEW) { setCreatingWorker(true); return; }
-                  setWorkerId(e.target.value);
-                }}
-              >
-                <option value="">Välj…</option>
-                {workers.map((w) => (
-                  <option key={w.id} value={w.id}>{w.name}</option>
-                ))}
-                <option value={NEW}>+ Ny arbetare…</option>
-              </SoftSelect>
-            </SoftField>
+            {/* The same picker as Arbetsledare on Skapa ett projekt: a card of
+                people with initials, not the phone's wheel. Ny arbetare is its
+                last row and opens the form rather than choosing anybody. */}
+            <PickField
+              label="Vem?"
+              help="Finns personen inte i listan — välj Ny arbetare."
+              people
+              value={workerId}
+              onChange={setWorkerId}
+              options={workers.map((w) => ({ value: w.id, label: w.name }))}
+              action={{ value: NEW, label: "+ Ny arbetare…", onPick: () => setCreatingWorker(true) }}
+            />
           </div>
 
           <div className="mb-[14px]">
-            <SoftField label="Datum">
-              <SoftInput
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-              />
-            </SoftField>
+            {/* Startdatum's calendar card from Skapa ett projekt. */}
+            <DateField label="Datum" value={date} onChange={setDate} />
           </div>
 
           <div className="mb-[14px] flex gap-[10px]">

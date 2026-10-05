@@ -108,7 +108,7 @@ const TABLE: [string, string][] = [
   ["ran without an arbetsledare; admin and only admin confirms it",
    "Dagen kördes utan arbetsledare. Bara administratören kan bekräfta den."],
   ["only an arbetare can be hand-picked",
-   "Bara arbetare kan handplockas. Arbetsledaren läggs på dagen automatiskt."],
+   "Bara arbetare kan prioriteras. Arbetsledaren läggs på dagen automatiskt."],
 
   // ---- confirmation, and its finality -------------------------------------
   ["Dagen är godkänd och låst. Den kan inte ändras.",

@@ -253,10 +253,12 @@ try {
   await page.getByLabel("Timmar på rad 1").fill("8");
   // W1 said no to this day and nobody else marked it, so the one slot has
   // nobody behind it at all.
-  await mustSee(page, "saknar folk som markerat dagen",
-    "the shortfall was not flagged at creation");
+  // No shortfall notice at creation any more (removed 30 Sep 2026); the slot
+  // still goes out as Acceptera Pass, which the steps below prove.
+  await mustNotSee(page, "saknar folk som markerat dagen",
+    "the shortfall notice is back on the creation screen");
   await shot(page, "23-brist-varning");
-  log("shortfall flagged before the passes were generated");
+  log("no shortfall notice on the creation screen");
 
   await page.getByRole("button", { name: /Skapa 1 pass/ }).click();
   await mustSee(page, "Passen är skapade", "the near pass did not generate");

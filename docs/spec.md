@@ -523,7 +523,7 @@ Every row applies to every selected day. Two rows across twelve days generates t
 
 **Hours are prefilled as (end − start) − 30 minutes**, thirty being the ordinary unpaid break. Start time, end time and hours are three independent fields: changing a time re-suggests the hours only while nobody has typed their own, and once the leader enters a figure it is theirs and the times stop touching it. The number that is stored is the one in the field, never a recomputation — the real break is often longer than half an hour, and that is exactly why the field is editable. The same prefill applies to a Snabb Pass.
 
-The leader may **hand-pick** workers during creation. This does not assign them. It marks them as top-ranked *for this batch*.
+The leader may **hand-pick** workers during creation — on screen the list is **Prioriterade Arbetare**. This does not assign them. It marks them as top-ranked *for this batch*.
 
 **Only an arbetare can be hand-picked.** The list fills the slots a pass *demanded*, and an arbetsledare never occupies one — Step 4b places them on the day, and that row was never a slot the pass asked for. It is not merely a tidier list: Step 4b skips a leader who already holds an ordinary assignment that date, so hand-picking one onto a worker slot is exactly how a day loses the person answerable for it, and a leader hand-picking themselves does it to their own day. The rule is about who is named, not who is asking — it is the same for the admin, and enforced by a trigger on `pass_batch_handpick` rather than by the list. Förval and Tier 3 are untouched: a leader who marks a day can still be ranked onto a slot, and that gap is Step 5c's to record.
 
@@ -538,7 +538,7 @@ A hand-picked worker who did not pre-pick a day is not a mistake to warn about. 
 
 *Tier 2 — Övriga förvalda.* Everyone else who pre-picked that day. Ordered by: fewest shifts held that week ranks highest. A shift counts whether or not it has been confirmed. Each lateness mark pushes a worker one position down, cumulatively and permanently. Ties break randomly.
 
-**Shortfall warning at creation.** If a batch's total slots exceed the workers who have pre-picked those days, the leader is told before generating. Anything short of coverage is worth knowing about while the schedule can still be changed.
+**No shortfall warning at creation.** The creation screen used to warn when the slots outnumbered the workers who had marked those days; that was removed on 30 Sep 2026 at the owner's request. The batch arithmetic ("N rad(er) × N dag(ar) = N pass, N platser") shows only when two or more days are selected -- on one day it restates the rows on screen. Slots nobody marked still go out as Acceptera Pass, and the result screen still reports how many were filled. **Worker availability never blocks creation**: Skapa is held back only by what a pass cannot exist without -- a project, a day, hours on every row -- and while it is grey it names which one is missing. A company with no projects is told so and pointed at Skapa projekt. The headcount stepper runs to the database's own ceiling of 99.
 
 *Tier 3 — Acceptera Pass.* Reached only when the förval list is exhausted or empty. Offered as an accept/decline card to every remaining worker with no assignment that day — **except anyone who marked that day can't-work.** Marking a day means you cannot work it, so offering it asks a question that has already been answered. Card shows date, project, address, times, hours. First accepted wins; the slot closes instantly and the pass vanishes from everyone else's queue once headcount is met. Two workers racing for the last slot resolve to exactly one winner, decided randomly, enforced in the database.
 
@@ -1162,7 +1162,7 @@ Nothing here is open. Anything discovered later that is not covered is a stop-an
 - Only an arbetare may be hand-picked. An arbetsledare is placed by Step 4b, and picking one onto a worker slot is what takes them off the day they were meant to lead.
 - Tier 1 is ordered the same way as Tier 2: fewest shifts that week first, each lateness mark pushing one position down, ties random.
 - Acceptera Pass skips anyone who marked the day can't-work. An explicit no is not asked again.
-- A shortfall between total slots and pre-pickers is flagged to the leader at creation.
+- No shortfall notice at creation (removed 30 Sep 2026); the batch arithmetic shows only across two or more days. The result screen reports the fill.
 - Removing a worker reopens the slot; headcount never drops.
 - A deleted shift is never re-offered to the people removed from it. Snabb Pass is the way back.
 - The arbetsledare is auto-assigned to any day their project has a worker on it, both leaders if a project has two. Times are the workers' envelope, hours are prefilled from it and editable, and the row prints like any other. This replaces Acceptera Pass for leaders entirely.

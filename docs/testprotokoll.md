@@ -227,14 +227,13 @@ company schedule by URL.
 - [ ] **F5.** Set the headcount to 2, add a second row with **+ Lägg till rad**,
       and read the summary line.
       → **Ska hända:** *"2 rad(er) × 5 dag(ar) = 10 pass, 15 platser"*. Every row
-      applies to every selected day.
+      applies to every selected day. With only ONE day selected the line is
+      not shown at all.
 
-- [ ] **F6.** Look above Handplocka for a shortfall notice.
-      → **Ska hända:** if fewer people marked those days than there are slots:
-      *"N plats(er) saknar folk som markerat dagen — sämst \<datum\>"*. Told
-      while the schedule can still be changed.
+- [ ] **F6.** Look between the summary line and **Prioriterade Arbetare**.
+      → **Ska hända:** no shortfall notice. It was removed on 30 Sep 2026.
 
-- [ ] **F7.** Handplocka Arvid, then press **Skapa 10 pass**.
+- [ ] **F7.** Pick Arvid under **Prioriterade Arbetare**, then press **Skapa 10 pass**.
       → **Ska hända:** his row inverts to black when picked, and the result
       screen reads *"10 pass"* above *"N av 15 platser tillsatta"*, plus a notice
       for any places that went out as Acceptera Pass.

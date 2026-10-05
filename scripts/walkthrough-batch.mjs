@@ -317,9 +317,9 @@ try {
   // than there are workers guarantees a shortfall whatever else is in the
   // database. Pinning it to an exact roster size was brittle: the stable demo
   // accounts are legitimately recreated by demo:reset and the count moved.
-  const roster = await page.locator("fieldset:has(legend:text-is('Handplocka (0)')) button").count();
+  const roster = await page.locator("fieldset:has(legend:text-is('Prioriterade Arbetare (0)')) button").count();
   if (roster < 1) fail("no workers on the roster at all");
-  if (roster + 1 > 20) fail(`roster of ${roster} exceeds what the headcount stepper allows`);
+  if (roster + 1 > 99) fail(`roster of ${roster} exceeds what the headcount stepper allows`);
   // One more slot per day than there are workers, so the shortfall is certain.
   const headcount1 = roster + 1;
   for (let i = 1; i < headcount1; i++) {
@@ -332,13 +332,15 @@ try {
   await row2.locator('input[type="time"]').nth(1).fill("22:00");
 
   const expectedSlots = MONTH_DAYS.length * (headcount1 + 1);   // row 2 keeps 1
+  // The arithmetic line shows only across two or more days, which a month is.
+  // The shortfall notice was removed on 30 Sep 2026.
   await mustSee(page,
     `2 rad(er) × ${MONTH_DAYS.length} dag(ar) = ${MONTH_DAYS.length * 2} pass, ${expectedSlots} platser`,
     "the batch arithmetic is wrong");
-  await mustSee(page, "saknar folk som markerat dagen", "the batch shortfall was not flagged");
+  await mustNotSee(page, "saknar folk som markerat dagen", "the shortfall notice is back");
   await shot(page, "32-mall-rader");
   log(`two template rows over ${MONTH_DAYS.length} days = ${MONTH_DAYS.length * 2} passes, ` +
-      `${expectedSlots} slots; shortfall flagged`);
+      `${expectedSlots} slots; no shortfall notice`);
 
   await page.getByRole("button", { name: new RegExp(`Skapa ${MONTH_DAYS.length * 2} pass`) }).click();
   // The heading first: "24 pass" alone also matches the button that submitted

@@ -500,8 +500,8 @@ passes**, and `snabb` — which has to find its own project on that day — fail
 on a day it had passed on two hours earlier. `pausa` failed with `2 projekt den
 här dagen`, one from each sweep. Nothing had regressed; the second run was
 reading the first run's data. `batch` is the sharpest case: it creates five
-accounts a run and the headcount stepper refuses past twenty, so four runs make
-it unrunnable.
+accounts a run and asks for one more slot per day than the roster holds, so
+the roster it reads grows every run (the stepper stops at the database's 99).
 
 So a red can mean a regression, a calendar month boundary, or simply that the
 suite has been run before. Those are indistinguishable from the output, and
