@@ -572,7 +572,7 @@ export function SoftTextarea(props: React.TextareaHTMLAttributes<HTMLTextAreaEle
  * off the grid -- 8,2 -- is kept as it is and the next press lands on a quarter.
  */
 export function Stepper({
-  value, onChange, step = 1, min = 0, max = 99, unit, label, testId,
+  value, onChange, step = 1, min = 0, max = 99, unit, label, testId, decLabel, incLabel,
 }: {
   /** "8,5" or "8.5" or "" -- what the page holds. */
   value: string;
@@ -585,6 +585,13 @@ export function Stepper({
   /** The accessible name, e.g. "Timmar". */
   label: string;
   testId?: string;
+  /**
+   * Names for − and +. Pass them whenever something looks the field up by
+   * its label: getByLabel matches substrings, so a default "Öka timmar på rad
+   * 1" would make "Timmar på rad 1" ambiguous.
+   */
+  decLabel?: string;
+  incLabel?: string;
 }) {
   const n = Number(value.replace(",", "."));
   const current = Number.isFinite(n) && value.trim() !== "" ? n : null;
@@ -601,7 +608,7 @@ export function Stepper({
       className="flex h-[52px] w-full min-w-0 items-center overflow-hidden rounded-[14px]"
       style={{ background: C.surface, border: `1px solid ${C.border}` }}
     >
-      <button type="button" aria-label={`Minska ${label.toLowerCase()}`} className={btn}
+      <button type="button" aria-label={decLabel ?? `Minska ${label.toLowerCase()}`} className={btn}
         disabled={current !== null && current <= min} onClick={() => move(-1)}>
         <svg width="14" height="2" viewBox="0 0 14 2" aria-hidden><path d="M1 1h12" stroke={C.ink} strokeWidth="2.2" strokeLinecap="round" /></svg>
       </button>
@@ -613,13 +620,14 @@ export function Stepper({
           inputMode="none"
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="w-full min-w-0 border-0 bg-transparent text-center text-[18px] font-bold tabular-nums outline-none"
-          style={{ color: C.ink, maxWidth: unit ? "4.2em" : undefined }}
+          className="min-w-0 border-0 bg-transparent text-center text-[18px] font-bold tabular-nums outline-none"
+          // As wide as its figure, so the unit sits beside it rather than at the far edge.
+          style={{ color: C.ink, width: unit ? `${Math.max(2, value.length) + 0.6}ch` : "100%" }}
         />
         {unit && <span className="shrink-0 text-[15px] font-semibold" style={{ color: C.text2 }}>{unit}</span>}
       </span>
       <span className="h-full w-px shrink-0" style={{ background: C.border }} />
-      <button type="button" aria-label={`Öka ${label.toLowerCase()}`} className={btn}
+      <button type="button" aria-label={incLabel ?? `Öka ${label.toLowerCase()}`} className={btn}
         disabled={current !== null && current >= max} onClick={() => move(1)}>
         <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden><path d="M7 1v12M1 7h12" stroke={C.ink} strokeWidth="2.2" strokeLinecap="round" /></svg>
       </button>

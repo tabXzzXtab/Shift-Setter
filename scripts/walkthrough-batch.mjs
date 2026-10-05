@@ -287,22 +287,22 @@ try {
   }
 
   const row1 = page.locator("fieldset:has(legend:text-is('Pass per dag')) > div > div").first();
-  await row1.locator('input[type="time"]').nth(1).fill("17:00");
+  await row1.locator('input[data-time]').nth(1).fill("17:00");
   if ((await h1.inputValue()) !== "9,5") {
     fail(`moving the end to 17:00 should re-suggest 9,5 h; got "${await h1.inputValue()}"`);
   }
 
   // A night shift crosses midnight rather than going negative.
-  await row1.locator('input[type="time"]').first().fill("22:00");
-  await row1.locator('input[type="time"]').nth(1).fill("06:00");
+  await row1.locator('input[data-time]').first().fill("22:00");
+  await row1.locator('input[data-time]').nth(1).fill("06:00");
   if ((await h1.inputValue()) !== "7,5") {
     fail(`22:00-06:00 should prefill 7,5 h; got "${await h1.inputValue()}"`);
   }
 
   // Typed by hand: from here the times must not touch it.
   await h1.fill("7");
-  await row1.locator('input[type="time"]').first().fill("07:00");
-  await row1.locator('input[type="time"]').nth(1).fill("16:00");
+  await row1.locator('input[data-time]').first().fill("07:00");
+  await row1.locator('input[data-time]').nth(1).fill("16:00");
   if ((await h1.inputValue()) !== "7") {
     fail(`a typed figure must survive a time change; got "${await h1.inputValue()}"`);
   }
@@ -317,7 +317,7 @@ try {
   // than there are workers guarantees a shortfall whatever else is in the
   // database. Pinning it to an exact roster size was brittle: the stable demo
   // accounts are legitimately recreated by demo:reset and the count moved.
-  const roster = await page.locator("fieldset:has(legend:text-is('Prioriterade Arbetare (0)')) button").count();
+  const roster = await page.locator("fieldset:has(legend:text-is('Prioriterade arbetare')) button").count();
   if (roster < 1) fail("no workers on the roster at all");
   if (roster + 1 > 99) fail(`roster of ${roster} exceeds what the headcount stepper allows`);
   // One more slot per day than there are workers, so the shortfall is certain.
@@ -328,15 +328,15 @@ try {
   await page.getByRole("button", { name: "+ Lägg till rad" }).click();
   await page.getByLabel("Timmar på rad 2").fill("7,5");
   const row2 = page.locator("fieldset:has(legend:text-is('Pass per dag')) > div > div").nth(1);
-  await row2.locator('input[type="time"]').first().fill("14:00");
-  await row2.locator('input[type="time"]').nth(1).fill("22:00");
+  await row2.locator('input[data-time]').first().fill("14:00");
+  await row2.locator('input[data-time]').nth(1).fill("22:00");
 
   const expectedSlots = MONTH_DAYS.length * (headcount1 + 1);   // row 2 keeps 1
-  // The arithmetic line shows only across two or more days, which a month is.
-  // The shortfall notice was removed on 30 Sep 2026.
-  await mustSee(page,
-    `2 rad(er) × ${MONTH_DAYS.length} dag(ar) = ${MONTH_DAYS.length * 2} pass, ${expectedSlots} platser`,
-    "the batch arithmetic is wrong");
+  // The "N rad(er) × N dag(ar) = N pass, N platser" line was removed on
+  // 5 Oct 2026 (owner's brief): the count lives in the button, "Skapa N pass",
+  // which the click below finds by that exact number. The shortfall notice
+  // was removed on 30 Sep 2026.
+  await mustNotSee(page, "rad(er) ×", "the batch arithmetic line is back");
   await mustNotSee(page, "saknar folk som markerat dagen", "the shortfall notice is back");
   await shot(page, "32-mall-rader");
   log(`two template rows over ${MONTH_DAYS.length} days = ${MONTH_DAYS.length * 2} passes, ` +

@@ -5,9 +5,10 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { AuthGate } from "@/components/auth-gate";
 import {
-  C, Card, PrimaryButton, SecondaryButton, SHADOW, SoftField, SoftInput,
-  SoftNotice, SoftScreen, SoftSelect,
+  C, Card, PrimaryButton, SecondaryButton, SHADOW, SoftNotice, SoftScreen, Stepper,
 } from "@/components/soft";
+import { PickField } from "@/components/pick-field";
+import { TimeField } from "@/components/time-wheel";
 import { PaintCalendar } from "@/components/paint-calendar";
 import { derivesTenant, getSupabase } from "@/lib/supabase/client";
 import { stockholmToday } from "@/lib/dates";
@@ -99,7 +100,6 @@ function NyttPass({ asked, fromDay = false }: { asked: string | null; fromDay?: 
 
   const today = stockholmToday();
   const totalPasses = days.length * rows.length;
-  const totalSlots = days.length * rows.reduce((n, r) => n + r.headcount, 0);
   const missing =
     !projectId ? "Välj ett projekt för att skapa passen."
     : days.length === 0 ? "Välj minst en dag."
@@ -260,23 +260,32 @@ function NyttPass({ asked, fromDay = false }: { asked: string | null; fromDay?: 
           </Card>
         </div>
 
+        {/* A heads-up, not an alarm: the unfilled places already went out
+            as Acceptera Pass on their own (notice audit B5, blue). */}
         {result.slots > result.filled && (
           <div className="px-4 pt-[14px]">
-            <SoftNotice tone="warn">
-              {result.slots - result.filled} plats(er) kvar. De har gått ut som Acceptera Pass.
+            <SoftNotice tone="quiet" headline="För få tillgängliga arbetare">
+              {result.slots - result.filled} plats(er) gick ut som Acceptera Pass.
             </SoftNotice>
           </div>
         )}
 
-        <div className="px-4 pt-[22px]">
+        <div className="flex flex-col gap-[10px] px-4 pt-[22px]">
           <PrimaryButton
             onClick={() => {
               setResult(null); setDays([]); setRows([newRow()]);
               setHandpicked([]); setStep("days");
             }}
           >
-            Skapa fler
+            Skapa fler pass
           </PrimaryButton>
+          <Link
+            href="/"
+            className="flex h-[48px] items-center justify-center text-[17px] font-bold"
+            style={{ color: C.inkHover }}
+          >
+            Gå hem
+          </Link>
         </div>
       </SoftScreen>
     );
@@ -373,14 +382,12 @@ function NyttPass({ asked, fromDay = false }: { asked: string | null; fromDay?: 
 
       <div className="px-4 pt-[14px]">
         <Card radius={16} pad="p-[18px]">
-          <SoftField label="Projekt">
-            <SoftSelect value={projectId} onChange={(e) => setProjectId(e.target.value)}>
-              <option value="">Välj…</option>
-              {projects.map((p) => (
-                <option key={p.id} value={p.id}>{p.name}</option>
-              ))}
-            </SoftSelect>
-          </SoftField>
+          <PickField
+            label="Projekt"
+            value={projectId}
+            onChange={setProjectId}
+            options={projects.map((p) => ({ value: p.id, label: p.name }))}
+          />
           {/* A pass belongs to a project, so an empty list is the one thing
               that genuinely stops creation -- say so and point at the fix,
               rather than leaving a grey button to explain itself. */}
@@ -415,17 +422,11 @@ function NyttPass({ asked, fromDay = false }: { asked: string | null; fromDay?: 
       */}
       <fieldset className="mt-[26px] block min-w-0 border-0 p-0 px-4">
         <legend
-          className="px-1 pb-1 text-[12px] font-bold uppercase"
+          className="px-1 pb-[10px] text-[12px] font-bold uppercase"
           style={{ letterSpacing: "1px", color: C.text2 }}
         >
           Pass per dag
         </legend>
-        <p
-          className="px-1 pb-[10px] text-[14px] font-medium"
-          style={{ color: C.text2, textWrap: "pretty" }}
-        >
-          Varje rad skapas på varje vald dag. Timmar förifylls som tiden minus 30 min — ändra om rasten var längre.
-        </p>
 
         <div className="flex flex-col gap-[14px]">
           {rows.map((r, i) => (
@@ -439,73 +440,65 @@ function NyttPass({ asked, fromDay = false }: { asked: string | null; fromDay?: 
                     type="button"
                     aria-label={`Ta bort rad ${i + 1}`}
                     onClick={() => setRows((p) => p.filter((_, j) => j !== i))}
-                    className="press-scale h-11 rounded-[10px] px-[14px] text-[15px] font-bold transition-transform duration-[110ms] hover:bg-[#ebe9e5] active:scale-[.985]"
-                    style={{ background: C.stopBg, color: C.stopInk }}
+                    className="h-11 px-[4px] text-[15px] font-semibold"
+                    style={{ color: C.stopInk }}
                   >
                     Ta bort
                   </button>
                 )}
               </div>
 
-              {/* The headcount stepper: minus, the number, plus. The ceiling is
-                  the database's (pass_headcount_check, 99), not the roster's:
-                  a pass may ask for more people than exist, and the slots
-                  nobody fills go out as Acceptera Pass. */}
-              <div className="mb-[14px] flex items-stretch gap-[10px]">
-                <button
-                  type="button"
-                  aria-label={`Färre på rad ${i + 1}`}
-                  onClick={() => setRows((p) => p.map((x, j) => j === i ? { ...x, headcount: Math.max(1, x.headcount - 1) } : x))}
-                  className="press-scale h-[52px] w-16 rounded-[10px] text-[24px] font-extrabold leading-none transition-transform duration-[110ms] hover:bg-[#e9e8e4] active:scale-[.985]"
-                  style={{ background: C.surface, border: `1px solid ${C.border}`, color: C.inkHover }}
-                >
-                  −
-                </button>
-                <output
-                  className="flex h-[52px] flex-1 items-center justify-center rounded-[10px] text-[26px] font-extrabold"
-                  style={{ letterSpacing: "-.6px", background: C.panel2 }}
-                >
-                  {r.headcount}
-                </output>
-                <button
-                  type="button"
-                  aria-label={`Fler på rad ${i + 1}`}
-                  onClick={() => setRows((p) => p.map((x, j) => j === i ? { ...x, headcount: Math.min(99, x.headcount + 1) } : x))}
-                  className="press-scale h-[52px] w-16 rounded-[10px] text-[24px] font-extrabold leading-none transition-transform duration-[110ms] hover:bg-[#e9e8e4] active:scale-[.985]"
-                  style={{ background: C.surface, border: `1px solid ${C.border}`, color: C.inkHover }}
-                >
-                  +
-                </button>
+              {/* Antal: the database's ceiling (pass_headcount_check, 99), not the
+                  roster's -- a pass may ask for more people than exist, and the
+                  slots nobody fills go out as Acceptera Pass. */}
+              <div className="mb-[14px]">
+                <span className="mb-[6px] block text-[12px] font-bold uppercase" style={{ letterSpacing: ".9px", color: C.text2 }}>
+                  Antal personer
+                </span>
+                <Stepper
+                  label={`Antal personer på rad ${i + 1}`}
+                  decLabel={`Färre på rad ${i + 1}`}
+                  incLabel={`Fler på rad ${i + 1}`}
+                  min={1}
+                  max={99}
+                  value={String(r.headcount)}
+                  onChange={(v) => {
+                    const n = Math.round(Number(v));
+                    if (Number.isFinite(n) && n >= 1 && n <= 99) {
+                      setRows((p) => p.map((x, j) => j === i ? { ...x, headcount: n } : x));
+                    }
+                  }}
+                />
               </div>
 
-              <div className="flex gap-[10px]">
+              {/* relative: the wheel card hangs off this row, so it opens full width
+                  under both fields rather than a half-width card (time-wheel.tsx). */}
+              <div className="relative mb-[14px] flex gap-[10px]">
                 <div className="min-w-0 flex-1">
-                  <SoftField label="Börjar">
-                    <SoftInput
-                      type="time" value={r.start}
-                      onChange={(e) => setTime(i, "start", e.target.value)}
-                    />
-                  </SoftField>
+                  <TimeField label="Börjar" value={r.start} onChange={(v) => setTime(i, "start", v)} />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <SoftField label="Slutar">
-                    <SoftInput
-                      type="time" value={r.end}
-                      onChange={(e) => setTime(i, "end", e.target.value)}
-                    />
-                  </SoftField>
-                </div>
-                <div className="min-w-0 flex-1">
-                  <SoftField label="Timmar">
-                    <SoftInput
-                      inputMode="decimal" value={r.hours}
-                      aria-label={`Timmar på rad ${i + 1}`}
-                      onChange={(e) => setRows((p) => p.map((x, j) =>
-                        j === i ? { ...x, hours: e.target.value, hoursTouched: true } : x))}
-                    />
-                  </SoftField>
+                  <TimeField label="Slutar" value={r.end} onChange={(v) => setTime(i, "end", v)} />
                 </div>
               </div>
+
+              {/* Prefilled as the span minus 30 min and still the leader's number
+                  to change (invariant 1); quarter steps. */}
+              <span className="mb-[6px] block text-[12px] font-bold uppercase" style={{ letterSpacing: ".9px", color: C.text2 }}>
+                Timmar
+              </span>
+              <Stepper
+                label={`Timmar på rad ${i + 1}`}
+                decLabel={`Färre timmar, rad ${i + 1}`}
+                incLabel={`Fler timmar, rad ${i + 1}`}
+                step={0.25}
+                min={0}
+                max={24}
+                unit="h"
+                value={r.hours}
+                onChange={(v) => setRows((p) => p.map((x, j) =>
+                  j === i ? { ...x, hours: v, hoursTouched: true } : x))}
+              />
             </Card>
           ))}
 
@@ -515,25 +508,12 @@ function NyttPass({ asked, fromDay = false }: { asked: string | null; fromDay?: 
         </div>
       </fieldset>
 
-      {/* Only across two or more days, where the multiplication is news. On
-          one day it restates the rows the leader is looking at. */}
-      {days.length > 1 && (
-        <div className="px-4 pt-[22px]">
-          <div
-            className="rounded-[12px] px-4 py-[14px] text-[15px] font-semibold"
-            style={{ background: C.surface, border: `1px solid ${C.border}`, color: C.inkHover }}
-          >
-            {rows.length} rad(er) × {days.length} dag(ar) = {totalPasses} pass, {totalSlots} platser
-          </div>
-        </div>
-      )}
-
       <fieldset className="mt-[26px] block min-w-0 border-0 p-0 px-4">
         <legend
           className="px-1 pb-[10px] text-[12px] font-bold uppercase"
           style={{ letterSpacing: "1px", color: C.text2 }}
         >
-          Prioriterade Arbetare ({handpicked.length})
+          Prioriterade arbetare
         </legend>
 
         <div
@@ -550,11 +530,10 @@ function NyttPass({ asked, fromDay = false }: { asked: string | null; fromDay?: 
                   aria-pressed={on}
                   onClick={() => setHandpicked((p) => on ? p.filter((x) => x !== w.id) : [...p, w.id])}
                   className="flex h-[60px] w-full items-center justify-between px-[18px] text-[17px] font-bold hover:bg-[#f4f3f0]"
-                  style={{ letterSpacing: "-.2px", background: on ? C.panel2 : undefined }}
+                  style={{ letterSpacing: "-.2px" }}
                 >
                   <span>{w.name}</span>
-                  {/* Colour is never the only carrier: a chosen row is a tint
-                      AND a check, and aria-pressed says it out loud. */}
+                  {/* A chosen row is a check, and aria-pressed says it out loud. */}
                   {on ? (
                     <svg width="15" height="12" viewBox="0 0 11 9" fill="none" aria-hidden>
                       <path d="M1 4.6 4 7.6 10 1.4" stroke={C.accentInk} strokeWidth="2.2"
