@@ -41,6 +41,13 @@ function Wheel({
 }) {
   const box = useRef<HTMLDivElement>(null);
   const settle = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // ONLY A PERSON PICKS. Setting scrollTop -- on opening, or to follow a time
+  // typed into the field -- fires the same scroll event a swipe does, and the
+  // settle below used to answer it by writing the wheel's position back: the
+  // old time, over the one just typed. A pointer, wheel or key on the wheel is
+  // what makes the next settle a choice.
+  const touched = useRef(false);
+  const mark = () => { touched.current = true; };
 
   /** Each row tilts and fades with its distance from the band. */
   const paint = () => {
@@ -65,12 +72,24 @@ function Wheel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // A time typed into the field moves the wheel to it, without picking.
+  useEffect(() => {
+    const el = box.current;
+    if (!el || Math.round(el.scrollTop / ROW) === index) return;
+    touched.current = false;
+    el.scrollTop = index * ROW;
+    paint();
+  }, [index]);
+
   return (
     <div
       ref={box}
       role="listbox"
       aria-label={label}
       tabIndex={0}
+      onPointerDown={mark}
+      onWheel={mark}
+      onTouchStart={mark}
       onScroll={() => {
         paint();
         if (settle.current) clearTimeout(settle.current);
@@ -78,11 +97,13 @@ function Wheel({
         settle.current = setTimeout(() => {
           const el = box.current;
           if (!el) return;
+          if (!touched.current) return;
           const i = Math.max(0, Math.min(items.length - 1, Math.round(el.scrollTop / ROW)));
           onPick(i);
         }, 90);
       }}
       onKeyDown={(e) => {
+        mark();
         const el = box.current;
         if (!el) return;
         const i = Math.round(el.scrollTop / ROW);

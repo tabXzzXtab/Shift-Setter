@@ -180,11 +180,12 @@ try {
   const project = `Bekräftelser ${RUN}`;
   await field(page, "Projektnamn").fill(project);
   await field(page, "Projektets adress").fill(ADDRESS);
-  await field(page, "Beställarens adress").fill("Fakturagatan 9, 111 22 Stockholm");
   // Earlier beställare are a picker now; "Ny beställare" opens the fields. __ny_best_opened__
+  await page.locator('label:has(span:text-is("Beställare")) select, label:has(span:text-is("Beställarens bolag")) input').first().waitFor({ state: "attached", timeout: 20000 });
   if (await page.locator('label:has(span:text-is("Beställare")) select').count()) {
     await field(page, "Beställare").selectOption("__ny__");
   }
+  await field(page, "Beställarens adress").fill("Fakturagatan 9, 111 22 Stockholm");
   await field(page, "Beställarens bolag").fill("Malmö Fastigheter AB");
   await field(page, "Beställarens org nummer").fill("556123-4567");
   await field(page, "Startdatum").fill(older);
@@ -389,7 +390,18 @@ try {
   }
 
   // The chips and the helper line the mark replaced are gone from the screen.
-  for (const gone of ["Ej stämplad", "Stämplad ut", "Krävs", "slutgiltigt", "om personen inte kom"]) {
+  // "Ej stämplad" IS the mark's own word since 30 Sep (jobbade-inte.tsx), so the
+  // chip is looked for only OUTSIDE the mark -- a second, stray copy is the
+  // regression this guards against.
+  const strayChips = await page.evaluate(() =>
+    [...document.querySelectorAll("body *")].filter((el) =>
+      el.childElementCount === 0 && el.textContent?.trim() === "Ej stämplad"
+      && !el.closest('button[aria-label^="Jobbade "]')).length);
+  if (strayChips) {
+    await shot(page, "FAILED");
+    fail(`"Ej stämplad" is back on Bekräfta Pass outside the mark (${strayChips})`);
+  }
+  for (const gone of ["Stämplad ut", "Krävs", "slutgiltigt", "om personen inte kom"]) {
     if ((await page.getByText(gone, { exact: false }).count())) {
       await shot(page, "FAILED");
       fail(`"${gone}" is back on Bekräfta Pass`);

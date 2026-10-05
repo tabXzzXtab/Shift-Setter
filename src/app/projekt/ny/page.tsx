@@ -62,6 +62,10 @@ function NyttProjekt() {
   const [tidigare, setTidigare] = useState<Bestallare[]>([]);
   const [valdBest, setValdBest] = useState("");
   const [nyBest, setNyBest] = useState(false);
+  // Nothing is drawn until the list has arrived. Drawing the empty fields
+  // first and swapping them for the picker when the list landed took fields
+  // out from under somebody who had started typing.
+  const [bestLoaded, setBestLoaded] = useState(false);
   useEffect(() => {
     void (async () => {
       const { data } = await getSupabase()
@@ -80,6 +84,7 @@ function NyttProjekt() {
       }
       list.sort((a, b) => a.bolag.localeCompare(b.bolag, "sv"));
       setTidigare(list);
+      setBestLoaded(true);
     })();
   }, []);
   // The picker is the way in whenever there is anything to pick; the empty
@@ -119,7 +124,7 @@ function NyttProjekt() {
   const into = (name: string, text: string, typed = true) => ({
     text, typed, el: () => input(name), write: (v: string) => { const el = input(name); if (el) el.value = v; },
   });
-  useTourAutofill("projekt", leaders.length > 0, () => [
+  useTourAutofill("projekt", leaders.length > 0 && bestLoaded, () => [
     into("name", "Fasad Malmö"),
     into("site_address", "Storgatan 12, 211 34 Malmö"),
     // State, not the element: the visible field shows words, and the hidden
@@ -241,7 +246,7 @@ function NyttProjekt() {
           <Card radius={16} pad="p-[18px]">
             <CardTitle mb={4}>Beställaren</CardTitle>
 
-            {!visaFalt && (
+            {bestLoaded && !visaFalt && (
               <div className="fade-rise">
                 <PickField
                   label="Beställare"
@@ -266,7 +271,7 @@ function NyttProjekt() {
               </div>
             )}
 
-            {visaFalt && (
+            {bestLoaded && visaFalt && (
               <div className="fade-rise">
                 <div className="mb-[14px]">
                   <SoftField label="Beställarens bolag">
@@ -310,7 +315,7 @@ function NyttProjekt() {
         )}
 
         <div className="px-4 pt-[22px]">
-          <PrimaryButton type="submit" disabled={saving || !leaderId || (!visaFalt && !best)}>
+          <PrimaryButton type="submit" disabled={saving || !leaderId || !bestLoaded || (!visaFalt && !best)}>
             {saving ? "Sparar…" : "Skapa projekt"}
           </PrimaryButton>
         </div>

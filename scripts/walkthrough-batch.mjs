@@ -218,11 +218,12 @@ try {
   const project = `Månadsbygget ${RUN}`;
   await field(page, "Projektnamn").fill(project);
   await field(page, "Projektets adress").fill("Bruksgatan 8, 242 30 Hörby");
-  await field(page, "Beställarens adress").fill("Kundvägen 4, 241 38 Eslöv");
   // Earlier beställare are a picker now; "Ny beställare" opens the fields. __ny_best_opened__
+  await page.locator('label:has(span:text-is("Beställare")) select, label:has(span:text-is("Beställarens bolag")) input').first().waitFor({ state: "attached", timeout: 20000 });
   if (await page.locator('label:has(span:text-is("Beställare")) select').count()) {
     await field(page, "Beställare").selectOption("__ny__");
   }
+  await field(page, "Beställarens adress").fill("Kundvägen 4, 241 38 Eslöv");
   await field(page, "Beställarens bolag").fill("Eslövs Fastigheter AB");
   await field(page, "Beställarens org nummer").fill("556123-4567");
   await field(page, "Startdatum").fill(today);
@@ -409,6 +410,8 @@ try {
   await openDayPage(page, BASE, MONTH_DAYS[6], project);
   await page.getByRole("button", { name: /^Ta bort / }).first().waitFor({ timeout: 20000 });
   await page.getByRole("button", { name: /^Ta bort / }).first().click();
+  // The trash asks first since 30 Sep (356c13f): "Avboka bokning?" -> Bekräfta.
+  await page.getByRole("button", { name: "Bekräfta", exact: true }).last().click();
   await mustSee(page, "platsen gick ut som Acceptera Pass till",
                 "the vacated slot did not reopen and cascade");
   await shot(page, "36-kaskad");
@@ -459,6 +462,8 @@ try {
   await openDayPage(page, BASE, NEAR, project);
   await page.getByRole("button", { name: /^Ta bort / }).first().waitFor({ timeout: 20000 });
   await page.getByRole("button", { name: /^Ta bort / }).first().click();
+  // The trash asks first since 30 Sep (356c13f): "Avboka bokning?" -> Bekräfta.
+  await page.getByRole("button", { name: "Bekräfta", exact: true }).last().click();
   await mustSee(page, "inom fem dagar", "the five-day cutoff did not hold");
   await shot(page, "37-inom-fem-dagar");
   log("inside five days: removed, and nothing filled it automatically");

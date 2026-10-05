@@ -115,11 +115,12 @@ try {
   const project = `Akutjobbet ${RUN}`;
   await field(page, "Projektnamn").fill(project);
   await field(page, "Projektets adress").fill("Bruksgatan 8, 242 30 Hörby");
-  await field(page, "Beställarens adress").fill("Kundvägen 4, 241 38 Eslöv");
   // Earlier beställare are a picker now; "Ny beställare" opens the fields. __ny_best_opened__
+  await page.locator('label:has(span:text-is("Beställare")) select, label:has(span:text-is("Beställarens bolag")) input').first().waitFor({ state: "attached", timeout: 20000 });
   if (await page.locator('label:has(span:text-is("Beställare")) select').count()) {
     await field(page, "Beställare").selectOption("__ny__");
   }
+  await field(page, "Beställarens adress").fill("Kundvägen 4, 241 38 Eslöv");
   await field(page, "Beställarens bolag").fill("Eslövs Fastigheter AB");
   await field(page, "Beställarens org nummer").fill("556123-4567");
   await field(page, "Startdatum").fill(today);
@@ -177,6 +178,7 @@ try {
   await page.goto(`${BASE}/snabb/`, { waitUntil: "networkidle" });
   await field(page, "Projekt").selectOption({ label: project });
   await field(page, "Datum").fill(D);
+  await page.keyboard.press("Escape");   // close the date card before the next control
   await field(page, "Timmar").fill("6");
   await field(page, "Vem?").selectOption("__ny__");
   await page.getByRole("heading", { name: "Skapa ett konto" }).waitFor({ timeout: 20000 });
@@ -205,7 +207,7 @@ try {
   const selected = await field(page, "Vem?").inputValue();
   if (!selected || selected === "__ny__") fail("returned without the new worker selected");
   await page.getByRole("button", { name: "Skapa Snabb Pass" }).click();
-  await mustSee(page, "Snabb Pass skapat", "the Snabb Pass for the new worker failed");
+  await mustSee(page, "Passet är inlagt", "the Snabb Pass for the new worker failed");
   await mustSee(page, "Lösenord:", "the credentials for the new worker were not shown");
   log(`admin created ${newName} from inside the dropdown and put them on the shift`);
 
@@ -213,10 +215,11 @@ try {
   await page.getByRole("button", { name: "Skapa ett till" }).click();
   await field(page, "Projekt").selectOption({ label: project });
   await field(page, "Datum").fill(D);
+  await page.keyboard.press("Escape");   // close the date card before the next control
   await field(page, "Timmar").fill("4");
   await field(page, "Vem?").selectOption({ label: `Ada S${RUN}` });
   await page.getByRole("button", { name: "Skapa Snabb Pass" }).click();
-  await mustSee(page, "Snabb Pass skapat", "the second Snabb Pass failed");
+  await mustSee(page, "Passet är inlagt", "the second Snabb Pass failed");
   await shot(page, "42-snabb-skapat");
   log("Snabb Pass for Ada, who already had a pass that day");
 
@@ -249,6 +252,7 @@ try {
   // The shared day first. Före is not on offer there, and the press has to SAY
   // so -- a control that simply does nothing reads as a broken app.
   await field(page, "Datum").fill(D);
+  await page.keyboard.press("Escape");   // close the date card before the next control
   await page.getByRole("button", { name: "Före bekräftelse" }).click();
   await mustSee(page, "bekräftas av arbetsledaren",
     "pressing Före on a day somebody else works said nothing at all");
@@ -261,6 +265,7 @@ try {
   // is a round trip, and asserting the instant after a keystroke would be
   // asserting that the screen is psychic rather than that it is correct.
   await field(page, "Datum").fill(DF);
+  await page.keyboard.press("Escape");   // close the date card before the next control
   await page.getByText("bekräftas av arbetsledaren").first()
     .waitFor({ state: "hidden", timeout: 20000 })
     .catch(() => fail("the refusal about the shared day outlived the day it was about"));
@@ -274,7 +279,7 @@ try {
   await shot(page, "46-fore-formularet");
 
   await page.getByRole("button", { name: "Skapa och för in i arbetsdagboken" }).click();
-  await mustSee(page, "Snabb Pass skapat", "the Före Snabb Pass failed");
+  await mustSee(page, "Passet är inlagt", "the Före Snabb Pass failed");
   await mustSee(page, "Dagen är förd till arbetsdagboken",
     "the screen did not say the day was filed");
   await shot(page, "47-fore-skapat");
