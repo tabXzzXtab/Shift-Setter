@@ -257,8 +257,8 @@ try {
   // whichever site it was. What it distinguishes is worked from not worked,
   // and that is also carried by the dot and by the aria-label.
   const bg = await worked.evaluate((el) => getComputedStyle(el).backgroundColor);
-  if (bg !== "rgb(238, 243, 254)") {
-    fail(`a worked day is not on the handoff's #eef3fe panel: ${bg}`);
+  if (bg !== "rgb(241, 240, 237)") {
+    fail(`a worked day is not on the neutral #f1f0ed panel: ${bg}`);
   }
   const label = await worked.getAttribute("aria-label");
   if (!/\d+ pass/.test(label ?? "")) {
@@ -270,7 +270,7 @@ try {
   // nothing. day(1) is tomorrow, which this run deliberately leaves empty.
   const emptyDay = await page.locator(`[data-date="${day(1)}"]`).evaluate(
     (el) => getComputedStyle(el).backgroundColor);
-  if (emptyDay === "rgb(238, 243, 254)") {
+  if (emptyDay === "rgb(241, 240, 237)") {
     fail("a day with no shift is marked the same as a day with one");
   }
   log("a day with nothing on it carries no mark at all");

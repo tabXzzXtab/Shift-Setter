@@ -129,13 +129,13 @@ export function DateField({
             <div className="flex gap-1">
               <button
                 type="button" aria-label="Föregående månad" onClick={() => step(-1)}
-                className="flex h-10 w-10 items-center justify-center rounded-full hover:bg-[#eef3fe]"
+                className="flex h-10 w-10 items-center justify-center rounded-full hover:bg-[#f1f0ed]"
               >
                 <Arrow d="M7.5 1.5 2 7.5l5.5 6" />
               </button>
               <button
                 type="button" aria-label="Nästa månad" onClick={() => step(1)}
-                className="flex h-10 w-10 items-center justify-center rounded-full hover:bg-[#eef3fe]"
+                className="flex h-10 w-10 items-center justify-center rounded-full hover:bg-[#f1f0ed]"
               >
                 <Arrow d="M1.5 1.5 7 7.5l-5.5 6" />
               </button>
@@ -165,7 +165,7 @@ export function DateField({
                   aria-pressed={on}
                   onClick={() => { onChange(date); setOpen(false); }}
                   className={`mx-auto flex h-10 w-10 items-center justify-center rounded-full text-[16px] ${
-                    on ? "font-extrabold" : "font-medium hover:bg-[#eef3fe]"
+                    on ? "font-extrabold" : "font-medium hover:bg-[#f1f0ed]"
                   }`}
                   style={{
                     background: on ? C.accent : undefined,

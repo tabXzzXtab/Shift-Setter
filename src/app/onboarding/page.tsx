@@ -327,7 +327,7 @@ function RouteChoice({ onChoose }: { onChoose: (r: Route) => void }) {
           key={r.key}
           type="button"
           onClick={() => onChoose(r.key)}
-          className={`press-scale block w-full p-[18px] text-left transition-transform duration-[110ms] hover:bg-[#f6f9ff] active:scale-[.985] ${
+          className={`press-scale block w-full p-[18px] text-left transition-transform duration-[110ms] hover:bg-[#f4f3f0] active:scale-[.985] ${
             i > 0 ? "mt-[14px]" : ""
           }`}
           style={{ background: C.surface, borderRadius: 14, boxShadow: SHADOW.group }}

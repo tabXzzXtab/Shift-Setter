@@ -227,8 +227,8 @@ function OppnaPass() {
                   type="button"
                   onClick={() => void boka(o.pass_id)}
                   disabled={busy !== null}
-                  className="press-scale mt-[14px] h-[54px] w-full rounded-[10px] text-[17px] font-bold transition-transform duration-[120ms] hover:bg-[#dbe4f9] active:scale-[.985] disabled:opacity-60"
-                  style={{ letterSpacing: "-.2px", background: C.panel2, color: C.inkHover }}
+                  className="press-scale mt-[14px] h-[54px] w-full rounded-[10px] text-[17px] font-bold transition-transform duration-[120ms] hover:bg-[#e9e8e4] active:scale-[.985] disabled:opacity-60"
+                  style={{ letterSpacing: "-.2px", background: C.surface, border: `1px solid ${C.border}`, color: C.inkHover }}
                 >
                   {busy === o.pass_id ? "Bokar…" : "Boka Pass"}
                 </button>

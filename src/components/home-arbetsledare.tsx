@@ -121,14 +121,14 @@ export function HomeArbetsledare() {
       {/* ---- top bar ------------------------------------------------------ */}
       <div
         className="sticky top-0 z-[5] flex items-center justify-between gap-2 px-4 pb-[10px] pt-[14px]"
-        style={{ background: "rgba(243,246,253,.88)", backdropFilter: "blur(12px)" }}
+        style={{ background: "rgba(247,246,243,.88)", backdropFilter: "blur(12px)" }}
       >
         <button
           type="button"
           aria-label="Meny"
           aria-expanded={open === "menu"}
           onClick={() => setOpen("menu")}
-          className="press-scale flex h-11 w-11 items-center justify-center rounded-[11px] p-0 transition-transform duration-[120ms] hover:bg-[#f0f5ff] active:scale-[.985] active:bg-[#dbe4f9]"
+          className="press-scale flex h-11 w-11 items-center justify-center rounded-[11px] p-0 transition-transform duration-[120ms] hover:bg-[#f4f3f0] active:scale-[.985] active:bg-[#e9e8e4]"
           style={{ background: C.surface, boxShadow: SHADOW.flat }}
         >
           <svg width="20" height="14" viewBox="0 0 20 14" fill="none" aria-hidden>
@@ -141,7 +141,7 @@ export function HomeArbetsledare() {
           aria-label="Profil"
           aria-expanded={open === "profile"}
           onClick={() => setOpen("profile")}
-          className="press-scale flex h-11 w-11 items-center justify-center rounded-[11px] p-0 transition-transform duration-[120ms] hover:bg-[#f0f5ff] active:scale-[.985] active:bg-[#dbe4f9]"
+          className="press-scale flex h-11 w-11 items-center justify-center rounded-[11px] p-0 transition-transform duration-[120ms] hover:bg-[#f4f3f0] active:scale-[.985] active:bg-[#e9e8e4]"
           style={{ background: C.surface, boxShadow: SHADOW.flat }}
         >
           <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden>
@@ -219,12 +219,12 @@ export function HomeArbetsledare() {
             key={a.href}
             href={a.href}
             className={`press-scale flex h-[60px] min-w-0 flex-1 items-center justify-center gap-[8px] rounded-[12px] text-[16px] font-bold transition-transform duration-[110ms] active:scale-[.985] ${
-              a.lead ? "hover:bg-[#12206b]" : "hover:bg-[#dbe4f9]"
+              a.lead ? "hover:bg-[#12206b]" : "hover:bg-[#e9e8e4]"
             }`}
             style={
               a.lead
                 ? { letterSpacing: "-.3px", background: C.accent, color: C.surface, boxShadow: SHADOW.action }
-                : { letterSpacing: "-.3px", background: C.panel2, color: C.inkHover }
+                : { letterSpacing: "-.3px", background: C.surface, border: `1px solid ${C.border}`, color: C.inkHover }
             }
           >
             <svg width="13" height="13" viewBox="0 0 15 15" fill="none" aria-hidden>

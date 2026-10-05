@@ -190,14 +190,14 @@ function AttGranska() {
         days.map((d) => (
           <div key={d.key} className="px-4 pt-[14px]">
             <Link href={`/granska?projekt=${d.project_id}&datum=${d.work_date}`} className="block">
-              <Card radius={14} className="hover:bg-[#f6f9ff]">
+              <Card radius={14} className="hover:bg-[#f4f3f0]">
                 <Kicker>{longDayHeading(d.work_date)}</Kicker>
                 <div className="flex items-baseline justify-between gap-[10px]">
                   <div className="text-[18px] font-bold" style={{ letterSpacing: "-.4px" }}>
                     {d.project_name}
                   </div>
                   {/* Accent only for a real figure. A day with no hours yet is
-                      #4a5578, as "0 h" is on the startsida -- in accent the dash
+                      #5e5a53, as "0 h" is on the startsida -- in accent the dash
                       read as a minus or a collapse control (UI audit). */}
                   <div className="shrink-0 text-[15px] font-bold"
                        style={{ color: d.hours === null ? C.text2 : C.accent }}>
@@ -281,7 +281,7 @@ function AttBekrafta() {
         waiting.map((d) => (
           <div key={d.key} className="px-4 pt-[14px]">
             <Link href={`/bekrafta?projekt=${d.project_id}&datum=${d.work_date}`} className="block">
-              <Card radius={14} className="hover:bg-[#f6f9ff]">
+              <Card radius={14} className="hover:bg-[#f4f3f0]">
                 {/* NO HOURS ON THE ROW. The leader is here to pick a day, and
                     the hours are what they state on the page this opens; a
                     figure here was the card's only accent and drew the eye to
@@ -469,7 +469,7 @@ function Historik() {
               <div className="mt-[6px] text-[15px] font-medium" style={{ color: C.text2 }}>
                 {routeLabel(d.route, d.reviewed_by_name)}
               </div>
-              {/* #4a5578, not #8b98c4: the handoff keeps that for chevrons and
+              {/* #5e5a53, not #89867f: the handoff keeps that for chevrons and
                   disabled labels, never text. Kept rather than dropped -- it
                   carries the names and "arkiverad", which the line above does not. */}
               <div className="mt-[2px] text-[14px] font-medium" style={{ color: C.text2 }}>
@@ -483,7 +483,7 @@ function Historik() {
                   <div
                     key={i}
                     className="flex items-baseline justify-between gap-3 py-[8px]"
-                    style={i > 0 ? { boxShadow: "inset 0 1px 0 #dbe4f9" } : undefined}
+                    style={i > 0 ? { boxShadow: "inset 0 1px 0 #e9e8e4" } : undefined}
                   >
                     {/* The name gives way, on one line; the span and hours hold
                         the right edge, so a long name never wraps under them. */}

@@ -196,9 +196,16 @@ only where nobody else's hours are on the day.
 
 ## Design
 
-- **Visual system follows the ByggKoll handoff spec (`handoff/README.md`).** The
-  light-blue palette, shadows and typography there are the source of truth. The
-  old black-and-white rule no longer applies.
+- **Visual system: the handoff (`handoff/README.md`) for layout, type and
+  shadows, with the Komponentspråk palette on top (owner-approved 2026-10-05).**
+  No same-hue tint pairs -- never a dark ink on a pale tint of itself (pills,
+  badges, tinted buttons, alert boxes, a brand-blue-tinted ground). Grounds are
+  near-neutral stone (`C.ground` #f7f6f3, `C.panel` #f1f0ed); status colour
+  lives only in ink, a dot, an icon or a 1px edge (teal `liveInk`, rust
+  `stopInk`, ochre `warnInk`). One filled accent button per screen; second-rank
+  buttons are white with a 1px `C.border`. The values live in `C` in
+  `src/components/soft.tsx`; the handoff's light-blue table is superseded. The
+  eight project colours are separate and unchanged.
 - **Project colours on the shift calendar are a fixed palette, not a hashed
   hue** -- hashing produces neighbouring greens eventually, and two sites that
   look alike is the failure the colour exists to prevent. A project's colour is

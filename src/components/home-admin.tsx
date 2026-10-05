@@ -125,14 +125,14 @@ export function HomeAdmin() {
         {/* ---- top bar ---------------------------------------------------- */}
         <div
           className="sticky top-0 z-[5] flex items-center justify-between gap-2 px-4 pb-[10px] pt-[14px]"
-          style={{ background: "rgba(243,246,253,.88)", backdropFilter: "blur(12px)" }}
+          style={{ background: "rgba(247,246,243,.88)", backdropFilter: "blur(12px)" }}
         >
           <button
             type="button"
             aria-label="Meny"
             aria-expanded={open === "menu"}
             onClick={() => setOpen("menu")}
-            className="press-scale flex h-11 w-11 items-center justify-center rounded-[11px] p-0 transition-transform duration-[120ms] hover:bg-[#f0f5ff] active:scale-[.985] active:bg-[#dbe4f9]"
+            className="press-scale flex h-11 w-11 items-center justify-center rounded-[11px] p-0 transition-transform duration-[120ms] hover:bg-[#f4f3f0] active:scale-[.985] active:bg-[#e9e8e4]"
             style={{ background: C.surface, boxShadow: SHADOW.flat }}
           >
             <svg width="20" height="14" viewBox="0 0 20 14" fill="none" aria-hidden>
@@ -145,7 +145,7 @@ export function HomeAdmin() {
             aria-label="Profil"
             aria-expanded={open === "profile"}
             onClick={() => setOpen("profile")}
-            className="press-scale flex h-11 w-11 items-center justify-center rounded-[11px] p-0 transition-transform duration-[120ms] hover:bg-[#f0f5ff] active:scale-[.985] active:bg-[#dbe4f9]"
+            className="press-scale flex h-11 w-11 items-center justify-center rounded-[11px] p-0 transition-transform duration-[120ms] hover:bg-[#f4f3f0] active:scale-[.985] active:bg-[#e9e8e4]"
             style={{ background: C.surface, boxShadow: SHADOW.flat }}
           >
             <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden>
@@ -189,7 +189,7 @@ export function HomeAdmin() {
                 <Link
                   key={a.href}
                   href={a.href}
-                  className="press-scale flex h-[54px] flex-1 items-center justify-center rounded-full text-[16px] font-bold transition-transform duration-[110ms] hover:bg-[#dbe4f9] active:scale-[.985]"
+                  className="press-scale flex h-[54px] flex-1 items-center justify-center rounded-full text-[16px] font-bold transition-transform duration-[110ms] hover:bg-[#e9e8e4] active:scale-[.985]"
                   style={{ letterSpacing: "-.2px", background: C.surface, color: C.inkHover }}
                 >
                   {a.label}
@@ -234,7 +234,7 @@ export function HomeAdmin() {
                     type="button"
                     aria-expanded={shown}
                     onClick={() => setOpenProject(shown ? null : p.project_id)}
-                    className="flex w-full items-center justify-between gap-3 px-[18px] py-[14px] text-left hover:bg-[#f6f9ff]"
+                    className="flex w-full items-center justify-between gap-3 px-[18px] py-[14px] text-left hover:bg-[#f4f3f0]"
                     style={{ color: C.ink }}
                   >
                     <span className="min-w-0">
@@ -279,8 +279,8 @@ export function HomeAdmin() {
                           <Link
                             key={a.href}
                             href={a.href}
-                            className="press-scale flex h-12 w-full items-center justify-center rounded-full text-[15px] font-bold transition-transform duration-[110ms] hover:bg-[#dbe4f9] active:scale-[.985]"
-                            style={{ background: C.panel2, color: C.inkHover }}
+                            className="press-scale flex h-12 w-full items-center justify-center rounded-full text-[15px] font-bold transition-transform duration-[110ms] hover:bg-[#e9e8e4] active:scale-[.985]"
+                            style={{ background: C.surface, border: `1px solid ${C.border}`, color: C.inkHover }}
                           >
                             {a.label}
                           </Link>

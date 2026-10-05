@@ -348,7 +348,7 @@ export function DayTimeline({ date, from, readOnly = false }: {
                 href={`/dag/projekt?datum=${date}&projekt=${it.project_id}&fran=${encoded}`}
                 data-pass-block={it.id}
                 data-block-project={it.project_name}
-                className="absolute z-[1] flex overflow-hidden rounded-[10px] hover:bg-[#f6f9ff]"
+                className="absolute z-[1] flex overflow-hidden rounded-[10px] hover:bg-[#f4f3f0]"
                 style={{ ...style, background: C.surface, boxShadow: SHADOW.flat, color: C.ink }}
               >
                 {/* Findable by attribute: the calendar's stripe and this bar

@@ -289,7 +289,7 @@ function Kalender({ shifts, today }: { shifts: Shift[]; today: string }) {
               type="button"
               aria-label="Föregående månad"
               onClick={() => setMonth(addDays(first, -1).slice(0, 7))}
-              className="press-scale flex h-10 w-10 items-center justify-center rounded-[11px] transition-transform duration-[110ms] hover:bg-[#dbe4f9] active:scale-[.985]"
+              className="press-scale flex h-10 w-10 items-center justify-center rounded-[11px] transition-transform duration-[110ms] hover:bg-[#e9e8e4] active:scale-[.985]"
               style={{ background: C.panel2 }}
             >
               <svg width="8" height="14" viewBox="0 0 9 15" fill="none" aria-hidden>
@@ -311,7 +311,7 @@ function Kalender({ shifts, today }: { shifts: Shift[]; today: string }) {
               type="button"
               aria-label="Nästa månad"
               onClick={() => setMonth(addDays(first, daysInMonth).slice(0, 7))}
-              className="press-scale flex h-10 w-10 items-center justify-center rounded-[11px] transition-transform duration-[110ms] hover:bg-[#dbe4f9] active:scale-[.985]"
+              className="press-scale flex h-10 w-10 items-center justify-center rounded-[11px] transition-transform duration-[110ms] hover:bg-[#e9e8e4] active:scale-[.985]"
               style={{ background: C.panel2 }}
             >
               <svg width="8" height="14" viewBox="0 0 9 15" fill="none" aria-hidden>

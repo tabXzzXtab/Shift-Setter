@@ -340,8 +340,8 @@ export function KontoDetalj({ askedId }: { askedId: string | null }) {
               type="button"
               onClick={() => filePicker.current?.click()}
               disabled={busy}
-              className="press-scale flex h-12 flex-1 items-center justify-center rounded-[10px] text-[15px] font-bold transition-transform duration-[110ms] hover:bg-[#dbe4f9] active:scale-[.985] disabled:opacity-40"
-              style={{ background: C.panel2, color: C.inkHover }}
+              className="press-scale flex h-12 flex-1 items-center justify-center rounded-[10px] text-[15px] font-bold transition-transform duration-[110ms] hover:bg-[#e9e8e4] active:scale-[.985] disabled:opacity-40"
+              style={{ background: C.surface, border: `1px solid ${C.border}`, color: C.inkHover }}
             >
               {row.avatar_path ? "Byt bild" : "Lägg till bild"}
             </button>
@@ -350,7 +350,7 @@ export function KontoDetalj({ askedId }: { askedId: string | null }) {
                 type="button"
                 onClick={() => void clearFace()}
                 disabled={busy}
-                className="press-scale flex h-12 items-center justify-center rounded-[10px] px-4 text-[15px] font-bold transition-transform duration-[110ms] hover:bg-[#f6d8dd] active:scale-[.985] disabled:opacity-40"
+                className="press-scale flex h-12 items-center justify-center rounded-[10px] px-4 text-[15px] font-bold transition-transform duration-[110ms] hover:bg-[#ebe9e5] active:scale-[.985] disabled:opacity-40"
                 style={{ background: C.stopBg, color: C.stopInk }}
               >
                 Ta bort bild
@@ -435,7 +435,7 @@ export function KontoDetalj({ askedId }: { askedId: string | null }) {
           role="checkbox"
           onClick={() => setForm((f) => (f ? { ...f, har_foretag: !f.har_foretag } : f))}
           aria-checked={form.har_foretag}
-          className="flex h-[60px] w-full items-center justify-between rounded-[14px] px-[18px] hover:bg-[#f6f9ff]"
+          className="flex h-[60px] w-full items-center justify-between rounded-[14px] px-[18px] hover:bg-[#f4f3f0]"
           style={{ background: C.surface, boxShadow: SHADOW.group }}
         >
           <span className="text-[17px] font-bold" style={{ letterSpacing: "-.2px" }}>
@@ -534,7 +534,7 @@ export function KontoDetalj({ askedId }: { askedId: string | null }) {
               className="press-scale flex h-12 w-full items-center justify-center rounded-[10px] text-[15px] font-bold transition-transform duration-[110ms] active:scale-[.985] disabled:opacity-40"
               style={row.active
                 ? { background: C.stopBg, color: C.stopInk }
-                : { background: C.panel2, color: C.inkHover }}
+                : { background: C.surface, border: `1px solid ${C.border}`, color: C.inkHover }}
             >
               {row.active ? "Pausa kontot" : "Aktivera kontot"}
             </button>

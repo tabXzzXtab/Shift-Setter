@@ -117,7 +117,7 @@ export function PickField({
                 role="option"
                 aria-selected={on}
                 onClick={() => { onChange(o.value); setOpen(false); }}
-                className="flex min-h-[56px] w-full items-center gap-3 rounded-[14px] px-3 text-left hover:bg-[#f6f9ff]"
+                className="flex min-h-[56px] w-full items-center gap-3 rounded-[14px] px-3 text-left hover:bg-[#f4f3f0]"
                 style={{ background: on ? C.panel2 : undefined }}
               >
                 {people && <Avatar name={o.label} size={36} />}
@@ -136,7 +136,7 @@ export function PickField({
             <button
               type="button"
               onClick={() => { setOpen(false); action.onPick(); }}
-              className="flex min-h-[56px] w-full items-center gap-3 rounded-[14px] px-3 text-left hover:bg-[#f6f9ff]"
+              className="flex min-h-[56px] w-full items-center gap-3 rounded-[14px] px-3 text-left hover:bg-[#f4f3f0]"
             >
               <span
                 aria-hidden

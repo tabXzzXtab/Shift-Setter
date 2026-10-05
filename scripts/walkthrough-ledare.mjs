@@ -217,8 +217,8 @@ try {
   if (!(await skapa.count())) fail("no Skapa pass button");
   const sbox = await skapa.boundingBox();
   if (Math.round(sbox.height) !== 60) fail(`Skapa pass is ${sbox.height}px tall, wanted 60`);
-  const sbg = await skapa.evaluate((el) => getComputedStyle(el).backgroundColor);
-  if (sbg !== "rgb(238, 243, 254)") fail(`Skapa pass is ${sbg}, wanted the #eef3fe panel`);
+  const [sbg, sedge] = await skapa.evaluate((el) => [getComputedStyle(el).backgroundColor, getComputedStyle(el).borderTopColor]);
+  if (sbg !== "rgb(255, 255, 255)" || sedge !== "rgb(211, 209, 205)") fail(`Skapa pass is ${sbg} edged ${sedge}, wanted white with a #d3d1cd edge`);
   log(`Skapa pass: 60px on ${sbg}, the second-rank action`);
 
   // ---- the hero: the count of days owed ------------------------------------

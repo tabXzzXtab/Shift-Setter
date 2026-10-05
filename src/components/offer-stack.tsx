@@ -140,7 +140,7 @@ export function OfferStack({
               onClick={() => onRespond(front.pass_id, true)}
               disabled={busy}
               className={`press-scale h-[54px] flex-[2] rounded-[10px] text-[17px] font-bold transition-transform duration-[120ms] active:scale-[.985] disabled:opacity-60 ${
-                quiet ? "hover:bg-[#dbe4f9]" : "hover:bg-[#12206b]"
+                quiet ? "hover:bg-[#e9e8e4]" : "hover:bg-[#12206b]"
               }`}
               style={{
                 letterSpacing: "-.2px",
@@ -154,8 +154,8 @@ export function OfferStack({
               type="button"
               onClick={() => onRespond(front.pass_id, false)}
               disabled={busy}
-              className="press-scale h-[54px] flex-1 rounded-[10px] text-[17px] font-semibold transition-transform duration-[120ms] hover:bg-[#dbe4f9] active:scale-[.985] disabled:opacity-60"
-              style={{ letterSpacing: "-.2px", background: C.panel, color: C.inkHover }}
+              className="press-scale h-[54px] flex-1 rounded-[10px] text-[17px] font-semibold transition-transform duration-[120ms] hover:bg-[#e9e8e4] active:scale-[.985] disabled:opacity-60"
+              style={{ letterSpacing: "-.2px", background: C.surface, border: `1px solid ${C.border}`, color: C.inkHover }}
             >
               Neka
             </button>

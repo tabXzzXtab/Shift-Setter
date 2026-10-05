@@ -257,7 +257,7 @@ function AllaKonton() {
               >
                 <Link
                   href={`/konto?id=${k.id}`}
-                  className="flex min-w-0 flex-1 items-center gap-3 rounded-[10px] px-2 py-[6px] hover:bg-[#f6f9ff]"
+                  className="flex min-w-0 flex-1 items-center gap-3 rounded-[10px] px-2 py-[6px] hover:bg-[#f4f3f0]"
                   style={{ color: C.ink }}
                 >
                   <Avatar src={faces.get(k.avatar_path ?? "")} name={k.name} email={k.email} />

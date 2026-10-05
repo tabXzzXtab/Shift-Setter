@@ -182,8 +182,8 @@ function SkipButton({ onSkip }: { onSkip: () => void }) {
     <button
       type="button"
       onClick={onSkip}
-      className="press-scale h-11 rounded-[10px] px-[14px] text-[15px] font-bold transition-transform duration-[110ms] hover:bg-[#dbe4f9] active:scale-[.985]"
-      style={{ background: C.panel2, color: C.inkHover }}
+      className="press-scale h-11 rounded-[10px] px-[14px] text-[15px] font-bold transition-transform duration-[110ms] hover:bg-[#e9e8e4] active:scale-[.985]"
+      style={{ background: C.surface, border: `1px solid ${C.border}`, color: C.inkHover }}
     >
       Hoppa över
     </button>

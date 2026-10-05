@@ -38,7 +38,7 @@ function Choice({ date, from }: { date: string; from: string }) {
     );
     const cls = "flex min-h-[84px] items-center justify-between gap-3 rounded-[16px] px-5 py-4";
     return href ? (
-      <Link href={href} className={`${cls} hover:bg-[#f6f9ff]`}
+      <Link href={href} className={`${cls} hover:bg-[#f4f3f0]`}
             style={{ background: C.surface, boxShadow: SHADOW.group, color: C.ink }}>
         {body}
       </Link>

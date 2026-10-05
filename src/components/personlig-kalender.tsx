@@ -14,12 +14,11 @@ import { fel } from "@/lib/fel";
 /**
  * How many events a day cell draws before it stops drawing them.
  *
- * The cell is 64px and the day number takes 20 of it (month-grid.tsx). Two
- * 14px chips with 2px between them and 3px under them spend 33 of the
- * remaining 44; one chip and a "+N" counter spend the same. A third chip would
- * spend 49 and push the cell past its ceiling, so the third event is a count.
+ * Each event is a 7px dot with 4px between, on one row under the day number;
+ * three dots and a "+N" fit the narrowest cell (~44px on a 360px phone), so
+ * the fourth event is a count.
  */
-const MAX_CHIPS = 2;
+const MAX_CHIPS = 3;
 
 /**
  * Personlig -- the owner's own calendar, on the shift calendar's screen.
@@ -34,10 +33,12 @@ const MAX_CHIPS = 2;
  *
  * DISTINCT FROM A SHIFT ON SIGHT, which is the reason the two views share
  * month-grid.tsx rather than each drawing their own. A project on the Arbete
- * grid is a SOLID, nameless, full-bleed 5px bar. An event here is an OUTLINED
- * chip: rounded, tinted rather than filled, and carrying its own title. Colour
- * alone would not do it -- both draw from the same eight chips -- so shape,
- * fill and the presence of text carry the difference too.
+ * grid is a SOLID, nameless, full-bleed 5px bar. An event here is a ROUND DOT
+ * under the day number, and its title is in the selected day's list. Colour
+ * alone would not do it -- both draw from the same eight chips -- so shape
+ * carries the difference. (It was an outlined chip on a tint of its own
+ * colour until the Komponentspråk pass, 2026-10-05: the tint pair it removes,
+ * and a title that never fit the cell.)
  *
  * WHO SEES ONE IS THE DATABASE'S ANSWER, not this screen's. The select below
  * has no viewer clause in it; RLS on personal_event returns the owner's rows
@@ -182,30 +183,25 @@ export function PersonligKalender({
                   {day}
                 </span>
 
-                <span className="flex flex-col gap-[2px] px-[3px] pb-[3px]">
+                <span className="flex flex-wrap items-center gap-[4px] px-[6px] pt-[6px]">
                   {shown.map((e) => (
-                    /* OUTLINED, not solid -- see the note on this component. A
-                       project bar on the Arbete grid is a filled rectangle with
-                       no text in it; this is a ring with a wash inside and the
-                       title on top, so the two are different objects at a
-                       glance and not merely different colours. */
+                    /* A DOT, not a bar and not a chip -- see the note on this
+                       component. A project on the Arbete grid is a solid
+                       full-bleed bar; this is a round mark, so the two stay
+                       different objects at a glance. The title is read in the
+                       day's list below, where it has room: text in a 50px
+                       cell was always clipped ("Besiktn"). */
                     <span
                       key={e.id}
                       title={e.title}
                       data-event-chip
-                      className="block truncate rounded-[4px] px-[3px] text-[10px] font-bold leading-[14px]"
-                      style={{
-                        color: e.colour,
-                        background: `${e.colour}1a`,
-                        boxShadow: `inset 0 0 0 1px ${e.colour}`,
-                      }}
-                    >
-                      {e.title}
-                    </span>
+                      className="block h-[7px] w-[7px] shrink-0 rounded-full"
+                      style={{ background: e.colour }}
+                    />
                   ))}
                   {hidden > 0 && (
                     <span
-                      className="block pl-[3px] text-[10px] font-bold leading-[14px]"
+                      className="block text-[10px] font-bold leading-[10px]"
                       style={{ color: C.text2 }}
                     >
                       +{hidden}

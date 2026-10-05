@@ -235,8 +235,8 @@ try {
     page.locator(sel).first().evaluate((el, p) => getComputedStyle(el)[p], prop);
 
   const ground = await px('[data-screen="arbetare"]', "backgroundColor");
-  if (ground !== "rgb(243, 246, 253)") {
-    fail(`the ground is ${ground}, the handoff says #f3f6fd`);
+  if (ground !== "rgb(247, 246, 243)") {
+    fail(`the ground is ${ground}, the Komponentspråk says #f7f6f3`);
   }
 
   // On the SCREEN, not on body: Inter is loaded as a variable and applied by
@@ -261,7 +261,7 @@ try {
   if (!shadow.includes("rgba(27, 44, 193, 0.28)")) {
     fail(`the primary action has no accent shadow: ${shadow}`);
   }
-  log("ground #f3f6fd, Inter, action 66px / radius 12 / #1b2cc1 with its shadow");
+  log("ground #f7f6f3, Inter, action 66px / radius 12 / #1b2cc1 with its shadow");
 
 
   // ---- the badge sits directly below the stamp -----------------------------
@@ -522,8 +522,8 @@ try {
   ]);
   const viewport = await page.evaluate(() => ({ height: window.innerHeight }));
 
-  if (sheetBg !== "rgb(243, 246, 253)") {
-    fail(`the sheet is ${sheetBg}, the handoff says #f3f6fd`);
+  if (sheetBg !== "rgb(247, 246, 243)") {
+    fail(`the sheet is ${sheetBg}, the Komponentspråk says #f7f6f3`);
   }
   // 22 on the two top corners and 0 on the two bottom ones -- which is what
   // makes it a sheet rising off the edge rather than a floating card.
@@ -550,17 +550,19 @@ try {
   if (blackEdges) fail(`${blackEdges} elements in the sheet still carry a black border`);
 
   const closer = panel.getByRole("button", { name: "Stäng", exact: true });
-  const [closeH, closeBg] = await Promise.all([
+  const [closeH, closeBg, closeEdge] = await Promise.all([
     closer.evaluate((el) => getComputedStyle(el).height),
     closer.evaluate((el) => getComputedStyle(el).backgroundColor),
+    closer.evaluate((el) => getComputedStyle(el).borderTopColor),
   ]);
   if (closeH !== "48px") fail(`Stäng is ${closeH} tall, wanted 48 -- it steps back behind the rows`);
-  if (closeBg !== "rgb(238, 243, 254)") {
-    fail(`Stäng is ${closeBg}, the handoff says #eef3fe`);
+  // A second-rank button is white with a 1px edge, not a pale fill (Komponentspråk panel 08).
+  if (closeBg !== "rgb(255, 255, 255)" || closeEdge !== "rgb(211, 209, 205)") {
+    fail(`Stäng is ${closeBg} edged ${closeEdge}, wanted white with a #d3d1cd edge`);
   }
 
   await shot(page, "w3a-meny-sheet");
-  log("the menu is the handoff's bottom sheet: #f3f6fd, radius 22 on top, on the bottom edge");
+  log("the menu is the bottom sheet: #f7f6f3, radius 22 on top, on the bottom edge");
 
   // ---- the profile sheet, and the one thing in it that is not a link --------
   //

@@ -5,7 +5,7 @@
   "lang": "sv",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#f3f6fd",
+  "background_color": "#f7f6f3",
   "theme_color": "#091540",
   "start_url": "/",
   "scope": "/",

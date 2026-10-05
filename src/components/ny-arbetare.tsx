@@ -273,8 +273,8 @@ export function NyArbetareForm({
             <button
               type="button"
               onClick={copyLogin}
-              className="press-scale mt-3 h-[52px] w-full rounded-[10px] text-[16px] font-bold transition-transform duration-[110ms] hover:bg-[#dbe4f9] active:scale-[.985]"
-              style={{ background: C.panel2, color: C.inkHover }}
+              className="press-scale mt-3 h-[52px] w-full rounded-[10px] text-[16px] font-bold transition-transform duration-[110ms] hover:bg-[#e9e8e4] active:scale-[.985]"
+              style={{ background: C.surface, border: `1px solid ${C.border}`, color: C.inkHover }}
             >
               Kopiera igen
             </button>

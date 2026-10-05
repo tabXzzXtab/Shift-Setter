@@ -26,7 +26,7 @@ import { addDays } from "@/lib/dates";
  * between `ground` and `surface` so a day reads as a tile without competing
  * with the card it sits on.
  */
-export const CELL_GROUND = "#f8faff";
+export const CELL_GROUND = "#faf9f7";
 
 /**
  * A day cell is a FIXED height whatever the day holds (spec Section 2b).
@@ -107,14 +107,14 @@ export function MonthGrid({
   );
 }
 
-/** The 40px `#eef3fe` chevron button either side of the month name. */
+/** The 40px `#f1f0ed` chevron button either side of the month name. */
 function PagerButton({ label, onClick, d }: { label: string; onClick: () => void; d: string }) {
   return (
     <button
       type="button"
       aria-label={label}
       onClick={onClick}
-      className="press-scale flex h-10 w-10 items-center justify-center rounded-[11px] transition-transform duration-[110ms] hover:bg-[#dbe4f9] active:scale-[.985]"
+      className="press-scale flex h-10 w-10 items-center justify-center rounded-[11px] transition-transform duration-[110ms] hover:bg-[#e9e8e4] active:scale-[.985]"
       style={{ background: C.panel2 }}
     >
       <svg width="8" height="14" viewBox="0 0 9 15" fill="none" aria-hidden>

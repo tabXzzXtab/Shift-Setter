@@ -25,28 +25,45 @@ import { initials } from "@/lib/avatar";
  * outside whatever screen opened it and has to say so for itself.
  */
 
-/* ---- colour, straight from the handoff's table --------------------------- */
+/* ---- colour: the Komponentspråk palette (owner-approved 2026-10-05) -------
+ *
+ * NO SAME-HUE TINT PAIRS. The handoff paired every ink with a pale tint of
+ * itself -- green on pale green, the brand blue on a blue-tinted ground --
+ * which is the stock badge of every generated dashboard. Grounds are now a
+ * near-neutral stone (OKLCH chroma <= 0.006, hue 85), and colour lives only
+ * in ink: text, a dot, an icon, a 1px edge. The status inks were moved off
+ * pure green/red/amber to teal, rust and ochre at matched lightness; each
+ * clears 4.5:1 on both white and the ground. `chevron` is for icons only
+ * (3.4:1), never for text.
+ *
+ * The *Bg names survive so nothing breaks, but they are neutral now: a status
+ * colour is never a background. The eight project colours are NOT here --
+ * they are lib/project-colour.ts and a database constraint, and stay put.
+ */
 export const C = {
   ink: "#091540",
   inkHover: "#12206b",
   accent: "#1b2cc1",
-  text2: "#4a5578",
-  chevron: "#8b98c4",
-  ground: "#f3f6fd",
+  text2: "#5e5a53",
+  chevron: "#89867f",
+  ground: "#f7f6f3",
   surface: "#ffffff",
-  panel: "#e7edfb",
-  panel2: "#eef3fe",
-  rowHover: "#f6f9ff",
-  hairline: "#e3eafb",
-  liveInk: "#146b41",
-  liveBg: "#e4f0e8",
-  warnInk: "#7a4407",
-  /** The warn pair has two inks. Tags use the darker one; the handoff's own
-   *  tag() helper and its Arbetsledare role tag are both #5c3305. */
-  tagWarnInk: "#5c3305",
-  warnBg: "#fdf2e3",
-  stopInk: "#8e1d15",
-  stopBg: "#fbe9ec",
+  panel: "#f1f0ed",
+  panel2: "#f1f0ed",
+  rowHover: "#f4f3f0",
+  hairline: "#e4e3df",
+  /** Outline of a control that is not the primary one: secondary buttons, steppers. */
+  border: "#d3d1cd",
+  /** Done / live -- as ink only. */
+  liveInk: "#0d736a",
+  liveBg: "#f1f0ed",
+  /** Needs a look -- as ink only. */
+  warnInk: "#976712",
+  tagWarnInk: "#976712",
+  warnBg: "#f1f0ed",
+  /** Changes or blocks real work -- as ink only. */
+  stopInk: "#a0421d",
+  stopBg: "#f1f0ed",
 } as const;
 
 /**
@@ -113,7 +130,7 @@ export function IconButton({
 }) {
   const cls =
     "press-scale flex h-11 w-11 shrink-0 items-center justify-center rounded-[11px] p-0 " +
-    "transition-transform duration-[110ms] hover:bg-[#f0f5ff] active:scale-[.985] active:bg-[#dbe4f9]";
+    "transition-transform duration-[110ms] hover:bg-[#f4f3f0] active:scale-[.985] active:bg-[#e9e8e4]";
   const style = { background: C.surface, boxShadow: SHADOW.flat };
 
   return href ? (
@@ -316,7 +333,7 @@ export function MonthCard({
       type="button"
       aria-label={label}
       onClick={() => onMonthChange(to)}
-      className="press-scale flex h-10 w-10 items-center justify-center rounded-[11px] p-0 transition-transform duration-[110ms] hover:bg-[#dbe4f9] active:scale-[.985]"
+      className="press-scale flex h-10 w-10 items-center justify-center rounded-[11px] p-0 transition-transform duration-[110ms] hover:bg-[#e9e8e4] active:scale-[.985]"
       style={{ background: C.panel2 }}
     >
       <svg width="8" height="14" viewBox="0 0 9 15" fill="none" aria-hidden>
@@ -366,7 +383,7 @@ export function MonthCard({
 }
 
 /**
- * A 4px-padded #e7edfb track; the active option is a white thumb, radius 9.
+ * A 4px-padded #f1f0ed track; the active option is a white thumb, radius 9.
  *
  * TWO DENSITIES, chosen by how many options there are rather than by a prop.
  * A third thumb takes a 360px phone's share of the track from ~150px to ~104px,
@@ -423,7 +440,7 @@ export function Segmented<T extends string>({
 
 /**
  * A field: 12/700 uppercase label over a 52px white input, radius 14, a 1px
- * #e3eafb border that turns accent on focus -- Ro's field, in the handoff's inks. `big` is the hours variant -- 60px at 26/800,
+ * #e4e3df border that turns accent on focus -- Ro's field, in the handoff's inks. `big` is the hours variant -- 60px at 26/800,
  * because on a confirmation screen the hours are the biggest thing in the card.
  */
 export function SoftField({
@@ -487,7 +504,7 @@ export function SoftInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
   if (picker) {
     return (
       <span
-        className="flex h-[52px] w-full min-w-0 overflow-hidden rounded-[14px] border border-[#e3eafb] outline-none focus-within:border-[#1b2cc1] focus-within:outline-1 focus-within:outline-[#1b2cc1]"
+        className="flex h-[52px] w-full min-w-0 overflow-hidden rounded-[14px] border border-[#e4e3df] outline-none focus-within:border-[#1b2cc1] focus-within:outline-1 focus-within:outline-[#1b2cc1]"
         style={{ background: C.surface }}
       >
         <input
@@ -508,7 +525,7 @@ export function SoftInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
   return (
     <input
       {...rest}
-      className={`h-[52px] w-full min-w-0 rounded-[14px] border border-[#e3eafb] px-[14px] text-[16px] font-medium outline-none focus:border-[#1b2cc1] focus:outline-1 focus:outline-[#1b2cc1] ${className}`}
+      className={`h-[52px] w-full min-w-0 rounded-[14px] border border-[#e4e3df] px-[14px] text-[16px] font-medium outline-none focus:border-[#1b2cc1] focus:outline-1 focus:outline-[#1b2cc1] ${className}`}
       style={{ background: C.surface, color: C.ink, ...style }}
     />
   );
@@ -526,7 +543,7 @@ export function SoftTextarea(props: React.TextareaHTMLAttributes<HTMLTextAreaEle
   return (
     <textarea
       {...rest}
-      className={`min-h-[76px] w-full resize-y rounded-[14px] border border-[#e3eafb] p-[14px] text-[16px] font-medium leading-[1.45] outline-none focus:border-[#1b2cc1] focus:outline-1 focus:outline-[#1b2cc1] ${className}`}
+      className={`min-h-[76px] w-full resize-y rounded-[14px] border border-[#e4e3df] p-[14px] text-[16px] font-medium leading-[1.45] outline-none focus:border-[#1b2cc1] focus:outline-1 focus:outline-[#1b2cc1] ${className}`}
       style={{ background: C.surface, color: C.ink, ...style }}
     />
   );
@@ -545,9 +562,9 @@ export function SoftSelect(props: React.SelectHTMLAttributes<HTMLSelectElement>)
   return (
     <select
       {...rest}
-      className={`h-[52px] w-full min-w-0 cursor-pointer appearance-none rounded-[14px] border border-[#e3eafb] py-0 pl-[14px] pr-[38px] text-[16px] font-medium outline-none focus:border-[#1b2cc1] focus:outline-1 focus:outline-[#1b2cc1] ${className}`}
+      className={`h-[52px] w-full min-w-0 cursor-pointer appearance-none rounded-[14px] border border-[#e4e3df] py-0 pl-[14px] pr-[38px] text-[16px] font-medium outline-none focus:border-[#1b2cc1] focus:outline-1 focus:outline-[#1b2cc1] ${className}`}
       style={{
-        background: `${C.surface} url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='13' height='8' viewBox='0 0 13 8' fill='none'%3E%3Cpath d='M1.5 1.5 6.5 6.5l5-5' stroke='%238b98c4' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 14px center`,
+        background: `${C.surface} url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='13' height='8' viewBox='0 0 13 8' fill='none'%3E%3Cpath d='M1.5 1.5 6.5 6.5l5-5' stroke='%2389867f' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 14px center`,
         color: C.ink,
         ...style,
       }}
@@ -556,7 +573,7 @@ export function SoftSelect(props: React.SelectHTMLAttributes<HTMLSelectElement>)
 }
 
 /**
- * The one control in the app that destroys something: 56px, #fbe9ec, #8e1d15.
+ * The one control in the app that destroys something: 56px, #f1f0ed, #a0421d.
  *
  * NEVER THE LOUDEST BUTTON ON ITS SCREEN. It carries no shadow, unlike the primary
  * above it and it is a tint rather than a fill, because the handoff puts "Ta
@@ -577,16 +594,21 @@ export function DangerButton({
   /** false for the 48px square icon variant on the Konton rows. */
   full?: boolean;
   /**
-   * The stop pair, inverted: #8e1d15 filled, white label.
+   * The stop pair, inverted: #a0421d filled, white label.
    *
    * A DEPARTURE FROM THE HANDOFF, which draws every destructive control as
-   * #8e1d15 on #fbe9ec -- see its Redigera projekt screen and its Konton rows.
+   * #a0421d on #f1f0ed -- see its Redigera projekt screen and its Konton rows.
    * It is opt-in for that reason: the pale treatment stays the default, so the
    * delete icon on a Konton row and anything added later keep the drawn look,
    * and only the screens told to shout do.
    */
   solid?: boolean;
 }) {
+  // NOT A TINTED PILL any more (Komponentspråk panel 04): the default is the
+  // rust word with no box, and the square icon variant is a bare grey icon --
+  // the confirmation dialog behind it carries the weight, not the colour of a
+  // button repeated down a list. `solid` keeps its filled rust for the
+  // screens told to shout.
   return (
     <button
       type="button"
@@ -594,12 +616,12 @@ export function DangerButton({
       disabled={disabled}
       aria-label={label}
       className={`press-scale flex items-center justify-center rounded-[12px] text-[17px] font-bold transition-transform duration-[110ms] active:scale-[.985] ${
-        solid ? "hover:bg-[#71170f]" : "hover:bg-[#f6d8dd]"
+        solid ? "hover:bg-[#86361a]" : "hover:bg-[#f4f3f0]"
       } ${full ? "h-14 w-full !rounded-full" : "h-12 w-12"}`}
       style={{
         letterSpacing: "-.2px",
-        background: solid ? C.stopInk : C.stopBg,
-        color: solid ? C.surface : C.stopInk,
+        background: solid ? C.stopInk : "transparent",
+        color: solid ? C.surface : full ? C.stopInk : C.chevron,
         opacity: disabled ? 0.5 : undefined,
         cursor: disabled ? "not-allowed" : undefined,
       }}
@@ -637,7 +659,11 @@ export function PrimaryButton({
   );
 }
 
-/** A 54px #eef3fe pill, ink label. The second-rank action. */
+/**
+ * The second-rank action: a 54px white pill with a 1px border, ink label.
+ * Not a pale fill -- a pale fill reads as a disabled button and competes
+ * with the one primary on the screen.
+ */
 export function SecondaryButton({
   children, onClick, href, disabled,
 }: {
@@ -648,10 +674,11 @@ export function SecondaryButton({
 }) {
   const cls =
     "press-scale flex h-[54px] w-full items-center justify-center rounded-full text-[17px] font-bold " +
-    "transition-transform duration-[110ms] hover:bg-[#dbe4f9] active:scale-[.985]";
+    "transition-transform duration-[110ms] hover:bg-[#f4f3f0] active:scale-[.985]";
   const style = {
     letterSpacing: "-.2px",
-    background: disabled ? C.hairline : C.panel2,
+    background: C.surface,
+    border: `1px solid ${disabled ? C.hairline : C.border}`,
     color: disabled ? C.chevron : C.ink,
   };
   return href ? (
@@ -666,14 +693,14 @@ export function SecondaryButton({
 /**
  * A list, Ro's way: every row its own white tile, radius 16, 8px apart, no
  * dividers and no shadow -- the gap is the separator. White rather than
- * #eef3fe, because #eef3fe on the #f3f6fd ground is a difference the eye cannot
+ * #f1f0ed, because #f1f0ed on the #f7f6f3 ground is a difference the eye cannot
  * find; white on it is the contrast Ro gets from grey on white.
  */
 /** A row goes somewhere (href) or does something on this screen (onClick). */
 export type GroupedRow = { label: string } & ({ href: string } | { onClick: () => void });
 
 export function GroupedList({ rows }: { rows: GroupedRow[] }) {
-  const cls = "flex h-[60px] w-full items-center justify-between rounded-[16px] px-[18px] text-left hover:bg-[#f6f9ff]";
+  const cls = "flex h-[60px] w-full items-center justify-between rounded-[16px] px-[18px] text-left hover:bg-[#f4f3f0]";
   const face = (label: string) => (
     <>
       <span className="text-[17px] font-bold" style={{ letterSpacing: "-.2px" }}>{label}</span>
@@ -697,27 +724,32 @@ export function GroupedList({ rows }: { rows: GroupedRow[] }) {
   );
 }
 
-/** A status pill. Colour is never the only carrier -- it always has a word. */
+/**
+ * A status word. Colour is never the only carrier -- it always has a word.
+ *
+ * NO BOX. It used to be a pill: the ink on a pale tint of itself, which is
+ * the generic badge the Komponentspråk removes. Now it is the word in its
+ * status ink, and a status that is live carries a dot in front of it. quiet
+ * and deep (roles, history) are plain grey -- a role is a property of a
+ * person, not a status.
+ */
 export function Tag({
   tone, children,
 }: {
   tone: "live" | "warn" | "stop" | "quiet" | "deep";
   children: ReactNode;
 }) {
-  const pair = {
-    live: [C.liveInk, C.liveBg],
-    warn: [C.tagWarnInk, C.warnBg],
-    stop: [C.stopInk, C.stopBg],
-    quiet: [C.inkHover, C.panel2],
-    /** The handoff's Admin role tag: a step deeper than quiet, so the three
-     *  roles are told apart by weight of fill rather than by hue. */
-    deep: [C.inkHover, "#dbe4f9"],
+  const ink = {
+    live: C.liveInk, warn: C.warnInk, stop: C.stopInk, quiet: C.text2, deep: C.text2,
   }[tone];
   return (
     <span
-      className="inline-flex items-center gap-[6px] whitespace-nowrap rounded-full px-[10px] py-[5px] text-[12px] font-bold"
-      style={{ letterSpacing: ".4px", color: pair[0], background: pair[1] }}
+      className="inline-flex items-center gap-[6px] whitespace-nowrap text-[13px] font-semibold"
+      style={{ color: ink }}
     >
+      {tone === "live" && (
+        <span aria-hidden className="h-[7px] w-[7px] shrink-0 rounded-full" style={{ background: ink }} />
+      )}
       {children}
     </span>
   );
@@ -918,8 +950,8 @@ export function SignOut({ quiet = false }: { quiet?: boolean } = {}) {
       }}
       className={
         quiet
-          ? "press-scale mt-2 flex h-12 w-full items-center justify-center rounded-full text-[16px] font-bold transition-transform duration-[110ms] hover:bg-[#eef3fe] active:scale-[.985]"
-          : "press-scale mt-3 flex h-14 w-full items-center justify-center rounded-full text-[17px] font-bold transition-transform duration-[110ms] hover:bg-[#f6f9ff] active:scale-[.985]"
+          ? "press-scale mt-2 flex h-12 w-full items-center justify-center rounded-full text-[16px] font-bold transition-transform duration-[110ms] hover:bg-[#f1f0ed] active:scale-[.985]"
+          : "press-scale mt-3 flex h-14 w-full items-center justify-center rounded-full text-[17px] font-bold transition-transform duration-[110ms] hover:bg-[#f4f3f0] active:scale-[.985]"
       }
       style={
         quiet
@@ -1075,7 +1107,7 @@ export function ChoiceList({
             onClick={c.onClick}
             disabled={disabled}
             style={{ background: C.surface }}
-            className={`flex w-full rounded-[16px] items-center justify-between gap-3 px-[18px] text-left hover:bg-[#f6f9ff] disabled:opacity-40 ${
+            className={`flex w-full rounded-[16px] items-center justify-between gap-3 px-[18px] text-left hover:bg-[#f4f3f0] disabled:opacity-40 ${
               c.sub ? "py-[13px]" : "h-[60px]"
             }`}
           >
@@ -1158,14 +1190,14 @@ export function SoftSheet({
       >
         <div
           className="mx-auto mb-[14px] h-1 w-[38px] rounded-full"
-          style={{ background: "#dbe4f9" }}
+          style={{ background: "#e9e8e4" }}
         />
         {children}
         <button
           type="button"
           onClick={onClose}
-          className="press-scale mt-2 h-12 w-full rounded-full text-[16px] font-bold transition-transform duration-[110ms] hover:bg-[#dbe4f9] active:scale-[.985]"
-          style={{ letterSpacing: "-.2px", background: C.panel2, color: C.inkHover }}
+          className="press-scale mt-2 h-12 w-full rounded-full text-[16px] font-bold transition-transform duration-[110ms] hover:bg-[#e9e8e4] active:scale-[.985]"
+          style={{ letterSpacing: "-.2px", background: C.surface, border: `1px solid ${C.border}`, color: C.inkHover }}
         >
           Stäng
         </button>

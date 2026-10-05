@@ -532,7 +532,7 @@ export function DagPanel({ date, heading = true, project }: {
                       aria-label={`Ta bort ${person.name}`}
                       onClick={() => setAsking({ pass: p, person })}
                       disabled={busy === person.tilldelning_id}
-                      className="press-scale flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-[10px] transition-transform duration-[110ms] hover:bg-[#f6d8dd] active:scale-[.985] disabled:opacity-40"
+                      className="press-scale flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-[10px] transition-transform duration-[110ms] hover:bg-[#ebe9e5] active:scale-[.985] disabled:opacity-40"
                       style={{ background: C.stopBg }}
                     >
                       <svg width="14" height="16" viewBox="0 0 14 16" fill="none" aria-hidden>
@@ -587,8 +587,8 @@ export function DagPanel({ date, heading = true, project }: {
                       type="button"
                       onClick={() => askWhoTakesOver(person.tilldelning_id)}
                       disabled={busy === person.tilldelning_id}
-                      className="press-scale flex h-12 w-full items-center justify-center rounded-[10px] px-3 text-[15px] font-bold transition-transform duration-[110ms] hover:bg-[#dbe4f9] active:scale-[.985] disabled:opacity-40"
-                      style={{ background: C.panel2, color: C.inkHover }}
+                      className="press-scale flex h-12 w-full items-center justify-center rounded-[10px] px-3 text-[15px] font-bold transition-transform duration-[110ms] hover:bg-[#e9e8e4] active:scale-[.985] disabled:opacity-40"
+                      style={{ background: C.surface, border: `1px solid ${C.border}`, color: C.inkHover }}
                     >
                       Avboka Pass — {person.name}
                     </button>
@@ -601,8 +601,8 @@ export function DagPanel({ date, heading = true, project }: {
                         type="button"
                         onClick={() => askWhoToSwapWith(person.tilldelning_id)}
                         disabled={busy === person.tilldelning_id}
-                        className="press-scale flex h-12 w-full items-center justify-center rounded-[10px] px-3 text-[15px] font-bold transition-transform duration-[110ms] hover:bg-[#dbe4f9] active:scale-[.985] disabled:opacity-40"
-                        style={{ background: C.panel2, color: C.inkHover }}
+                        className="press-scale flex h-12 w-full items-center justify-center rounded-[10px] px-3 text-[15px] font-bold transition-transform duration-[110ms] hover:bg-[#e9e8e4] active:scale-[.985] disabled:opacity-40"
+                        style={{ background: C.surface, border: `1px solid ${C.border}`, color: C.inkHover }}
                       >
                         Byta Plats Med Arbetsledare — {person.name}
                       </button>
@@ -647,8 +647,8 @@ export function DagPanel({ date, heading = true, project }: {
                     <button
                       type="button"
                       onClick={() => { setEditing(null); setDraft(null); }}
-                      className="press-scale flex h-12 flex-1 items-center justify-center rounded-[10px] text-[15px] font-bold transition-transform duration-[110ms] hover:bg-[#dbe4f9] active:scale-[.985]"
-                      style={{ background: C.panel2, color: C.inkHover }}
+                      className="press-scale flex h-12 flex-1 items-center justify-center rounded-[10px] text-[15px] font-bold transition-transform duration-[110ms] hover:bg-[#e9e8e4] active:scale-[.985]"
+                      style={{ background: C.surface, border: `1px solid ${C.border}`, color: C.inkHover }}
                     >
                       Avbryt
                     </button>
@@ -666,8 +666,8 @@ export function DagPanel({ date, heading = true, project }: {
                         headcount: p.headcount,
                       });
                     }}
-                    className="press-scale flex h-12 w-full items-center justify-center rounded-[10px] text-[15px] font-bold transition-transform duration-[110ms] hover:bg-[#dbe4f9] active:scale-[.985]"
-                    style={{ background: C.panel2, color: C.inkHover }}
+                    className="press-scale flex h-12 w-full items-center justify-center rounded-[10px] text-[15px] font-bold transition-transform duration-[110ms] hover:bg-[#e9e8e4] active:scale-[.985]"
+                    style={{ background: C.surface, border: `1px solid ${C.border}`, color: C.inkHover }}
                   >
                     Ändra detta pass
                   </button>
@@ -678,7 +678,7 @@ export function DagPanel({ date, heading = true, project }: {
                       type="button"
                       onClick={() => cancelPass(p)}
                       disabled={busy === p.id}
-                      className="press-scale flex h-12 w-full items-center justify-center rounded-[10px] text-[15px] font-bold transition-transform duration-[110ms] hover:bg-[#f6d8dd] active:scale-[.985] disabled:opacity-40"
+                      className="press-scale flex h-12 w-full items-center justify-center rounded-[10px] text-[15px] font-bold transition-transform duration-[110ms] hover:bg-[#ebe9e5] active:scale-[.985] disabled:opacity-40"
                       style={{ background: C.stopBg, color: C.stopInk }}
                     >
                       Ta bort detta pass

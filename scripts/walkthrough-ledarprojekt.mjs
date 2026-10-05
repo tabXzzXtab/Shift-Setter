@@ -105,11 +105,11 @@ try {
     if (!(await link.count())) fail(`no ${label} button on the leader's landing page`);
     const box = await link.boundingBox();
     if (Math.round(box.height) !== 60) fail(`${label} is ${box.height}px tall, wanted 60`);
-    const bg = await link.evaluate((el) => getComputedStyle(el).backgroundColor);
-    if (bg !== "rgb(238, 243, 254)") fail(`${label} is ${bg}, wanted the #eef3fe panel`);
+    const [bg, edge] = await link.evaluate((el) => [getComputedStyle(el).backgroundColor, getComputedStyle(el).borderTopColor]);
+    if (bg !== "rgb(255, 255, 255)" || edge !== "rgb(211, 209, 205)") fail(`${label} is ${bg} edged ${edge}, wanted white with a #d3d1cd edge`);
   }
   await shot(page, "lp1-startsida");
-  log("Skapa pass and Nytt projekt: both 60px on the #eef3fe panel, side by side");
+  log("Skapa pass and Nytt projekt: both 60px, white with a 1px edge, side by side");
 
   // Alla Projekt is in the menu now, and it has to be: a leader who creates a
   // project needs somewhere to see it that is not the form they just left.

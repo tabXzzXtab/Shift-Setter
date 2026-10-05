@@ -201,7 +201,7 @@ function Skiftkalender() {
                   }
                   className="flex h-16 flex-col overflow-hidden rounded-[8px] text-left"
                   style={{
-                    background: isToday ? C.surface : "#f8faff",
+                    background: isToday ? C.surface : "#faf9f7",
                     boxShadow: isToday ? `inset 0 0 0 2px ${C.ink}` : undefined,
                   }}
                 >

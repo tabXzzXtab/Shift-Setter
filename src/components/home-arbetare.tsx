@@ -37,18 +37,18 @@ type Note = { id: string; kind: string; work_date?: string };
 const INK = "#091540";          // primary text, primary fill, icon strokes
 const INK_HOVER = "#12206b";    // primary fill hover, "Neka" label
 const ACCENT = "#1b2cc1";       // live dot, counts, duration, "Acceptera" fill
-const TEXT_2 = "#4a5578";       // secondary copy, section labels, kickers
-const CHEVRON = "#8b98c4";      // chevrons, inactive dot
-const GROUND = "#f3f6fd";       // app background
+const TEXT_2 = "#5e5a53";       // secondary copy, section labels, kickers
+const CHEVRON = "#89867f";      // chevrons, inactive dot
+const GROUND = "#f7f6f3";       // app background
 const SURFACE = "#ffffff";      // cards
-const PANEL = "#e7edfb";        // empty states, map ground, "Neka"
-const HAIRLINE = "#e3eafb";     // row divider
+const PANEL = "#f1f0ed";        // empty states, map ground, "Neka"
+const HAIRLINE = "#e4e3df";     // row divider
 
 const SHADOW_FLAT = "0 1px 3px rgba(9,21,64,.08)";
 const SHADOW_GROUP = "0 4px 18px rgba(9,21,64,.07), 0 1px 2px rgba(9,21,64,.05)";
 const SHADOW_HERO = "0 8px 28px rgba(9,21,64,.09), 0 1px 2px rgba(9,21,64,.05)";
 
-/** #e7edfb, radius 14, 22px, centred, 15/500. Used by both empty states. */
+/** #f1f0ed, radius 14, 22px, centred, 15/500. Used by both empty states. */
 function EmptyPanel({ children }: { children: React.ReactNode }) {
   return (
     <div
@@ -308,14 +308,14 @@ export function HomeArbetare() {
       {/* ---- 1. top bar, sticky ------------------------------------------ */}
       <div
         className="sticky top-0 z-[5] flex items-center justify-between gap-2 px-4 pb-[10px] pt-[14px]"
-        style={{ background: "rgba(243,246,253,.88)", backdropFilter: "blur(12px)" }}
+        style={{ background: "rgba(247,246,243,.88)", backdropFilter: "blur(12px)" }}
       >
         <button
           type="button"
           aria-label="Meny"
           aria-expanded={open === "menu"}
           onClick={() => setOpen("menu")}
-          className="press-scale flex h-11 w-11 items-center justify-center rounded-[11px] p-0 transition-transform duration-[120ms] hover:bg-[#f0f5ff] active:scale-[.985] active:bg-[#dbe4f9]"
+          className="press-scale flex h-11 w-11 items-center justify-center rounded-[11px] p-0 transition-transform duration-[120ms] hover:bg-[#f4f3f0] active:scale-[.985] active:bg-[#e9e8e4]"
           style={{ background: SURFACE, boxShadow: SHADOW_FLAT }}
         >
           <svg width="20" height="14" viewBox="0 0 20 14" fill="none" aria-hidden>
@@ -328,7 +328,7 @@ export function HomeArbetare() {
           aria-label="Profil"
           aria-expanded={open === "profile"}
           onClick={() => setOpen("profile")}
-          className="press-scale flex h-11 w-11 items-center justify-center rounded-[11px] p-0 transition-transform duration-[120ms] hover:bg-[#f0f5ff] active:scale-[.985] active:bg-[#dbe4f9]"
+          className="press-scale flex h-11 w-11 items-center justify-center rounded-[11px] p-0 transition-transform duration-[120ms] hover:bg-[#f4f3f0] active:scale-[.985] active:bg-[#e9e8e4]"
           style={{ background: SURFACE, boxShadow: SHADOW_FLAT }}
         >
           <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden>
@@ -490,7 +490,7 @@ export function HomeArbetare() {
               {i > 0 && <div className="ml-[18px] h-px" style={{ background: HAIRLINE }} />}
               <Link
                 href={row.href}
-                className="flex h-[60px] items-center justify-between px-[18px] hover:bg-[#f6f9ff]"
+                className="flex h-[60px] items-center justify-between px-[18px] hover:bg-[#f4f3f0]"
                 style={{ color: INK }}
               >
                 <span className="text-[17px] font-bold" style={{ letterSpacing: "-.2px" }}>
@@ -558,7 +558,7 @@ export function HomeArbetare() {
           {front && (
             <Link
               href="/acceptera"
-              className="-my-4 flex h-11 items-center gap-[8px] rounded-[10px] px-[6px] text-[15px] font-bold hover:bg-[#f6f9ff]"
+              className="-my-4 flex h-11 items-center gap-[8px] rounded-[10px] px-[6px] text-[15px] font-bold hover:bg-[#f4f3f0]"
               style={{ color: INK }}
             >
               Visa alla

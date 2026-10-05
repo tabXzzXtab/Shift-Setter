@@ -363,8 +363,8 @@ function NyttPass({ asked, fromDay = false }: { asked: string | null; fromDay?: 
         <button
           type="button"
           onClick={() => setStep("days")}
-          className="press-scale flex h-[60px] w-full items-center justify-between rounded-[12px] px-4 text-[17px] font-bold transition-transform duration-[110ms] hover:bg-[#dbe4f9] active:scale-[.985]"
-          style={{ letterSpacing: "-.2px", background: C.panel2, color: C.inkHover }}
+          className="press-scale flex h-[60px] w-full items-center justify-between rounded-[12px] px-4 text-[17px] font-bold transition-transform duration-[110ms] hover:bg-[#e9e8e4] active:scale-[.985]"
+          style={{ letterSpacing: "-.2px", background: C.surface, border: `1px solid ${C.border}`, color: C.inkHover }}
         >
           <span>{days.length} dag(ar) valda</span>
           <span aria-hidden className="text-[15px] font-bold">Ändra</span>
@@ -439,7 +439,7 @@ function NyttPass({ asked, fromDay = false }: { asked: string | null; fromDay?: 
                     type="button"
                     aria-label={`Ta bort rad ${i + 1}`}
                     onClick={() => setRows((p) => p.filter((_, j) => j !== i))}
-                    className="press-scale h-11 rounded-[10px] px-[14px] text-[15px] font-bold transition-transform duration-[110ms] hover:bg-[#f6d8dd] active:scale-[.985]"
+                    className="press-scale h-11 rounded-[10px] px-[14px] text-[15px] font-bold transition-transform duration-[110ms] hover:bg-[#ebe9e5] active:scale-[.985]"
                     style={{ background: C.stopBg, color: C.stopInk }}
                   >
                     Ta bort
@@ -456,8 +456,8 @@ function NyttPass({ asked, fromDay = false }: { asked: string | null; fromDay?: 
                   type="button"
                   aria-label={`Färre på rad ${i + 1}`}
                   onClick={() => setRows((p) => p.map((x, j) => j === i ? { ...x, headcount: Math.max(1, x.headcount - 1) } : x))}
-                  className="press-scale h-[52px] w-16 rounded-[10px] text-[24px] font-extrabold leading-none transition-transform duration-[110ms] hover:bg-[#dbe4f9] active:scale-[.985]"
-                  style={{ background: C.panel2, color: C.inkHover }}
+                  className="press-scale h-[52px] w-16 rounded-[10px] text-[24px] font-extrabold leading-none transition-transform duration-[110ms] hover:bg-[#e9e8e4] active:scale-[.985]"
+                  style={{ background: C.surface, border: `1px solid ${C.border}`, color: C.inkHover }}
                 >
                   −
                 </button>
@@ -471,8 +471,8 @@ function NyttPass({ asked, fromDay = false }: { asked: string | null; fromDay?: 
                   type="button"
                   aria-label={`Fler på rad ${i + 1}`}
                   onClick={() => setRows((p) => p.map((x, j) => j === i ? { ...x, headcount: Math.min(99, x.headcount + 1) } : x))}
-                  className="press-scale h-[52px] w-16 rounded-[10px] text-[24px] font-extrabold leading-none transition-transform duration-[110ms] hover:bg-[#dbe4f9] active:scale-[.985]"
-                  style={{ background: C.panel2, color: C.inkHover }}
+                  className="press-scale h-[52px] w-16 rounded-[10px] text-[24px] font-extrabold leading-none transition-transform duration-[110ms] hover:bg-[#e9e8e4] active:scale-[.985]"
+                  style={{ background: C.surface, border: `1px solid ${C.border}`, color: C.inkHover }}
                 >
                   +
                 </button>
@@ -521,7 +521,7 @@ function NyttPass({ asked, fromDay = false }: { asked: string | null; fromDay?: 
         <div className="px-4 pt-[22px]">
           <div
             className="rounded-[12px] px-4 py-[14px] text-[15px] font-semibold"
-            style={{ background: C.panel2, color: C.inkHover }}
+            style={{ background: C.surface, border: `1px solid ${C.border}`, color: C.inkHover }}
           >
             {rows.length} rad(er) × {days.length} dag(ar) = {totalPasses} pass, {totalSlots} platser
           </div>
@@ -549,7 +549,7 @@ function NyttPass({ asked, fromDay = false }: { asked: string | null; fromDay?: 
                   type="button"
                   aria-pressed={on}
                   onClick={() => setHandpicked((p) => on ? p.filter((x) => x !== w.id) : [...p, w.id])}
-                  className="flex h-[60px] w-full items-center justify-between px-[18px] text-[17px] font-bold hover:bg-[#f6f9ff]"
+                  className="flex h-[60px] w-full items-center justify-between px-[18px] text-[17px] font-bold hover:bg-[#f4f3f0]"
                   style={{ letterSpacing: "-.2px", background: on ? C.panel2 : undefined }}
                 >
                   <span>{w.name}</span>
@@ -580,7 +580,7 @@ function NyttPass({ asked, fromDay = false }: { asked: string | null; fromDay?: 
           own home indicator. */}
       <div
         className="sticky bottom-0 z-10 px-4 pb-[max(16px,env(safe-area-inset-bottom))] pt-[22px]"
-        style={{ background: `linear-gradient(to top, ${C.ground} 72%, rgba(243,246,253,0))` }}
+        style={{ background: `linear-gradient(to top, ${C.ground} 72%, rgba(247,246,243,0))` }}
       >
         {/* The ONLY things that hold the button back: what a pass cannot exist
             without. How many workers are free is never one of them -- a slot

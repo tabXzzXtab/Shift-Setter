@@ -108,7 +108,7 @@ function AllaProjekt() {
                 className="rounded-[14px]"
                 style={{ background: C.surface, boxShadow: SHADOW.group }}
               >
-                <Link href={`/pass?projekt=${p.id}`} className="block rounded-[14px] hover:bg-[#f6f9ff]">
+                <Link href={`/pass?projekt=${p.id}`} className="block rounded-[14px] hover:bg-[#f4f3f0]">
                   {face}
                 </Link>
               </section>
@@ -151,8 +151,8 @@ function AllaProjekt() {
                       <Link
                         key={a.href}
                         href={a.href}
-                        className="press-scale flex h-12 w-full items-center justify-center rounded-[10px] text-[15px] font-bold transition-transform duration-[110ms] hover:bg-[#dbe4f9] active:scale-[.985]"
-                        style={{ background: C.panel2, color: C.inkHover }}
+                        className="press-scale flex h-12 w-full items-center justify-center rounded-[10px] text-[15px] font-bold transition-transform duration-[110ms] hover:bg-[#e9e8e4] active:scale-[.985]"
+                        style={{ background: C.surface, border: `1px solid ${C.border}`, color: C.inkHover }}
                       >
                         {a.label}
                       </Link>

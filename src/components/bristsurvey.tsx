@@ -297,7 +297,7 @@ export function Bristsurvey({
         <div className="mt-[14px] rounded-[10px] px-[14px] py-[6px]" style={{ background: C.panel2 }}>
           <p
             className="py-2 text-[12px] font-bold uppercase"
-            style={{ letterSpacing: ".9px", color: C.text2, boxShadow: "inset 0 -1px 0 #dbe4f9" }}
+            style={{ letterSpacing: ".9px", color: C.text2, boxShadow: "inset 0 -1px 0 #e9e8e4" }}
           >
             Registrerat — bokförs som det står
           </p>
@@ -306,7 +306,7 @@ export function Bristsurvey({
               <li
                 key={i}
                 className="flex justify-between gap-3 py-[10px]"
-                style={i > 0 ? { boxShadow: "inset 0 1px 0 #dbe4f9" } : undefined}
+                style={i > 0 ? { boxShadow: "inset 0 1px 0 #e9e8e4" } : undefined}
               >
                 <span className="text-[15px] font-semibold">{r.worker}</span>
                 <span className="shrink-0 text-right">

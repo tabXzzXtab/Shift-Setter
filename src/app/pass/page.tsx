@@ -157,7 +157,7 @@ function AllaPass({ askedProject }: { askedProject: string | null }) {
       type="button"
       aria-label={label}
       onClick={() => setFrom((f) => addDays(f, dir * 30))}
-      className="press-scale flex h-10 w-10 items-center justify-center rounded-[9px] p-0 transition-transform duration-[110ms] hover:bg-[#dbe4f9] active:scale-[.985]"
+      className="press-scale flex h-10 w-10 items-center justify-center rounded-[9px] p-0 transition-transform duration-[110ms] hover:bg-[#e9e8e4] active:scale-[.985]"
       style={{ background: C.panel2 }}
     >
       <svg width="8" height="14" viewBox="0 0 9 15" fill="none" aria-hidden>
@@ -269,7 +269,7 @@ function AllaPass({ askedProject }: { askedProject: string | null }) {
                 {i > 0 && <div className="ml-4 h-px" style={{ background: C.hairline }} />}
                 <Link
                   href={`/dag?datum=${p.work_date}`}
-                  className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-[#f6f9ff]"
+                  className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-[#f4f3f0]"
                   style={{ color: C.ink }}
                 >
                   {/* Scoped to one project, the title already names it: repeating
@@ -308,8 +308,8 @@ function AllaPass({ askedProject }: { askedProject: string | null }) {
                       type="button"
                       onClick={() => ask(p)}
                       disabled={busy}
-                      className="press-scale flex h-12 w-full items-center justify-center rounded-[10px] text-[15px] font-bold transition-transform duration-[110ms] hover:bg-[#dbe4f9] active:scale-[.985] disabled:opacity-40"
-                      style={{ background: C.panel2, color: C.inkHover }}
+                      className="press-scale flex h-12 w-full items-center justify-center rounded-[10px] text-[15px] font-bold transition-transform duration-[110ms] hover:bg-[#e9e8e4] active:scale-[.985] disabled:opacity-40"
+                      style={{ background: C.surface, border: `1px solid ${C.border}`, color: C.inkHover }}
                     >
                       Stäng Pass
                     </button>
