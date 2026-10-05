@@ -4,9 +4,10 @@ import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { AuthGate } from "@/components/auth-gate";
 import {
-  C, Card, PrimaryButton, SHADOW, SoftField, SoftInput, SoftNotice, SoftScreen,
-  SoftSelect, Tag,
+  C, Card, CountedTextarea, PrimaryButton, SHADOW, SoftField, SoftNotice, SoftScreen,
+  Stepper, Tag,
 } from "@/components/soft";
+import { TimeField } from "@/components/time-wheel";
 import { EjStampladMark, JobbadeInteDialog } from "@/components/jobbade-inte";
 import { derivesTenant, getSupabase } from "@/lib/supabase/client";
 import { hhmm, longDayHeading, passEndAt, stampToTime } from "@/lib/dates";
@@ -33,7 +34,12 @@ type Row = {
 };
 
 /**
- * TIMMAR IS TYPED AS HOURS AND MINUTES, AND STORED AS DECIMAL HOURS.
+ * TIMMAR IS ONE STEPPER IN QUARTER HOURS, AND STORED AS DECIMAL HOURS.
+ *
+ * (Owner's brief, 2026-10-05: − and +, never a keyboard. The state is still
+ * the hours/minutes pair described below; the stepper reads and writes it
+ * through joinHours/splitHours, so the quarter grain and the off-grid rule are
+ * unchanged.)
  *
  * `confirmed_hours` is `numeric(4,2)`, and it stays that way: every other
  * screen, the Arbetsdagbok and the PDF read a decimal and print "7,5 h". This
@@ -51,10 +57,6 @@ type Row = {
  * Anything else has to arrive from somewhere else, which is what QUARTERS
  * below is careful about.
  */
-const QUARTERS = [0, 15, 30, 45];
-
-/** Minutes, as the select's value and label -- always two digits. */
-const mm = (n: number) => String(n).padStart(2, "0");
 
 /**
  * A stored decimal, split into the two fields that edit it.
@@ -91,21 +93,14 @@ function joinHours(h: string, m: string): number {
 }
 
 /**
- * The minute options for one row: the four quarters, plus whatever the row
- * arrived carrying if that was not one of them.
- *
- * A pass created with an odd span, or an hours figure an admin typed by hand,
- * reaches this screen off the quarter grid. Snapping it to the nearest quarter
- * would change a number nobody asked to change and nobody would see change --
- * which is the thing invariant 1 exists to forbid. So the odd value is offered
- * as itself, stays selected until the leader picks another, and disappears the
- * moment they do.
+ * The row's figure as the stepper shows it: "8,25", or "" while the hours are
+ * blank. An off-grid figure (8 h 05 from a stamp) shows as itself, "8,08", and
+ * stays until somebody presses -- the stepper never snaps a number nobody asked
+ * to change (invariant 1).
  */
-function minuteOptions(current: string): number[] {
-  const n = Number(current);
-  return Number.isFinite(n) && !QUARTERS.includes(n)
-    ? [...QUARTERS, n].sort((a, b) => a - b)
-    : QUARTERS;
+function shownHours(h: string, m: string): string {
+  const n = joinHours(h, m);
+  return Number.isFinite(n) ? String(n).replace(".", ",") : "";
 }
 
 type Day = {
@@ -412,21 +407,13 @@ function Bekrafta({ askedProject, askedDate }: { askedProject: string | null; as
       <SoftScreen title="Bekräfta dagen" back="/">
         <div className="px-4 pt-[2px]">
           {error && <div className="pb-[10px]"><SoftNotice tone="stop">{error}</SoftNotice></div>}
-          <div className="rounded-[14px] px-[22px] py-[34px] text-center" style={{ background: C.panel }}>
-            <div
-              className="mx-auto mb-[14px] flex h-[46px] w-[46px] items-center justify-center rounded-[14px]"
-              style={{ background: C.surface, boxShadow: SHADOW.flat }}
-            >
-              <svg width="20" height="16" viewBox="0 0 11 9" fill="none" aria-hidden>
-                <path d="M1 4.6 4 7.6 10 1.4" stroke={C.liveInk} strokeWidth="2.2"
-                  strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </div>
+          {/* Left-aligned, no box: one sentence and what happens next. */}
+          <div className="px-1 pt-[6px]">
             <div className="mb-1 text-[17px] font-bold" style={{ letterSpacing: "-.2px" }}>
               Inget att bekräfta
             </div>
             <div className="text-[15px] font-medium" style={{ color: C.text2 }}>
-              Dagar som behöver dig hamnar här.
+              När ett pass är över dyker dagen upp här.
             </div>
           </div>
         </div>
@@ -621,7 +608,7 @@ function Bekrafta({ askedProject, askedDate }: { askedProject: string | null; as
                 leader is the one who was there, and correcting them is the
                 whole job of this screen.
               */}
-              <div className={`mb-[14px] flex gap-[10px] ${r.is_leader ? "mt-[14px]" : ""}`}>
+              <div className={`relative mb-[14px] flex gap-[10px] ${r.is_leader ? "mt-[14px]" : ""}`}>
                 {r.is_leader ? (
                   <>
                     <div className="min-w-0 flex-1"><LockedField label="Börjar" value={e.start} /></div>
@@ -630,86 +617,47 @@ function Bekrafta({ askedProject, askedDate }: { askedProject: string | null; as
                 ) : (
                   <>
                     <div className="min-w-0 flex-1">
-                      <SoftField label="Börjar">
-                        <SoftInput
-                          type="time"
-                          disabled={running}
-                          value={e.start}
-                          onChange={(ev) =>
-                            setEdits((p) => ({ ...p, [r.tilldelning_id]: { ...e, start: ev.target.value } }))
-                          }
-                        />
-                      </SoftField>
+                      <TimeField
+                        label="Börjar"
+                        disabled={running}
+                        value={e.start}
+                        onChange={(v) => setEdits((p) => ({ ...p, [r.tilldelning_id]: { ...e, start: v } }))}
+                      />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <SoftField label="Slutar">
-                        <SoftInput
-                          type="time"
-                          disabled={running}
-                          value={e.end}
-                          onChange={(ev) =>
-                            setEdits((p) => ({ ...p, [r.tilldelning_id]: { ...e, end: ev.target.value } }))
-                          }
-                        />
-                      </SoftField>
+                      <TimeField
+                        label="Slutar"
+                        disabled={running}
+                        value={e.end}
+                        onChange={(v) => setEdits((p) => ({ ...p, [r.tilldelning_id]: { ...e, end: v } }))}
+                      />
                     </div>
                   </>
                 )}
               </div>
 
-              {/*
-                TWO FIELDS, ONE FIGURE. Both stay 60px and 26/800 -- on a
-                confirmation screen the hours are the biggest thing in the
-                card, and splitting them is not a reason to make them quieter.
-                min-w-0 on the row and on both columns, because a flex child
-                defaults to min-content and a select showing "45" will
-                otherwise push the row wider than the card.
-              */}
-              <div className="flex min-w-0 gap-[10px]">
-                <div className="min-w-0 flex-1">
-                  <SoftField label="Timmar" big>
-                    <SoftInput
-                      inputMode="numeric"
-                      disabled={running}
-                      value={e.h}
-                      onChange={(ev) =>
-                        setEdits((p) => ({
-                          ...p,
-                          [r.tilldelning_id]: { ...e, h: ev.target.value.replace(/[^\d]/g, "") },
-                        }))
-                      }
-                      style={{ letterSpacing: "-.6px" }}
-                    />
-                  </SoftField>
-                </div>
-                <div className="min-w-0 flex-1">
-                  {/* A select, so the quarter is picked rather than typed.
-                      Sized inline rather than through SoftField's `big`, which
-                      reaches for an <input> and cannot see a <select>. */}
-                  <SoftField label="Minuter">
-                    <SoftSelect
-                      disabled={running}
-                      value={e.m}
-                      onChange={(ev) =>
-                        setEdits((p) => ({
-                          ...p,
-                          [r.tilldelning_id]: { ...e, m: ev.target.value },
-                        }))
-                      }
-                      style={{
-                        height: 60,
-                        fontSize: 26,
-                        fontWeight: 800,
-                        letterSpacing: "-.6px",
-                      }}
-                    >
-                      {minuteOptions(e.m).map((n) => (
-                        <option key={n} value={String(n)}>{mm(n)}</option>
-                      ))}
-                    </SoftSelect>
-                  </SoftField>
-                </div>
-              </div>
+              {/* ONE FIGURE, chosen with − and + in quarter hours. The label is
+                  a real <label> holding the word "Timmar", which is how the
+                  walkthroughs find the field. */}
+              <SoftField label="Timmar" htmlFor={`timmar-${r.tilldelning_id}`}>
+                <Stepper
+                  id={`timmar-${r.tilldelning_id}`}
+                  label="Timmar"
+                  decLabel={`Färre, ${r.worker_name}`}
+                  incLabel={`Fler, ${r.worker_name}`}
+                  step={0.25}
+                  min={0}
+                  max={24}
+                  unit="h"
+                  value={shownHours(e.h, e.m)}
+                  onChange={(v) => {
+                    const n = Number(v.replace(",", ".").trim());
+                    const next = v.trim() === "" ? { h: "", m: "0" }
+                      : Number.isFinite(n) ? splitHours(n) : null;
+                    if (next) setEdits((p) => ({ ...p, [r.tilldelning_id]: { ...e, ...next } }));
+                  }}
+                />
+              </SoftField>
 
               {/*
                 ONLY WHEN THERE IS NOTHING TO STORE.
@@ -753,17 +701,15 @@ function Bekrafta({ askedProject, askedDate }: { askedProject: string | null; as
           >
             Vad vi gjorde <span style={{ color: C.stopInk }}>*</span>
           </label>
-          <div className="mb-2 mt-[2px] text-[14px] font-medium" style={{ color: C.text2 }}>
-            Skrivs ut på varje rad i arbetsdagboken.
+          <div className="mt-2">
+            <CountedTextarea
+              id="vad-vi-gjorde"
+              rows={4}
+              value={gjorde}
+              onChange={(e) => setGjorde(e.target.value)}
+              placeholder="Beskriv kortfattat vad som gjordes."
+            />
           </div>
-          <textarea
-            id="vad-vi-gjorde"
-            rows={4}
-            value={gjorde}
-            onChange={(e) => setGjorde(e.target.value)}
-            className="w-full resize-y rounded-[10px] border-0 p-[14px] text-[16px] font-medium leading-[1.45] outline-none focus:bg-white focus:outline-2 focus:outline-[#b64e10]"
-            style={{ background: C.panel2, color: C.ink }}
-          />
         </Card>
       </div>
 

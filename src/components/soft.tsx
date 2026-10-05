@@ -450,15 +450,21 @@ export function Segmented<T extends string>({
  * because on a confirmation screen the hours are the biggest thing in the card.
  */
 export function SoftField({
-  label, help, big = false, children,
+  label, help, big = false, htmlFor, children,
 }: {
   label: string;
   help?: string;
   big?: boolean;
+  /**
+   * Point the label at one control. Needed when the field holds several -- a
+   * Stepper's − comes first, and a label left to choose would make a tap on
+   * the word "Timmar" press minus.
+   */
+  htmlFor?: string;
   children: ReactNode;
 }) {
   return (
-    <label className="block">
+    <label className="block" htmlFor={htmlFor}>
       {/* 2px under the label when a help line follows it, 6px when none does.
           The label and its help are one block with one gap beneath -- 6px
           twice would open a hole between a field's name and its explanation
@@ -572,7 +578,7 @@ export function SoftTextarea(props: React.TextareaHTMLAttributes<HTMLTextAreaEle
  * off the grid -- 8,2 -- is kept as it is and the next press lands on a quarter.
  */
 export function Stepper({
-  value, onChange, step = 1, min = 0, max = 99, unit, label, testId, decLabel, incLabel,
+  value, onChange, step = 1, min = 0, max = 99, unit, label, testId, decLabel, incLabel, id,
 }: {
   /** "8,5" or "8.5" or "" -- what the page holds. */
   value: string;
@@ -592,6 +598,8 @@ export function Stepper({
    */
   decLabel?: string;
   incLabel?: string;
+  /** For a SoftField's htmlFor, so the label names the figure and not "−". */
+  id?: string;
 }) {
   const n = Number(value.replace(",", "."));
   const current = Number.isFinite(n) && value.trim() !== "" ? n : null;
@@ -615,6 +623,7 @@ export function Stepper({
       <span className="h-full w-px shrink-0" style={{ background: C.border }} />
       <span className="flex min-w-0 flex-1 items-baseline justify-center gap-[4px]">
         <input
+          id={id}
           aria-label={label}
           data-stepper={testId}
           inputMode="none"

@@ -113,9 +113,11 @@ function Wheel({
 }
 
 export function TimeField({
-  label, value, onChange,
+  label, value, onChange, disabled = false,
 }: {
   label: string;
+  /** Shown, not editable: a running pass on Bekräfta dagen. */
+  disabled?: boolean;
   /** "HH:MM". */
   value: string;
   onChange: (time: string) => void;
@@ -156,12 +158,13 @@ export function TimeField({
             aria-haspopup="dialog"
             aria-expanded={open}
             value={value}
+            disabled={disabled}
             onChange={(e) => {
               const v = e.target.value.trim();
               if (/^([01]\d|2[0-3]):[0-5]\d$/.test(v)) onChange(v);
             }}
-            onFocus={() => setOpen(true)}
-            onClick={() => setOpen(true)}
+            onFocus={() => { if (!disabled) setOpen(true); }}
+            onClick={() => { if (!disabled) setOpen(true); }}
             className="cursor-pointer pr-[36px] tabular-nums"
             style={open ? { borderColor: C.accent, boxShadow: `0 0 0 1px ${C.accent}` } : undefined}
           />

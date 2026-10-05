@@ -292,7 +292,7 @@ try {
   const arbetareRow = page.locator('[data-row="arbetare"]').first();
   await ledareRow.waitFor({ timeout: 20000 });
 
-  if (await ledareRow.locator('input[type="time"]').count()) {
+  if (await ledareRow.locator('input[type="time"], input[data-time]').count()) {
     await shot(page, "FAILED");
     fail("the arbetsledare can type their own times at stage 1");
   }
@@ -304,24 +304,24 @@ try {
   // Their HOURS are still theirs: lunch comes off the envelope and nobody else
   // knows how long it was (invariant 1).
   //
-  // TWO CONTROLS NOW. TIMMAR is entered as hours and minutes and stored as the
-  // same decimal as before, so the claim to assert is that BOTH halves of the
-  // figure are the leader's to set -- a screen that locked the minutes would
-  // charge a late worker a full quarter and would still have passed a check
-  // that only looked for one editable field.
+  // ONE STEPPER NOW (owner's brief, 2026-10-05): − and + in quarter hours,
+  // the figure between them still an input. The claim to assert is unchanged:
+  // the leader can move their own hours in both directions -- a screen that
+  // locked one button would charge a late worker a full quarter.
   const ledareHours = ledareRow.locator('label:has(span:text-is("Timmar")) input');
-  const ledareMinutes = ledareRow.locator('label:has(span:text-is("Minuter")) select');
-  if (!(await ledareHours.count()) || !(await ledareMinutes.count())) {
+  const ledareLess = ledareRow.getByRole("button", { name: /^Färre, / });
+  const ledareMore = ledareRow.getByRole("button", { name: /^Fler, / });
+  if (!(await ledareHours.count()) || !(await ledareLess.count()) || !(await ledareMore.count())) {
     await shot(page, "FAILED");
-    fail("the arbetsledare cannot type their own hours -- invariant 1");
+    fail("the arbetsledare cannot set their own hours -- invariant 1");
   }
-  if (!(await ledareHours.first().isEditable()) || !(await ledareMinutes.first().isEnabled())) {
+  if (!(await ledareHours.first().isEditable()) || !(await ledareMore.first().isEnabled())) {
     await shot(page, "FAILED");
     fail("the arbetsledare's hours are on screen but not editable -- invariant 1");
   }
 
-  // A worker's row is untouched: two time fields, as before.
-  if ((await arbetareRow.locator('input[type="time"]').count()) !== 2) {
+  // A worker's row is untouched: two time fields (the wheel's inputs), as before.
+  if ((await arbetareRow.locator("input[data-time]").count()) !== 2) {
     await shot(page, "FAILED");
     fail("a worker's row lost its time fields; only the leader's own row is locked");
   }
