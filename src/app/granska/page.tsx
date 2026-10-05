@@ -4,10 +4,11 @@ import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { AuthGate } from "@/components/auth-gate";
 import {
-  C, Card, EmptyState, PrimaryButton, SecondaryButton, SoftField, SoftInput,
-  SoftNotice, SoftScreen, SoftTextarea,
+  C, Card, CountedTextarea, EmptyState, PrimaryButton, SecondaryButton, SoftField,
+  SoftNotice, SoftScreen, SoftTextarea, Stepper,
 } from "@/components/soft";
 import { EjStampladMark, JobbadeInteDialog } from "@/components/jobbade-inte";
+import { TimeField } from "@/components/time-wheel";
 import { getSupabase } from "@/lib/supabase/client";
 import { hhmm, longDayHeading, stampToTime } from "@/lib/dates";
 import { reviewDays } from "@/lib/review-days";
@@ -385,41 +386,39 @@ function Granska({ askedProject, askedDate }: { askedProject: string | null; ask
                   : `Stämplade ${stampToTime(r.clock_in) || "—"} till ${stampToTime(r.clock_out) || "—"}`}
               </div>
 
-              <div className="mb-[14px] flex gap-[10px]">
+              <div className="relative mb-[14px] flex gap-[10px]">
                 <div className="min-w-0 flex-1">
-                  <SoftField label="Börjar">
-                    <SoftInput
-                      type="time"
-                      value={e.start}
-                      onChange={(ev) =>
-                        setEdits((p) => ({ ...p, [r.tilldelning_id]: { ...e, start: ev.target.value } }))
-                      }
-                    />
-                  </SoftField>
+                  <TimeField
+                    label="Börjar"
+                    value={e.start}
+                    onChange={(v) => setEdits((p) => ({ ...p, [r.tilldelning_id]: { ...e, start: v } }))}
+                  />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <SoftField label="Slutar">
-                    <SoftInput
-                      type="time"
-                      value={e.end}
-                      onChange={(ev) =>
-                        setEdits((p) => ({ ...p, [r.tilldelning_id]: { ...e, end: ev.target.value } }))
-                      }
-                    />
-                  </SoftField>
+                  <TimeField
+                    label="Slutar"
+                    value={e.end}
+                    onChange={(v) => setEdits((p) => ({ ...p, [r.tilldelning_id]: { ...e, end: v } }))}
+                  />
                 </div>
               </div>
 
               {/* No helper: "0 om personen inte kom" is the question the red
                   mark above now asks, and answering it writes the figure. */}
-              <SoftField label="Timmar" big>
-                <SoftInput
-                  inputMode="decimal"
+              {/* Quarter steps from the stated figure; an off-grid one stays as
+                  it is until pressed (invariant 1). */}
+              <SoftField label="Timmar" htmlFor={`timmar-${r.tilldelning_id}`}>
+                <Stepper
+                  id={`timmar-${r.tilldelning_id}`}
+                  label="Timmar"
+                  decLabel={`Färre, ${r.worker_name}`}
+                  incLabel={`Fler, ${r.worker_name}`}
+                  step={0.25}
+                  min={0}
+                  max={24}
+                  unit="h"
                   value={e.hours}
-                  onChange={(ev) =>
-                    setEdits((p) => ({ ...p, [r.tilldelning_id]: { ...e, hours: ev.target.value } }))
-                  }
-                  style={{ letterSpacing: "-.6px" }}
+                  onChange={(v) => setEdits((p) => ({ ...p, [r.tilldelning_id]: { ...e, hours: v } }))}
                 />
               </SoftField>
             </Card>
@@ -445,21 +444,23 @@ function Granska({ askedProject, askedDate }: { askedProject: string | null; ask
               ? "Din redogörelse. Skrivs ut på varje rad i arbetsdagboken."
               : "Arbetsledarens text. Rätta den om den inte stämmer."}
           </div>
-          <SoftTextarea
+          <CountedTextarea
             id="vad-vi-gjorde"
             rows={4}
             value={gjorde}
             onChange={(e) => setGjorde(e.target.value)}
+            placeholder="Beskriv kortfattat vad som gjordes."
           />
         </Card>
       </div>
 
       <div className="px-4 pt-[14px]">
-        {/* Said BEFORE the press, as the handoff asks of both review screens
-            (§3.3): once admin_confirmed, nothing edits the day (invariant 5). */}
-        <div className="pb-[14px]">
-          <SoftNotice tone="quiet">Det går inte att ändra efter bekräftelse.</SoftNotice>
-        </div>
+        {/* Said BEFORE the press, directly above it: once admin_confirmed,
+            nothing edits the day (invariant 5). Rust, because the press locks
+            real hours (notice audit R1) -- a line, not a box. */}
+        <p className="px-1 pb-[10px] text-[14px] font-semibold" style={{ color: C.stopInk }}>
+          Det går inte att ändra efter bekräftelse.
+        </p>
         <PrimaryButton onClick={approve} disabled={busy || gjorde.trim() === ""}>
           {busy ? "Sparar…" : day.flagged_as ? "Bekräfta dagen" : "Godkänn"}
         </PrimaryButton>

@@ -477,7 +477,7 @@ try {
   // it, and this is who.
   const adminLedareRow = page.locator('[data-row="ledare"]');
   if (await adminLedareRow.count()) {
-    if ((await adminLedareRow.locator('input[type="time"]').count()) !== 2) {
+    if ((await adminLedareRow.locator("input[data-time]").count()) !== 2) {
       await shot(page, "FAILED");
       fail("the admin cannot correct the arbetsledare's span at stage 2");
     }
