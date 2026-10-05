@@ -4,12 +4,13 @@ import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { AuthGate } from "@/components/auth-gate";
 import {
-  C, Card, PrimaryButton, Segmented, SoftField, SoftInput, SoftNotice, SoftScreen,
-  SoftSelect, SoftTextarea, SoftDone,
+  C, Card, CountedTextarea, PrimaryButton, Segmented, SoftField, SoftNotice, SoftScreen,
+  SoftDone, Stepper,
 } from "@/components/soft";
 import { NyArbetareForm, type CreatedWorker } from "@/components/ny-arbetare";
 import { DateField } from "@/components/date-field";
 import { PickField } from "@/components/pick-field";
+import { TimeField } from "@/components/time-wheel";
 import { getSupabase } from "@/lib/supabase/client";
 import { stockholmToday } from "@/lib/dates";
 import { defaultHours } from "@/lib/hours";
@@ -174,6 +175,56 @@ function SnabbPass({ asked }: { asked: string | null }) {
     })();
     return () => { active = false; };
   }, [projectId, date]);
+
+  /**
+   * WHAT THIS PASS WILL TAKE AWAY, if anything -- asked, not assumed.
+   *
+   * create_snabb_pass releases the worker's shifts that OVERLAP the new one and
+   * nothing else (invariant 2): non-leader rows from the day before to the day
+   * after, compared as real timestamps, so last night's 22:00-06:00 counts.
+   * The screen mirrors that rule so the warning appears exactly when the
+   * database will remove something, and says what. The warning used to stand
+   * on every Snabb Pass whether or not anything collided.
+   */
+  const [krock, setKrock] = useState<{ project: string; start: string; end: string; date: string }[]>([]);
+  useEffect(() => {
+    let active = true;
+    void (async () => {
+      if (!workerId || workerId === NEW || !date || !start || !end) { setKrock([]); return; }
+      const shift = (d: string, n: number) => {
+        const t = new Date(`${d}T00:00:00Z`);
+        t.setUTCDate(t.getUTCDate() + n);
+        return t.toISOString().slice(0, 10);
+      };
+      const { data } = await getSupabase()
+        .from("tilldelning")
+        .select("work_date, pass:pass_id(start_time, end_time, deleted_at, project:project_id(name))")
+        .eq("worker_id", workerId)
+        .is("released_at", null)
+        .neq("source", "ledare")
+        .gte("work_date", shift(date, -1))
+        .lte("work_date", shift(date, 1));
+      if (!active) return;
+      // app.pass_start_at / pass_end_at: an end at or before the start is the next morning.
+      const span = (d: string, a: string, b: string) => {
+        const s0 = Date.parse(`${d}T${a.slice(0, 5)}:00Z`);
+        let e0 = Date.parse(`${d}T${b.slice(0, 5)}:00Z`);
+        if (b.slice(0, 5) <= a.slice(0, 5)) e0 += 86_400_000;
+        return [s0, e0] as const;
+      };
+      const [ns, ne] = span(date, start, end);
+      type Joined = { start_time: string; end_time: string; deleted_at: string | null; project: { name: string } | null };
+      setKrock((data ?? []).flatMap((t) => {
+        const ps = t.pass as unknown as Joined | null;
+        if (!ps || ps.deleted_at) return [];
+        const [os, oe] = span(t.work_date, ps.start_time, ps.end_time);
+        return os < ne && ns < oe
+          ? [{ project: ps.project?.name ?? "", start: ps.start_time.slice(0, 5), end: ps.end_time.slice(0, 5), date: t.work_date }]
+          : [];
+      }));
+    })();
+    return () => { active = false; };
+  }, [workerId, date, start, end]);
 
   // The arbetsledare this project will place on the day. Read from
   // project_leader rather than guessed, and filtered to those who HAVE a
@@ -372,19 +423,14 @@ function SnabbPass({ asked }: { asked: string | null }) {
       <div className="px-4 pt-[14px]">
         <Card radius={16} pad="p-[18px]">
           <div className="mb-[14px]">
-            <SoftField label="Projekt">
-              {/* Changing either of these changes whether Före is possible at
-                  all, so a refusal about the old one must not outlive it. */}
-              <SoftSelect
-                value={projectId}
-                onChange={(e) => setProjectId(e.target.value)}
-              >
-                <option value="">Välj…</option>
-                {projects.map((p) => (
-                  <option key={p.id} value={p.id}>{p.name}</option>
-                ))}
-              </SoftSelect>
-            </SoftField>
+            {/* Changing this changes whether Före is possible at all, so a
+                refusal about the old project must not outlive it. */}
+            <PickField
+              label="Projekt"
+              value={projectId}
+              onChange={setProjectId}
+              options={projects.map((p) => ({ value: p.id, label: p.name }))}
+            />
           </div>
 
           <div className="mb-[14px]">
@@ -393,12 +439,11 @@ function SnabbPass({ asked }: { asked: string | null }) {
                 last row and opens the form rather than choosing anybody. */}
             <PickField
               label="Vem?"
-              help="Finns personen inte i listan — välj Ny arbetare."
               people
               value={workerId}
               onChange={setWorkerId}
               options={workers.map((w) => ({ value: w.id, label: w.name }))}
-              action={{ value: NEW, label: "+ Ny arbetare…", onPick: () => setCreatingWorker(true) }}
+              action={{ value: NEW, label: "Ny arbetare", onPick: () => setCreatingWorker(true) }}
             />
           </div>
 
@@ -407,30 +452,29 @@ function SnabbPass({ asked }: { asked: string | null }) {
             <DateField label="Datum" value={date} onChange={setDate} />
           </div>
 
-          <div className="mb-[14px] flex gap-[10px]">
+          <div className="relative mb-[14px] flex gap-[10px]">
             <div className="min-w-0 flex-1">
-              <SoftField label="Börjar">
-                <SoftInput type="time" value={start} onChange={(e) => setTime("start", e.target.value)} />
-              </SoftField>
+              <TimeField label="Börjar" value={start} onChange={(v) => setTime("start", v)} />
             </div>
             <div className="min-w-0 flex-1">
-              <SoftField label="Slutar">
-                <SoftInput type="time" value={end} onChange={(e) => setTime("end", e.target.value)} />
-              </SoftField>
+              <TimeField label="Slutar" value={end} onChange={(v) => setTime("end", v)} />
             </div>
           </div>
 
           {/* The biggest thing in the card, because it is the one figure a
               human is answerable for. Prefilled, never derived (invariant 1). */}
-          <SoftField
-            label="Timmar"
-            help="Förifylls som tiden minus 30 min. Ändra om rasten var längre."
-            big
-          >
-            <SoftInput
-              inputMode="decimal"
+          <SoftField label="Timmar" htmlFor="snabb-timmar">
+            <Stepper
+              id="snabb-timmar"
+              label="Timmar"
+              decLabel="Färre timmar"
+              incLabel="Fler timmar"
+              step={0.25}
+              min={0}
+              max={24}
+              unit="h"
               value={hours}
-              onChange={(e) => { setHours(e.target.value); setHoursTouched(true); }}
+              onChange={(v) => { setHours(v); setHoursTouched(true); }}
             />
           </SoftField>
         </Card>
@@ -486,15 +530,12 @@ function SnabbPass({ asked }: { asked: string | null }) {
           {direktAktiv && (
             <>
               <div className="pt-[18px]">
-                <SoftField
-                  label="Vad vi gjorde"
-                  help="Går rakt in i arbetsdagboken. Utan den kan dagen inte föras in."
-                >
-                  <SoftTextarea
+                <SoftField label="Vad vi gjorde">
+                  <CountedTextarea
                     rows={3}
                     value={gjorde}
                     onChange={(e) => setGjorde(e.target.value)}
-                    placeholder="Rivning av innertak, plan 2."
+                    placeholder="Beskriv kortfattat vad som gjordes."
                   />
                 </SoftField>
               </div>
@@ -506,17 +547,19 @@ function SnabbPass({ asked }: { asked: string | null }) {
                   rather than computed behind the admin's back. */}
               {ledare.map((l) => (
                 <div key={l.worker_id} className="pt-[18px]">
-                  <SoftField
-                    label={`Timmar — ${l.name} (arbetsledare)`}
-                    help="Förifylls som passets tid minus 30 min. Ändra om dagen var en annan."
-                  >
-                    <SoftInput
-                      inputMode="decimal"
+                  <SoftField label={`Timmar — ${l.name} (arbetsledare)`} htmlFor={`ledare-${l.worker_id}`}>
+                    <Stepper
+                      id={`ledare-${l.worker_id}`}
+                      label={`Timmar — ${l.name} (arbetsledare)`}
+                      decLabel={`Färre, ${l.name}`}
+                      incLabel={`Fler, ${l.name}`}
+                      step={0.25}
+                      min={0}
+                      max={24}
+                      unit="h"
                       value={ledarTimmar(l)}
-                      onChange={(e) => setLedare((ls) => ls.map((x) =>
-                        x.worker_id === l.worker_id
-                          ? { ...x, hours: e.target.value, touched: true }
-                          : x))}
+                      onChange={(v) => setLedare((ls) => ls.map((x) =>
+                        x.worker_id === l.worker_id ? { ...x, hours: v, touched: true } : x))}
                     />
                   </SoftField>
                 </div>
@@ -526,11 +569,16 @@ function SnabbPass({ asked }: { asked: string | null }) {
         </Card>
       </div>
 
-      <div className="px-4 pt-[14px]">
-        <SoftNotice tone="warn">
-          Har personen redan ett pass den dagen tas det bort och detta gäller i stället.
-        </SoftNotice>
-      </div>
+      {/* Red because it removes real work (notice audit R5) -- and only when
+          it will: the overlapping shifts, named. */}
+      {krock.length > 0 && (
+        <div className="px-4 pt-[14px]">
+          <SoftNotice tone="stop" headline="Krockar med ett annat pass">
+            {krock.map((k) => `${k.project} ${k.start}–${k.end}${k.date !== date ? ` (${k.date})` : ""}`).join(", ")}
+            {" "}tas bort och det här passet gäller i stället.
+          </SoftNotice>
+        </div>
+      )}
 
       <div className="px-4 pt-[14px]">
         <PrimaryButton
