@@ -169,7 +169,7 @@ export function DateField({
                   }`}
                   style={{
                     background: on ? C.accent : undefined,
-                    color: on ? C.surface : C.ink,
+                    color: on ? C.onAccent : C.ink,
                     boxShadow: !on && isToday ? `inset 0 0 0 2px ${C.ink}` : undefined,
                   }}
                 >

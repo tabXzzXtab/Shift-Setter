@@ -34,9 +34,9 @@ type Note = { id: string; kind: string; work_date?: string };
  * instead of hunting through markup. These are exact: the handoff is marked
  * high fidelity and the hexes come from it, not from an eyedropper.
  * ------------------------------------------------------------------------- */
-const INK = "#091540";          // primary text, primary fill, icon strokes
-const INK_HOVER = "#12206b";    // primary fill hover, "Neka" label
-const ACCENT = "#1b2cc1";       // live dot, counts, duration, "Acceptera" fill
+const INK = "#24180f";          // primary text, primary fill, icon strokes
+const INK_HOVER = "#3a2a20";    // primary fill hover, "Neka" label
+const ACCENT = "#e87a46";       // brand fill: Stämpla In, live dot (text on it is INK -- white is 2.9:1)
 const TEXT_2 = "#5e5a53";       // secondary copy, section labels, kickers
 const CHEVRON = "#89867f";      // chevrons, inactive dot
 const GROUND = "#f7f6f3";       // app background
@@ -44,9 +44,9 @@ const SURFACE = "#ffffff";      // cards
 const PANEL = "#f1f0ed";        // empty states, map ground, "Neka"
 const HAIRLINE = "#e4e3df";     // row divider
 
-const SHADOW_FLAT = "0 1px 3px rgba(9,21,64,.08)";
-const SHADOW_GROUP = "0 4px 18px rgba(9,21,64,.07), 0 1px 2px rgba(9,21,64,.05)";
-const SHADOW_HERO = "0 8px 28px rgba(9,21,64,.09), 0 1px 2px rgba(9,21,64,.05)";
+const SHADOW_FLAT = "0 1px 3px rgba(36,24,15,.08)";
+const SHADOW_GROUP = "0 4px 18px rgba(36,24,15,.07), 0 1px 2px rgba(36,24,15,.05)";
+const SHADOW_HERO = "0 8px 28px rgba(36,24,15,.09), 0 1px 2px rgba(36,24,15,.05)";
 
 /** #f1f0ed, radius 14, 22px, centred, 15/500. Used by both empty states. */
 function EmptyPanel({ children }: { children: React.ReactNode }) {
@@ -291,8 +291,8 @@ export function HomeArbetare() {
   /** Filled variant. Ink when clocked in, accent when out -- handoff §2. */
   const primaryFill = clockedIn ? INK : ACCENT;
   const primaryShadow = clockedIn
-    ? "0 6px 18px rgba(9,21,64,.26)"
-    : "0 6px 18px rgba(27,44,193,.28)";
+    ? "0 6px 18px rgba(36,24,15,.26)"
+    : "0 6px 18px rgba(232,122,70,.28)";
 
   return (
     <div
@@ -404,7 +404,7 @@ export function HomeArbetare() {
                   clockedIn
                     ? {
                         background: ACCENT,
-                        boxShadow: "0 0 0 5px rgba(118,146,255,.20)",
+                        boxShadow: "0 0 0 5px rgba(232,122,70,.25)",
                       }
                     : { background: CHEVRON }
                 }
@@ -428,10 +428,11 @@ export function HomeArbetare() {
                 onClick={() => stamp(clockedIn ? "out" : "in")}
                 disabled={waiting}
                 aria-busy={waiting}
-                className="press-scale flex h-[66px] w-full items-center justify-center rounded-[12px] text-[23px] font-extrabold text-white transition-[transform,background] duration-150 active:scale-[.985] disabled:opacity-60"
+                className="press-scale flex h-[66px] w-full items-center justify-center rounded-[12px] text-[23px] font-extrabold transition-[transform,background] duration-150 active:scale-[.985] disabled:opacity-60"
                 style={{
                   letterSpacing: "-.5px",
                   background: primaryFill,
+                  color: clockedIn ? SURFACE : INK,
                   boxShadow: primaryShadow,
                 }}
               >

@@ -258,7 +258,7 @@ try {
   const box = await cta.boundingBox();
   if (Math.round(box.height) !== 66) fail(`the primary action is ${box.height}px tall, wanted 66`);
   const cbg = await cta.evaluate((el) => getComputedStyle(el).backgroundColor);
-  if (cbg !== "rgb(27, 44, 193)") fail(`the primary action is ${cbg}, wanted the accent #1b2cc1`);
+  if (cbg !== "rgb(232, 122, 70)") fail(`the primary action is ${cbg}, wanted the brand fill #e87a46`);
   log(`primary action 66px on ${cbg}`);
 
   await shot(page, "l1b-hero");

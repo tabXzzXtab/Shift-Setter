@@ -63,9 +63,9 @@
  * itself stays when motion is reduced, so nothing is lost but the movement.
  */
 @keyframes tourpulse {
-  0%   { box-shadow: 0 0 0 0 rgba(27, 44, 193, .45); }
-  70%  { box-shadow: 0 0 0 14px rgba(27, 44, 193, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(27, 44, 193, 0); }
+  0%   { box-shadow: 0 0 0 0 rgba(232,122,70, .45); }
+  70%  { box-shadow: 0 0 0 14px rgba(232,122,70, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(232,122,70, 0); }
 }
 
 .animate-tourpulse {

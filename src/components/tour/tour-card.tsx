@@ -47,7 +47,7 @@ export function TourCard({
       aria-label={title}
       className="fixed inset-0 z-[80] flex items-end justify-center overflow-y-auto p-4 pb-[max(16px,env(safe-area-inset-bottom))] sm:items-center"
       style={{
-        background: "rgba(9,21,64,.94)",
+        background: "rgba(36,24,15,.94)",
         backdropFilter: "blur(24px)",
         WebkitBackdropFilter: "blur(24px)",
       }}

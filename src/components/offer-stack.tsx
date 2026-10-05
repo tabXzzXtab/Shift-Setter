@@ -15,7 +15,7 @@ export type Offer = {
 };
 
 /** The slabs' own shadow -- softer than a card's, because they are not one. */
-const SHADOW_SLAB = "0 6px 16px rgba(9,21,64,.06)";
+const SHADOW_SLAB = "0 6px 16px rgba(36,24,15,.06)";
 
 /**
  * Acceptera Pass, as the handoff draws it.
@@ -119,7 +119,7 @@ export function OfferStack({
               Typed by a human and never derived from the span -- invariant 1,
               and the handoff says the same thing in its own words.
             */}
-            <div className="whitespace-nowrap text-[15px] font-bold" style={{ color: C.accent }}>
+            <div className="whitespace-nowrap text-[15px] font-bold" style={{ color: C.accentInk }}>
               {String(front.planned_hours).replace(".", ",")} h
             </div>
           </div>
@@ -132,12 +132,12 @@ export function OfferStack({
               onClick={() => onRespond(front.pass_id, true)}
               disabled={busy}
               className={`press-scale h-[54px] flex-[2] rounded-[10px] text-[17px] font-bold transition-transform duration-[120ms] active:scale-[.985] disabled:opacity-60 ${
-                quiet ? "hover:bg-[#e9e8e4]" : "hover:bg-[#12206b]"
+                quiet ? "hover:bg-[#e9e8e4]" : "hover:bg-[#3a2a20]"
               }`}
               style={{
                 letterSpacing: "-.2px",
                 background: quiet ? C.panel2 : C.accent,
-                color: quiet ? C.inkHover : C.surface,
+                color: quiet ? C.inkHover : C.onAccent,
               }}
             >
               Acceptera

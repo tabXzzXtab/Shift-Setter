@@ -90,11 +90,11 @@ function Dag({ date, from }: { date: string; from: string }) {
               className="flex h-[56px] flex-col items-center justify-center gap-[2px] rounded-[12px]"
               style={{
                 background: on ? C.accent : "transparent",
-                color: on ? C.surface : C.ink,
+                color: on ? C.onAccent : C.ink,
                 boxShadow: isToday && !on ? `inset 0 0 0 2px ${C.ink}` : undefined,
               }}
             >
-              <span className="text-[11px] font-bold" style={{ color: on ? C.surface : C.text2 }}>{letter}</span>
+              <span className="text-[11px] font-bold" style={{ color: on ? C.onAccent : C.text2 }}>{letter}</span>
               <span className="text-[17px] font-extrabold tabular-nums">{Number(d.slice(8))}</span>
             </Link>
           );

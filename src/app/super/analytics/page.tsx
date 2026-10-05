@@ -187,7 +187,7 @@ function AnalysScreen() {
                        className="flex items-center justify-between gap-3">
                     <Tag tone={ROLE_TONE[r.role]}>{ROLE_WORD[r.role]}</Tag>
                     <div className="text-right text-[15px] font-semibold">
-                      <span style={{ color: C.accent }}>{duration(r.median_ms)}</span>
+                      <span style={{ color: C.accentInk }}>{duration(r.median_ms)}</span>
                       <span style={{ color: C.text2 }}> median · snitt {duration(r.avg_ms)} · {r.visits} besök</span>
                     </div>
                   </div>
@@ -251,7 +251,7 @@ function Heatmap({ bins }: { bins: Bin[] }) {
               key={i}
               className="aspect-square"
               title={n ? `${n} tryck` : undefined}
-              style={{ background: n ? `rgba(27,44,193,${0.15 + 0.85 * (n / max)})` : "transparent" }}
+              style={{ background: n ? `rgba(232,122,70,${0.15 + 0.85 * (n / max)})` : "transparent" }}
             />
           );
         })}

@@ -201,7 +201,7 @@ function Lista({ shifts, today }: { shifts: Shift[]; today: string }) {
                   <div
                     data-hours
                     className="whitespace-nowrap text-[15px] font-bold"
-                    style={{ color: s.filed && s.confirmed_hours !== null ? C.accent : C.text2 }}
+                    style={{ color: s.filed && s.confirmed_hours !== null ? C.accentInk : C.text2 }}
                   >
                     {hoursLine(s)}
                   </div>
@@ -366,7 +366,7 @@ function Kalender({ shifts, today }: { shifts: Shift[]; today: string }) {
                       // A held day is the thing to tap, so it carries the
                       // weight; an empty one stays readable but steps back.
                       fontWeight: chosen || isToday || worked ? 800 : 500,
-                      color: chosen ? C.surface : worked || isToday ? C.ink : C.text2,
+                      color: chosen ? C.onAccent : worked || isToday ? C.ink : C.text2,
                     }}
                   >
                     {day}

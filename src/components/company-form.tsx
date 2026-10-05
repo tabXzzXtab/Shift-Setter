@@ -357,7 +357,7 @@ export function CompanyForm({
           >
             {form.f_skatt && (
               <svg width="14" height="11" viewBox="0 0 14 11" fill="none" aria-hidden>
-                <path d="M1.5 5.6 5 9.2 12.5 1.6" stroke="#ffffff" strokeWidth="2.4"
+                <path d="M1.5 5.6 5 9.2 12.5 1.6" stroke={C.onAccent} strokeWidth="2.4"
                   strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             )}

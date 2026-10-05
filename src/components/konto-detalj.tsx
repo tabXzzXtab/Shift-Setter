@@ -450,7 +450,7 @@ export function KontoDetalj({ askedId }: { askedId: string | null }) {
           >
             {form.har_foretag && (
               <svg width="14" height="11" viewBox="0 0 14 11" fill="none" aria-hidden>
-                <path d="M1.5 5.6 5 9.2 12.5 1.6" stroke="#ffffff" strokeWidth="2.4"
+                <path d="M1.5 5.6 5 9.2 12.5 1.6" stroke={C.onAccent} strokeWidth="2.4"
                   strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             )}
@@ -488,7 +488,7 @@ export function KontoDetalj({ askedId }: { askedId: string | null }) {
                 >
                   {form.f_skatt && (
                     <svg width="14" height="11" viewBox="0 0 14 11" fill="none" aria-hidden>
-                      <path d="M1.5 5.6 5 9.2 12.5 1.6" stroke="#ffffff" strokeWidth="2.4"
+                      <path d="M1.5 5.6 5 9.2 12.5 1.6" stroke={C.onAccent} strokeWidth="2.4"
                         strokeLinecap="round" strokeLinejoin="round" />
                     </svg>
                   )}

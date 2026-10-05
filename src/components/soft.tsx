@@ -41,9 +41,15 @@ import { initials } from "@/lib/avatar";
  * they are lib/project-colour.ts and a database constraint, and stay put.
  */
 export const C = {
-  ink: "#091540",
-  inkHover: "#12206b",
-  accent: "#1b2cc1",
+  /** Text. A warm near-black (owner, 2026-10-05: no cool colours). */
+  ink: "#24180f",
+  inkHover: "#3a2a20",
+  /** The brand colour, as a FILL (owner, 2026-10-05). White on it is 2.9:1, so what sits on it is `onAccent`. */
+  accent: "#e87a46",
+  /** The accent as text or an icon on white/ground: the same hue darkened to 5.1:1. */
+  accentInk: "#b64e10",
+  /** Text and icons ON an accent fill: the dark ink, 6.1:1. */
+  onAccent: "#24180f",
   text2: "#5e5a53",
   chevron: "#89867f",
   ground: "#f7f6f3",
@@ -55,14 +61,14 @@ export const C = {
   /** Outline of a control that is not the primary one: secondary buttons, steppers. */
   border: "#d3d1cd",
   /** Done / live -- as ink only. */
-  liveInk: "#0d736a",
+  liveInk: "#427138",
   liveBg: "#f1f0ed",
   /** Needs a look -- as ink only. */
-  warnInk: "#976712",
-  tagWarnInk: "#976712",
+  warnInk: "#826817",
+  tagWarnInk: "#826817",
   warnBg: "#f1f0ed",
   /** Changes or blocks real work -- as ink only. */
-  stopInk: "#a0421d",
+  stopInk: "#9d2a39",
   stopBg: "#f1f0ed",
 } as const;
 
@@ -74,12 +80,12 @@ export const C = {
  * the things on a screen that should stand up.
  */
 export const SHADOW = {
-  flat: "0 1px 3px rgba(9,21,64,.08)",
-  group: "0 1px 2px rgba(9,21,64,.04)",
-  hero: "0 8px 28px rgba(9,21,64,.09), 0 1px 2px rgba(9,21,64,.05)",
-  offer: "0 10px 30px rgba(9,21,64,.10), 0 1px 2px rgba(9,21,64,.05)",
-  action: "0 6px 18px rgba(27,44,193,.28)",
-  sheet: "0 -12px 40px rgba(9,21,64,.22)",
+  flat: "0 1px 3px rgba(36,24,15,.08)",
+  group: "0 1px 2px rgba(36,24,15,.04)",
+  hero: "0 8px 28px rgba(36,24,15,.09), 0 1px 2px rgba(36,24,15,.05)",
+  offer: "0 10px 30px rgba(36,24,15,.10), 0 1px 2px rgba(36,24,15,.05)",
+  action: "0 6px 18px rgba(232,122,70,.28)",
+  sheet: "0 -12px 40px rgba(36,24,15,.22)",
 } as const;
 
 /* ---- icons: inline paths, ~2px stroke, round caps ------------------------ */
@@ -427,7 +433,7 @@ export function Segmented<T extends string>({
               letterSpacing: tight ? "-.2px" : "-.1px",
               background: on ? C.surface : "transparent",
               color: on ? C.ink : C.text2,
-              boxShadow: on ? "0 1px 3px rgba(9,21,64,.10)" : undefined,
+              boxShadow: on ? "0 1px 3px rgba(36,24,15,.10)" : undefined,
             }}
           >
             {o.label}
@@ -504,7 +510,7 @@ export function SoftInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
   if (picker) {
     return (
       <span
-        className="flex h-[52px] w-full min-w-0 overflow-hidden rounded-[14px] border border-[#e4e3df] outline-none focus-within:border-[#1b2cc1] focus-within:outline-1 focus-within:outline-[#1b2cc1]"
+        className="flex h-[52px] w-full min-w-0 overflow-hidden rounded-[14px] border border-[#e4e3df] outline-none focus-within:border-[#b64e10] focus-within:outline-1 focus-within:outline-[#b64e10]"
         style={{ background: C.surface }}
       >
         <input
@@ -525,7 +531,7 @@ export function SoftInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
   return (
     <input
       {...rest}
-      className={`h-[52px] w-full min-w-0 rounded-[14px] border border-[#e4e3df] px-[14px] text-[16px] font-medium outline-none focus:border-[#1b2cc1] focus:outline-1 focus:outline-[#1b2cc1] ${className}`}
+      className={`h-[52px] w-full min-w-0 rounded-[14px] border border-[#e4e3df] px-[14px] text-[16px] font-medium outline-none focus:border-[#b64e10] focus:outline-1 focus:outline-[#b64e10] ${className}`}
       style={{ background: C.surface, color: C.ink, ...style }}
     />
   );
@@ -543,9 +549,132 @@ export function SoftTextarea(props: React.TextareaHTMLAttributes<HTMLTextAreaEle
   return (
     <textarea
       {...rest}
-      className={`min-h-[76px] w-full resize-y rounded-[14px] border border-[#e4e3df] p-[14px] text-[16px] font-medium leading-[1.45] outline-none focus:border-[#1b2cc1] focus:outline-1 focus:outline-[#1b2cc1] ${className}`}
+      className={`min-h-[76px] w-full resize-y rounded-[14px] border border-[#e4e3df] p-[14px] text-[16px] font-medium leading-[1.45] outline-none focus:border-[#b64e10] focus:outline-1 focus:outline-[#b64e10] ${className}`}
       style={{ background: C.surface, color: C.ink, ...style }}
     />
+  );
+}
+
+/**
+ * A number chosen with − and +, never with a keyboard (owner's brief, 2026-10-05).
+ *
+ * ONE BORDERED CONTROL, [ − | value | + ], 52px -- Komponentspråk panel 03.
+ *
+ * THE VALUE IS STILL AN <input>, a string in the page's own format ("8,5"),
+ * so the page keeps the state it already had and every walkthrough that types
+ * a figure with fill() still can. inputMode="none" is what keeps a phone's
+ * keyboard down: the figure is chosen with the buttons, and typing remains
+ * possible on a computer.
+ *
+ * HOURS STAY A HUMAN NUMBER (invariant 1). The stepper starts from whatever
+ * the page prefilled and only ever moves when somebody presses it; a quarter
+ * step covers the figures stamped days really produce (8,25, 7,75). A figure
+ * off the grid -- 8,2 -- is kept as it is and the next press lands on a quarter.
+ */
+export function Stepper({
+  value, onChange, step = 1, min = 0, max = 99, unit, label, testId,
+}: {
+  /** "8,5" or "8.5" or "" -- what the page holds. */
+  value: string;
+  onChange: (value: string) => void;
+  step?: number;
+  min?: number;
+  max?: number;
+  /** Shown after the figure: "h". */
+  unit?: string;
+  /** The accessible name, e.g. "Timmar". */
+  label: string;
+  testId?: string;
+}) {
+  const n = Number(value.replace(",", "."));
+  const current = Number.isFinite(n) && value.trim() !== "" ? n : null;
+  const fmt = (x: number) => String(Math.round(x * 100) / 100).replace(".", ",");
+  const move = (dir: 1 | -1) => {
+    const base = current ?? (dir > 0 ? min - step : min + step);
+    // From an off-grid figure the first press snaps to the grid in that direction.
+    const snapped = dir > 0 ? Math.floor(base / step + 1e-9) * step + step : Math.ceil(base / step - 1e-9) * step - step;
+    onChange(fmt(Math.min(max, Math.max(min, snapped))));
+  };
+  const btn = "flex h-full w-[52px] shrink-0 items-center justify-center disabled:opacity-40";
+  return (
+    <span
+      className="flex h-[52px] w-full min-w-0 items-center overflow-hidden rounded-[14px]"
+      style={{ background: C.surface, border: `1px solid ${C.border}` }}
+    >
+      <button type="button" aria-label={`Minska ${label.toLowerCase()}`} className={btn}
+        disabled={current !== null && current <= min} onClick={() => move(-1)}>
+        <svg width="14" height="2" viewBox="0 0 14 2" aria-hidden><path d="M1 1h12" stroke={C.ink} strokeWidth="2.2" strokeLinecap="round" /></svg>
+      </button>
+      <span className="h-full w-px shrink-0" style={{ background: C.border }} />
+      <span className="flex min-w-0 flex-1 items-baseline justify-center gap-[4px]">
+        <input
+          aria-label={label}
+          data-stepper={testId}
+          inputMode="none"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="w-full min-w-0 border-0 bg-transparent text-center text-[18px] font-bold tabular-nums outline-none"
+          style={{ color: C.ink, maxWidth: unit ? "4.2em" : undefined }}
+        />
+        {unit && <span className="shrink-0 text-[15px] font-semibold" style={{ color: C.text2 }}>{unit}</span>}
+      </span>
+      <span className="h-full w-px shrink-0" style={{ background: C.border }} />
+      <button type="button" aria-label={`Öka ${label.toLowerCase()}`} className={btn}
+        disabled={current !== null && current >= max} onClick={() => move(1)}>
+        <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden><path d="M7 1v12M1 7h12" stroke={C.ink} strokeWidth="2.2" strokeLinecap="round" /></svg>
+      </button>
+    </span>
+  );
+}
+
+/**
+ * The prose field with a count under it, for "Vad vi gjorde" and its kin.
+ *
+ * A COUNT, NOT A LIMIT. Nothing in the database caps this text and the
+ * Arbetsdagbok wraps and splits it across pages, so a "48 / 500" would invent
+ * a rule. The count is there so a one-word answer looks as thin as it is.
+ */
+export function CountedTextarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement> & { value: string }) {
+  const n = props.value.trim().length;
+  return (
+    <span className="block">
+      <SoftTextarea {...props} />
+      <span className="mt-[4px] block text-right text-[13px] font-medium tabular-nums" style={{ color: C.text2 }}>
+        {n} tecken
+      </span>
+    </span>
+  );
+}
+
+/**
+ * A yes/no as a switch -- 51x31, accent when on. The label sits to its left
+ * on the caller's row; the switch carries aria-checked and the same name.
+ */
+export function Switch({
+  checked, onChange, label, disabled,
+}: {
+  checked: boolean;
+  onChange: (v: boolean) => void;
+  label: string;
+  disabled?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-label={label}
+      disabled={disabled}
+      onClick={() => onChange(!checked)}
+      className="relative h-[31px] w-[51px] shrink-0 rounded-full transition-colors duration-150 disabled:opacity-50"
+      style={{ background: checked ? C.accent : C.border }}
+    >
+      <span
+        aria-hidden
+        className="absolute top-[2px] h-[27px] w-[27px] rounded-full transition-[left] duration-150"
+        style={{ left: checked ? 22 : 2, background: C.surface, boxShadow: "0 1px 3px rgba(0,0,0,.18)" }}
+      />
+    </button>
   );
 }
 
@@ -562,7 +691,7 @@ export function SoftSelect(props: React.SelectHTMLAttributes<HTMLSelectElement>)
   return (
     <select
       {...rest}
-      className={`h-[52px] w-full min-w-0 cursor-pointer appearance-none rounded-[14px] border border-[#e4e3df] py-0 pl-[14px] pr-[38px] text-[16px] font-medium outline-none focus:border-[#1b2cc1] focus:outline-1 focus:outline-[#1b2cc1] ${className}`}
+      className={`h-[52px] w-full min-w-0 cursor-pointer appearance-none rounded-[14px] border border-[#e4e3df] py-0 pl-[14px] pr-[38px] text-[16px] font-medium outline-none focus:border-[#b64e10] focus:outline-1 focus:outline-[#b64e10] ${className}`}
       style={{
         background: `${C.surface} url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='13' height='8' viewBox='0 0 13 8' fill='none'%3E%3Cpath d='M1.5 1.5 6.5 6.5l5-5' stroke='%2389867f' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 14px center`,
         color: C.ink,
@@ -649,7 +778,7 @@ export function PrimaryButton({
       style={{
         letterSpacing: "-.2px",
         background: disabled ? C.hairline : C.accent,
-        color: disabled ? C.chevron : C.surface,
+        color: disabled ? C.chevron : C.onAccent,
         boxShadow: disabled ? undefined : SHADOW.action,
         cursor: disabled ? "not-allowed" : undefined,
       }}
@@ -839,7 +968,7 @@ export function Avatar({
  * applied to one mark each.
  */
 function NoticeMark({ tone }: { tone: "live" | "warn" | "stop" | "quiet" }) {
-  const fill = { live: C.liveInk, warn: C.warnInk, stop: C.stopInk, quiet: C.accent }[tone];
+  const fill = { live: C.liveInk, warn: C.warnInk, stop: C.stopInk, quiet: C.accentInk }[tone];
   return (
     <span
       aria-hidden
@@ -1031,7 +1160,7 @@ export function SoftToast({ message, onDone }: { message: string | null; onDone:
 }
 
 /**
- * A dialog over the scrim: the sheet's own rgba(9,21,64,.42), a hero-shadowed
+ * A dialog over the scrim: the sheet's own rgba(36,24,15,.42), a hero-shadowed
  * card, and the app's font, since a fixed element is outside the screen that
  * set it.
  *
@@ -1060,7 +1189,7 @@ export function SoftDialog({
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ background: "rgba(9,21,64,.42)" }}
+      style={{ background: "rgba(36,24,15,.42)" }}
       role="dialog"
       aria-modal="true"
       aria-label={label}
@@ -1171,7 +1300,7 @@ export function SoftSheet({
         className={`absolute inset-0 h-full w-full transition-opacity duration-200 ${
           shown ? "opacity-100" : "opacity-0"
         }`}
-        style={{ background: "rgba(9,21,64,.42)" }}
+        style={{ background: "rgba(36,24,15,.42)" }}
       />
       <div
         role="dialog"

@@ -309,7 +309,7 @@ function NyttPass({ asked, fromDay = false }: { asked: string | null; fromDay?: 
                 className: on ? "font-extrabold" : "font-semibold",
                 style: {
                   background: past ? "transparent" : on ? C.accent : C.panel2,
-                  color: past ? C.chevron : on ? C.surface : C.ink,
+                  color: past ? C.chevron : on ? C.onAccent : C.ink,
                   cursor: past ? "default" : "pointer",
                 },
                 label: `${Number(date.slice(8))} ${on ? "vald" : "inte vald"}`,
@@ -557,7 +557,7 @@ function NyttPass({ asked, fromDay = false }: { asked: string | null; fromDay?: 
                       AND a check, and aria-pressed says it out loud. */}
                   {on ? (
                     <svg width="15" height="12" viewBox="0 0 11 9" fill="none" aria-hidden>
-                      <path d="M1 4.6 4 7.6 10 1.4" stroke={C.accent} strokeWidth="2.2"
+                      <path d="M1 4.6 4 7.6 10 1.4" stroke={C.accentInk} strokeWidth="2.2"
                         strokeLinecap="round" strokeLinejoin="round" />
                     </svg>
                   ) : (

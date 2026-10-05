@@ -25,7 +25,7 @@ export function PickField({
   help?: string;
   value: string;
   onChange: (value: string) => void;
-  options: { value: string; label: string }[];
+  options: { value: string; label: string; sub?: string }[];
   placeholder?: string;
   required?: boolean;
   /** Draw initials beside each option: the options are people. */
@@ -38,8 +38,18 @@ export function PickField({
   action?: { value: string; label: string; onPick: () => void };
 }) {
   const [open, setOpen] = useState(false);
+  const [q, setQ] = useState("");
   const box = useRef<HTMLDivElement>(null);
   const chosen = options.find((o) => o.value === value) ?? null;
+  // SEARCHABLE once the list is longer than a thumb's reach (owner's brief,
+  // 2026-10-05): a field that filters on name and second line, at the top of
+  // the open list. Short lists stay a plain list -- a search box over five
+  // names is one more thing to read.
+  const searchable = options.length > 6;
+  const needle = q.trim().toLocaleLowerCase("sv");
+  const shown = needle
+    ? options.filter((o) => `${o.label} ${o.sub ?? ""}`.toLocaleLowerCase("sv").includes(needle))
+    : options;
 
   useEffect(() => {
     if (!open) return;
@@ -105,33 +115,21 @@ export function PickField({
           className="absolute left-0 right-0 top-full z-30 mt-2 max-h-[300px] overflow-y-auto overscroll-contain rounded-[20px] p-2"
           style={{ background: C.surface, boxShadow: SHADOW.hero, color: C.ink }}
         >
-          {options.length === 0 && (
-            <p className="px-3 py-[14px] text-[15px]" style={{ color: C.text2 }}>Ingen att välja än.</p>
+          {searchable && (
+            <input
+              type="search"
+              autoFocus
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Sök"
+              aria-label={`Sök ${label.toLowerCase()}`}
+              data-pick-search
+              className="mb-2 h-[44px] w-full rounded-[12px] px-[12px] text-[16px] font-medium outline-none"
+              style={{ background: C.panel, color: C.ink }}
+            />
           )}
-          {options.map((o) => {
-            const on = o.value === value;
-            return (
-              <button
-                key={o.value}
-                type="button"
-                role="option"
-                aria-selected={on}
-                onClick={() => { onChange(o.value); setOpen(false); }}
-                className="flex min-h-[56px] w-full items-center gap-3 rounded-[14px] px-3 text-left hover:bg-[#f4f3f0]"
-                style={{ background: on ? C.panel2 : undefined }}
-              >
-                {people && <Avatar name={o.label} size={36} />}
-                <span className={`min-w-0 flex-1 truncate text-[16px] ${on ? "font-bold" : "font-medium"}`}>
-                  {o.label}
-                </span>
-                {on && (
-                  <svg width="16" height="12" viewBox="0 0 11 9" fill="none" aria-hidden className="shrink-0">
-                    <path d="M1 4.6 4 7.6 10 1.4" stroke={C.accent} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                )}
-              </button>
-            );
-          })}
+          {/* The action first ("Ny arbetare", "Ny beställare"): it is the way
+              out when the list does not have the one you are looking for. */}
           {action && (
             <button
               type="button"
@@ -141,17 +139,49 @@ export function PickField({
               <span
                 aria-hidden
                 className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
-                style={{ background: C.panel2 }}
+                style={{ border: `1px solid ${C.border}` }}
               >
                 <svg width="13" height="13" viewBox="0 0 15 15" fill="none">
-                  <path d="M7.5 1v13M1 7.5h13" stroke={C.accent} strokeWidth="2.4" strokeLinecap="round" />
+                  <path d="M7.5 1v13M1 7.5h13" stroke={C.accentInk} strokeWidth="2.4" strokeLinecap="round" />
                 </svg>
               </span>
-              <span className="min-w-0 flex-1 truncate text-[16px] font-bold" style={{ color: C.accent }}>
+              <span className="min-w-0 flex-1 truncate text-[16px] font-bold" style={{ color: C.accentInk }}>
                 {action.label}
               </span>
             </button>
           )}
+          {options.length === 0 && (
+            <p className="px-3 py-[14px] text-[15px]" style={{ color: C.text2 }}>Ingen att välja än.</p>
+          )}
+          {options.length > 0 && shown.length === 0 && (
+            <p className="px-3 py-[14px] text-[15px]" style={{ color: C.text2 }}>Ingen träff på “{q.trim()}”.</p>
+          )}
+          {shown.map((o) => {
+            const on = o.value === value;
+            return (
+              <button
+                key={o.value}
+                type="button"
+                role="option"
+                aria-selected={on}
+                onClick={() => { onChange(o.value); setOpen(false); setQ(""); }}
+                className="flex min-h-[56px] w-full items-center gap-3 rounded-[14px] px-3 text-left hover:bg-[#f4f3f0]"
+              >
+                {people && <Avatar name={o.label} size={36} />}
+                <span className="min-w-0 flex-1">
+                  <span className={`block truncate text-[16px] ${on ? "font-bold" : "font-medium"}`}>{o.label}</span>
+                  {o.sub && (
+                    <span className="block truncate text-[14px] font-medium" style={{ color: C.text2 }}>{o.sub}</span>
+                  )}
+                </span>
+                {on && (
+                  <svg width="16" height="12" viewBox="0 0 11 9" fill="none" aria-hidden className="shrink-0">
+                    <path d="M1 4.6 4 7.6 10 1.4" stroke={C.accentInk} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                )}
+              </button>
+            );
+          })}
         </div>
       )}
     </div>

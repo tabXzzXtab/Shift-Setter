@@ -761,7 +761,7 @@ function Bekrafta({ askedProject, askedDate }: { askedProject: string | null; as
             rows={4}
             value={gjorde}
             onChange={(e) => setGjorde(e.target.value)}
-            className="w-full resize-y rounded-[10px] border-0 p-[14px] text-[16px] font-medium leading-[1.45] outline-none focus:bg-white focus:outline-2 focus:outline-[#1b2cc1]"
+            className="w-full resize-y rounded-[10px] border-0 p-[14px] text-[16px] font-medium leading-[1.45] outline-none focus:bg-white focus:outline-2 focus:outline-[#b64e10]"
             style={{ background: C.panel2, color: C.ink }}
           />
         </Card>

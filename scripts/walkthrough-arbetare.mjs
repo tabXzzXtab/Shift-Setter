@@ -255,13 +255,13 @@ try {
   if (h !== "66px") fail(`the primary action is ${h} tall, the handoff says 66`);
   if (radius !== "12px") fail(`the primary action radius is ${radius}, the handoff says 12`);
   // Clocked OUT at this point, so the accent fill, not ink.
-  if (bg !== "rgb(27, 44, 193)") {
-    fail(`the primary action is ${bg} while clocked out, the handoff says #1b2cc1`);
+  if (bg !== "rgb(232, 122, 70)") {
+    fail(`the primary action is ${bg} while clocked out, the brand fill is #e87a46`);
   }
-  if (!shadow.includes("rgba(27, 44, 193, 0.28)")) {
+  if (!shadow.includes("rgba(232, 122, 70, 0.28)")) {
     fail(`the primary action has no accent shadow: ${shadow}`);
   }
-  log("ground #f7f6f3, Inter, action 66px / radius 12 / #1b2cc1 with its shadow");
+  log("ground #f7f6f3, Inter, action 66px / radius 12 / #e87a46 with its shadow");
 
 
   // ---- the badge sits directly below the stamp -----------------------------
@@ -530,7 +530,7 @@ try {
   if (sheetRadius !== "20px 20px 0px 0px") {
     fail(`the sheet radius is ${sheetRadius}, the handoff says 20px on the top corners only`);
   }
-  if (!sheetShadow.includes("rgba(9, 21, 64, 0.22)")) {
+  if (!sheetShadow.includes("rgba(36, 24, 15, 0.22)")) {
     fail(`the sheet has no upward shadow: ${sheetShadow}`);
   }
   if (Math.abs((sheetBox.y + sheetBox.height) - viewport.height) > 1) {
@@ -602,8 +602,8 @@ try {
   if (!(parseFloat(utRadius) >= utHeight / 2)) fail(`Logga ut radius is ${utRadius}, the design says a pill`);
   const utBg = await ut.evaluate((el) => getComputedStyle(el).backgroundColor);
   if (utBg !== "rgba(0, 0, 0, 0)") fail(`Logga ut is filled ${utBg}; in a sheet it is a text button (SignOut quiet)`);
-  if (utColour !== "rgb(142, 29, 21)") {
-    fail(`Logga ut is ${utColour}, the design's stop ink is #8e1d15`);
+  if (utColour !== "rgb(157, 42, 57)") {
+    fail(`Logga ut is ${utColour}, the stop ink is #9d2a39`);
   }
 
   await shot(page, "w3b-profil-sheet");

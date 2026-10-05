@@ -190,7 +190,7 @@ function SuperScreen() {
                     className="press-scale h-[52px] shrink-0 rounded-[10px] px-[18px] text-[15px] font-bold transition-transform duration-[110ms] active:scale-[.985]"
                     style={{
                       background: busy === t.id ? C.panel2 : C.accent,
-                      color: busy === t.id ? C.text2 : C.surface,
+                      color: busy === t.id ? C.text2 : C.onAccent,
                     }}
                   >
                     {busy === t.id ? "Går in…" : "Gå in"}

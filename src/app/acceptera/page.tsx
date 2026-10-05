@@ -103,7 +103,7 @@ function Acceptera() {
             Erbjudna pass
           </div>
           {offers.length > 1 && (
-            <div className="text-[12px] font-bold" style={{ color: C.accent }}>
+            <div className="text-[12px] font-bold" style={{ color: C.accentInk }}>
               {offers.length} till
             </div>
           )}

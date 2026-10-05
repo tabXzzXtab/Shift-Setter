@@ -72,11 +72,11 @@ export default function AterstallLosenordPage() {
         <div className="px-4 pt-[22px]">
           <Link
             href="/login"
-            className="press-scale flex h-16 w-full items-center justify-center rounded-[12px] text-[20px] font-extrabold transition-[transform,background] duration-150 hover:bg-[#12206b] active:scale-[.985]"
+            className="press-scale flex h-16 w-full items-center justify-center rounded-[12px] text-[20px] font-extrabold transition-[transform,background] duration-150 hover:bg-[#3a2a20] active:scale-[.985]"
             style={{
               letterSpacing: "-.4px",
               background: C.accent,
-              color: C.surface,
+              color: C.onAccent,
               boxShadow: SHADOW.action,
             }}
           >

@@ -182,7 +182,7 @@ export function SoftNastaPass() {
           {next.address && (
             <div
               className="mx-4 mt-4 h-[96px] overflow-hidden rounded-[9px]"
-              style={{ background: C.panel, boxShadow: "inset 0 0 0 1px rgba(9,21,64,.06)" }}
+              style={{ background: C.panel, boxShadow: "inset 0 0 0 1px rgba(36,24,15,.06)" }}
             >
               <ProjectMap address={next.address} />
             </div>

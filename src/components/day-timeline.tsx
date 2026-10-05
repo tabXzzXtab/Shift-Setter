@@ -362,7 +362,7 @@ export function DayTimeline({ date, from, readOnly = false }: {
                     {it.startLabel}–{it.endLabel}{it.overnight ? " (nästa dag)" : ""}
                   </span>
                   {height >= 80 && (
-                    <span className="block truncate text-[14px] font-bold" style={{ color: C.accent }}>
+                    <span className="block truncate text-[14px] font-bold" style={{ color: C.accentInk }}>
                       {it.booked} av {it.headcount} platser
                     </span>
                   )}

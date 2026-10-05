@@ -122,7 +122,7 @@ export default function LoginPage() {
           <Link
             href="/glomt-losenord"
             className="flex min-h-[44px] items-center px-2 text-[15px] font-bold no-underline"
-            style={{ color: C.accent }}
+            style={{ color: C.accentInk }}
           >
             Glömt lösenord?
           </Link>

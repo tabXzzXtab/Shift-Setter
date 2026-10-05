@@ -167,16 +167,16 @@ export function HomeAdmin() {
         <div className="px-4 pt-[6px]">
             <Link
               href="/projekt/ny"
-              className="press-scale mb-[10px] flex h-14 w-full items-center justify-center gap-[10px] rounded-full text-[17px] font-bold transition-[transform,background] duration-150 hover:bg-[#12206b] active:scale-[.985]"
+              className="press-scale mb-[10px] flex h-14 w-full items-center justify-center gap-[10px] rounded-full text-[17px] font-bold transition-[transform,background] duration-150 hover:bg-[#3a2a20] active:scale-[.985]"
               style={{
                 letterSpacing: "-.2px",
                 background: C.accent,
-                color: C.surface,
+                color: C.onAccent,
                 boxShadow: SHADOW.action,
               }}
             >
               <svg width="15" height="15" viewBox="0 0 15 15" fill="none" aria-hidden>
-                <path d="M7.5 1v13M1 7.5h13" stroke={C.surface} strokeWidth="2.4" strokeLinecap="round" />
+                <path d="M7.5 1v13M1 7.5h13" stroke={C.onAccent} strokeWidth="2.4" strokeLinecap="round" />
               </svg>
               Nytt projekt
             </Link>
@@ -189,8 +189,8 @@ export function HomeAdmin() {
                 <Link
                   key={a.href}
                   href={a.href}
-                  className="press-scale flex h-[54px] flex-1 items-center justify-center rounded-full text-[16px] font-bold transition-transform duration-[110ms] hover:bg-[#e9e8e4] active:scale-[.985]"
-                  style={{ letterSpacing: "-.2px", background: C.surface, color: C.inkHover }}
+                  className="press-scale flex h-[54px] flex-1 items-center justify-center rounded-full text-[16px] font-bold transition-transform duration-[110ms] hover:bg-[#f4f3f0] active:scale-[.985]"
+                  style={{ letterSpacing: "-.2px", background: C.surface, border: `1px solid ${C.border}`, color: C.inkHover }}
                 >
                   {a.label}
                 </Link>

@@ -199,7 +199,7 @@ function OppnaPass() {
                   */}
                   <div
                     className="whitespace-nowrap text-[15px] font-bold"
-                    style={{ color: C.accent }}
+                    style={{ color: C.accentInk }}
                   >
                     {String(o.planned_hours).replace(".", ",")} h
                   </div>

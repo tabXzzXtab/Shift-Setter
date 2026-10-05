@@ -97,7 +97,7 @@ export function TourSpotlight({
               left: b.left - PAD,
               width: b.width + PAD * 2,
               height: b.height + PAD * 2,
-              boxShadow: `0 0 0 2px ${C.accent}${single ? ", 0 0 0 9999px rgba(9,21,64,.30)" : ""}`,
+              boxShadow: `0 0 0 2px ${C.accent}${single ? ", 0 0 0 9999px rgba(36,24,15,.30)" : ""}`,
             }}
           >
             <div className="animate-tourpulse absolute inset-0 rounded-[14px]" />
@@ -165,8 +165,8 @@ function Tooltip({
             <button
               type="button"
               onClick={action.onClick}
-              className="press-scale h-11 rounded-[10px] px-[18px] text-[15px] font-bold transition-[transform,background] duration-[110ms] hover:bg-[#12206b] active:scale-[.985]"
-              style={{ background: C.accent, color: C.surface }}
+              className="press-scale h-11 rounded-[10px] px-[18px] text-[15px] font-bold transition-[transform,background] duration-[110ms] hover:bg-[#3a2a20] active:scale-[.985]"
+              style={{ background: C.accent, color: C.onAccent }}
             >
               {action.label}
             </button>
@@ -219,8 +219,8 @@ export function TourBar({
               <button
                 type="button"
                 onClick={action.onClick}
-                className="press-scale h-12 flex-[2] rounded-[10px] text-[16px] font-bold transition-[transform,background] duration-150 hover:bg-[#12206b] active:scale-[.985]"
-                style={{ background: C.accent, color: C.surface }}
+                className="press-scale h-12 flex-[2] rounded-[10px] text-[16px] font-bold transition-[transform,background] duration-150 hover:bg-[#3a2a20] active:scale-[.985]"
+                style={{ background: C.accent, color: C.onAccent }}
               >
                 {action.label}
               </button>

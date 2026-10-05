@@ -200,7 +200,7 @@ function AttGranska() {
                       #5e5a53, as "0 h" is on the startsida -- in accent the dash
                       read as a minus or a collapse control (UI audit). */}
                   <div className="shrink-0 text-[15px] font-bold"
-                       style={{ color: d.hours === null ? C.text2 : C.accent }}>
+                       style={{ color: d.hours === null ? C.text2 : C.accentInk }}>
                     {d.hours === null ? "—" : `${hh(d.hours)} h`}
                   </div>
                 </div>

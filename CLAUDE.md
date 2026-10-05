@@ -199,13 +199,18 @@ only where nobody else's hours are on the day.
 - **Visual system: the handoff (`handoff/README.md`) for layout, type and
   shadows, with the Komponentspråk palette on top (owner-approved 2026-10-05).**
   No same-hue tint pairs -- never a dark ink on a pale tint of itself (pills,
-  badges, tinted buttons, alert boxes, a brand-blue-tinted ground). Grounds are
-  near-neutral stone (`C.ground` #f7f6f3, `C.panel` #f1f0ed); status colour
-  lives only in ink, a dot, an icon or a 1px edge (teal `liveInk`, rust
-  `stopInk`, ochre `warnInk`). One filled accent button per screen; second-rank
-  buttons are white with a 1px `C.border`. The values live in `C` in
-  `src/components/soft.tsx`; the handoff's light-blue table is superseded. The
-  eight project colours are separate and unchanged.
+  badges, tinted buttons, alert boxes, a tinted ground). Grounds are
+  near-neutral stone (`C.ground` #f7f6f3, `C.panel` #f1f0ed) on white cards;
+  status colour lives only in ink, a dot, an icon or a 1px edge (moss
+  `liveInk`, crimson `stopInk`, mustard `warnInk`). **No cool colours**: text
+  is a warm near-black (`C.ink` #24180f), shadows are warm brown.
+  **The brand colour is orange `C.accent` #e87a46 as a FILL** -- white on it
+  is only 2.9:1, so what sits on it is `C.onAccent` (the dark ink, 6.1:1), and
+  the accent as text or an icon on white is `C.accentInk` #b64e10 (5.1:1).
+  One filled accent button per screen; second-rank buttons are white with a
+  1px `C.border`. The values live in `C` in `src/components/soft.tsx`; the
+  handoff's light-blue table is superseded. The eight project colours are
+  separate and unchanged (a DB constraint lists them).
 - **Project colours on the shift calendar are a fixed palette, not a hashed
   hue** -- hashing produces neighbouring greens eventually, and two sites that
   look alike is the failure the colour exists to prevent. A project's colour is

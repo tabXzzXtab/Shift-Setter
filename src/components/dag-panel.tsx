@@ -431,7 +431,7 @@ export function DagPanel({ date, heading = true, project }: {
                   style={{
                     letterSpacing: "-.2px",
                     background: on ? C.accent : C.panel2,
-                    color: on ? C.surface : C.inkHover,
+                    color: on ? C.onAccent : C.inkHover,
                   }}
                 >
                   {/* The same colour the day wore on the calendar. Findable by
@@ -514,7 +514,7 @@ export function DagPanel({ date, heading = true, project }: {
               </p>
               {/* Step 4b: the leader's row was never a slot the pass demanded,
                   so it is not counted against the headcount here either. */}
-              <p className="mb-[14px] text-[15px] font-bold" style={{ color: C.accent }}>
+              <p className="mb-[14px] text-[15px] font-bold" style={{ color: C.accentInk }}>
                 {p.people.filter((x) => x.source !== "ledare").length} av {p.headcount} platser
               </p>
 
@@ -639,8 +639,8 @@ export function DagPanel({ date, heading = true, project }: {
                       type="button"
                       onClick={() => saveEdit(p)}
                       disabled={busy === p.id}
-                      className="press-scale flex h-12 flex-1 items-center justify-center rounded-[10px] text-[15px] font-bold transition-transform duration-[110ms] hover:bg-[#12206b] active:scale-[.985] disabled:opacity-40"
-                      style={{ background: C.accent, color: C.surface }}
+                      className="press-scale flex h-12 flex-1 items-center justify-center rounded-[10px] text-[15px] font-bold transition-transform duration-[110ms] hover:bg-[#3a2a20] active:scale-[.985] disabled:opacity-40"
+                      style={{ background: C.accent, color: C.onAccent }}
                     >
                       Spara
                     </button>

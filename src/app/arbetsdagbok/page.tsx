@@ -25,7 +25,7 @@ const RailPin = () => (
   <svg width="26" height="26" viewBox="0 0 24 24" aria-hidden focusable="false">
     <path
       d="M12 23.5c0 0 7.6-8.7 7.6-14.4a7.6 7.6 0 1 0-15.2 0C4.4 14.8 12 23.5 12 23.5z"
-      fill={C.accent}
+      fill={C.accentInk}
     />
     <circle cx="12" cy="9" r="2.8" fill={C.surface} />
   </svg>

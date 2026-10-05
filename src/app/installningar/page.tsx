@@ -194,16 +194,16 @@ function AllaKonton() {
       <div className="px-4 pt-[2px]">
         <Link
           href="/arbetare/ny"
-          className="press-scale flex h-14 w-full items-center justify-center gap-[10px] rounded-[12px] text-[17px] font-extrabold transition-[transform,background] duration-150 hover:bg-[#12206b] active:scale-[.985]"
+          className="press-scale flex h-14 w-full items-center justify-center gap-[10px] rounded-[12px] text-[17px] font-extrabold transition-[transform,background] duration-150 hover:bg-[#3a2a20] active:scale-[.985]"
           style={{
             letterSpacing: "-.3px",
             background: C.accent,
-            color: C.surface,
-            boxShadow: "0 6px 18px rgba(27,44,193,.26)",
+            color: C.onAccent,
+            boxShadow: "0 6px 18px rgba(232,122,70,.26)",
           }}
         >
           <svg width="15" height="15" viewBox="0 0 15 15" fill="none" aria-hidden>
-            <path d="M7.5 1v13M1 7.5h13" stroke={C.surface} strokeWidth="2.4" strokeLinecap="round" />
+            <path d="M7.5 1v13M1 7.5h13" stroke={C.onAccent} strokeWidth="2.4" strokeLinecap="round" />
           </svg>
           Tillverka Konto
         </Link>

@@ -190,8 +190,8 @@ export function HomeArbetsledare() {
           {/* 66px, the one primary action on the screen. */}
           <Link
             href="/bekrafta"
-            className="press-scale flex h-[66px] w-full items-center justify-center rounded-[12px] text-[23px] font-extrabold transition-[transform,background] duration-150 hover:bg-[#12206b] active:scale-[.985]"
-            style={{ letterSpacing: "-.5px", background: C.accent, color: C.surface, boxShadow: SHADOW.action }}
+            className="press-scale flex h-[66px] w-full items-center justify-center rounded-[12px] text-[23px] font-extrabold transition-[transform,background] duration-150 hover:bg-[#3a2a20] active:scale-[.985]"
+            style={{ letterSpacing: "-.5px", background: C.accent, color: C.onAccent, boxShadow: SHADOW.action }}
           >
             Bekräfta pass
           </Link>
@@ -219,16 +219,16 @@ export function HomeArbetsledare() {
             key={a.href}
             href={a.href}
             className={`press-scale flex h-[60px] min-w-0 flex-1 items-center justify-center gap-[8px] rounded-[12px] text-[16px] font-bold transition-transform duration-[110ms] active:scale-[.985] ${
-              a.lead ? "hover:bg-[#12206b]" : "hover:bg-[#e9e8e4]"
+              a.lead ? "hover:bg-[#3a2a20]" : "hover:bg-[#e9e8e4]"
             }`}
             style={
               a.lead
-                ? { letterSpacing: "-.3px", background: C.accent, color: C.surface, boxShadow: SHADOW.action }
+                ? { letterSpacing: "-.3px", background: C.accent, color: C.onAccent, boxShadow: SHADOW.action }
                 : { letterSpacing: "-.3px", background: C.surface, border: `1px solid ${C.border}`, color: C.inkHover }
             }
           >
             <svg width="13" height="13" viewBox="0 0 15 15" fill="none" aria-hidden>
-              <path d="M7.5 1v13M1 7.5h13" stroke={a.lead ? C.surface : C.inkHover} strokeWidth="2.4" strokeLinecap="round" />
+              <path d="M7.5 1v13M1 7.5h13" stroke={a.lead ? C.onAccent : C.inkHover} strokeWidth="2.4" strokeLinecap="round" />
             </svg>
             {a.label}
           </Link>

@@ -60,7 +60,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   // The colour the phone paints its chrome with when the app is installed.
   // Next wants this on viewport rather than metadata since 14.
-  themeColor: "#091540",
+  themeColor: "#24180f",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

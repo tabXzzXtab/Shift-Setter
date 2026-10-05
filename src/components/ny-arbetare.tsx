@@ -166,7 +166,7 @@ export function NyArbetareForm({
           admin has done anything rather than only once they are stuck. */}
       <div
         className="px-1 pb-[10px] text-[12px] font-bold uppercase"
-        style={{ letterSpacing: "1px", color: ready ? C.text2 : C.accent }}
+        style={{ letterSpacing: "1px", color: ready ? C.text2 : C.accentInk }}
       >
         Steg 1 av 3
       </div>
@@ -293,7 +293,7 @@ export function NyArbetareForm({
         */}
         <div
           className="px-1 pb-[10px] text-[12px] font-bold uppercase"
-          style={{ letterSpacing: "1px", color: copied ? C.text2 : C.accent }}
+          style={{ letterSpacing: "1px", color: copied ? C.text2 : C.accentInk }}
         >
           {copied ? "Steg 3 av 3" : "Steg 2 av 3"}
         </div>
@@ -319,7 +319,7 @@ export function NyArbetareForm({
               style={{
                 letterSpacing: "-.4px",
                 background: ready ? C.accent : C.hairline,
-                color: ready ? C.surface : C.chevron,
+                color: ready ? C.onAccent : C.chevron,
                 boxShadow: ready ? SHADOW.action : undefined,
                 cursor: ready ? undefined : "not-allowed",
               }}
@@ -356,7 +356,7 @@ export function NyArbetareForm({
           style={{
             letterSpacing: "-.4px",
             background: copied ? C.accent : C.hairline,
-            color: copied ? C.surface : C.chevron,
+            color: copied ? C.onAccent : C.chevron,
             boxShadow: copied ? SHADOW.action : undefined,
             cursor: copied ? undefined : "not-allowed",
           }}
