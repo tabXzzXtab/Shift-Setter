@@ -5,9 +5,12 @@
  * What it proves:
  *
  *   - the tour opens on first login, per role, at step 1
- *   - a nav step rings the real element, and a real TAP on it moves the tour on
+ *   - every step opens as a WHITE FULL SCREEN with nothing of the app behind it;
+ *     a step that needs the app offers "Visa mig", which shows the app with only
+ *     a ring on the element -- no tooltip, no bar -- and a real TAP on it moves
+ *     the tour on
  *   - autofill writes into the form and NEVER SUBMITS: after it finishes and the
- *     tooltip sits on the button, the database holds nothing new
+ *     ring sits on the button, the database holds nothing new
  *   - a step that waits for a real write advances on that write (availability)
  *   - a step whose precondition is unmet, or whose element never appears,
  *     arrives as a card instead of stranding anybody
@@ -97,7 +100,11 @@ async function tap(page, locator) {
 }
 
 const card = (page) => page.locator('[data-tour-ui="card"]');
-const tip = (page) => page.locator('[data-tour-ui="tip"], [data-tour-ui="bar"]');
+/** A step's full screen that leads into the app. */
+const reveal = (page) => card(page).filter({ has: page.getByRole("button", { name: "Visa mig", exact: true }) });
+/** A full screen that is the whole step: a card, or a step that fell back to one. */
+const plain = (page) => card(page).filter({ has: page.getByRole("button", { name: "Nästa", exact: true }) });
+const rings = (page) => page.locator('[data-tour-ui="rings"] > div');
 
 async function expectCard(page, text, why) {
   try {
@@ -115,7 +122,7 @@ async function expectCard(page, text, why) {
  * Not elementFromPoint: a Leaflet map once drew straight through the card,
  * and hit-testing still answered "the button", because Leaflet's layers take
  * no pointer events. A person saw a map where the button should be. So this
- * samples the button's own left padding, clear of its white label, and wants
+ * samples the button's own right padding, clear of its white label, and wants
  * the accent fill there.
  *
  * After the page has finished arriving: the maps mount once their address is
@@ -124,10 +131,13 @@ async function expectCard(page, text, why) {
 async function expectPainted(page, why) {
   await page.waitForLoadState("networkidle", { timeout: 15000 }).catch(() => {});
   await page.waitForTimeout(800);
-  const b = await card(page).getByRole("button").first().boundingBox();
-  const png = await page.screenshot({ clip: { x: b.x + 8, y: b.y + b.height / 2 - 3, width: 6, height: 6 } });
+  // The step's one button, not the ✕ that ends the guide.
+  const b = await card(page).locator("[data-tour-next] button").first().boundingBox();
+  // The RIGHT padding: on the dev server Next.js draws its badge bottom-left,
+  // over the left end of a full-width button.
+  const png = await page.screenshot({ clip: { x: b.x + b.width - 14, y: b.y + b.height / 2 - 3, width: 6, height: 6 } });
   const { data, info } = await sharp(png).removeAlpha().raw().toBuffer({ resolveWithObject: true });
-  const accent = [0x1b, 0x2c, 0xc1];
+  const accent = [0xe8, 0x7a, 0x46];
   let hits = 0;
   const total = data.length / info.channels;
   for (let i = 0; i < data.length; i += info.channels) {
@@ -136,7 +146,7 @@ async function expectPainted(page, why) {
   }
   if (hits < total * 0.9) {
     await shot(page, "FAILED");
-    fail(`${why}: the card's button is not what is painted there -- ${hits}/${total} accent pixels, first rgb(${data[0]},${data[1]},${data[2]})`);
+    fail(`${why}: the step's button is not what is painted there -- ${hits}/${total} accent pixels, first rgb(${data[0]},${data[1]},${data[2]})`);
   }
 }
 
@@ -147,15 +157,48 @@ async function nextCard(page, text, why) {
 }
 
 /**
+ * The step's full screen says what to do, in the step's own words, and its
+ * "Visa mig" is pressed. The screen must be the whole viewport, white, with
+ * its button painted -- the app is not supposed to show through it.
+ */
+async function showMe(page, text, why) {
+  try {
+    await reveal(page).filter({ hasText: text }).waitFor({ timeout: 20000 });
+  } catch {
+    await shot(page, "FAILED");
+    fail(`${why}: no full screen saying ${JSON.stringify(text)} with Visa mig`);
+  }
+  await expectFullScreen(page, why);
+  await expectPainted(page, why);
+  await tap(page, reveal(page).getByRole("button", { name: "Visa mig", exact: true }));
+  await reveal(page).filter({ hasText: text }).waitFor({ state: "detached", timeout: 20000 })
+    .catch(() => fail(`${why}: Visa mig left the full screen standing`));
+}
+
+/** The step covers the whole viewport in white: nothing of the app shows. */
+async function expectFullScreen(page, why) {
+  const vp = page.viewportSize();
+  const r = await card(page).first().evaluate((e) => {
+    const b = e.getBoundingClientRect();
+    return { x: b.x, y: b.y, w: b.width, h: b.height, bg: getComputedStyle(e).backgroundColor };
+  });
+  if (r.x > 0.5 || r.y > 0.5 || r.w < vp.width - 1 || r.h < vp.height - 1) {
+    await shot(page, "FAILED");
+    fail(`${why}: the step is not full screen (${JSON.stringify(r)} in ${vp.width}x${vp.height})`);
+  }
+  if (r.bg !== "rgb(255, 255, 255)") fail(`${why}: the step's screen is ${r.bg}, not white`);
+}
+
+/**
  * The ring is on the element: their boxes overlap, the ring a little larger.
- * And -- unless several things are ringed at once -- the element is ON SCREEN
- * with the tooltip anchored to it. A ring around a button below the fold,
- * under a bar saying "tryck här", passed the overlap check alone.
+ * And -- unless several things are ringed at once -- the element is ON SCREEN.
+ * A ring around a button below the fold passed the overlap check alone.
+ * Nothing else of the tour is drawn over the app: no card, no tooltip.
  */
 async function expectRingOn(page, target, why, { anchored = true } = {}) {
   try {
     await target.first().waitFor({ state: "visible", timeout: 20000 });
-    await page.locator('[data-tour-ui="rings"] > div').first().waitFor({ timeout: 20000 });
+    await rings(page).first().waitFor({ timeout: 20000 });
   } catch {
     await shot(page, "FAILED");
     fail(`${why}: no ring drawn`);
@@ -170,13 +213,17 @@ async function expectRingOn(page, target, why, { anchored = true } = {}) {
   }
   await page.waitForTimeout(100);
   const t = await target.first().boundingBox();
-  const rings = await page.locator('[data-tour-ui="rings"] > div').evaluateAll((els) =>
+  const boxes = await rings(page).evaluateAll((els) =>
     els.map((e) => { const r = e.getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height }; }));
-  const around = rings.some((r) =>
+  const around = boxes.some((r) =>
     r.x <= t.x + 1 && r.y <= t.y + 1 && r.x + r.w >= t.x + t.width - 1 && r.y + r.h >= t.y + t.height - 1);
   if (!around) {
     await shot(page, "FAILED");
-    fail(`${why}: the ring is not around the element (ring ${JSON.stringify(rings)}, element ${JSON.stringify(t)})`);
+    fail(`${why}: the ring is not around the element (ring ${JSON.stringify(boxes)}, element ${JSON.stringify(t)})`);
+  }
+  if (await page.locator('[data-tour-ui]:not([data-tour-ui="rings"])').count()) {
+    await shot(page, "FAILED");
+    fail(`${why}: something besides the ring is drawn over the app`);
   }
   if (anchored) {
     const b = t;
@@ -185,48 +232,43 @@ async function expectRingOn(page, target, why, { anchored = true } = {}) {
       await shot(page, "FAILED");
       fail(`${why}: the ringed element is off screen (y ${Math.round(b.y)}-${Math.round(b.y + b.height)} of ${vh})`);
     }
-    if (!(await page.locator('[data-tour-ui="tip"]').count())) {
-      await shot(page, "FAILED");
-      fail(`${why}: the tip is not anchored to the element`);
-    }
   }
 }
 
 /**
- * What a step shows once it has settled: its ring, or its card -- and when it
- * lives on another screen, the "Ta mig dit" offer, which is taken and the
- * question asked again. Which of the three depends on the tenancy's data (an
- * offer, a waiting day), so the run asks rather than assumes.
+ * What a step shows once it has settled: its ring, or a full screen that is
+ * the whole step (a card, or a step that fell back to one). A full screen
+ * offering "Visa mig" is pressed -- taking the person to the step's screen if
+ * it lives elsewhere -- and the question asked again. Which it ends as depends
+ * on the tenancy's data (an offer, a waiting day), so the run asks rather than
+ * assumes.
  */
 async function settle(page, why) {
   const seen = (loc, tag) =>
     loc.waitFor({ timeout: 30000 }).then(() => tag, () => new Promise(() => {}));
-  const go = tip(page).getByRole("button", { name: "Ta mig dit" });
-  for (let i = 0; i < 2; i++) {
+  const go = reveal(page).getByRole("button", { name: "Visa mig", exact: true });
+  for (let i = 0; i < 3; i++) {
     const what = await Promise.race([
       seen(go.first(), "go"),
-      seen(page.locator('[data-tour-ui="rings"] > div').first(), "ring"),
-      seen(card(page).first(), "card"),
+      seen(rings(page).first(), "ring"),
+      seen(plain(page).first(), "card"),
       new Promise((r) => setTimeout(() => r(null), 32000)),
     ]);
-    if (!what) { await shot(page, "FAILED"); fail(`${why}: the step never showed a ring, a card or a way there`); }
+    if (!what) { await shot(page, "FAILED"); fail(`${why}: the step never showed a ring, a card or Visa mig`); }
     if (what !== "go") return what;
+    await expectFullScreen(page, why);
     await tap(page, go);
-    // The bar stays drawn until the navigation lands; asking again before it
-    // leaves would find the same bar and take it for the answer.
+    // The screen stays until the navigation lands; asking again before it
+    // leaves would find the same screen and take it for the answer.
     await go.first().waitFor({ state: "detached", timeout: 20000 }).catch(() => {});
   }
   await shot(page, "FAILED");
-  fail(`${why}: "Ta mig dit" did not arrive anywhere (now at ${new URL(page.url()).pathname})`);
-}
-
-async function skip(page) {
-  await tap(page, tip(page).getByRole("button", { name: "Hoppa över" }));
+  fail(`${why}: "Visa mig" did not arrive anywhere (now at ${new URL(page.url()).pathname})`);
 }
 
 async function expectNoTour(page, why) {
   await page.waitForTimeout(5000);
-  if (await card(page).count() || await tip(page).count()) {
+  if (await page.locator("[data-tour-ui]").count()) {
     await shot(page, "FAILED");
     fail(why);
   }
@@ -290,8 +332,9 @@ try {
     await signIn(page, email, password);
 
     await expectCard(page, "Allt börjar med ett projekt.", "admin: first login");
-    // Progress is a bar now, not "Steg 1 av 9": a quarter full on step one,
-    // never empty.
+    await expectFullScreen(page, "admin: first login");
+    // Progress is the numbered dots, a progressbar to assistive tech: a
+    // quarter on step one, never empty.
     const bar = page.getByRole("progressbar", { name: "Hur långt du har kommit" });
     if ((await bar.getAttribute("aria-valuenow")) !== "25") {
       fail(`admin: the first card's progress is ${await bar.getAttribute("aria-valuenow")}, wanted 25`);
@@ -300,12 +343,16 @@ try {
     await nextCard(page, "Allt börjar med ett projekt.", "admin: first login");
     log("admin: first login opens on step 1, the project card");
 
+    await showMe(page, "Tryck på Nytt projekt.", "admin step 2");
     const nytt = page.getByRole("link", { name: "Nytt projekt" });
     await expectRingOn(page, nytt, "admin step 2");
     await shot(page, "admin-2-ring");
     await tap(page, nytt);
     await page.waitForURL((u) => u.pathname.startsWith("/projekt/ny"), { timeout: 20000 });
-    log("admin: Nytt projekt ringed; a tap on it opened the form");
+    log("admin: Visa mig, then Nytt projekt ringed; a tap on it opened the form");
+
+    // Nothing is typed until the person asks to see it.
+    await showMe(page, "Vi fyller i ett exempelprojekt åt dig.", "admin step 3");
 
     // Caught mid-type: the typewriter, not a value set in one go.
     const name = page.locator('input[name="name"]');
@@ -313,7 +360,10 @@ try {
       const v = document.querySelector('input[name="name"]')?.value ?? "";
       return v.length > 0 && v.length < "Fasad Malmö".length;
     }, null, { timeout: 20000 }).catch(() => fail("admin: never saw the project name part-typed"));
-    await page.getByText("Ett exempelprojekt.").waitFor({ timeout: 30000 });
+    await page.waitForFunction(() => document.querySelector('input[name="name"]')?.value === "Fasad Malmö",
+      null, { timeout: 30000 }).catch(() => fail("admin: the project name never finished typing"));
+    await rings(page).first().waitFor({ timeout: 30000 })
+      .catch(() => fail("admin: autofill finished and nothing was ringed"));
     const values = await page.evaluate(() =>
       ["name", "site_address", "start_date", "bestallare_bolag", "bestallare_address", "bestallare_orgnr"]
         .map((k) => [k, document.querySelector(`[name="${k}"]`)?.value ?? ""]));
@@ -339,11 +389,11 @@ try {
       "Arbetsledaren kollar att allt stämmer",
       "Sista steget är ditt.",
     ]) await nextCard(page, text, "admin cards 4-7");
-    log("admin: Hoppa över, then the four explanation cards");
+    log("admin: the four explanation cards");
 
     // Step 8 is on the startsida and the admin is on /projekt/ny.
-    await tip(page).getByRole("button", { name: "Ta mig dit" }).waitFor({ timeout: 20000 })
-      .catch(() => fail("admin step 8: no Ta mig dit while on another screen"));
+    await reveal(page).filter({ hasText: "Generera Arbetsdagbok" }).waitFor({ timeout: 20000 })
+      .catch(() => fail("admin step 8: no Visa mig while on another screen"));
     if ((await settle(page, "admin step 8")) !== "ring") fail("admin step 8: arrived as a card, with a project in the tenancy");
     const row = page.locator("[data-project] > button");
     await expectRingOn(page, row, "admin step 8 (the project row, until it is open)");
@@ -353,15 +403,19 @@ try {
     await shot(page, "admin-8-generera");
     await tap(page, gen);
     await page.waitForURL((u) => u.pathname.startsWith("/arbetsdagbok"), { timeout: 20000 });
-    log("admin: off-screen step offered Ta mig dit; the ring moved from the row to Generera Arbetsdagbok; arriving advanced it");
+    log("admin: off-screen step offered Visa mig; the ring moved from the row to Generera Arbetsdagbok; arriving advanced it");
 
     // Step 9: ringed if a confirmed day exists in the tenancy, a card if not.
     const nine = await settle(page, "admin step 9");
     await shot(page, "admin-9");
     if (nine === "ring") {
-      await expectRingOn(page, page.getByRole("button", { name: "Generera Arbetsdagbok" }), "admin step 9");
-      await skip(page);
-      log("admin: step 9 ringed Generera Arbetsdagbok (a confirmed day exists); skipped rather than filed");
+      const generera = page.getByRole("button", { name: "Generera Arbetsdagbok" });
+      await expectRingOn(page, generera, "admin step 9");
+      await tap(page, generera);
+      await expectCard(page, "Välkommen till ByggKoll.", "admin: pressing Generera Arbetsdagbok did not move the tour on");
+      const filed = count(`select count(*)::int as n from public.arbetsdagbok where generated_at > to_timestamp(${t0})`);
+      if (filed !== 0) fail(`admin: the tour let Generera Arbetsdagbok through -- ${filed} filed`);
+      log("admin: step 9 ringed Generera Arbetsdagbok; pressed, caught, and nothing was filed");
     } else {
       await nextCard(page, "Här genererar du Arbetsdagboken", "admin step 9 fallback");
       log("admin: step 9 had no confirmed day to file, and arrived as a card");
@@ -382,14 +436,15 @@ try {
 
     await nextCard(page, "Ditt företag har ett projekt som behöver folk.", "leader: first login");
     await nextCard(page, "Nu är det din tur att skapa ett pass.", "leader card 2");
+    await showMe(page, "Tryck på Skapa pass.", "leader step 3");
     const skapa = page.getByRole("link", { name: "Skapa pass" });
     await expectRingOn(page, skapa, "leader step 3");
     await tap(page, skapa);
     await page.waitForURL((u) => u.pathname.startsWith("/pass/ny"), { timeout: 20000 });
     log("leader: two cards, then Skapa pass ringed and tapped");
 
-    // The days: a card, then two ringed days and NO tip -- the leader taps
-    // both, and the tour moves on when both are chosen.
+    // The days: a card, the full screen, then two ringed days and nothing
+    // else -- the leader taps both, and the tour moves on when both are chosen.
     await nextCard(page, "Välj de dagar du vill ha folk på plats.", "leader card 4");
     const [d1, d2] = (() => {
       const plus = (ymd, n) => { const d = new Date(`${ymd}T12:00:00Z`); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
@@ -397,37 +452,39 @@ try {
       const after = plus(first, 1);
       return [first, after.slice(0, 7) === first.slice(0, 7) ? after : plus(first, -1)];
     })();
+    await showMe(page, "Tryck på två dagar i kalendern.", "leader step 5");
     const day1 = page.locator(`[data-date="${d1}"]`);
     const day2 = page.locator(`[data-date="${d2}"]`);
     await expectRingOn(page, day1, "leader step 5, first day", { anchored: false });
     await expectRingOn(page, day2, "leader step 5, second day", { anchored: false });
-    if (await page.locator('[data-tour-ui="bar"] p, [data-tour-ui="tip"] p').count()) {
-      fail("leader step 5: the two-day step shows a tip; it should show only its rings");
-    }
     await shot(page, "ledare-5-dagar");
     await tap(page, day1);
     await tap(page, day2);
     await nextCard(page, "Bra. Nu fyller vi i detaljerna.", "leader: tapping both ringed days did not advance");
-    log(`leader: ${d1} and ${d2} ringed with no tip, tapped, and the tour moved on`);
+    log(`leader: ${d1} and ${d2} ringed with nothing else drawn, tapped, and the tour moved on`);
 
+    await showMe(page, "Tryck på Fortsätt.", "leader step 7");
     const fortsatt = page.getByRole("button", { name: "Fortsätt" });
     await expectRingOn(page, fortsatt, "leader step 7, Fortsätt");
     await tap(page, fortsatt);
 
-    // A SANDBOX STEP: filled, the real button ringed but swallowed, Nästa ends it.
-    await page.getByText("Så här skapar du ett pass.").waitFor({ timeout: 30000 });
-    const hours = await page.getByLabel("Timmar på rad 1").inputValue();
+    // A SANDBOX STEP: filled, the real button ringed, and the press on it --
+    // caught -- is what ends it.
+    await showMe(page, "Så här skapar du ett pass.", "leader step 8");
+    const create = page.getByRole("button", { name: /^Skapa \d+ pass$/ });
+    await rings(page).first().waitFor({ timeout: 30000 })
+      .catch(() => fail("leader: autofill finished and nothing was ringed"));
+    const hours = await page.getByLabel("Timmar på rad 1", { exact: true }).inputValue();
     if (hours !== "8") fail(`leader: autofill left Timmar at ${JSON.stringify(hours)}, wanted "8"`);
-    const create = page.getByRole("button", { name: /^Skapa d+ pass$/ });
     await expectRingOn(page, create, "leader step 8, detail");
     await shot(page, "ledare-8-ifylld");
     await tap(page, create);
+    await expectCard(page, "Arbetarna som är lediga kan nu se ditt pass.", "leader: pressing Skapa did not move the tour on");
     await page.waitForTimeout(2500);
     const passes = count(`select count(*)::int as n from public.pass p join auth.users u on u.id = p.created_by
       where lower(u.email) = lower('${esc(email)}') and p.created_at > to_timestamp(${t0})`);
     if (passes !== 0) fail(`leader: the sandbox step let Skapa through -- ${passes} pass(es) were created`);
-    log(`leader: form filled (${hours} h), Skapa pressed and swallowed -- nothing was created`);
-    await tap(page, page.locator('[data-tour-ui="tip"], [data-tour-ui="bar"]').getByRole("button", { name: "Nästa", exact: true }));
+    log(`leader: form filled (${hours} h), Skapa pressed and swallowed -- nothing was created, the tour moved on`);
     await nextCard(page, "Arbetarna som är lediga kan nu se ditt pass.", "leader card 5");
     await nextCard(page, "När passen är över ska du kolla", "leader card 6");
 
@@ -443,12 +500,16 @@ try {
       await expectRingOn(page, bek, "leader step 7");
       await tap(page, bek);
       await page.waitForURL((u) => u.pathname.startsWith("/bekrafta"), { timeout: 20000 });
+      await showMe(page, "Här skriver du hur många timmar", "leader step 8");
       await expectRingOn(page, page.locator("#vad-vi-gjorde"), "leader step 8, Vad vi gjorde", { anchored: false });
-      if (!(await page.locator('[data-tour-ui="bar"]').count())) fail("leader step 8: several rings, but the tip is not in the bar");
       const typed = await page.locator("#vad-vi-gjorde").inputValue();
       await shot(page, "ledare-8-bekrafta");
-      log(`leader: a day is waiting -- Timmar and Vad vi gjorde ringed, nothing typed into them (${JSON.stringify(typed)})`);
-      await skip(page);
+      // Bekräfta dagen is disabled with the text empty; the press is caught
+      // either way and is what moves the step on.
+      await tap(page, page.getByRole("button", { name: "Bekräfta dagen" }));
+      await expectCard(page, "Välkommen till ByggKoll.", "leader: pressing Bekräfta dagen did not move the tour on");
+      if (!page.url().includes("/bekrafta")) fail("leader: Bekräfta dagen went through -- the page left the day");
+      log(`leader: a day is waiting -- Timmar and Vad vi gjorde ringed, nothing typed into them (${JSON.stringify(typed)}); Bekräfta dagen caught`);
     }
 
     await finish(page, "leader");
@@ -465,6 +526,7 @@ try {
     await signIn(page, email, password);
 
     await nextCard(page, "Boka de dagar du kan jobba.", "worker: first login");
+    await showMe(page, "Tryck på Arbetsdagar.", "worker step 2");
     const dagar = page.getByRole("link", { name: "Arbetsdagar" });
     await expectRingOn(page, dagar, "worker step 2");
     await tap(page, dagar);
@@ -472,6 +534,7 @@ try {
     log("worker: Arbetsdagar ringed and tapped");
 
     // The tap is caught: the tour moves on and the day stays unmarked.
+    await showMe(page, "Tryck på en dag du kan jobba.", "worker step 3");
     const grid = page.locator("[data-date]").first().locator("..");
     await expectRingOn(page, grid, "worker step 3");
     await shot(page, "arbetare-3-kalender");
@@ -498,10 +561,16 @@ try {
       await expectRingOn(page, visa, "worker step 6");
       await tap(page, visa);
       await page.waitForURL((u) => u.pathname.startsWith("/acceptera"), { timeout: 20000 });
-      await expectRingOn(page, page.getByRole("button", { name: "Acceptera", exact: true }), "worker step 7");
+      await showMe(page, "Tryck Acceptera på ett pass du vill ta.", "worker step 7");
+      const acc = page.getByRole("button", { name: "Acceptera", exact: true });
+      await expectRingOn(page, acc, "worker step 7");
       await shot(page, "arbetare-7-acceptera");
-      await skip(page);
-      log("worker: Visa alla ringed and tapped; Acceptera ringed on the queue, skipped rather than taken");
+      await tap(page, acc);
+      await expectCard(page, "På dagen, tryck in när du är på plats.", "worker: pressing Acceptera did not move the tour on");
+      const took = count(`select count(*)::int as n from public.tilldelning t join auth.users u on u.id = t.worker_id
+        where lower(u.email) = lower('${esc(email)}') and t.created_at > to_timestamp(${t0})`);
+      if (took !== 0) fail(`worker: the tour let Acceptera through -- ${took} tilldelning(ar)`);
+      log("worker: Visa alla ringed and tapped; Acceptera ringed on the queue, pressed, caught, nothing taken");
     } else {
       await nextCard(page, "Lediga pass visas under Acceptera pass", "worker step 6 fallback");
       log("worker: no offer -- step 6 arrived as a card and step 7 was skipped");
@@ -516,8 +585,10 @@ try {
       await nextCard(page, "När du har ett pass idag visas Stämpla In", "worker step 9 fallback");
       log("worker: no shift today -- Stämpla In never appeared, and the step became its card");
     } else {
-      await skip(page);
-      log("worker: a shift today -- Stämpla In ringed, skipped rather than stamped");
+      const stamp = page.getByRole("button", { name: "Stämpla In" });
+      await expectRingOn(page, stamp, "worker step 9");
+      await tap(page, stamp);
+      log("worker: a shift today -- Stämpla In ringed, pressed and caught");
     }
 
     await finish(page, "worker");

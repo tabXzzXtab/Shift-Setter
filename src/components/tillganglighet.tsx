@@ -185,7 +185,7 @@ export function Tillganglighet() {
                       : C.panel2,
                 // The unavailable day gets a ring as well as a fill, so it is
                 // not a colour alone that separates it from an unmarked one.
-                boxShadow: !past && mark === false ? `inset 0 0 0 1.5px ${C.stopInk}` : undefined,
+                boxShadow: !past && mark === false ? `inset 0 0 0 1.5px ${C.stopMark}` : undefined,
                 color: past
                   ? C.chevron
                   : mark === true ? C.surface
@@ -245,7 +245,7 @@ export function Tillganglighet() {
           <div className="flex items-center gap-[10px]">
             <span
               className="flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-[7px]"
-              style={{ background: C.stopBg, boxShadow: `inset 0 0 0 1.5px ${C.stopInk}` }}
+              style={{ background: C.stopBg, boxShadow: `inset 0 0 0 1.5px ${C.stopMark}` }}
             >
               <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden>
                 <path d="M1.6 1.6l6.8 6.8M8.4 1.6l-6.8 6.8" stroke={C.stopInk}

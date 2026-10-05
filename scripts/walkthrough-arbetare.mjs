@@ -607,8 +607,8 @@ try {
   if (!(parseFloat(utRadius) >= utHeight / 2)) fail(`Logga ut radius is ${utRadius}, the design says a pill`);
   const utBg = await ut.evaluate((el) => getComputedStyle(el).backgroundColor);
   if (utBg !== "rgba(0, 0, 0, 0)") fail(`Logga ut is filled ${utBg}; in a sheet it is a text button (SignOut quiet)`);
-  if (utColour !== "rgb(157, 42, 57)") {
-    fail(`Logga ut is ${utColour}, the stop ink is #9d2a39`);
+  if (utColour !== "rgb(193, 28, 4)") {
+    fail(`Logga ut is ${utColour}, the stop ink is #c11c04`);
   }
 
   await shot(page, "w3b-profil-sheet");

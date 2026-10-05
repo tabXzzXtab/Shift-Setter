@@ -9,11 +9,13 @@ import { addDays, stockholmToday } from "@/lib/dates";
  *
  * THREE KINDS OF STEP.
  *
- *   card      a full-screen card over the blurred app. Text and "Nästa".
- *   nav       the real screen, one element ringed, a tooltip pointing at it.
- *             The person does the thing; the step waits for it.
- *   autofill  the real form, filled in by the tour a character at a time,
- *             then a tooltip at the button. The person presses it.
+ *   card      a white full screen. One sentence and "Nästa".
+ *   nav       a white full screen saying what to do, then -- at "Visa mig" --
+ *             the real screen with only a ring on the element. The person
+ *             does the thing; the step waits for it.
+ *   autofill  the same full screen, then the real form filled in by the tour
+ *             a character at a time and a ring on the button. The person
+ *             presses it, and the press is caught.
  *
  * NOTHING HERE WRITES, AND NOTHING THE TOUR ASKS FOR DOES EITHER. Autofill
  * sets what a form shows. A step whose button would write -- Skapa projekt,
@@ -29,7 +31,8 @@ import { addDays, stockholmToday } from "@/lib/dates";
  * unmet, it is shown as a card carrying `otherwise`, or skipped when it has
  * none (the step after a fallback card usually has nothing left to add). A nav
  * step whose element never appears falls back to `missing` the same way. And
- * every nav and autofill step carries "Hoppa över", so nothing traps anybody.
+ * every nav and autofill step's full screen carries "Hoppa över", so nothing
+ * traps anybody.
  *
  * Targets are found by what a person reads -- a button's name, a field's
  * label -- rather than by attributes added for the tour. The screens are
@@ -88,7 +91,8 @@ export type NavStep = Gate & {
    *   "tap"    a real tap on a target, which still does what it does (navigation)
    *   "press"  a press on a target, CAUGHT before the page sees it -- the tour
    *            is frontend-only, so a button that would write is shown, not run
-   *   "next"   the tour's own Nästa; presses on `swallow` are caught meanwhile
+   *   "next"   a press on `swallow`, caught -- the step shows where things go,
+   *            and the press that would have written is what moves it on
    *   a signal, or arriving on a route.
    */
   until: "tap" | "press" | "next" | TourSignal | { route: string };
@@ -96,6 +100,10 @@ export type NavStep = Gate & {
   swallow?: Target[];
   /** Card text when no target has appeared a few seconds after arriving. */
   missing: string;
+  /** The full-screen sentence before "Visa mig", when `tip` is empty. */
+  say?: string;
+  /** The word or phrase in the sentence drawn in the brand colour. */
+  em?: string;
 };
 
 export type AutofillStep = Gate & {
@@ -105,33 +113,38 @@ export type AutofillStep = Gate & {
   forms: FormKey[];
   submit: Partial<Record<FormKey, Target>>;
   tip: Partial<Record<FormKey, string>>;
-  /** "next": the tour shows how and moves on at Nästa or at a press on the
-   *  ringed submit, which is caught -- nothing real is created. Every autofill
-   *  step in the tour is this now: the tour writes nothing. */
+  /** "next": the tour shows how and moves on at a press on the ringed
+   *  submit, which is caught -- nothing real is created. Every autofill step
+   *  in the tour is this now: the tour writes nothing. */
   until: "next";
+  /** The full-screen sentence before "Visa mig" starts the filling. */
+  say: string;
+  em?: string;
 };
 
-export type CardStep = { type: "card"; text: string };
+/** `em`: the word or phrase in the sentence drawn in the brand colour. */
+export type CardStep = { type: "card"; text: string; em?: string };
 
 export type Step = CardStep | NavStep | AutofillStep;
 
 // ---------------------------------------------------------------------------
 
 const ARBETSLEDARE: Step[] = [
-  { type: "card", text: "Ditt företag har ett projekt som behöver folk." },
-  { type: "card", text: "Nu är det din tur att skapa ett pass." },
+  { type: "card", text: "Ditt företag har ett projekt som behöver folk.", em: "projekt" },
+  { type: "card", text: "Nu är det din tur att skapa ett pass.", em: "skapa ett pass" },
   {
     type: "nav",
     route: "/",
     targets: [{ name: "Skapa pass" }],
     tip: "Tryck på Skapa pass.",
+    em: "Skapa pass",
     until: "tap",
     requires: "has-project",
     otherwise:
       "Skapa pass behöver ett projekt att lägga passen på. När ditt företag har ett projekt hittar du Skapa pass här på startsidan.",
     missing: "Skapa pass finns här på startsidan.",
   },
-  { type: "card", text: "Välj de dagar du vill ha folk på plats." },
+  { type: "card", text: "Välj de dagar du vill ha folk på plats.", em: "dagar" },
   {
     // NO TIP. Two rings on two days say what to do; the leader taps both, and
     // the step ends when both are chosen. The picker is paged to their month
@@ -145,42 +158,49 @@ const ARBETSLEDARE: Step[] = [
     ],
     all: true,
     tip: "",
+    say: "Tryck på två dagar i kalendern.",
+    em: "två dagar",
     until: "tour-days-picked",
     requires: "has-project",
     missing: "Dagarna att välja visas här.",
   },
-  { type: "card", text: "Bra. Nu fyller vi i detaljerna." },
+  { type: "card", text: "Bra. Nu fyller vi i detaljerna.", em: "detaljerna" },
   {
     type: "nav",
     route: "/pass/ny",
     targets: [{ name: "Fortsätt" }],
     tip: "Tryck på Fortsätt.",
+    em: "Fortsätt",
     until: "tap",
     requires: "has-project",
     missing: "Fortsätt finns under kalendern.",
   },
   {
     // A SANDBOX STEP. The form is filled to show how a pass is made, and the
-    // tour moves on at Nästa: the real button is ringed but swallowed, because
+    // tour moves on at a press on the real button, ringed and swallowed, because
     // a pass created here would go out as real offers to real workers.
     type: "autofill",
     route: "/pass/ny",
     forms: ["pass-detail"],
     submit: { "pass-detail": { name: /^Skapa \d+ pass$/ } },
     tip: { "pass-detail": "Så här skapar du ett pass." },
+    say: "Så här skapar du ett pass. Formuläret fyller i sig självt, och inget skapas.",
+    em: "skapar du ett pass",
     until: "next",
     requires: "has-project",
   },
   {
     type: "card",
     text: "Arbetarna som är lediga kan nu se ditt pass. De väljer själva om de vill jobba den dagen.",
+    em: "se ditt pass",
   },
-  { type: "card", text: "När passen är över ska du kolla att allt som bokades stämmer." },
+  { type: "card", text: "När passen är över ska du kolla att allt som bokades stämmer.", em: "kolla att allt som bokades stämmer" },
   {
     type: "nav",
     route: "/",
     targets: [{ name: "Bekräfta pass" }],
     tip: "Tryck på Bekräfta pass.",
+    em: "Bekräfta pass",
     until: "tap",
     requires: "days-waiting",
     otherwise: "Ingen dag att bekräfta än. När ett pass är över dyker det upp här.",
@@ -195,6 +215,7 @@ const ARBETSLEDARE: Step[] = [
     targets: [{ field: "Timmar" }, { css: "#vad-vi-gjorde" }],
     all: true,
     tip: "Här skriver du hur många timmar var och en jobbade och vad ni gjorde. En bekräftad dag går inte att ändra.",
+    em: "timmar",
     until: "next",
     swallow: [{ name: "Bekräfta dagen" }],
     requires: "days-waiting",
@@ -203,12 +224,13 @@ const ARBETSLEDARE: Step[] = [
 ];
 
 const ARBETARE: Step[] = [
-  { type: "card", text: "Boka de dagar du kan jobba." },
+  { type: "card", text: "Boka de dagar du kan jobba.", em: "dagar" },
   {
     type: "nav",
     route: "/",
     targets: [{ name: "Arbetsdagar" }],
     tip: "Tryck på Arbetsdagar.",
+    em: "Arbetsdagar",
     until: "tap",
     missing: "Arbetsdagar finns här på startsidan.",
   },
@@ -217,22 +239,26 @@ const ARBETARE: Step[] = [
     route: "/min-kalender",
     targets: [{ find: () => document.querySelector("[data-date]")?.parentElement ?? null }],
     tip: "Tryck på en dag du kan jobba.",
+    em: "dag",
     until: "press",
     missing: "Kalendern med dina arbetsdagar visas här.",
   },
   {
     type: "card",
     text: "När arbetsledaren skapar pass på de dagarna du bokat får du dem direkt.",
+    em: "får du dem direkt",
   },
   {
     type: "card",
     text: "Har du inte förbokat? Inga problem. Du kan alltid välja från pass som fortfarande är lediga.",
+    em: "lediga",
   },
   {
     type: "nav",
     route: "/",
     targets: [{ name: "Visa alla" }],
     tip: "Tryck på Visa alla för att se passen som är lediga.",
+    em: "Visa alla",
     until: "tap",
     requires: "has-offer",
     otherwise:
@@ -244,11 +270,12 @@ const ARBETARE: Step[] = [
     route: "/acceptera",
     targets: [{ name: "Acceptera" }],
     tip: "Tryck Acceptera på ett pass du vill ta.",
+    em: "Acceptera",
     until: "press",
     requires: "has-offer",
     missing: "Passen du kan ta visas här.",
   },
-  { type: "card", text: "På dagen, tryck in när du är på plats." },
+  { type: "card", text: "På dagen, tryck in när du är på plats.", em: "på plats" },
   {
     // Steps 9 and 10 of the brief are one step: tapping Stämpla In IS
     // stamping in, and the step ends when the stamp is in the database -- a
@@ -257,6 +284,7 @@ const ARBETARE: Step[] = [
     route: "/",
     targets: [{ name: "Stämpla In" }],
     tip: "Tryck Stämpla In när du är på plats.",
+    em: "Stämpla In",
     until: "press",
     missing:
       "När du har ett pass idag visas Stämpla In högst upp på startsidan. Tryck på den när du är på plats. Det går när du är inom 4 km från arbetsplatsen.",
@@ -267,12 +295,14 @@ const ADMIN: Step[] = [
   {
     type: "card",
     text: "Allt börjar med ett projekt. Utan ett projekt finns det inget att jobba på.",
+    em: "projekt",
   },
   {
     type: "nav",
     route: "/",
     targets: [{ name: "Nytt projekt" }],
     tip: "Tryck på Nytt projekt.",
+    em: "Nytt projekt",
     until: "tap",
     requires: "has-leader",
     otherwise:
@@ -287,13 +317,15 @@ const ADMIN: Step[] = [
     tip: {
       projekt: "Ett exempelprojekt. Tryck Skapa projekt.",
     },
+    say: "Vi fyller i ett exempelprojekt åt dig. Inget sparas förrän du trycker själv.",
+    em: "exempelprojekt",
     until: "next",
     requires: "has-leader",
   },
-  { type: "card", text: "Din arbetsledare söker folk och lägger in passen." },
-  { type: "card", text: "Arbetarna väljer själva vilka pass de kan jobba." },
-  { type: "card", text: "Arbetsledaren kollar att allt stämmer när dagarna är över." },
-  { type: "card", text: "Sista steget är ditt." },
+  { type: "card", text: "Din arbetsledare söker folk och lägger in passen.", em: "söker folk" },
+  { type: "card", text: "Arbetarna väljer själva vilka pass de kan jobba.", em: "väljer själva" },
+  { type: "card", text: "Arbetsledaren kollar att allt stämmer när dagarna är över.", em: "kollar att allt stämmer" },
+  { type: "card", text: "Sista steget är ditt.", em: "ditt" },
   {
     // The link lives inside a project's row, so the row is the target until
     // it is open. The step ends on arriving at the page, however they got
@@ -302,6 +334,7 @@ const ADMIN: Step[] = [
     route: "/",
     targets: [{ name: "Generera Arbetsdagbok" }, { css: "[data-project] > button" }],
     tip: "Öppna projektet och tryck Generera Arbetsdagbok.",
+    em: "Generera Arbetsdagbok",
     until: { route: "/arbetsdagbok" },
     requires: "has-project",
     otherwise:
@@ -313,6 +346,7 @@ const ADMIN: Step[] = [
     route: "/arbetsdagbok",
     targets: [{ name: "Generera Arbetsdagbok" }],
     tip: "Välj period och tryck Generera Arbetsdagbok.",
+    em: "Generera Arbetsdagbok",
     until: "press",
     requires: "has-confirmed-day",
     otherwise:
@@ -329,6 +363,7 @@ export const SEQUENCES: Record<Role, Step[]> = {
 
 export const DONE = {
   title: "Välkommen till ByggKoll.",
+  em: "ByggKoll",
   line: "Du vet nu vad du behöver göra.",
   button: "Kom igång",
 };

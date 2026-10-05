@@ -60,15 +60,27 @@ export const C = {
   hairline: "#e4e3df",
   /** Outline of a control that is not the primary one: secondary buttons, steppers. */
   border: "#d3d1cd",
-  /** Done / live -- as ink only. */
-  liveInk: "#427138",
+  /*
+   * THE ORANGE FAMILY (owner, 2026-10-06): every status colour is a relative of
+   * the brand orange, and each keeps the intent it had. What changes or blocks
+   * real work is still the loudest (neon orange), a warning is warm but calmer
+   * (amber), and what is done is dark and still (burnt umber). Text inks clear
+   * 4.5:1 on white and on the ground; the *Mark colours are for icons, dots
+   * and 1px edges only (3:1), never for text.
+   */
+  /** Done / live -- burnt umber, as ink (8.1:1). */
+  liveInk: "#7c4014",
   liveBg: "#f1f0ed",
-  /** Needs a look -- as ink only. */
-  warnInk: "#826817",
-  tagWarnInk: "#826817",
+  /** Needs a look -- deep amber for text and icons (5.5:1). */
+  warnInk: "#995b00",
+  tagWarnInk: "#995b00",
+  /** Amber as a dot or a mark beside its text -- too light to carry text alone. */
+  warnMark: "#f5a420",
   warnBg: "#f1f0ed",
-  /** Changes or blocks real work -- as ink only. */
-  stopInk: "#9d2a39",
+  /** Changes or blocks real work -- deep red-orange text (6.1:1). */
+  stopInk: "#c11c04",
+  /** Neon orange: the critical icon, dot or edge (3.6:1). */
+  stopMark: "#fc3e15",
   stopBg: "#f1f0ed",
 } as const;
 
@@ -762,7 +774,7 @@ export function DangerButton({
       disabled={disabled}
       aria-label={label}
       className={`press-scale flex items-center justify-center rounded-[12px] text-[17px] font-bold transition-transform duration-[110ms] active:scale-[.985] ${
-        solid ? "hover:bg-[#86361a]" : "hover:bg-[#f4f3f0]"
+        solid ? "hover:bg-[#9a1603]" : "hover:bg-[#f4f3f0]"
       } ${full ? "h-14 w-full !rounded-full" : "h-12 w-12"}`}
       style={{
         letterSpacing: "-.2px",
@@ -985,7 +997,9 @@ export function Avatar({
  * applied to one mark each.
  */
 function NoticeMark({ tone }: { tone: "live" | "warn" | "stop" | "quiet" }) {
-  const fill = { live: C.liveInk, warn: C.warnInk, stop: C.stopInk, quiet: C.accentInk }[tone];
+  const fill = { live: C.liveInk, warn: C.warnMark, stop: C.stopMark, quiet: C.accentInk }[tone];
+  // White on amber is 2.1:1, so the warning's "!" is drawn in the ink.
+  const glyph = tone === "warn" ? C.ink : C.surface;
   return (
     <span
       aria-hidden
@@ -994,18 +1008,18 @@ function NoticeMark({ tone }: { tone: "live" | "warn" | "stop" | "quiet" }) {
     >
       {tone === "live" ? (
         <svg width="11" height="9" viewBox="0 0 11 9" fill="none">
-          <path d="M1 4.6 4 7.6 10 1.4" stroke={C.surface} strokeWidth="2.2"
+          <path d="M1 4.6 4 7.6 10 1.4" stroke={glyph} strokeWidth="2.2"
             strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       ) : tone === "quiet" ? (
         <svg width="4" height="11" viewBox="0 0 4 11" fill="none">
-          <circle cx="2" cy="1.6" r="1.4" fill={C.surface} />
-          <path d="M2 4.8v5" stroke={C.surface} strokeWidth="2.2" strokeLinecap="round" />
+          <circle cx="2" cy="1.6" r="1.4" fill={glyph} />
+          <path d="M2 4.8v5" stroke={glyph} strokeWidth="2.2" strokeLinecap="round" />
         </svg>
       ) : (
         <svg width="4" height="11" viewBox="0 0 4 11" fill="none">
-          <path d="M2 1.2v5" stroke={C.surface} strokeWidth="2.2" strokeLinecap="round" />
-          <circle cx="2" cy="9.4" r="1.4" fill={C.surface} />
+          <path d="M2 1.2v5" stroke={glyph} strokeWidth="2.2" strokeLinecap="round" />
+          <circle cx="2" cy="9.4" r="1.4" fill={glyph} />
         </svg>
       )}
     </span>

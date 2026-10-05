@@ -15,17 +15,13 @@ import {
 import { onTourSignal } from "@/lib/tour/signal";
 import { resolveTargets, samePath } from "@/lib/tour/targets";
 import { TourCard } from "./tour-card";
-import { TourBar, TourSpotlight } from "./tour-spotlight";
+import { TourRings } from "./tour-spotlight";
 
 /** Screens nobody is being shown around: signed out, or not a tenancy's app. */
 const OFF_ROUTES = ["/login", "/onboarding", "/super", "/glomt-losenord", "/aterstall-losenord", SETUP_ROUTE];
 
 /** How long a nav step waits for its element before it becomes a card. */
 const MISSING_AFTER_MS = 8000;
-
-/** How long the "go there" bar waits, so a tap that is already navigating
- *  does not flash it on the way out. */
-const OFF_ROUTE_GRACE_MS = 900;
 
 type Run = { accountId: string; role: Role; steps: Step[] };
 /** A step's verdict, keyed by its index so a stale one is never read. */
@@ -72,7 +68,12 @@ export function TourProvider({ children }: { children: ReactNode }) {
   const [gate, setGate] = useState<Gate | null>(null);
   const [filled, setFilled] = useState<FormKey[]>([]);
   const [filling, setFilling] = useState<FormKey | null>(null);
-  const [offRouteFor, setOffRouteFor] = useState<string | null>(null);
+  /**
+   * The step whose "Visa mig" was pressed. Every step opens as its own white
+   * full screen (TourCard); a step that needs the real app shows it -- with
+   * only a ring, or the form filling itself -- once this is its index.
+   */
+  const [revealed, setRevealed] = useState<number | null>(null);
   /** Bumped by Guide, so the start effect runs again for the same account. */
   const [replays, setReplays] = useState(0);
 
@@ -114,6 +115,7 @@ export function TourProvider({ children }: { children: ReactNode }) {
     setGate(null);
     setFilled([]);
     setFilling(null);
+    setRevealed(null);
     setReplays((n) => n + 1);
   }, [account]);
 
@@ -131,6 +133,7 @@ export function TourProvider({ children }: { children: ReactNode }) {
     saveStep(active.accountId, to);
     setFilled([]);
     setFilling(null);
+    setRevealed(null);
   }, [active]);
 
   const next = useCallback(() => go(index + 1), [go, index]);
@@ -160,7 +163,7 @@ export function TourProvider({ children }: { children: ReactNode }) {
 
   // ---- a nav step whose element never appears becomes a card ---------------
   useEffect(() => {
-    if (!step || step.type !== "nav" || verdict?.state !== "ok" || !onRoute) return;
+    if (!step || step.type !== "nav" || verdict?.state !== "ok" || !onRoute || revealed !== index) return;
     const began = Date.now();
     const id = window.setInterval(() => {
       if (resolveTargets(step.targets, step.all).length) {
@@ -171,7 +174,7 @@ export function TourProvider({ children }: { children: ReactNode }) {
       }
     }, 300);
     return () => window.clearInterval(id);
-  }, [step, index, verdict?.state, onRoute]);
+  }, [step, index, verdict?.state, onRoute, revealed]);
 
   // ---- what ends a step ------------------------------------------------------
   useEffect(() => {
@@ -202,18 +205,10 @@ export function TourProvider({ children }: { children: ReactNode }) {
     return onTourSignal((s) => { if (s === until) go(index + 1); });
   }, [step, index, verdict?.state, go]);
 
-  // ---- off the step's screen --------------------------------------------------
-  const routeKey = step && step.type !== "card" && !onRoute ? `${index}|${pathname}` : null;
-  useEffect(() => {
-    if (!routeKey) return;
-    const id = window.setTimeout(() => setOffRouteFor(routeKey), OFF_ROUTE_GRACE_MS);
-    return () => window.clearTimeout(id);
-  }, [routeKey]);
-
   // ---- the forms' side of autofill ------------------------------------------
   const api = useMemo<TourApi>(() => ({
     wants: (form) =>
-      verdict?.state === "ok" && !filled.includes(form) && (
+      verdict?.state === "ok" && revealed === index && !filled.includes(form) && (
         (step?.type === "autofill" && step.forms.includes(form)) ||
         (step?.type === "nav" && step.prepare === form)
       ),
@@ -222,7 +217,7 @@ export function TourProvider({ children }: { children: ReactNode }) {
       setFilling((f) => (f === form ? null : f));
       setFilled((f) => (f.includes(form) ? f : [...f, form]));
     },
-  }), [step, verdict?.state, filled]);
+  }), [step, verdict?.state, filled, revealed, index]);
 
   const lastFilled = filled[filled.length - 1];
   const submitResolve = useCallback((): Element[] => {
@@ -236,7 +231,7 @@ export function TourProvider({ children }: { children: ReactNode }) {
   // caught in the capture phase on the document -- above React's root, so no
   // handler of the page ever runs. For a "press" step (and an autofill's
   // submit) the caught press IS the step: the tour moves on. On a "next" step
-  // the swallowed controls simply do nothing until Nästa.
+  // a press on a swallowed control moves it on the same way.
   //
   // It advances on the LAST event of a press -- click for a mouse, touchend
   // for a finger (whose touchstart is cancelled, so no click follows) --
@@ -247,7 +242,9 @@ export function TourProvider({ children }: { children: ReactNode }) {
       : step.type === "nav" && step.until === "press"
         ? { resolve: () => resolveTargets(step.targets, step.all), advances: true }
         : step.type === "nav" && step.until === "next" && step.swallow
-          ? { resolve: () => resolveTargets(step.swallow ?? [], true), advances: false }
+          // The press that would write is caught, and it is what moves the
+          // step on: there is no bar with a Nästa on top of the app any more.
+          ? { resolve: () => resolveTargets(step.swallow ?? [], true), advances: true }
           : step.type === "autofill" && lastFilled !== undefined
             ? { resolve: submitResolve, advances: true }
             : null;
@@ -261,7 +258,11 @@ export function TourProvider({ children }: { children: ReactNode }) {
       if (!catchResolve().some((el) => el.contains(hit))) return;
       e.preventDefault();
       e.stopPropagation();
-      if (catchAdvances && !done && (e.type === "click" || e.type === "touchend")) {
+      // A DISABLED control never gets its click (Bekräfta dagen, before the
+      // text is in), so a mouse would be stranded on the step. Its pointerup
+      // counts instead -- safe there, because no trailing click can follow.
+      const disabledHit = e.type === "pointerup" && !!(hit as Element).closest?.(":disabled");
+      if (catchAdvances && !done && (e.type === "click" || e.type === "touchend" || disabledHit)) {
         done = true;
         go(index + 1);
       }
@@ -277,52 +278,53 @@ export function TourProvider({ children }: { children: ReactNode }) {
   );
 
   // ---- drawing ---------------------------------------------------------------
+  //
+  // EVERY STEP IS A WHITE FULL SCREEN FIRST (owner, 2026-10-06). One that needs
+  // the app says what to do there and offers "Visa mig"; the press takes the
+  // person to the step's screen if they are elsewhere and shows the app with
+  // only a ring (TourRings) -- or, for an autofill step, the form filling
+  // itself and then a ring on the button that would write, which is caught.
+  // Nothing is ever drawn on top of the app but the ring.
   let overlay: ReactNode = null;
   if (active && !hidden) {
     // A quarter on the first step, never empty; full on the last. Between
     // them the steps share the remaining three quarters evenly.
     const last = Math.max(active.steps.length - 1, 1);
     const progress = 25 + 75 * Math.min(index, last) / last;
+    const shared = { progress, step: Math.min(index + 1, active.steps.length), total: active.steps.length, onClose: finish };
 
     if (done) {
-      overlay = <TourCard progress={100} title={DONE.title} line={DONE.line} button={DONE.button} onNext={finish} />;
+      overlay = (
+        <TourCard
+          {...shared} progress={100} step={active.steps.length}
+          title={DONE.title} em={DONE.em} line={DONE.line} button={DONE.button} icon="done" onNext={finish}
+        />
+      );
     } else if (step?.type === "card") {
-      overlay = <TourCard progress={progress} title={step.text} button="Nästa" onNext={next} />;
+      overlay = <TourCard {...shared} title={step.text} em={step.em} button="Nästa" onNext={next} onSkip={next} />;
     } else if (step && verdict?.state === "fallback") {
-      overlay = <TourCard progress={progress} title={verdict.text ?? ""} button="Nästa" onNext={next} />;
+      overlay = <TourCard {...shared} title={verdict.text ?? ""} button="Nästa" onNext={next} onSkip={next} />;
     } else if (step && verdict?.state === "ok") {
-      if (!onRoute) {
-        if (offRouteFor === routeKey) {
-          overlay = (
-            <TourBar
-              text={step.type === "nav" ? step.tip : "Nästa steg är ett formulär som fyller i sig självt."}
-              action={{ label: "Ta mig dit", onClick: () => router.push(step.route) }}
-              onSkip={next}
-            />
-          );
-        }
+      if (revealed !== index || !onRoute) {
+        const say = step.type === "nav" ? (step.tip || step.say || "") : step.say;
+        overlay = (
+          <TourCard
+            {...shared}
+            title={say}
+            em={step.em}
+            button="Visa mig"
+            icon={step.type === "autofill" ? "fill" : "do"}
+            onNext={() => {
+              setRevealed(index);
+              if (!onRoute) router.push(step.route);
+            }}
+            onSkip={next}
+          />
+        );
       } else if (step.type === "nav") {
-        overlay = (
-          <TourSpotlight
-            key={index}
-            resolve={navResolve}
-            tip={step.tip}
-            onSkip={next}
-            action={step.until === "next" ? { label: "Nästa", onClick: next } : undefined}
-          />
-        );
-      } else if (filling || !lastFilled) {
-        overlay = <TourBar text="Vi fyller i formuläret åt dig. Inget sparas förrän du trycker själv." onSkip={next} />;
-      } else {
-        overlay = (
-          <TourSpotlight
-            key={`${index}|${lastFilled}`}
-            resolve={submitResolve}
-            tip={step.tip[lastFilled] ?? ""}
-            onSkip={next}
-            action={step.until === "next" ? { label: "Nästa", onClick: next } : undefined}
-          />
-        );
+        overlay = <TourRings key={index} resolve={navResolve} />;
+      } else if (!filling && lastFilled) {
+        overlay = <TourRings key={`${index}|${lastFilled}`} resolve={submitResolve} />;
       }
     }
   }

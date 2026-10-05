@@ -201,8 +201,12 @@ only where nobody else's hours are on the day.
   No same-hue tint pairs -- never a dark ink on a pale tint of itself (pills,
   badges, tinted buttons, alert boxes, a tinted ground). Grounds are
   near-neutral stone (`C.ground` #f7f6f3, `C.panel` #f1f0ed) on white cards;
-  status colour lives only in ink, a dot, an icon or a 1px edge (moss
-  `liveInk`, crimson `stopInk`, mustard `warnInk`). **No cool colours**: text
+  status colour lives only in ink, a dot, an icon or a 1px edge. **Every
+  status colour is a relative of the brand orange** and keeps its intent:
+  done is burnt umber (`liveInk` #7c4014), a warning is amber (`warnInk`
+  #995b00 as text, `warnMark` #f5a420 as a dot or mark), what changes or
+  blocks work is red-orange (`stopInk` #c11c04 as text, neon `stopMark`
+  #fc3e15 as an icon, dot or edge -- never text). **No cool colours**: text
   is a warm near-black (`C.ink` #24180f), shadows are warm brown.
   **The brand colour is orange `C.accent` #e87a46 as a FILL** -- white on it
   is only 2.9:1, so what sits on it is `C.onAccent` (the dark ink, 6.1:1), and

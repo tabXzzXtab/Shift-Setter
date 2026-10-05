@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { C, SHADOW } from "@/components/soft";
+import { C } from "@/components/soft";
 import { TOUR_UI } from "@/lib/tour/targets";
 
 type Box = { top: number; left: number; width: number; height: number };
@@ -39,200 +39,49 @@ function useBoxes(resolve: () => Element[]): Box[] {
   return boxes;
 }
 
-const visible = (b: Box) => b.top + b.height > 0 && b.top < window.innerHeight;
-
 /**
- * The ring and the tooltip for a nav step, or for an autofill step once the
- * form is filled and the button is what is left.
+ * The ring and nothing else (owner, 2026-10-06): the step's sentence was said
+ * on its own full screen before "Visa mig", so the app comes back with only a
+ * ring on the thing to tap -- no tooltip, no bar, no box floating over it.
  *
- * THE PAGE STAYS LIVE. Everything drawn here is pointer-events: none except
- * the tooltip itself, so the ringed element takes the tap it is asking for and
- * nothing else on the screen is locked -- the tour must not stand between
- * anybody and the app. The dimming is the ring's own spread shadow, which is
- * why only a single target dims: two holes cannot be cut from one shadow.
- *
- * With several rings, or with the one element scrolled out of view, there is
- * no single place to point, and the tip moves to the bar at the foot.
+ * Everything here is pointer-events: none, so the ringed element takes the
+ * tap it is asking for and nothing else is locked. A single target also dims
+ * the rest of the page with the ring's own spread shadow.
  */
-export function TourSpotlight({
-  resolve, tip, onSkip, action,
-}: {
-  resolve: () => Element[];
-  /** Empty: the rings say it all, and only Hoppa över is offered. */
-  tip: string;
-  onSkip: () => void;
-  /** A step that ends on a press of the tour's own, not the page's. */
-  action?: { label: string; onClick: () => void };
-}) {
+export function TourRings({ resolve }: { resolve: () => Element[] }) {
   const boxes = useBoxes(resolve);
   const single = boxes.length === 1 ? boxes[0]! : null;
-  const anchored = single !== null && visible(single);
 
-  // A tip that says "tryck här" over a button below the fold is pointing at
-  // nothing. The first time the element is found, it is brought into view;
-  // after that, scrolling is the person's, and the bar offers the way back.
-  const show = () => {
-    const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    resolve()[0]?.scrollIntoView({ block: "center", behavior: still ? "auto" : "smooth" });
-  };
-  const found = single !== null;
+  // Brought into view once, when first found; after that scrolling is theirs.
+  const found = boxes.length > 0;
   const [brought, setBrought] = useState(false);
   useEffect(() => {
     if (!found || brought) return;
-    const id = window.setTimeout(() => { show(); setBrought(true); }, 0);
+    const id = window.setTimeout(() => {
+      const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      resolve()[0]?.scrollIntoView({ block: "center", behavior: still ? "auto" : "smooth" });
+      setBrought(true);
+    }, 0);
     return () => window.clearTimeout(id);
-    // show reads the latest resolve; this runs once per element found.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [found, brought]);
+  }, [found, brought, resolve]);
 
   return (
-    <>
-      <div {...{ [TOUR_UI]: "rings" }} className="pointer-events-none fixed inset-0 z-[70]" aria-hidden>
-        {boxes.map((b, i) => (
-          <div
-            key={i}
-            className="absolute rounded-[14px]"
-            style={{
-              top: b.top - PAD,
-              left: b.left - PAD,
-              width: b.width + PAD * 2,
-              height: b.height + PAD * 2,
-              boxShadow: `0 0 0 2px ${C.accent}${single ? ", 0 0 0 9999px rgba(36,24,15,.30)" : ""}`,
-            }}
-          >
-            <div className="animate-tourpulse absolute inset-0 rounded-[14px]" />
-          </div>
-        ))}
-      </div>
-
-      {!tip ? (
-        <TourBar onSkip={onSkip} />
-      ) : anchored ? (
-        <Tooltip box={single} tip={tip} onSkip={onSkip} action={action} />
-      ) : (
-        <TourBar
-          text={tip}
-          action={action ?? (single ? { label: "Visa", onClick: show } : undefined)}
-          onSkip={onSkip}
-        />
-      )}
-    </>
-  );
-}
-
-function Tooltip({
-  box, tip, onSkip, action,
-}: {
-  box: Box;
-  tip: string;
-  onSkip: () => void;
-  action?: { label: string; onClick: () => void };
-}) {
-  const vw = window.innerWidth;
-  const width = Math.min(358, vw - 32);
-  const left = Math.min(Math.max(box.left + box.width / 2 - width / 2, 16), vw - 16 - width);
-  // Below the element when a tooltip fits there, otherwise above it: a thumb
-  // reaching for the element should not have to reach through the tip.
-  const below = box.top + box.height + PAD + 14 + 150 < window.innerHeight;
-  const arrowX = Math.min(Math.max(box.left + box.width / 2 - left - 7, 18), width - 32);
-
-  return (
-    <div
-      {...{ [TOUR_UI]: "tip" }}
-      role="status"
-      className="fixed z-[75]"
-      style={{
-        left,
-        width,
-        ...(below
-          ? { top: box.top + box.height + PAD + 14 }
-          : { bottom: window.innerHeight - box.top + PAD + 14 }),
-        fontFamily: "var(--font-inter), system-ui, sans-serif",
-      }}
-    >
-      <div className="relative rounded-[14px] p-4 pb-3" style={{ background: C.surface, boxShadow: SHADOW.offer }}>
-        <span
-          aria-hidden
-          className="absolute h-[14px] w-[14px] rotate-45"
-          style={{ left: arrowX, background: C.surface, ...(below ? { top: -7 } : { bottom: -7 }) }}
-        />
-        <p className="relative text-[16px] font-semibold" style={{ color: C.ink, textWrap: "pretty" }}>
-          {tip}
-        </p>
-        <div className="relative mt-2 flex justify-end gap-2">
-          <SkipButton onSkip={onSkip} />
-          {action && (
-            <button
-              type="button"
-              onClick={action.onClick}
-              className="press-scale h-11 rounded-[10px] px-[18px] text-[15px] font-bold transition-[transform,background] duration-[110ms] hover:bg-[#3a2a20] active:scale-[.985]"
-              style={{ background: C.accent, color: C.onAccent }}
-            >
-              {action.label}
-            </button>
-          )}
+    <div {...{ [TOUR_UI]: "rings" }} className="pointer-events-none fixed inset-0 z-[70]" aria-hidden>
+      {boxes.map((b, i) => (
+        <div
+          key={i}
+          className="absolute rounded-[14px]"
+          style={{
+            top: b.top - PAD,
+            left: b.left - PAD,
+            width: b.width + PAD * 2,
+            height: b.height + PAD * 2,
+            boxShadow: `0 0 0 3px ${C.accent}${single ? ", 0 0 0 9999px rgba(36,24,15,.30)" : ""}`,
+          }}
+        >
+          <div className="animate-tourpulse absolute inset-0 rounded-[14px]" />
         </div>
-      </div>
-    </div>
-  );
-}
-
-function SkipButton({ onSkip }: { onSkip: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onSkip}
-      className="press-scale h-11 rounded-[10px] px-[14px] text-[15px] font-bold transition-transform duration-[110ms] hover:bg-[#e9e8e4] active:scale-[.985]"
-      style={{ background: C.surface, border: `1px solid ${C.border}`, color: C.inkHover }}
-    >
-      Hoppa över
-    </button>
-  );
-}
-
-/**
- * The tip with nowhere to point: the step is on another screen, the form is
- * still being filled, or there are several places at once. At the foot, where
- * the sheets are, and never covering more than it has to.
- */
-export function TourBar({
-  text, action, onSkip,
-}: {
-  text?: string;
-  action?: { label: string; onClick: () => void };
-  onSkip?: () => void;
-}) {
-  return (
-    <div
-      {...{ [TOUR_UI]: "bar" }}
-      role="status"
-      className="fixed inset-x-0 bottom-0 z-[75] mx-auto w-full max-w-[390px] px-4 pb-[max(16px,env(safe-area-inset-bottom))]"
-      style={{ fontFamily: "var(--font-inter), system-ui, sans-serif" }}
-    >
-      <div className="rounded-[16px] p-4" style={{ background: C.surface, boxShadow: SHADOW.sheet }}>
-        {text && (
-          <p className="text-[16px] font-semibold" style={{ color: C.ink, textWrap: "pretty" }}>{text}</p>
-        )}
-        {(action || onSkip) && (
-          <div className={`${text ? "mt-3 " : ""}flex gap-[10px]`}>
-            {action && (
-              <button
-                type="button"
-                onClick={action.onClick}
-                className="press-scale h-12 flex-[2] rounded-[10px] text-[16px] font-bold transition-[transform,background] duration-150 hover:bg-[#3a2a20] active:scale-[.985]"
-                style={{ background: C.accent, color: C.onAccent }}
-              >
-                {action.label}
-              </button>
-            )}
-            {onSkip && (
-              <div className="flex flex-1 [&>button]:h-12 [&>button]:w-full">
-                <SkipButton onSkip={onSkip} />
-              </div>
-            )}
-          </div>
-        )}
-      </div>
+      ))}
     </div>
   );
 }

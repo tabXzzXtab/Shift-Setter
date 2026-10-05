@@ -62,17 +62,26 @@ export default function LoginPage() {
         fontVariantNumeric: "tabular-nums",
       }}
     >
-      {/* Two lines and nothing else above the form: what you do here, and what
-          to have in hand. The product is named in the first, because this is
-          the one screen a person meets before they know which app they are in. */}
-      <h1
-        className="px-1 text-[30px] font-extrabold leading-[1.08]"
-        style={{ letterSpacing: "-1.1px" }}
+      {/* THE BRAND, NOT THE INSTRUCTION (owner, 2026-10-06: variant B). Everyone
+          knows a login page is for logging in, so the headline says what
+          ByggKoll is for, and the one line under it keeps the only practical
+          thing: which credentials to use. The product is named above it,
+          because this is the one screen met before anyone knows which app
+          they are in. */}
+      <span
+        className="px-1 text-[13px] font-extrabold"
+        style={{ letterSpacing: "2px", color: C.accentInk }}
       >
-        Logga in på ByggKoll
+        BYGGKOLL
+      </span>
+      <h1
+        className="px-1 pt-[8px] text-[32px] font-extrabold leading-[1.08]"
+        style={{ letterSpacing: "-1.1px", textWrap: "balance" }}
+      >
+        Rätt folk. Rätt dag. <span style={{ color: C.accentInk }}>Rätt timmar.</span>
       </h1>
-      <p className="px-1 pb-[22px] pt-[6px] text-[15px] font-medium" style={{ color: C.text2 }}>
-        Använd e-posten och lösenordet du fick av administratören.
+      <p className="px-1 pb-[22px] pt-[8px] text-[15px] font-medium" style={{ color: C.text2 }}>
+        Logga in med e-posten och lösenordet du fick av din arbetsgivare.
       </p>
 
       {error && (
