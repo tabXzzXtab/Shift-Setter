@@ -419,11 +419,11 @@ try {
       fail(`the card has no "${label}" button`);
     }
   }
-  try {
-    await card.locator(".leaflet-container").waitFor({ timeout: 30000 });
-  } catch {
+  // NO MAP on an offer (owner, 2026-10-05): the map belongs to Nästa Pass.
+  // Asserted as an absence, so a map that creeps back is caught here.
+  if (await card.locator(".leaflet-container").count()) {
     await shot(page, "FAILED");
-    fail("the card has no Leaflet map (Nominatim may have refused the lookup)");
+    fail("the offer card draws a map -- that belongs to Nästa Pass only");
   }
   // NO STACK ON THE HOME SCREEN, and that is the design rather than a loss.
   //
@@ -451,7 +451,7 @@ try {
   log("one offer, no pile behind it -- the queue lives on Acceptera Pass");
 
   await shot(page, "w2-acceptera-kort");
-  log(`card reads ${JSON.stringify(text.replace(/\n+/g, " | "))}, with a map`);
+  log(`card reads ${JSON.stringify(text.replace(/\n+/g, " | "))}, no map`);
 
   // Acceptera sits left of Neka.
   const [ax, nx] = await Promise.all([

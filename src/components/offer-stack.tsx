@@ -1,10 +1,8 @@
 "use client";
 
-import dynamic from "next/dynamic";
 import { C, EmptyState, SHADOW } from "./soft";
 import { hhmm, longDayHeading } from "@/lib/dates";
 
-const ProjectMap = dynamic(() => import("./project-map"), { ssr: false });
 
 export type Offer = {
   pass_id: string;
@@ -42,9 +40,9 @@ const SHADOW_SLAB = "0 6px 16px rgba(9,21,64,.06)";
  * depending on how it was reached. It was drawn on the startsida first, from
  * the handoff; it lives here now for the same reason SoftNastaPass moved.
  *
- * The map is the real map view centred on the shift address, inset 16px on
- * three sides at radius 9 -- not a placeholder, which is what the design file
- * could only show.
+ * No map: an offer is decided on place, day and time, and the address says
+ * where. The map is Nästa Pass's (nasta-pass-card.tsx), the shift you are
+ * actually going to.
  */
 export function OfferStack({
   offers,
@@ -89,16 +87,10 @@ export function OfferStack({
         className="relative overflow-hidden rounded-[15px]"
         style={{ background: C.surface, boxShadow: SHADOW.offer }}
       >
-        {front.site_address && (
-          <div
-            className="mx-4 mt-4 h-[150px] overflow-hidden rounded-[9px]"
-            style={{ background: C.panel, boxShadow: "inset 0 0 0 1px rgba(9,21,64,.06)" }}
-          >
-            <ProjectMap address={front.site_address} />
-          </div>
-        )}
-
-        <div className="px-5 pb-5 pt-4">
+        {/* NO MAP on an offer (owner, 2026-10-05). Deciding whether to take a
+            pass needs the place, the day and the time -- the address says
+            where; the map belongs to Nästa pass, the shift you are going to. */}
+        <div className="px-5 pb-5 pt-5">
           <div className="mb-4 flex items-baseline justify-between gap-3">
             <div className="text-[21px] font-bold" style={{ letterSpacing: "-.5px" }}>
               {front.project_name}
