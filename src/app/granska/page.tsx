@@ -7,7 +7,7 @@ import {
   C, Card, CountedTextarea, EmptyState, PrimaryButton, SecondaryButton, SoftField,
   SoftNotice, SoftScreen, SoftTextarea, Stepper,
 } from "@/components/soft";
-import { EjStampladMark, JobbadeInteDialog } from "@/components/jobbade-inte";
+import { JobbadeInteDialog, StampLine } from "@/components/jobbade-inte";
 import { TimeField } from "@/components/time-wheel";
 import { getSupabase } from "@/lib/supabase/client";
 import { hhmm, longDayHeading, stampToTime } from "@/lib/dates";
@@ -349,23 +349,8 @@ function Granska({ askedProject, askedDate }: { askedProject: string | null; ask
             className="px-4 pt-[14px]"
           >
             <Card>
-              <div className="flex items-center justify-between gap-[10px]">
-                <div className="min-w-0 text-[18px] font-bold" style={{ letterSpacing: "-.4px" }}>
-                  {r.worker_name}
-                </div>
-                {/* The same mark as Bekräfta Pass, for the same reason: a row
-                    with no stamp on either end is the one the admin has to
-                    decide about, and pressing it asks the only question it
-                    raises. Never on a leader's row -- an arbetsledare is
-                    placed rather than clocked, so the mark would be permanent
-                    and would mean nothing. */}
-                {!r.is_leader && !r.clock_in && !r.clock_out && (
-                  <EjStampladMark
-                    name={r.worker_name}
-                    disabled={busy}
-                    onClick={() => setAsking(r)}
-                  />
-                )}
+              <div className="min-w-0 text-[18px] font-bold" style={{ letterSpacing: "-.4px" }}>
+                {r.worker_name}
               </div>
 
               {/* THIS IS THE ONLY SCREEN THAT EDITS A LEADER'S SPAN. It is
@@ -375,16 +360,24 @@ function Granska({ askedProject, askedDate }: { askedProject: string | null; ask
                   leader's line says WHICH span is about to move -- their own
                   envelope, not the pass, so correcting one moves nobody else.
 
-                  A worker's line is their stamps, which are CONTEXT and not
-                  the figure: typed hours sit below them, because nothing in
-                  this app derives an hour from a clock (invariant 1). A leader
-                  has no stamps to show and never will, so their card says the
-                  thing that is true of it instead of a pair of dashes. */}
-              <div className="mb-[14px] mt-[2px] text-[14px] font-medium" style={{ color: C.text2 }}>
-                {r.is_leader
-                  ? "Arbetsledarens egna tider. Ändras här och flyttar inte passet."
-                  : `Stämplade ${stampToTime(r.clock_in) || "—"} till ${stampToTime(r.clock_out) || "—"}`}
-              </div>
+                  A worker's line is their stamps (StampLine, the same line as
+                  Bekräfta Pass): CONTEXT and not the figure, because nothing
+                  in this app derives an hour from a clock (invariant 1). With
+                  no stamp at either end it is the press that asks whether the
+                  person came. */}
+              {r.is_leader ? (
+                <div className="mb-[12px] mt-[2px] text-[14px] font-medium" style={{ color: C.text2 }}>
+                  Arbetsledarens egna tider. Ändras här och flyttar inte passet.
+                </div>
+              ) : (
+                <StampLine
+                  name={r.worker_name}
+                  clockIn={stampToTime(r.clock_in)}
+                  clockOut={stampToTime(r.clock_out)}
+                  disabled={busy}
+                  onAsk={() => setAsking(r)}
+                />
+              )}
 
               <div className="relative mb-[14px] flex gap-[10px]">
                 <div className="min-w-0 flex-1">

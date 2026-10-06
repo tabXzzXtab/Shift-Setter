@@ -365,7 +365,8 @@ try {
 
   for (let i = 0; i < (await workerRows.count()); i++) {
     const row = workerRows.nth(i);
-    const blank = /Stämplade\s+—\s+till\s+—/.test(await row.innerText());
+    // The stamp line says which it is (StampLine): "none" is no stamp at either end.
+    const blank = (await row.locator('[data-stamp="none"]').count()) > 0;
     const marked = (await mark(row).count()) > 0;
     if (blank && !marked) {
       await shot(page, "FAILED");
@@ -381,7 +382,7 @@ try {
   if (unstampedRows === 0) {
     log("no unstamped worker on this day -- nothing for the red mark to ask about");
   } else {
-    await mark(workerRows.filter({ hasText: "—" }).first()).first().click();
+    await mark(workerRows.filter({ has: page.locator('[data-stamp="none"]') }).first()).first().click();
     await mustSee(page, "Fortsätter du loggas inga timmar för personen",
                   "the mark writes zero hours without asking");
     await page.getByRole("button", { name: "Avbryt" }).click();
@@ -390,13 +391,14 @@ try {
   }
 
   // The chips and the helper line the mark replaced are gone from the screen.
-  // "Ej stämplad" IS the mark's own word since 30 Sep (jobbade-inte.tsx), so the
-  // chip is looked for only OUTSIDE the mark -- a second, stray copy is the
-  // regression this guards against.
+  // "Ej stämplad" IS the stamp line's own word (StampLine, jobbade-inte.tsx), so
+  // it is looked for only OUTSIDE that line -- a second, stray copy is the
+  // regression this guards against. So is a reading made of dashes.
   const strayChips = await page.evaluate(() =>
     [...document.querySelectorAll("body *")].filter((el) =>
       el.childElementCount === 0 && el.textContent?.trim() === "Ej stämplad"
-      && !el.closest('button[aria-label^="Jobbade "]')).length);
+      && !el.closest('button[aria-label^="Jobbade "]')).length
+    + [...document.querySelectorAll('[data-row]')].filter((r) => /Stämplade\s+—/.test(r.innerText)).length);
   if (strayChips) {
     await shot(page, "FAILED");
     fail(`"Ej stämplad" is back on Bekräfta Pass outside the mark (${strayChips})`);

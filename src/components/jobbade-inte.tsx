@@ -5,53 +5,69 @@ import { C, DangerButton, SecondaryButton, SoftDialog } from "@/components/soft"
 /**
  * "This person did not stamp" and "this person did not come" are one control.
  *
- * The screens used to say both in words -- a grey "Ej stämplad" chip on the
- * row, and a line under the hours reading "0 timmar och 00 minuter om personen
- * inte kom". Two sentences to carry one question, on a screen whose whole job
- * is asking it, and neither of them was a thing you could press.
- *
- * What is left is a mark and a question. The mark says the row is unaccounted
+ * What is left is a line and a question. The line says the row is unaccounted
  * for; pressing it asks the only question an unaccounted row raises, and the
  * answer writes the figure that says so.
  */
 
 /**
- * The mark: the handoff's status tag -- "Ej stämplad" in the warn pair.
+ * A worker's stamps, as ONE LINE under their name (owner, 2026-10-06).
  *
- * A WORD, NOT A SQUARE. It used to be a 14px red square in a 28px target: a
- * signal in colour alone, under the 44px minimum, and not recognisable as the
- * thing to press (UI audit, Granska). The handoff draws the unstamped state as
- * a tag ("Ej utstämplad", amber) and says colour is never the only carrier, so
- * this is that tag, pressable.
+ * It used to be two things saying one fact: a grey "Ej stämplad" pill beside
+ * the name -- a tinted chip, the pattern the Komponentspråk removed everywhere
+ * else -- and "Stämplade — till —" under it, a reading made of dashes. Now the
+ * line IS the status, in the app's status language: ink and a dot, no box.
  *
- * The tap target is the full 44px; the pill inside it is the tag's own size,
- * and the negative margin keeps the target from pushing the name's line
- * taller than it was.
+ *   both ends   "Stämplade 07:02–16:01" in the secondary ink. The ordinary
+ *               case, so it is quiet.
+ *   in only     amber dot, "Instämplad 07:02 · ej utstämplad". Somebody worked
+ *               and forgot the other end.
+ *   neither     amber dot, "Ej stämplad" and a chevron: the one row this screen
+ *               exists to ask about, and the press that asks it. The 44px
+ *               target is the whole line, and the person's name is the
+ *               button's name -- "Jobbade Anna Karlsson inte idag?" is where
+ *               the press leads.
  */
-export function EjStampladMark({
-  name, onClick, disabled,
+export function StampLine({
+  name, clockIn, clockOut, onAsk, disabled,
 }: {
-  /** The person the question will be about. Their name IS the button's name:
-   *  "Jobbade Anna Karlsson inte idag?" is what the press leads to, and a
-   *  screen reader saying "knapp" would be saying nothing. */
   name: string;
-  onClick: () => void;
+  /** "07:02", or "" when there is no stamp at that end. */
+  clockIn: string;
+  clockOut: string;
+  onAsk: () => void;
   disabled?: boolean;
 }) {
+  const dot = <span aria-hidden className="h-[7px] w-[7px] shrink-0 rounded-full" style={{ background: C.warnMark }} />;
+  if (clockIn && clockOut) {
+    return (
+      <div data-stamp="done" className="mb-[12px] mt-[2px] text-[14px] font-medium" style={{ color: C.text2 }}>
+        Stämplade {clockIn}–{clockOut}
+      </div>
+    );
+  }
+  if (clockIn) {
+    return (
+      <div data-stamp="in" className="mb-[12px] mt-[2px] flex items-center gap-[7px] text-[14px] font-semibold" style={{ color: C.warnInk }}>
+        {dot}Instämplad {clockIn} · ej utstämplad
+      </div>
+    );
+  }
   return (
     <button
       type="button"
+      data-stamp="none"
       aria-label={`Jobbade ${name} inte idag?`}
-      onClick={onClick}
+      onClick={onAsk}
       disabled={disabled}
-      className="press-scale -my-[9px] flex h-11 shrink-0 items-center transition-transform duration-[110ms] active:scale-[.97] disabled:opacity-40"
+      className="-mt-[8px] mb-[2px] flex h-11 items-center gap-[7px] text-[14px] font-semibold transition-opacity active:opacity-60 disabled:opacity-40"
+      style={{ color: C.warnInk }}
     >
-      <span
-        className="inline-flex items-center whitespace-nowrap rounded-full px-[10px] py-[5px] text-[12px] font-bold"
-        style={{ letterSpacing: ".4px", color: C.tagWarnInk, background: C.warnBg }}
-      >
-        Ej stämplad
-      </span>
+      {dot}
+      Ej stämplad
+      <svg width="7" height="12" viewBox="0 0 7 12" aria-hidden className="ml-[2px]">
+        <path d="M1 1l5 5-5 5" fill="none" stroke={C.chevron} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
     </button>
   );
 }

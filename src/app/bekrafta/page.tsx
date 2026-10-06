@@ -5,10 +5,10 @@ import { useSearchParams } from "next/navigation";
 import { AuthGate } from "@/components/auth-gate";
 import {
   C, Card, CountedTextarea, PrimaryButton, SHADOW, SoftField, SoftNotice, SoftScreen,
-  Stepper, Tag,
+  Stepper,
 } from "@/components/soft";
 import { TimeField } from "@/components/time-wheel";
-import { EjStampladMark, JobbadeInteDialog } from "@/components/jobbade-inte";
+import { JobbadeInteDialog, StampLine } from "@/components/jobbade-inte";
 import { derivesTenant, getSupabase } from "@/lib/supabase/client";
 import { hhmm, longDayHeading, passEndAt, stampToTime } from "@/lib/dates";
 import { pendingDays } from "@/lib/pending-days";
@@ -552,46 +552,25 @@ function Bekrafta({ askedProject, askedDate }: { askedProject: string | null; as
                 says at a glance. */}
             <div style={running ? { opacity: 0.4 } : undefined}>
             <Card>
-              <div className="flex items-center justify-between gap-[10px]">
-                <div className="min-w-0 text-[18px] font-bold" style={{ letterSpacing: "-.4px" }}>
-                  {r.worker_name}
-                </div>
-                {/*
-                  A STAMPED-OUT ROW SAYS NOTHING, because there is nothing to
-                  say: it is the ordinary case, and a chip repeating it on
-                  every card was the loudest thing on a screen whose subject is
-                  the hours. What is left are the two rows that are not
-                  ordinary.
-
-                  Clocked in and not out is unfinished, and stays a word --
-                  somebody worked and forgot the other end, which is a
-                  different fact from not having come.
-
-                  No stamp at all is the question this screen exists to ask,
-                  and it is now the press that asks it. Never on a leader's
-                  row: an arbetsledare has nothing to stamp with (they are
-                  placed, not clocked), so a mark there would be permanent and
-                  would mean nothing.
-                */}
-                {!r.is_leader && r.clock_in && !r.clock_out && (
-                  <Tag tone="warn">Ej utstämplad</Tag>
-                )}
-                {!r.is_leader && !r.clock_in && !r.clock_out && (
-                  <EjStampladMark
-                    name={r.worker_name}
-                    disabled={running}
-                    onClick={() => setAsking(r)}
-                  />
-                )}
+              <div className="min-w-0 text-[18px] font-bold" style={{ letterSpacing: "-.4px" }}>
+                {r.worker_name}
               </div>
 
-              {/* The stamps are a WORKER's row only. A leader never made one
-                  and never will, so "Stämplade — till —" on their card was a
-                  blank pretending to be a reading. */}
-              {!r.is_leader && (
-                <div className="mb-[14px] mt-[2px] text-[14px] font-medium" style={{ color: C.text2 }}>
-                  Stämplade {stampToTime(r.clock_in) || "—"} till {stampToTime(r.clock_out) || "—"}
-                </div>
+              {/* The stamps, as one line under the name (StampLine): quiet
+                  when both ends are in, amber when one or both are missing,
+                  and the press that asks "Jobbade X inte idag?" when neither
+                  is. A WORKER's row only: an arbetsledare is placed, not
+                  clocked, so a line there would be a permanent blank. */}
+              {!r.is_leader ? (
+                <StampLine
+                  name={r.worker_name}
+                  clockIn={stampToTime(r.clock_in)}
+                  clockOut={stampToTime(r.clock_out)}
+                  disabled={running}
+                  onAsk={() => setAsking(r)}
+                />
+              ) : (
+                <div className="mb-[10px]" />
               )}
 
               {/*
