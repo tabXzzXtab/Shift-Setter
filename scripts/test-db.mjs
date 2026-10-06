@@ -1394,6 +1394,35 @@ const CONTROLS = [
              "then round((extract(epoch from (t.clock_out - t.clock_in)) - app.lunch_seconds(t.id, t.clock_out))",
              "then round((extract(epoch from (t.clock_out - t.clock_in)))"),
    "BRIST.lunch_subtracted"],
+
+  // ---- 20261006140000: notiser ------------------------------------------------
+  ["my_notification is the caller's own",
+   // The view without its account clause: it runs as its owner, so nothing
+   // underneath would stop it showing everybody's.
+   `create or replace view public.my_notification with (security_invoker = false) as
+      select n.id, n.kind, n.payload, n.created_at, n.read_at,
+             nullif(n.payload ->> 'work_date', '')::date as work_date,
+             pr.name as project_name
+      from public.notification n
+      left join public.project pr
+        on pr.id = nullif(n.payload ->> 'project_id', '')::uuid and pr.tenant_id = n.tenant_id
+      where app.in_tenant(n.tenant_id)`,
+   "NOTIS.view_is_own"],
+
+  ["a notification is only ever marked read",
+   "alter table public.notification disable trigger notification_only_read",
+   "NOTIS.only_read_at"],
+
+  ["a read notification stays read",
+   perturbIn("app.tg_notification_only_read()",
+             "if old.read_at is not null and new.read_at is distinct from old.read_at then",
+             "if false then"),
+   "NOTIS.no_unreading"],
+
+  ["Markera alla som lästa marks only the caller's",
+   perturbIn("public.mark_notifications_read(uuid[])",
+             "where n.account_id = (select auth.uid())", "where true"),
+   "NOTIS.mark_all_mine_only"],
 ];
 
 const client = new pg.Client({

@@ -11,6 +11,7 @@ import { addDays, hhmm, passEndAt, stampToTime, stockholmToday } from "@/lib/dat
 import { stampGate } from "@/lib/geo";
 import { fel } from "@/lib/fel";
 import { tourSignal } from "@/lib/tour/signal";
+import { NotisBell } from "./notis-bell";
 
 type Shift = {
   id: string;
@@ -26,7 +27,6 @@ type Shift = {
   lunch_since: string | null;
 };
 
-type Note = { id: string; kind: string; work_date?: string };
 
 /* ---------------------------------------------------------------------------
  * The design handoff, as values.
@@ -104,7 +104,6 @@ export function HomeArbetare() {
   const [offers, setOffers] = useState<Offer[] | null>(null);
   /** Stamped when the offers arrive; see `front` below. */
   const [now, setNow] = useState(() => Date.now());
-  const [notes, setNotes] = useState<Note[]>([]);
   const [busy, setBusy] = useState(false);
   /** Waiting on the phone's position and the site's coordinates. */
   const [checking, setChecking] = useState(false);
@@ -167,7 +166,7 @@ export function HomeArbetare() {
 
       // Yesterday too: the clocking window is soft, because a night shift ends
       // at 06:00 and bad signal on site is normal.
-      const [{ data: shifts }, { data: offered }, { data: unread }] = await Promise.all([
+      const [{ data: shifts }, { data: offered }] = await Promise.all([
         sb.from("my_shift")
           .select("id, work_date, start_time, end_time, project_name, site_address, clock_in, clock_out, lunch_since")
           .gte("work_date", addDays(today, -1))
@@ -178,8 +177,6 @@ export function HomeArbetare() {
         // to be ordered by something, and "nästa" means the one that starts
         // first. Same rule as the next-shift card, for the same reason.
         sb.from("my_offer").select("*").order("work_date").order("start_time"),
-        sb.from("notification").select("id, kind, payload").is("read_at", null)
-          .order("created_at", { ascending: false }),
       ]);
 
       if (!live) return;
@@ -193,11 +190,6 @@ export function HomeArbetare() {
 
       setOffers((offered ?? []) as Offer[]);
       setNow(Date.now());
-      setNotes((unread ?? []).map((n) => ({
-        id: n.id,
-        kind: n.kind,
-        work_date: (n.payload as { work_date?: string } | null)?.work_date,
-      })));
     })();
 
     return () => { live = false; };
@@ -271,12 +263,6 @@ export function HomeArbetare() {
     setReload((r) => r + 1);
   }
 
-  async function dismiss(id: string) {
-    await getSupabase().from("notification")
-      .update({ read_at: new Date().toISOString() }).eq("id", id);
-    setNotes((n) => n.filter((x) => x.id !== id));
-  }
-
   const clockedIn = Boolean(shift?.clock_in && !shift.clock_out);
   /** On a break right now: the primary press becomes Fortsätt Passet. */
   const onLunch = clockedIn && Boolean(shift?.lunch_since);
@@ -336,19 +322,22 @@ export function HomeArbetare() {
           </svg>
         </button>
 
-        <button
-          type="button"
-          aria-label="Profil"
-          aria-expanded={open === "profile"}
-          onClick={() => setOpen("profile")}
-          className="press-scale flex h-11 w-11 items-center justify-center rounded-[11px] p-0 transition-transform duration-[120ms] hover:bg-[#f4f3f0] active:scale-[.985] active:bg-[#e9e8e4]"
-          style={{ background: SURFACE, boxShadow: SHADOW_FLAT }}
-        >
-          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden>
-            <circle cx="10" cy="6.4" r="3.4" stroke={INK} strokeWidth="2" />
-            <path d="M3.6 17c.9-3.3 3.4-5 6.4-5s5.5 1.7 6.4 5" stroke={INK} strokeWidth="2" strokeLinecap="round" />
-          </svg>
-        </button>
+        <div className="flex items-center gap-2">
+          <NotisBell />
+          <button
+            type="button"
+            aria-label="Profil"
+            aria-expanded={open === "profile"}
+            onClick={() => setOpen("profile")}
+            className="press-scale flex h-11 w-11 items-center justify-center rounded-[11px] p-0 transition-transform duration-[120ms] hover:bg-[#f4f3f0] active:scale-[.985] active:bg-[#e9e8e4]"
+            style={{ background: SURFACE, boxShadow: SHADOW_FLAT }}
+          >
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden>
+              <circle cx="10" cy="6.4" r="3.4" stroke={INK} strokeWidth="2" />
+              <path d="M3.6 17c.9-3.3 3.4-5 6.4-5s5.5 1.7 6.4 5" stroke={INK} strokeWidth="2" strokeLinecap="round" />
+            </svg>
+          </button>
+        </div>
       </div>
 
       {/* The two lines, from the state of the screen: the stamp when there is
@@ -484,33 +473,6 @@ export function HomeArbetare() {
         </div>
       </div>
       )}
-
-      {/* Notices the handoff does not draw, in its language rather than the
-          old black-and-white one. */}
-      {notes.map((n) => (
-        <div key={n.id} className="px-4 pt-[14px]">
-          <div
-            className="rounded-[14px] p-[18px]"
-            style={{ background: SURFACE, boxShadow: SHADOW_GROUP }}
-          >
-            <p className="mb-3 text-[15px] font-medium" style={{ color: TEXT_2 }}>
-              {n.kind === "shift_deleted"
-                ? `Ditt pass ${n.work_date ?? ""} är borttaget.`
-                : n.kind === "pass_closed"
-                  ? `Passet ${n.work_date ?? ""} är stängt.`
-                  : "Du har en ny notis."}
-            </p>
-            <button
-              type="button"
-              onClick={() => dismiss(n.id)}
-              className="press-scale h-[44px] w-full rounded-[10px] text-[15px] font-bold transition-transform duration-[120ms] active:scale-[.985]"
-              style={{ background: PANEL, color: INK_HOVER }}
-            >
-              Okej
-            </button>
-          </div>
-        </div>
-      ))}
 
       {/* ---- 3. grouped nav ---------------------------------------------- */}
       <div className="px-4 pt-[14px]">

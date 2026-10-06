@@ -91,6 +91,13 @@ column forval.tenant_id uuid NOT NULL
 column forval.updated_at timestamp with time zone NOT NULL DEFAULT now()
 column forval.work_date date NOT NULL
 column forval.worker_id uuid NOT NULL
+column my_notification.created_at timestamp with time zone
+column my_notification.id uuid
+column my_notification.kind notification_kind
+column my_notification.payload jsonb
+column my_notification.project_name text
+column my_notification.read_at timestamp with time zone
+column my_notification.work_date date
 column my_offer.end_time time without time zone
 column my_offer.pass_id uuid
 column my_offer.planned_hours numeric(4,2)
@@ -675,6 +682,7 @@ trig   last_admin_guard on account -> tg_last_admin_guard enabled=O
 trig   leader_day on tilldelning -> tg_leader_day enabled=O
 trig   leader_day_pass on pass -> tg_leader_day_pass enabled=O
 trig   no_overlapping_assignment on tilldelning -> tg_no_overlapping_assignment enabled=O
+trig   notification_only_read on notification -> tg_notification_only_read enabled=O
 trig   notification_push on notification -> tg_notification_push enabled=O
 trig   notify_day_admin_confirmed on project_day -> tg_notify_day_admin_confirmed enabled=O
 trig   notify_day_rejected on day_review -> tg_notify_day_rejected enabled=O
@@ -737,6 +745,7 @@ func   app.tg_last_admin_guard() md5=44de8af11b6ff9528d320c169c3aee34
 func   app.tg_leader_day() md5=d55ddf7a8227ddd0f73386690ee55145
 func   app.tg_leader_day_pass() md5=691021ec0d2c47200fc8dd2106b10d59
 func   app.tg_no_overlapping_assignment() md5=a6917b75c0aeecbf8fd19916a862ae79
+func   app.tg_notification_only_read() md5=e4d55d7a1adb07bd1bc95982a83a5b34
 func   app.tg_notification_push() md5=e306719c3732ed1f73746af1d71ff582
 func   app.tg_notify_day_admin_confirmed() md5=ccb9359e62bd6af58d7c85f1b648e2ec
 func   app.tg_notify_day_rejected() md5=a81a4e05ff04ea1cc09e93e5006e0e84
@@ -967,6 +976,7 @@ func   public.interval_dist(interval, interval) md5=c2001397d4f589efc976e1f2db79
 func   public.leader_replacement_options(p_tilldelning uuid) md5=8dc052b44921db2afb8c9d58af02e4e8
 func   public.leave_day_unsupervised(p_tilldelning uuid) md5=431f40ea74504337e2cfacc64bb8bcdb
 func   public.make_worker_ansvarig(p_tilldelning uuid, p_worker uuid) md5=4be667eaebfcf47f4a23d6c80a23409e
+func   public.mark_notifications_read(p_ids uuid[]) md5=d35f0b2a7015545b3f6e3d68605b0051
 func   public.note_pin_attempt(p_ip text) md5=bed4f7c8d09c8223c7b07c8297f99078
 func   public.oid_dist(oid, oid) md5=98f1ff8d3c8373653d6d3a2e298a7eba
 func   public.place_replacement(p_pass uuid, p_worker uuid) md5=163d23be215e0ccf6e882b5aaeaee43d
@@ -990,6 +1000,8 @@ grant  DELETE on clock_edit to authenticated
 grant  DELETE on day_history to authenticated
 grant  DELETE on day_review to authenticated
 grant  DELETE on forval to authenticated
+grant  DELETE on my_notification to anon
+grant  DELETE on my_notification to authenticated
 grant  DELETE on my_offer to authenticated
 grant  DELETE on my_shift to authenticated
 grant  DELETE on notification to authenticated
@@ -1025,6 +1037,8 @@ grant  INSERT on clock_edit to authenticated
 grant  INSERT on day_history to authenticated
 grant  INSERT on day_review to authenticated
 grant  INSERT on forval to authenticated
+grant  INSERT on my_notification to anon
+grant  INSERT on my_notification to authenticated
 grant  INSERT on my_offer to authenticated
 grant  INSERT on my_shift to authenticated
 grant  INSERT on notification to authenticated
@@ -1060,6 +1074,8 @@ grant  REFERENCES on clock_edit to authenticated
 grant  REFERENCES on day_history to authenticated
 grant  REFERENCES on day_review to authenticated
 grant  REFERENCES on forval to authenticated
+grant  REFERENCES on my_notification to anon
+grant  REFERENCES on my_notification to authenticated
 grant  REFERENCES on my_offer to authenticated
 grant  REFERENCES on my_shift to authenticated
 grant  REFERENCES on notification to authenticated
@@ -1095,6 +1111,8 @@ grant  SELECT on clock_edit to authenticated
 grant  SELECT on day_history to authenticated
 grant  SELECT on day_review to authenticated
 grant  SELECT on forval to authenticated
+grant  SELECT on my_notification to anon
+grant  SELECT on my_notification to authenticated
 grant  SELECT on my_offer to authenticated
 grant  SELECT on my_shift to authenticated
 grant  SELECT on notification to authenticated
@@ -1130,6 +1148,8 @@ grant  TRIGGER on clock_edit to authenticated
 grant  TRIGGER on day_history to authenticated
 grant  TRIGGER on day_review to authenticated
 grant  TRIGGER on forval to authenticated
+grant  TRIGGER on my_notification to anon
+grant  TRIGGER on my_notification to authenticated
 grant  TRIGGER on my_offer to authenticated
 grant  TRIGGER on my_shift to authenticated
 grant  TRIGGER on notification to authenticated
@@ -1164,6 +1184,8 @@ grant  TRUNCATE on clock_edit to authenticated
 grant  TRUNCATE on day_history to authenticated
 grant  TRUNCATE on day_review to authenticated
 grant  TRUNCATE on forval to authenticated
+grant  TRUNCATE on my_notification to anon
+grant  TRUNCATE on my_notification to authenticated
 grant  TRUNCATE on my_offer to authenticated
 grant  TRUNCATE on my_shift to authenticated
 grant  TRUNCATE on notification to authenticated
@@ -1198,6 +1220,8 @@ grant  UPDATE on clock_edit to authenticated
 grant  UPDATE on day_history to authenticated
 grant  UPDATE on day_review to authenticated
 grant  UPDATE on forval to authenticated
+grant  UPDATE on my_notification to anon
+grant  UPDATE on my_notification to authenticated
 grant  UPDATE on my_offer to authenticated
 grant  UPDATE on my_shift to authenticated
 grant  UPDATE on notification to authenticated
@@ -1228,6 +1252,7 @@ view   public.account_directory security_invoker=false md5=16ab0adb9ebff46b12806
 view   public.arbetsledare_roster security_invoker=false md5=2888a8ba9668fc362ecbe60bb42f48cb
 view   public.cancelled_day security_invoker=false md5=19707702cb64f30f9e893a3504a09748
 view   public.day_history security_invoker=false md5=3060a8e61c0ffcbe837f8b688891d1fd
+view   public.my_notification security_invoker=false md5=9ec7e9baa6999ef404b50a5371022d8e
 view   public.my_offer security_invoker=false md5=9f934026a994b99897c1f299f5e22c01
 view   public.my_shift security_invoker=false md5=bed959a77884b7b8c9e641cdac4779d3
 view   public.open_pass security_invoker=false md5=af584052dfd1a14f70d18749ae0e4fee
@@ -1274,6 +1299,7 @@ funcdef app.tg_last_admin_guard() security=definer volatile=volatile config=sear
 funcdef app.tg_leader_day() security=definer volatile=volatile config=search_path="" returns=trigger md5=1397c1e4582203fb93a0018a29126a04
 funcdef app.tg_leader_day_pass() security=definer volatile=volatile config=search_path="" returns=trigger md5=788576683f47d0093f1a87f497d0e5f3
 funcdef app.tg_no_overlapping_assignment() security=definer volatile=volatile config=search_path="" returns=trigger md5=7f643813676d0a9e142f3a2b7eddc74d
+funcdef app.tg_notification_only_read() security=invoker volatile=volatile config=search_path="" returns=trigger md5=b4402923e8fce70cf6de4b770ee6fdf5
 funcdef app.tg_notification_push() security=definer volatile=volatile config=search_path="" returns=trigger md5=ff3aa5e85bb292dbd71a23ba7bd6c23c
 funcdef app.tg_notify_day_admin_confirmed() security=definer volatile=volatile config=search_path="" returns=trigger md5=321ce9cfee5e64e604839a0f888710f4
 funcdef app.tg_notify_day_rejected() security=definer volatile=volatile config=search_path="" returns=trigger md5=88257841c309459fb8da8677d40b0939
@@ -1504,6 +1530,7 @@ funcdef public.interval_dist(interval, interval) security=invoker volatile=immut
 funcdef public.leader_replacement_options(p_tilldelning uuid) security=definer volatile=stable config=search_path="" returns=jsonb md5=797f80b54feeabe5d805064ba84e4fa3
 funcdef public.leave_day_unsupervised(p_tilldelning uuid) security=definer volatile=volatile config=search_path="" returns=void md5=93cc48d5819fe7beee7f61e651a92dff
 funcdef public.make_worker_ansvarig(p_tilldelning uuid, p_worker uuid) security=definer volatile=volatile config=search_path="" returns=void md5=86dfb6c56c216d46e6e8936926490e61
+funcdef public.mark_notifications_read(p_ids uuid[]) security=definer volatile=volatile config=search_path="" returns=integer md5=7a1154877b009d2da239458fa95073a1
 funcdef public.note_pin_attempt(p_ip text) security=definer volatile=volatile config=search_path="" returns=text md5=54865e0b1d428911d913c47e12255683
 funcdef public.oid_dist(oid, oid) security=invoker volatile=immutable config=- returns=oid md5=997dbbedac9c532c2dfe9e61df3963bc
 funcdef public.place_replacement(p_pass uuid, p_worker uuid) security=definer volatile=volatile config=search_path="" returns=void md5=a4dc12da0b95490d39627820e6aab132
@@ -1559,6 +1586,7 @@ grantfn app.tg_last_admin_guard() EXECUTE=authenticated
 grantfn app.tg_leader_day() EXECUTE=PUBLIC,authenticated
 grantfn app.tg_leader_day_pass() EXECUTE=PUBLIC,authenticated
 grantfn app.tg_no_overlapping_assignment() EXECUTE=PUBLIC,authenticated
+grantfn app.tg_notification_only_read() EXECUTE=PUBLIC
 grantfn app.tg_notification_push() EXECUTE=(none)
 grantfn app.tg_notify_day_admin_confirmed() EXECUTE=(none)
 grantfn app.tg_notify_day_rejected() EXECUTE=(none)
@@ -1789,6 +1817,7 @@ grantfn public.interval_dist(interval, interval) EXECUTE=PUBLIC,anon,authenticat
 grantfn public.leader_replacement_options(p_tilldelning uuid) EXECUTE=PUBLIC,anon,authenticated,service_role
 grantfn public.leave_day_unsupervised(p_tilldelning uuid) EXECUTE=PUBLIC,anon,authenticated,service_role
 grantfn public.make_worker_ansvarig(p_tilldelning uuid, p_worker uuid) EXECUTE=PUBLIC,anon,authenticated,service_role
+grantfn public.mark_notifications_read(p_ids uuid[]) EXECUTE=authenticated,service_role
 grantfn public.note_pin_attempt(p_ip text) EXECUTE=service_role
 grantfn public.oid_dist(oid, oid) EXECUTE=PUBLIC,anon,authenticated,postgres,service_role
 grantfn public.place_replacement(p_pass uuid, p_worker uuid) EXECUTE=PUBLIC,anon,authenticated,service_role
