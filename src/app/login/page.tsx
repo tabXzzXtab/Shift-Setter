@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState, useSyncExternalStore, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { getSupabase } from "@/lib/supabase/client";
@@ -29,6 +29,13 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  // Every logged-out arrival starts on the welcome screen. Nothing is stored:
+  // a session lasts until somebody logs out, so this is met on a first visit,
+  // after Logga ut and after a password reset -- one extra tap, each time.
+  const [welcomed, setWelcomed] = useState(false);
+  // False on the server, so the exported HTML and the first client render
+  // agree; an automated browser then goes straight to the form.
+  const skip = useSyncExternalStore(noSubscribe, skipWelcome, () => false);
 
   useEffect(() => {
     if (!loading && session) router.replace("/");
@@ -51,6 +58,8 @@ export default function LoginPage() {
     router.replace("/");
   }
 
+  if (!welcomed && !skip) return <Welcome onLogin={() => setWelcomed(true)} />;
+
   return (
     <main
       data-soft-screen="Logga in"
@@ -62,26 +71,18 @@ export default function LoginPage() {
         fontVariantNumeric: "tabular-nums",
       }}
     >
-      {/* THE BRAND, NOT THE INSTRUCTION (owner, 2026-10-06: variant B). Everyone
-          knows a login page is for logging in, so the headline says what
-          ByggKoll is for, and the one line under it keeps the only practical
-          thing: which credentials to use. The product is named above it,
-          because this is the one screen met before anyone knows which app
-          they are in. */}
-      <span
-        className="px-1 text-[13px] font-extrabold"
-        style={{ letterSpacing: "2px", color: C.accentInk }}
-      >
-        BYGGKOLL
-      </span>
+      {/* THE INSTRUCTION, NOW THAT THE BRAND HAS ITS OWN SCREEN (owner,
+          2026-10-06: Välkomstskärm A2, inloggning E). "Rätt folk. Rätt dag.
+          Rätt timmar." moved to the welcome screen in front of this one, so
+          this one says what it is and which credentials to use. */}
       <h1
-        className="px-1 pt-[8px] text-[32px] font-extrabold leading-[1.08]"
-        style={{ letterSpacing: "-1.1px", textWrap: "balance" }}
+        className="px-1 text-[32px] font-extrabold leading-[1.08]"
+        style={{ letterSpacing: "-1.1px" }}
       >
-        Rätt folk. Rätt dag. <span style={{ color: C.accentInk }}>Rätt timmar.</span>
+        Logga in
       </h1>
       <p className="px-1 pb-[22px] pt-[8px] text-[15px] font-medium" style={{ color: C.text2 }}>
-        Logga in med e-posten och lösenordet du fick av din arbetsgivare.
+        Med e-posten och lösenordet du fick av din arbetsgivare.
       </p>
 
       {error && (
@@ -138,6 +139,81 @@ export default function LoginPage() {
         </div>
       </form>
 
+    </main>
+  );
+}
+
+/** Set before the page loads, an automated browser sees the welcome screen. */
+const WELCOME_TEST_KEY = "byggkoll.welcome-test";
+
+/**
+ * Every walkthrough signs in from a fresh browser, and a screen in front of
+ * the form would stop each at its first fill -- so an automated browser goes
+ * straight to the form unless it opts in, as with the tour.
+ */
+const noSubscribe = () => () => {};
+
+function skipWelcome(): boolean {
+  try {
+    if (!navigator.webdriver) return false;
+    return window.localStorage.getItem(WELCOME_TEST_KEY) !== "1";
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * THE GREETING BEFORE THE FORM (owner, 2026-10-06: Välkomstskärm A2).
+ *
+ * The whole screen in the brand orange, because this is the one moment the
+ * colour gets to be the screen; what stands on it is the dark ink (6.1:1),
+ * never white (2.9:1). One sentence about what ByggKoll is for, one button,
+ * and where an account comes from -- there is no sign-up and no social login,
+ * so the line under the button answers the question a "Skapa konto" button
+ * would have raised.
+ */
+function Welcome({ onLogin }: { onLogin: () => void }) {
+  return (
+    <main
+      data-soft-screen="Välkommen"
+      className="flex min-h-dvh w-full justify-center"
+      style={{
+        background: C.accent,
+        color: C.ink,
+        fontFamily: "var(--font-inter), system-ui, sans-serif",
+      }}
+    >
+      <div className="flex min-h-dvh w-full max-w-[420px] flex-col px-6 pb-[max(36px,env(safe-area-inset-bottom))] pt-[max(24px,env(safe-area-inset-top))]">
+        <div className="flex-1" />
+        <p
+          className="text-center text-[15px] font-extrabold"
+          style={{ letterSpacing: "4px" }}
+        >
+          BYGGKOLL
+        </p>
+        <h1
+          className="pt-[18px] text-[46px] font-medium leading-[1.1]"
+          style={{ letterSpacing: "-1.6px" }}
+        >
+          Rätt folk.
+          <br />
+          Rätt dag.
+          <br />
+          <span className="font-extrabold">Rätt timmar.</span>
+        </h1>
+        <div className="flex-[1.4]" />
+        <button
+          type="button"
+          onClick={onLogin}
+          className="press-scale h-14 w-full rounded-full text-[17px] font-bold transition-transform duration-150 active:scale-[.985]"
+          style={{ background: C.surface, color: C.ink, letterSpacing: "-.2px", boxShadow: `0 5px 0 ${C.accentInk}` }}
+        >
+          Logga in
+        </button>
+        <p className="px-4 pt-[18px] text-[15px] font-medium leading-[1.4]">
+          Inget konto? Din arbetsgivare skapar det åt dig.
+        </p>
+      </div>
     </main>
   );
 }
