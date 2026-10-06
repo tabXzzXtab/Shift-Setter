@@ -2041,6 +2041,18 @@ export type Database = {
           },
         ]
       }
+      my_notification: {
+        Row: {
+          created_at: string | null
+          id: string | null
+          kind: Database["public"]["Enums"]["notification_kind"] | null
+          payload: Json | null
+          project_name: string | null
+          read_at: string | null
+          work_date: string | null
+        }
+        Relationships: []
+      }
       my_offer: {
         Row: {
           end_time: string | null
@@ -2293,6 +2305,10 @@ export type Database = {
         Returns: undefined
       }
       note_pin_attempt: { Args: { p_ip: string }; Returns: string }
+      mark_notifications_read: {
+        Args: { p_ids?: string[] }
+        Returns: number
+      }
       place_replacement: {
         Args: { p_pass: string; p_worker: string }
         Returns: undefined

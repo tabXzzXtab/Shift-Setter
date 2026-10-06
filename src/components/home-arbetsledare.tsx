@@ -9,6 +9,7 @@ import {
 } from "./soft";
 import { pendingDays } from "@/lib/pending-days";
 import { fel } from "@/lib/fel";
+import { NotisBell } from "./notis-bell";
 
 const MENU = [
   // ONE ENTRY, NOT TWO. Arbetsdagar -- the availability calendar that writes
@@ -136,19 +137,22 @@ export function HomeArbetsledare() {
           </svg>
         </button>
 
-        <button
-          type="button"
-          aria-label="Profil"
-          aria-expanded={open === "profile"}
-          onClick={() => setOpen("profile")}
-          className="press-scale flex h-11 w-11 items-center justify-center rounded-[11px] p-0 transition-transform duration-[120ms] hover:bg-[#f4f3f0] active:scale-[.985] active:bg-[#e9e8e4]"
-          style={{ background: C.surface, boxShadow: SHADOW.flat }}
-        >
-          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden>
-            <circle cx="10" cy="6.4" r="3.4" stroke={C.ink} strokeWidth="2" />
-            <path d="M3.6 17c.9-3.3 3.4-5 6.4-5s5.5 1.7 6.4 5" stroke={C.ink} strokeWidth="2" strokeLinecap="round" />
-          </svg>
-        </button>
+        <div className="flex items-center gap-2">
+          <NotisBell />
+          <button
+            type="button"
+            aria-label="Profil"
+            aria-expanded={open === "profile"}
+            onClick={() => setOpen("profile")}
+            className="press-scale flex h-11 w-11 items-center justify-center rounded-[11px] p-0 transition-transform duration-[120ms] hover:bg-[#f4f3f0] active:scale-[.985] active:bg-[#e9e8e4]"
+            style={{ background: C.surface, boxShadow: SHADOW.flat }}
+          >
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden>
+              <circle cx="10" cy="6.4" r="3.4" stroke={C.ink} strokeWidth="2" />
+              <path d="M3.6 17c.9-3.3 3.4-5 6.4-5s5.5 1.7 6.4 5" stroke={C.ink} strokeWidth="2" strokeLinecap="round" />
+            </svg>
+          </button>
+        </div>
       </div>
 
       {/* What to do now, not whose screen it is: the days while any are owed,

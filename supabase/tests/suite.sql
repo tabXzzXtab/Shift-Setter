@@ -5918,4 +5918,69 @@ select pg_temp.ok(
   'the survey files the clock span less the stamped break: 9 h - 45 min = 8,25 h');
 
 
+-- ============================================================================
+-- NOTISER (20261006140000)
+--
+-- Two for w1, one for w2. w1 reads only its own, through my_notification,
+-- with the project's name beside it; marks one, then all; can change nothing
+-- else about a notification and cannot un-read one; and w2's stays unread.
+-- ============================================================================
+reset role;
+select set_config('request.jwt.claims', '{}', true);
+
+insert into public.notification (id, account_id, kind, payload) values
+  ('f2f2f2f2-0000-0000-0000-0000000000a1', (select v from fx where k = 'w1'), 'shift_deleted',
+   jsonb_build_object('project_id', 'aaaaaaaa-0000-0000-0000-00000000000a',
+                      'work_date', app.stockholm_today() + 3, 'pass_id', gen_random_uuid())),
+  ('f2f2f2f2-0000-0000-0000-0000000000a2', (select v from fx where k = 'w1'), 'pass_closed',
+   jsonb_build_object('project_id', 'aaaaaaaa-0000-0000-0000-00000000000a',
+                      'work_date', app.stockholm_today(), 'pass_id', gen_random_uuid(), 'hours', 4)),
+  ('f2f2f2f2-0000-0000-0000-0000000000b1', (select v from fx where k = 'w2'), 'shift_deleted',
+   jsonb_build_object('project_id', 'aaaaaaaa-0000-0000-0000-00000000000a',
+                      'work_date', app.stockholm_today() + 3, 'pass_id', gen_random_uuid()));
+
+set local role authenticated;
+select pg_temp.act_as((select v from fx where k = 'w1'));
+
+select pg_temp.ok(
+  (select count(*) filter (where id = 'f2f2f2f2-0000-0000-0000-0000000000b1') = 0
+          and count(*) filter (where id in ('f2f2f2f2-0000-0000-0000-0000000000a1',
+                                            'f2f2f2f2-0000-0000-0000-0000000000a2')) = 2
+          and bool_and(project_name is not null)
+                filter (where id in ('f2f2f2f2-0000-0000-0000-0000000000a1',
+                                     'f2f2f2f2-0000-0000-0000-0000000000a2'))
+   from public.my_notification),
+  'NOTIS.view_is_own',
+  'my_notification holds the caller''s own notifications, named, and nobody else''s');
+
+select pg_temp.rejects($$
+  update public.notification set payload = '{}'::jsonb
+  where id = 'f2f2f2f2-0000-0000-0000-0000000000a1'
+$$, 'NOTIS.only_read_at');
+
+select pg_temp.accepts($$
+  select public.mark_notifications_read(array['f2f2f2f2-0000-0000-0000-0000000000a1'::uuid])
+$$, 'NOTIS.mark_one_accepted');
+select pg_temp.ok(
+  (select read_at is not null from public.my_notification where id = 'f2f2f2f2-0000-0000-0000-0000000000a1')
+  and (select read_at is null from public.my_notification where id = 'f2f2f2f2-0000-0000-0000-0000000000a2'),
+  'NOTIS.mark_one', 'a tap marks that one notification and no other');
+
+select pg_temp.rejects($$
+  update public.notification set read_at = null
+  where id = 'f2f2f2f2-0000-0000-0000-0000000000a1'
+$$, 'NOTIS.no_unreading');
+
+select pg_temp.accepts($$
+  select public.mark_notifications_read()
+$$, 'NOTIS.mark_all_accepted');
+
+reset role;
+select pg_temp.ok(
+  (select read_at is not null from public.notification where id = 'f2f2f2f2-0000-0000-0000-0000000000a2')
+  and (select read_at is null from public.notification where id = 'f2f2f2f2-0000-0000-0000-0000000000b1'),
+  'NOTIS.mark_all_mine_only',
+  'Markera alla som lästa marks every one of mine and none of anybody else''s');
+
+
 select pg_temp.ok(true, 'SUITE.complete', 'every assertion passed');

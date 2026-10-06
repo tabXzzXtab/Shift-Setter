@@ -866,6 +866,14 @@ These are the ones worth a buzz: a shift you could take and somebody else will i
 
 ---
 
+### Notiser — where the rows are read
+
+**Every role has a bell, and the list is one tap away** (owner, 2026-10-06). The startsida of all three roles carries a bell in its top bar with the unread count on it — `99+` past ninety-nine — and it opens **/notiser**: every notification the reader has, newest first, each a white tile with a dot while unread, the date it arrived, the title in bold and the one sentence under it, worded from the table above with the project by name and the date as a person writes it. Tapping one marks that one read and opens what it is about — Mina pass, Bekräfta for that day, Granska for a flagged day, Historik for a signed-off one. **Markera alla som lästa** sits at the top while anything is unread.
+
+**The startsida draws no notifications any more.** It used to draw every unread one as a card with an *Okej* — for some workers 249 cards, most reading only *Du har en ny notis.* — and a leader's or an admin's notifications were drawn nowhere at all.
+
+**Reading is the only write.** The list reads `my_notification`, a view carrying its own tenant and account predicate (it runs as its owner, so a worker sees the project's name without being able to read `project`). Marking goes through `mark_notifications_read(p_ids)` — all of the caller's unread when no ids are given — and `tg_notification_only_read` refuses any other change to a notification, and refuses un-reading one. Before it, the own-row UPDATE policy let an account rewrite the text of its own notifications.
+
 ## 6c. Tenancy — one company, one world
 
 The product is sold to construction companies and operated by Korperation. Both
