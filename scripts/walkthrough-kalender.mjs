@@ -184,6 +184,14 @@ async function makeBatch(page, project, dates, hours, pick) {
   await mustSee(page, "Passen är skapade", `the batch for ${project} did not generate`);
 }
 
+/** "Ta bort passet?" -- the delete asks first; answer it. */
+async function confirmDelete(page) {
+  const dialog = page.getByRole("dialog", { name: "Ta bort passet?" });
+  await dialog.waitFor({ timeout: 10000 });
+  await dialog.getByRole("button", { name: "Ta bort", exact: true }).click();
+  await dialog.waitFor({ state: "detached", timeout: 10000 });
+}
+
 const browser = await chromium.launch();
 const ctx = await browser.newContext({
   ...devices["Pixel 7"], locale: "sv-SE", timezoneId: "Europe/Stockholm",
@@ -487,10 +495,18 @@ try {
 
   // ---- an arbetare is turned away -------------------------------------------
   await signIn(page, W.email, W.password);
+  // The route guard sends them home rather than drawing a notice on a screen
+  // that is not theirs (walkthrough:rollvakt covers every route this way).
   await page.goto(`${BASE}/kalender/`, { waitUntil: "networkidle" });
-  await mustSee(page, "visar hela företagets schema", "an arbetare was shown the shift calendar");
-  await mustNotSee(page, A, "an arbetare could see the company's projects");
-  log("an arbetare is told the calendar is not theirs");
+  try {
+    await page.waitForURL((u) => (u.pathname.replace(/\/+$/, "") || "/") === "/", { timeout: 15000 });
+  } catch {
+    await shot(page, "FAILED");
+    fail("an arbetare was left on the shift calendar instead of being sent home");
+  }
+  // Not "must not see Alfa": home is theirs, and it rightly names the shift
+  // they hold on it in Nästa pass.
+  log("an arbetare who opens the calendar is sent home");
   await signOut(page);
 
   // ---- the admin deletes ----------------------------------------------------
@@ -517,6 +533,7 @@ try {
   await chooseProject(page, A);
   await deleteButton(A).waitFor({ timeout: 20000 });
   await deleteButton(A).click();
+  await confirmDelete(page);
   await mustSee(page, "Passet har redan börjat", "a started pass was deleted");
   await shot(page, "62-kalender-paborjat");
   log("a pass that has started cannot be deleted");
@@ -526,6 +543,7 @@ try {
   await openDay(page, RUN_A[0]);
   await chooseProject(page, A);
   await deleteButton(A).click();
+  await confirmDelete(page);
   await mustSee(page, "Passet är borttaget", "the future pass was not deleted");
   await shot(page, "63-kalender-borttaget");
   log("the admin deleted a future pass");

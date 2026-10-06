@@ -630,6 +630,8 @@ Pressing **Byta Plats Med Arbetsledare** on a leader on the project's day opens:
 
 From the shift calendar, and nowhere else. **Ta bort detta pass** appears on a pass on the project's day for the admin alone; an arbetsledare runs the day but does not un-book it.
 
+**It asks first.** The press opens **Ta bort passet?**, naming the pass's times, saying that everyone booked on it is told and that it cannot be undone, with **Ta bort** and **Avbryt**. Only Ta bort deletes; Avbryt leaves the pass as it was. Releasing a whole crew is not something a mis-tap should do.
+
 **A shift that has started cannot be deleted.** It is a fact to be confirmed, not a plan to be withdrawn — and neither can one somebody has already clocked in on, which is the same rule reached from invariant 3.
 
 **Everyone on it is released, told, and never re-offered it.** The assignments are released as `shift_deleted`, a notification goes to each person, open offers are withdrawn, and a `pass_block` row makes sure the tier walk never hands the shift back to somebody it was taken from. Snabb Pass is the deliberate way back. An auto-assigned arbetsledare is released but NOT blocked: they were never offered the pass, and blocking them would be a lie the next time the day has people on it.
