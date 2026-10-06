@@ -97,6 +97,10 @@ on it. They now come from `tenant_branding`, one row per tenancy.
 The right column prints each line **only when it is set**, except Org.nr, which
 is always there because it comes from `tenant` and every tenancy has one.
 
+*Godkänd för F-skatt* prints only while the company's **Godkänd för F-skatt**
+switch on Företaget is on. A switch, like the same question on Profil, not a
+checkbox: it is a setting that is on or off.
+
 **Three of them are required and one is not.** Invariant 6 reaches the footer:
 without adress, kontaktperson and telefon the day refuses to generate, in
 `tg_arbetsdagbok_guard`. Bankgiro and momsreg may be blank and simply do not

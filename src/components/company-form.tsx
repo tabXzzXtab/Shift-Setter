@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
   C, Card, PrimaryButton, SectionLabel, SoftField, SoftInput, SoftNotice,
-  SoftScreen, SoftToast,
+  SoftScreen, SoftToast, Switch,
 } from "@/components/soft";
 import { getSupabase } from "@/lib/supabase/client";
 import { useAccount } from "@/lib/account";
@@ -336,33 +336,18 @@ export function CompanyForm({
             onChange={(e) => { dirty.current = true; setForm((f) => ({ ...f, momsreg_nr: e.target.value })); }}
           />
         </SoftField>
-        {/* The footer prints "Godkänd för F-skatt" only while this is on. The
-            same 26px box the profile form uses for the same question. */}
-        <button
-          type="button"
-          role="checkbox"
-          aria-checked={form.f_skatt}
-          disabled={!isAdmin || busy}
-          onClick={() => { dirty.current = true; setForm((f) => ({ ...f, f_skatt: !f.f_skatt })); }}
-          className="flex h-[52px] w-full items-center justify-between rounded-[10px] px-[14px] disabled:cursor-not-allowed"
-          style={{ background: C.panel2 }}
-        >
+        {/* The footer prints "Godkänd för F-skatt" only while this is on. A
+            switch, like the same question on Profil: it is a setting that is
+            on or off, not an item ticked off a list. */}
+        <div className="flex h-[52px] w-full items-center justify-between">
           <span className="text-[16px] font-semibold">Godkänd för F-skatt</span>
-          <span
-            className="flex h-[26px] w-[26px] items-center justify-center rounded-[7px]"
-            style={{
-              background: form.f_skatt ? C.accent : C.surface,
-              boxShadow: form.f_skatt ? undefined : `inset 0 0 0 1.5px ${C.hairline}`,
-            }}
-          >
-            {form.f_skatt && (
-              <svg width="14" height="11" viewBox="0 0 14 11" fill="none" aria-hidden>
-                <path d="M1.5 5.6 5 9.2 12.5 1.6" stroke={C.onAccent} strokeWidth="2.4"
-                  strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            )}
-          </span>
-        </button>
+          <Switch
+            label="Godkänd för F-skatt"
+            checked={form.f_skatt}
+            disabled={!isAdmin || busy}
+            onChange={(v) => { dirty.current = true; setForm((f) => ({ ...f, f_skatt: v })); }}
+          />
+        </div>
       </Card>
 
       {isAdmin && (

@@ -273,7 +273,7 @@ try {
   // ---- what the company looks like before this run ---------------------------
   const before = await db.query(
     `select b.tenant_id, b.logo_path, b.address, b.contact_name, b.phone,
-            b.bankgiro, b.momsreg_nr
+            b.bankgiro, b.momsreg_nr, b.f_skatt
        from public.tenant_branding b
        join public.tenant t on t.id = b.tenant_id
       where t.org_nr = '556788-2369'`);
@@ -388,6 +388,24 @@ try {
   if (back !== ADDRESS) fail(`after a reload Adress reads ${JSON.stringify(back)}`);
   log("they survive a reload -- the row was written, not the form");
 
+  // ---- Godkänd för F-skatt is a switch -----------------------------------------
+  // On or off, like the same question on Profil -- not a box to tick.
+  const fskatt = page.getByRole("switch", { name: "Godkänd för F-skatt" });
+  await fskatt.waitFor({ timeout: 20000 });
+  if (await page.getByRole("checkbox", { name: /F-skatt/ }).count()) fail("F-skatt is still drawn as a checkbox");
+  const wasOn = (await fskatt.getAttribute("aria-checked")) === "true";
+  await fskatt.click();
+  await page.getByRole("button", { name: "Spara", exact: true }).click();
+  await mustSee(page, "Företagets uppgifter är sparade", "saving the F-skatt switch reported nothing");
+  await page.reload({ waitUntil: "networkidle" });
+  await fskatt.waitFor({ timeout: 20000 });
+  if (((await fskatt.getAttribute("aria-checked")) === "true") === wasOn) {
+    fail("after a reload the F-skatt switch is back where it started -- it was not saved");
+  }
+  const fskattRow = (await db.query("select f_skatt from public.tenant_branding where tenant_id = $1", [tenantId])).rows[0];
+  if (fskattRow?.f_skatt === wasOn) fail(`the database still holds f_skatt = ${wasOn}`);
+  log(`Godkänd för F-skatt is a switch; flipped to ${wasOn ? "off" : "on"}, saved, and still so after a reload and in the database`);
+
   // ---- the logo ---------------------------------------------------------------
   const logoFile = path.join(ART, `foretag-logo-${RUN}.png`);
   writeFileSync(logoFile, tinyPng());
@@ -485,7 +503,10 @@ try {
   if (await page.getByRole("button", { name: "Spara", exact: true }).count()) {
     fail("a leader is offered a Spara button");
   }
-  log("an arbetsledare sees the details and no way to change them");
+  if (!(await page.getByRole("switch", { name: "Godkänd för F-skatt" }).isDisabled())) {
+    fail("a leader can flip the F-skatt switch");
+  }
+  log("an arbetsledare sees the details and no way to change them, the F-skatt switch included");
 
   // THE DATABASE HALF IS NOT ASSERTED HERE. What a leader may actually write
   // is a policy question, and policy questions belong in supabase/tests/
@@ -514,10 +535,10 @@ async function restoreCompany() {
     await db.query(
       `update public.tenant_branding
           set address = $2, contact_name = $3, phone = $4,
-              bankgiro = $5, momsreg_nr = $6, logo_path = $7
+              bankgiro = $5, momsreg_nr = $6, logo_path = $7, f_skatt = $8
         where tenant_id = $1`,
       [tenantId, original.address, original.contact_name, original.phone,
-       original.bankgiro, original.momsreg_nr, original.logo_path]);
+       original.bankgiro, original.momsreg_nr, original.logo_path, original.f_skatt]);
     if (originalLogo) {
       const up = await sbAdmin.storage.from("branding")
         .upload(original.logo_path, originalLogo,
