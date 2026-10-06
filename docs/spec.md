@@ -31,8 +31,8 @@ DocMaker was a standalone Windows application that produced this document by han
 | Logo, title "Arbetsdagbok" | Fixed |
 | Skapad: timestamp | Generated at export |
 | **Beställare** — Adress, Bolag, Org nummer | Project, captured at creation. All three always printed. No toggles. |
-| **Project:** | Project name |
-| **Ordinarie tid: Xh** | Sum of all confirmed hours in the document's date range. A `leader_confirmed` day counts; the admin's stage 2 approval is not waited for. |
+| **Projekt:** | Project name |
+| **Ordinarie tid: Xh** | Sum of all confirmed hours in the document's date range, **exact** — added in hundredths and printed with up to two decimals, never rounded. A `leader_confirmed` day counts; the admin's stage 2 approval is not waited for. |
 | GODKÄND AV | Fixed heading |
 | Ort & datum: ______ | **Always blank.** Signed by hand. |
 | Signatur: ______ | **Always blank.** Signed by hand. |
@@ -81,7 +81,7 @@ Two columns are renamed from DocMaker: **Pass Typ → Pass Tider**, and the per-
 ### Footer — identical on every page, and the company's own
 
 ```
-Postadress Adress:            Telefon: <telefon>          Bankgiro: <bankgiro>
+Postadress:                   Telefon: <telefon>          Bankgiro: <bankgiro>
 <adress>                      Kontakt: <kontaktperson>    Godkänd för F-skatt
                                                           Org.nr: <org.nr>
                                                           Momsreg.nr: <momsreg>
@@ -1262,7 +1262,7 @@ Source lives at `docs/docmaker-template/`. It is a single string-template module
 **Take verbatim:**
 
 - **The print CSS.** `@page { size: A4; margin: 0 }` with the body doing the insetting via `padding: 20mm 18mm 30mm 18mm`. The 30mm bottom reserves the footer band. Page-margin CSS applies only to the first and last sheet, which is why the body carries it instead. This was solved the hard way once already.
-- **`parseHours` and `sumOrdinarieTid`.** Fifteen lines, pure. Swedish decimal comma in and out. Rewriting them is how you get silently wrong totals.
+- **`parseHours`.** Pure. Swedish decimal comma in. **`sumOrdinarieTid` is no longer verbatim**: DocMaker rounded the total to one decimal, which on a legal document printed a figure that is not the sum of the rows under it. It now adds in hundredths and prints the exact total (2026-10-06). The labels changed too: **Projekt:**, not *Project:*, and **Postadress:**, not *Postadress Adress:*.
 - **The day table as CSS Grid**, `1.1fr 1fr 1.3fr 1.6fr`. Not a `<table>`.
 - **`page-break-inside: avoid`** on day blocks, `page-break-after: always` on the cover.
 - **Footer as `position: fixed; bottom: 14mm`**, which repeats per page in Chromium's print engine.

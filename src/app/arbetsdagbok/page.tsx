@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import Link from "next/link";
 import { AuthGate } from "@/components/auth-gate";
 import { ArbetsdagbokDocument } from "@/components/arbetsdagbok-document";
 import {
@@ -142,12 +143,26 @@ type Project = {
  * in the browser would be a second opinion that could disagree with the only
  * one that matters.
  */
+/** "adress", "adress och telefonnummer", "adress, kontaktperson och telefonnummer". */
+function joinSv(items: string[]): string {
+  return items.length <= 1 ? (items[0] ?? "")
+    : `${items.slice(0, -1).join(", ")} och ${items[items.length - 1]}`;
+}
+
 function Arbetsdagbok() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectId, setProjectId] = useState("");
   const [from, setFrom] = useState(addDays(stockholmToday(), -7));
   const [to, setTo] = useState(stockholmToday());
   const [overlap, setOverlap] = useState<string | null>(null);
+  /**
+   * What the COMPANY still lacks for its own footer (invariant 7): the fields
+   * Företaget holds, named one by one. null until read. Asked as soon as a
+   * project is chosen, so the admin is told before pressing anything, and told
+   * only what is actually missing -- the old sentence listed all three
+   * whatever was there.
+   */
+  const [companyMissing, setCompanyMissing] = useState<string[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [payload, setPayload] = useState<DocPayload | null>(null);
@@ -180,6 +195,26 @@ function Arbetsdagbok() {
         else if (rows.length === 1) setProjectId(rows[0]!.id);
       });
   }, []);
+
+  useEffect(() => {
+    const project = projects.find((p) => p.id === projectId);
+    if (!project) return;
+    let active = true;
+    void (async () => {
+      const { data } = await getSupabase()
+        .from("tenant_branding")
+        .select("address, contact_name, phone")
+        .eq("tenant_id", project.tenant_id)
+        .maybeSingle();
+      if (!active) return;
+      const missing: string[] = [];
+      if (!data?.address?.trim()) missing.push("adress");
+      if (!data?.contact_name?.trim()) missing.push("kontaktperson");
+      if (!data?.phone?.trim()) missing.push("telefonnummer");
+      setCompanyMissing(missing);
+    })();
+    return () => { active = false; };
+  }, [projectId, projects]);
 
   // Half-open [from, to+1). Invariant 9: adjacent documents abut without
   // overlapping by a day, and the picker stays inclusive for the human.
@@ -234,6 +269,21 @@ function Arbetsdagbok() {
     setError(null);
     const sb = getSupabase();
 
+    const project = projects.find((p) => p.id === projectId)!;
+
+    // THE SENDER FIRST, THEN THE RECORD. The period used to be recorded as
+    // documented before the company's details were read, so a read that
+    // failed left a range marked done with no PDF behind it -- and the next
+    // attempt opened on "Du har redan gjort en arbetsdagbok".
+    let sender;
+    try {
+      sender = await loadSender(project.tenant_id);
+    } catch (e) {
+      setError(fel(e, "Företagets egna uppgifter kunde inte läsas. Ladda om sidan."));
+      setBusy(false);
+      return;
+    }
+
     // The database is still the gate. If anything is missing this fails, and
     // the message says what.
     const { error: gErr } = await sb.from("arbetsdagbok").insert(derivesTenant({
@@ -244,17 +294,6 @@ function Arbetsdagbok() {
 
     if (gErr) {
       setError(fel(gErr, "Arbetsdagboken kunde inte skapas. Kontakta administratören."));
-      setBusy(false);
-      return;
-    }
-
-    const project = projects.find((p) => p.id === projectId)!;
-
-    let sender;
-    try {
-      sender = await loadSender(project.tenant_id);
-    } catch (e) {
-      setError(fel(e, "Företagets egna uppgifter kunde inte läsas. Ladda om sidan."));
       setBusy(false);
       return;
     }
@@ -508,9 +547,24 @@ function Arbetsdagbok() {
         </Card>
       </div>
 
+      {/* The company's own details, named one by one, with the way to them.
+          Before anything is pressed: the document cannot be made without
+          them (invariant 7), so saying so after the press was too late. */}
+      {companyMissing && companyMissing.length > 0 && (
+        <div className="px-4 pt-[14px]" data-company-missing={companyMissing.join(",")}>
+          <SoftNotice tone="stop">
+            {`Företagets ${joinSv(companyMissing)} saknas. ${companyMissing.length === 1 ? "Det" : "De"} trycks på arbetsdagboken. `}
+            <Link href="/foretag" className="font-bold underline">Fyll i under Företaget</Link>
+          </SoftNotice>
+        </div>
+      )}
+
       {/* A warning, not a block. Re-issuing a document is legitimate -- it just
-          must never happen unknowingly. */}
-      {overlap && (
+          must never happen unknowingly. And only when the document could
+          actually be made: with the company's details missing it asked "Vill
+          du gå vidare?" about something nobody could go on to, beside the
+          message saying so. */}
+      {overlap && !companyMissing?.length && (
         <div className="px-4 pt-[14px]">
           <SoftNotice tone="warn">
             Du har redan gjort en arbetsdagbok som dokumenterar {overlap}. Vill du gå vidare?
@@ -519,7 +573,7 @@ function Arbetsdagbok() {
       )}
 
       <div className="px-4 pt-[22px]">
-        <PrimaryButton onClick={generate} disabled={busy || !projectId || to < from}>
+        <PrimaryButton onClick={generate} disabled={busy || !projectId || to < from || Boolean(companyMissing?.length)}>
           {busy ? "Genererar…" : "Generera Arbetsdagbok"}
         </PrimaryButton>
       </div>

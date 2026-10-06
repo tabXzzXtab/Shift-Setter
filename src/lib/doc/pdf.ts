@@ -201,7 +201,7 @@ export async function buildArbetsdagbokPdf(payload: DocPayload): Promise<Uint8Ar
     });
     y -= mm(8);
   };
-  kv("Project:", payload.cover.project);
+  kv("Projekt:", payload.cover.project);
   const total = sumOrdinarieTid(payload.days);
   cover.drawText(`Ordinarie tid: ${total}`, { x: MARGIN_X, y, size: 11, font: bold, color: INK });
   y -= mm(6);
