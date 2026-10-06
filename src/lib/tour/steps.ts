@@ -86,6 +86,7 @@ type Gate = {
 
 export type NavStep = Gate & {
   type: "nav";
+  image: TourImage;
   /** The pathname the element lives on. Elsewhere, the tour offers to go. */
   route: string;
   targets: Target[];
@@ -117,6 +118,7 @@ export type NavStep = Gate & {
 
 export type AutofillStep = Gate & {
   type: "autofill";
+  image: TourImage;
   route: string;
   /** In the order the screens show them: Skapa Pass is two screens. */
   forms: FormKey[];
@@ -132,17 +134,27 @@ export type AutofillStep = Gate & {
 };
 
 /** `em`: the word or phrase in the sentence drawn in the brand colour. */
-export type CardStep = { type: "card"; text: string; em?: string };
+export type CardStep = { type: "card"; image: TourImage; text: string; em?: string };
+
+/**
+ * The drawing in the middle of a step's full screen, from the brand images
+ * (public/tour/<name>.png). Owner-chosen per step, 2026-10-06; no step shows
+ * the same one as the step before it.
+ */
+export type TourImage =
+  | "hjalm" | "hjalm-rund" | "ritning" | "roller" | "sele" | "sag"
+  | "nyckel" | "tak" | "mejsel" | "murslev" | "hyvel";
 
 export type Step = CardStep | NavStep | AutofillStep;
 
 // ---------------------------------------------------------------------------
 
 const ARBETSLEDARE: Step[] = [
-  { type: "card", text: "Ditt företag har ett projekt som behöver folk.", em: "projekt" },
-  { type: "card", text: "Nu är det din tur att skapa ett pass.", em: "skapa ett pass" },
+  { type: "card", image: "hjalm", text: "Ditt företag har ett projekt som behöver folk.", em: "projekt" },
+  { type: "card", image: "murslev", text: "Nu är det din tur att skapa ett pass.", em: "skapa ett pass" },
   {
     type: "nav",
+    image: "mejsel",
     route: "/",
     targets: [{ name: "Skapa pass" }],
     tip: "Tryck på Skapa pass.",
@@ -153,12 +165,13 @@ const ARBETSLEDARE: Step[] = [
       "Skapa pass behöver ett projekt att lägga passen på. När ditt företag har ett projekt hittar du Skapa pass här på startsidan.",
     missing: "Skapa pass finns här på startsidan.",
   },
-  { type: "card", text: "Välj de dagar du vill ha folk på plats.", em: "dagar" },
+  { type: "card", image: "tak", text: "Välj de dagar du vill ha folk på plats.", em: "dagar" },
   {
     // NO TIP. Two rings on two days say what to do; the leader taps both, and
     // the step ends when both are chosen. The picker is paged to their month
     // first (prepare), so the rings are never on a page nobody is looking at.
     type: "nav",
+    image: "sag",
     route: "/pass/ny",
     prepare: "pass-month",
     targets: [
@@ -173,9 +186,10 @@ const ARBETSLEDARE: Step[] = [
     requires: "has-project",
     missing: "Dagarna att välja visas här.",
   },
-  { type: "card", text: "Bra. Nu fyller vi i detaljerna.", em: "detaljerna" },
+  { type: "card", image: "nyckel", text: "Bra. Nu fyller vi i detaljerna.", em: "detaljerna" },
   {
     type: "nav",
+    image: "hyvel",
     route: "/pass/ny",
     targets: [{ name: "Fortsätt" }],
     tip: "Tryck på Fortsätt.",
@@ -189,6 +203,7 @@ const ARBETSLEDARE: Step[] = [
     // tour moves on at a press on the real button, ringed and swallowed, because
     // a pass created here would go out as real offers to real workers.
     type: "autofill",
+    image: "roller",
     route: "/pass/ny",
     forms: ["pass-detail"],
     submit: { "pass-detail": { name: /^Skapa \d+ pass$/ } },
@@ -200,12 +215,14 @@ const ARBETSLEDARE: Step[] = [
   },
   {
     type: "card",
+    image: "sele",
     text: "Arbetarna som är lediga kan nu se ditt pass. De väljer själva om de vill jobba den dagen.",
     em: "se ditt pass",
   },
-  { type: "card", text: "När passen är över ska du kolla att allt som bokades stämmer.", em: "kolla att allt som bokades stämmer" },
+  { type: "card", image: "sag", text: "När passen är över ska du kolla att allt som bokades stämmer.", em: "kolla att allt som bokades stämmer" },
   {
     type: "nav",
+    image: "mejsel",
     route: "/",
     targets: [{ name: "Bekräfta pass" }],
     tip: "Tryck på Bekräfta pass.",
@@ -220,6 +237,7 @@ const ARBETSLEDARE: Step[] = [
     // a real day, and confirming it is final (invariants 1 and 5). The tour
     // shows where they go and leaves every character of them to the leader.
     type: "nav",
+    image: "ritning",
     route: "/bekrafta",
     targets: [{ field: "Timmar" }, { css: "#vad-vi-gjorde" }],
     all: true,
@@ -233,9 +251,10 @@ const ARBETSLEDARE: Step[] = [
 ];
 
 const ARBETARE: Step[] = [
-  { type: "card", text: "Boka de dagar du kan jobba.", em: "dagar" },
+  { type: "card", image: "tak", text: "Boka de dagar du kan jobba.", em: "dagar" },
   {
     type: "nav",
+    image: "mejsel",
     route: "/",
     targets: [{ name: "Arbetsdagar" }],
     tip: "Tryck på Arbetsdagar.",
@@ -245,6 +264,7 @@ const ARBETARE: Step[] = [
   },
   {
     type: "nav",
+    image: "sag",
     route: "/min-kalender",
     targets: [{ find: () => document.querySelector("[data-date]")?.parentElement ?? null }],
     tip: "Tryck på en dag du kan jobba.",
@@ -255,16 +275,19 @@ const ARBETARE: Step[] = [
   },
   {
     type: "card",
+    image: "roller",
     text: "När arbetsledaren skapar pass på de dagarna du bokat får du dem direkt.",
     em: "får du dem direkt",
   },
   {
     type: "card",
+    image: "nyckel",
     text: "Har du inte förbokat? Inga problem. Du kan alltid välja från pass som fortfarande är lediga.",
     em: "lediga",
   },
   {
     type: "nav",
+    image: "hyvel",
     route: "/",
     targets: [{ name: "Visa alla" }],
     tip: "Tryck på Visa alla för att se passen som är lediga.",
@@ -277,6 +300,7 @@ const ARBETARE: Step[] = [
   },
   {
     type: "nav",
+    image: "murslev",
     route: "/acceptera",
     targets: [{ name: "Acceptera" }],
     tip: "Tryck Acceptera på ett pass du vill ta.",
@@ -285,12 +309,13 @@ const ARBETARE: Step[] = [
     requires: "has-offer",
     missing: "Passen du kan ta visas här.",
   },
-  { type: "card", text: "På dagen, tryck in när du är på plats.", em: "på plats" },
+  { type: "card", image: "sele", text: "På dagen, tryck in när du är på plats.", em: "på plats" },
   {
     // Steps 9 and 10 of the brief are one step: tapping Stämpla In IS
     // stamping in, and the step ends when the stamp is in the database -- a
     // tap refused by the 4 km check leaves the person here, told why.
     type: "nav",
+    image: "hjalm",
     route: "/",
     targets: [{ name: "Stämpla In" }],
     tip: "Tryck Stämpla In när du är på plats.",
@@ -310,11 +335,13 @@ const ARBETARE: Step[] = [
 const ADMIN: Step[] = [
   {
     type: "card",
+    image: "hjalm",
     text: "Allt börjar med ett projekt. Utan ett projekt finns det inget att jobba på.",
     em: "projekt",
   },
   {
     type: "nav",
+    image: "ritning",
     route: "/",
     targets: [{ name: "Nytt projekt" }],
     tip: "Tryck på Nytt projekt.",
@@ -327,6 +354,7 @@ const ADMIN: Step[] = [
   },
   {
     type: "autofill",
+    image: "roller",
     route: "/projekt/ny",
     forms: ["projekt"],
     submit: { projekt: { name: "Skapa projekt" } },
@@ -340,15 +368,16 @@ const ADMIN: Step[] = [
     until: "next",
     requires: "has-leader",
   },
-  { type: "card", text: "Din arbetsledare söker folk och lägger in passen.", em: "söker folk" },
-  { type: "card", text: "Arbetarna väljer själva vilka pass de kan jobba.", em: "väljer själva" },
-  { type: "card", text: "Arbetsledaren kollar att allt stämmer när dagarna är över.", em: "kollar att allt stämmer" },
-  { type: "card", text: "Sista steget är ditt.", em: "ditt" },
+  { type: "card", image: "sele", text: "Din arbetsledare söker folk och lägger in passen.", em: "söker folk" },
+  { type: "card", image: "sag", text: "Arbetarna väljer själva vilka pass de kan jobba.", em: "väljer själva" },
+  { type: "card", image: "nyckel", text: "Arbetsledaren kollar att allt stämmer när dagarna är över.", em: "kollar att allt stämmer" },
+  { type: "card", image: "tak", text: "Sista steget är ditt.", em: "ditt" },
   {
     // The link lives inside a project's row, so the row is the target until
     // it is open. The step ends on arriving at the page, however they got
     // there.
     type: "nav",
+    image: "mejsel",
     route: "/",
     targets: [{ name: "Generera Arbetsdagbok" }, { css: "[data-project] > button" }],
     tip: "Öppna projektet och tryck Generera Arbetsdagbok.",
@@ -361,6 +390,7 @@ const ADMIN: Step[] = [
   },
   {
     type: "nav",
+    image: "ritning",
     route: "/arbetsdagbok",
     targets: [{ name: "Generera Arbetsdagbok" }],
     tip: "Välj period och tryck Generera Arbetsdagbok.",
@@ -380,6 +410,7 @@ export const SEQUENCES: Record<Role, Step[]> = {
 };
 
 export const DONE = {
+  image: "hjalm-rund" as TourImage,
   title: "Välkommen till ByggKoll.",
   em: "ByggKoll",
   line: "Du vet nu vad du behöver göra.",

@@ -3,9 +3,7 @@
 import { useEffect, useLayoutEffect, useRef, type ReactNode } from "react";
 import { C, PrimaryButton } from "@/components/soft";
 import { TOUR_UI } from "@/lib/tour/targets";
-
-/** What the step is about, drawn as the big mark in the middle of the screen. */
-export type TourIcon = "info" | "do" | "fill" | "done";
+import type { TourImage } from "@/lib/tour/steps";
 
 /**
  * A tour step: a WHITE FULL SCREEN, Duolingo's "Continue" pattern (owner,
@@ -13,7 +11,8 @@ export type TourIcon = "info" | "do" | "fill" | "done";
  * it and nothing floats -- the step is the screen.
  *
  * Top: the way out (✕ ends the guide) and the steps as numbered dots. Middle:
- * one big mark and one big sentence, its key word in the brand colour. Foot:
+ * the step's drawing (public/tour, the brand images) inside the orange circle,
+ * and one big sentence, its key word in the brand colour. Foot:
  * the one button, and "Hoppa över" under it for this step alone.
  *
  * A step that needs the real app ("Tryck på Nytt projekt") is this screen too,
@@ -24,7 +23,7 @@ export type TourIcon = "info" | "do" | "fill" | "done";
  * first step and full on the last -- and is drawn as the numbered dots.
  */
 export function TourCard({
-  progress, step, total, title, em, line, button, icon = "info", onNext, onSkip, onClose,
+  progress, step, total, title, em, line, button, image, onNext, onSkip, onClose,
 }: {
   /** 0-100. Absent on a card that is not a numbered step. */
   progress?: number;
@@ -36,7 +35,8 @@ export function TourCard({
   em?: string;
   line?: string;
   button: string;
-  icon?: TourIcon;
+  /** The drawing in the middle of the screen. */
+  image: TourImage;
   onNext: () => void;
   /** "Hoppa över": this step only. Absent on the last screen. */
   onSkip?: () => void;
@@ -130,12 +130,21 @@ export function TourCard({
         </div>
 
         <div className="flex flex-1 flex-col items-center justify-center gap-9 py-10 text-center">
+          {/* The brand orange circle with the step's drawing inside it (owner,
+              2026-10-06). Decorative: the sentence under it says everything.
+              Fixed size, so the sentence does not move while the file arrives. */}
           <span
             aria-hidden
-            className="flex h-[148px] w-[148px] items-center justify-center rounded-full"
+            className="flex h-[188px] w-[188px] items-center justify-center rounded-full"
             style={{ background: C.accent }}
           >
-            <Mark kind={icon} />
+            {/* eslint-disable-next-line @next/next/no-img-element -- a static export has no image optimiser */}
+            <img
+              src={`/tour/${image}.png`}
+              alt=""
+              draggable={false}
+              className="h-[124px] w-[136px] object-contain"
+            />
           </span>
           <div className="flex flex-col gap-3">
             <p
@@ -204,39 +213,5 @@ function emphasise(text: string, em?: string): ReactNode {
       <span style={{ color: C.accentInk }}>{em}</span>
       {text.slice(at + em.length)}
     </>
-  );
-}
-
-/** One white mark per kind of step, 64px, 2.4 stroke like the app's other icons. */
-function Mark({ kind }: { kind: TourIcon }) {
-  const s = { stroke: C.surface, strokeWidth: 2.4, strokeLinecap: "round" as const, strokeLinejoin: "round" as const, fill: "none" };
-  return (
-    <svg width="64" height="64" viewBox="0 0 32 32" aria-hidden>
-      {kind === "info" && (
-        // a lightbulb: something to know
-        <>
-          <path {...s} d="M12 25h8M13 28.5h6" />
-          <path {...s} d="M16 4a8 8 0 0 0-5 14.2c1 .9 1.6 2.1 1.7 3.4L12.8 22h6.4l.1-.4c.1-1.3.7-2.5 1.7-3.4A8 8 0 0 0 16 4Z" />
-        </>
-      )}
-      {kind === "do" && (
-        // a finger on a point: something to tap
-        <>
-          <circle {...s} cx="12" cy="9" r="4" />
-          <path {...s} d="M12 13v11l-2.2-2.4a2 2 0 0 0-3 2.6l3.8 4.8h11.6l1.8-7.4a2 2 0 0 0-1.6-2.4L16 18" />
-        </>
-      )}
-      {kind === "fill" && (
-        // a wand and a spark: the form fills itself
-        <>
-          <path {...s} d="M5 27 21 11l2.5 2.5L7.5 29.5 5 27Z" />
-          <path {...s} d="M23 3v4M21 5h4M27 9v3M25.5 10.5h3M15 4v2.5M13.8 5.2h2.4" />
-        </>
-      )}
-      {kind === "done" && (
-        // a check: done
-        <path {...s} strokeWidth={3} d="M7 16.5 13 22.5 25.5 9.5" />
-      )}
-    </svg>
   );
 }
