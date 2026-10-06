@@ -297,13 +297,13 @@ export function TourProvider({ children }: { children: ReactNode }) {
       overlay = (
         <TourCard
           {...shared} progress={100} step={active.steps.length}
-          title={DONE.title} em={DONE.em} line={DONE.line} button={DONE.button} icon="done" onNext={finish}
+          title={DONE.title} em={DONE.em} line={DONE.line} button={DONE.button} image={DONE.image} onNext={finish}
         />
       );
     } else if (step?.type === "card") {
-      overlay = <TourCard {...shared} title={step.text} em={step.em} button="Nästa" onNext={next} onSkip={next} />;
+      overlay = <TourCard {...shared} image={step.image} title={step.text} em={step.em} button="Nästa" onNext={next} onSkip={next} />;
     } else if (step && verdict?.state === "fallback") {
-      overlay = <TourCard {...shared} title={verdict.text ?? ""} button="Nästa" onNext={next} onSkip={next} />;
+      overlay = <TourCard {...shared} image={step.image} title={verdict.text ?? ""} button="Nästa" onNext={next} onSkip={next} />;
     } else if (step && verdict?.state === "ok") {
       if (revealed !== index || !onRoute) {
         const say = step.type === "nav" ? (step.tip || step.say || "") : step.say;
@@ -313,7 +313,7 @@ export function TourProvider({ children }: { children: ReactNode }) {
             title={say}
             em={step.em}
             button="Visa mig"
-            icon={step.type === "autofill" ? "fill" : "do"}
+            image={step.image}
             onNext={() => {
               setRevealed(index);
               if (!onRoute) router.push(step.route);
