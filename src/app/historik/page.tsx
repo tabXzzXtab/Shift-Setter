@@ -7,7 +7,7 @@ import {
   C, Card, ChevronRight, EmptyState, Segmented, SoftNotice, SoftScreen, Tag,
 } from "@/components/soft";
 import { getSupabase } from "@/lib/supabase/client";
-import { hhmm, longDayHeading } from "@/lib/dates";
+import { hhmm, longDayHeading, svDate } from "@/lib/dates";
 import { pendingSummaries, type PendingSummary } from "@/lib/pending-days";
 import { reviewSummaries, type ReviewSummary } from "@/lib/review-days";
 import { useAccount } from "@/lib/account";
@@ -505,7 +505,7 @@ function Historik() {
                 <div className="mt-[14px] pt-[10px]" style={{ boxShadow: `inset 0 1px 0 ${C.hairline}` }}>
                   {d.log.map((a, i) => (
                     <div key={i} className="text-[14px] font-medium" style={{ color: C.text2 }}>
-                      {a.action === "rejected" ? "Underkänd" : "Godkänd"} {a.acted_at.slice(0, 10)}
+                      {a.action === "rejected" ? "Underkänd" : "Godkänd"} {svDate(a.acted_at)}
                       {a.note ? ` — ${a.note}` : ""}
                     </div>
                   ))}

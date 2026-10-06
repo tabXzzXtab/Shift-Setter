@@ -18,7 +18,8 @@ type Role = "arbetare" | "arbetsledare" | "admin";
  *
  *   1. Name and email.
  *   2. Kopiera Inloggning -- generates the password and copies the block.
- *   3. Only THEN does Tillverka Arbetare become pressable.
+ *   3. Only THEN does the create button ("Skapa arbetare", named for the
+ *      chosen role) become pressable.
  *
  * The copy gates the create deliberately: an account whose credentials nobody
  * holds is an account nobody can use, and the worker has no way to ask. This
@@ -308,7 +309,7 @@ export function NyArbetareForm({
 
         {/* STEG 2. The dominant action until it has been done: accent fill,
             its own shadow, the one thing on the screen that looks pressable.
-            It goes quiet afterwards and Tillverka takes the accent over. */}
+            It goes quiet afterwards and Skapa takes the accent over. */}
         {!password && (
           <div className="mb-[14px]">
             <button
@@ -361,7 +362,7 @@ export function NyArbetareForm({
             cursor: copied ? undefined : "not-allowed",
           }}
         >
-          {saving ? "Skapar…" : "Tillverka arbetare"}
+          {saving ? "Skapar…" : `Skapa ${role === "admin" ? "administratör" : role}`}
         </button>
 
         {onCancel && (

@@ -213,7 +213,7 @@ export function Bristsurvey({
           <strong className="font-extrabold">
             {live.leaders.length > 0 ? live.leaders.join(", ") : "någon arbetsledare"}
           </strong>
-          , be de att bekräfta passen.
+          , be dem att bekräfta passen.
         </p>
         <div className="mt-[18px]">
           {/* The heavier button is the one that leaves. Chasing the leader is

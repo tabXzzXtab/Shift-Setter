@@ -127,7 +127,7 @@ try {
   log("profile icon opens Alla Konton, and no longer says Inställningar");
 
   await page.getByRole("heading", { name: "Hitta ett konto" }).waitFor({ timeout: 20000 });
-  await page.getByRole("link", { name: /Tillverka Konto/ }).waitFor({ timeout: 20000 });
+  await page.getByRole("link", { name: /Skapa konto/ }).waitFor({ timeout: 20000 });
 
   // ---- NO OWN CARD: the admin is here for somebody else ---------------------
   // Their own account is Profil -> Min profil; a card for it here duplicated
@@ -135,7 +135,7 @@ try {
   if (await page.getByRole("link", { name: /Din profil/ }).count()) {
     fail("Alla Konton still carries your own profile card");
   }
-  log("no own profile card: Tillverka Konto is the first thing on the screen");
+  log("no own profile card: Skapa konto is the first thing on the screen");
 
   await shot(page, "k1-alla-konton");
 
@@ -308,7 +308,7 @@ try {
   await field(page, "E-post").fill(NEW_EMAIL);
   await page.getByRole("button", { name: /Kopiera inloggning/ }).click();
   await page.locator("[data-password]").first().waitFor({ timeout: 20000 });
-  await page.getByRole("button", { name: "Tillverka arbetare" }).click();
+  await page.getByRole("button", { name: /^Skapa (arbetare|arbetsledare|administratör)$/ }).click();
   await page.getByText("Klar", { exact: false }).first().waitFor({ timeout: 30000 });
   log(`created ${NEW_NAME}`);
 

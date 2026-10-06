@@ -190,7 +190,7 @@ So: **when the admin picks a date range and something in it is unconfirmed, he i
 
 **Step 2 — whose job this was.** If the leader has not confirmed:
 
-> Passen du begär om har inte blivit bekräftade av **[Arbetsledare namn]**, be de att bekräfta passen.
+> Passen du begär om har inte blivit bekräftade av **[Arbetsledare namn]**, be dem att bekräfta passen.
 
 - **Tillbaka** — black, filled. Back to the previous screen.
 - **Bekräfta Uppgifter** — white, outlined. On to the survey.
@@ -426,7 +426,7 @@ Email: <email field>
 Lösenord: <generated>
 ```
 
-3. Only now does **Tillverka Arbetare** become pressable. It glows once the credentials have been copied.
+3. Only now does the create button become pressable. It is named for the role chosen on the form — **Skapa arbetare**, **Skapa arbetsledare** or **Skapa administratör** — and glows once the credentials have been copied.
 
 **Password rules:** minimum 6 characters, maximum 20, and every character must be typeable on both a phone keyboard and a desktop one without hunting through symbol panels.
 
@@ -779,6 +779,8 @@ That block is the entire enforcement mechanism. The admin needs the document; on
 
 **Aggregation currently happens in the browser.** Every hours total transfers matching rows to the client. Fine at this scale; worth knowing it is O(all shifts) per page view.
 
+**Counts and dates are written as a person would write them.** A count agrees with its noun — *1 dag vald*, *3 dagar valda*, *1 av 1 plats*, never *dag(ar)* or *plats(er)* — and a date in a sentence is `svDate()`: *8 oktober*, with the year only outside the current one, never `2026-10-08`. A bracket plural or an ISO date on a screen reads as the database leaking through.
+
 **Every refusal is in Swedish, and it says who can fix it.** Because the database is the only real boundary, almost every refusal in this app is a Postgres exception written for whoever is reading the migration — in English, naming a column or a stage. That is the right text in a log and the wrong text on a phone on a building site. `src/lib/fel.ts` is the one place that translates, and every message it holds answers two questions: **what happened**, in the app's words rather than the schema's, and **who can fix it** — the admin, the arbetsledare, or the reader themselves. A refusal that answers only the first leaves the reader stuck.
 
 **One table, not one per screen.** Three screens had grown their own partial translator, so the same refusal read differently depending on where you met it, and a rule added to the database got translated on whichever screen somebody happened to be working on. The database raises one sentence; the app says one thing back.
@@ -1056,7 +1058,7 @@ cannot widen it.
 and Logga ut. Alla Konton was in the hamburger and is not any more: the menu is
 what an owner *does* — the calendar, the projects, the days waiting — and Alla
 Konton is this installation and the people in it, which is what someone opens
-their own icon looking for. **+ Tillverka Konto** lives there rather than on the
+their own icon looking for. **+ Skapa konto** lives there rather than on the
 landing page.
 
 **Two entries, not three.** Konto and Profil were separate screens asking about
@@ -1087,7 +1089,7 @@ pixels at fifty people. Everything on it was findable and nothing was scannable.
   second of which asks before it acts.
 - **Search**, sticky, because grouping alone still leaves a long scroll and
   "where is Jonas" should not be answered by scrolling.
-- **Your own card sits above Tillverka Konto**, and opens the same screen every
+- **Your own card sits above Skapa konto**, and opens the same screen every
   other row opens. The one account an admin can always edit should not be the
   hardest one to reach.
 

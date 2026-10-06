@@ -70,7 +70,7 @@ async function createPerson(page, name, email, role) {
   await page.getByRole("button", { name: /Kopiera inloggning/ }).click();
   const password = (await page.locator("[data-password]").first().innerText()).trim();
   if (!password) fail(`no password for ${name}`);
-  await page.getByRole("button", { name: "Tillverka arbetare" }).click();
+  await page.getByRole("button", { name: /^Skapa (arbetare|arbetsledare|administratör)$/ }).click();
   await page.getByText("Klar", { exact: false }).first().waitFor({ timeout: 20000 });
   return { email, password };
 }
@@ -148,20 +148,25 @@ try {
   await field(page, "Projekt").selectOption({ label: project });
   await page.getByLabel("Timmar på rad 1").fill("8");
   await page.getByRole("button", { name: /Skapa 1 pass/ }).click();
-  await mustSee(page, "1 av 1 platser tillsatta", "the ordinary pass was not filled by the tiers");
+  await mustSee(page, "1 av 1 plats tillsatt", "the ordinary pass was not filled by the tiers");
   log(`ordinary pass on ${D}, filled from förval by Ada`);
 
   // ---- the leader is refused ------------------------------------------------
   // Snabb Pass is admin only: creating one is inseparable from adding someone
   // off-roster, and that creates an account.
+  // The route guard sends them home rather than drawing a notice on a screen
+  // that is not theirs (walkthrough:rollvakt covers every route this way).
   await page.goto(`${BASE}/snabb/`, { waitUntil: "networkidle" });
-  await mustSee(page, "Endast administratören kan skapa Snabb Pass",
-    "an arbetsledare should be told Snabb Pass is not theirs");
+  try {
+    await page.waitForURL((u) => (u.pathname.replace(/\/+$/, "") || "/") === "/", { timeout: 15000 });
+  } catch {
+    fail("an arbetsledare was left on Snabb Pass instead of being sent home");
+  }
   if (await page.getByRole("button", { name: "Skapa Snabb Pass" }).count()) {
     fail("the leader was shown a Snabb Pass form the database would refuse");
   }
   await shot(page, "41-snabb-nekad-ledare");
-  log("arbetsledare is told Snabb Pass is admin only, and gets no form");
+  log("arbetsledare is sent home from Snabb Pass, and gets no form");
   await signOut(page);
 
   // ---- the admin covers the no-show, with an off-roster worker --------------
@@ -182,10 +187,10 @@ try {
   // swallows the press and the screen cannot answer, which reads as broken
   // rather than as a step not yet done -- so this asserts that the press is
   // HEARD and refused in words, and that no account came of it.
-  const create = page.getByRole("button", { name: "Tillverka arbetare" });
+  const create = page.getByRole("button", { name: /^Skapa (arbetare|arbetsledare|administratör)$/ });
   await create.click();
   await mustSee(page, "Kopiera inloggningen först",
-    "Tillverka arbetare was pressed before the login was copied and said nothing");
+    "Skapa arbetare was pressed before the login was copied and said nothing");
   if (await page.getByText("Lösenord:").count()) {
     fail("an account was created before anybody had its login");
   }
@@ -243,7 +248,7 @@ try {
   await signIn(page, L.email, L.password);
   // The project's day on D: its passes and who stands on them.
   await openDayPage(page, BASE, D, project);
-  if (await page.getByText("0 av 1 platser", { exact: false }).count()) {
+  if (await page.getByText("0 av 1 plats", { exact: false }).count()) {
     fail("a pass on the day lost its worker; a Snabb Pass must never release anybody");
   }
   const adaRows = await page.getByText(`Ada S${RUN}`, { exact: false }).count();

@@ -205,7 +205,7 @@ function AllaKonton() {
           <svg width="15" height="15" viewBox="0 0 15 15" fill="none" aria-hidden>
             <path d="M7.5 1v13M1 7.5h13" stroke={C.onAccent} strokeWidth="2.4" strokeLinecap="round" />
           </svg>
-          Tillverka Konto
+          Skapa konto
         </Link>
       </div>
 
@@ -227,7 +227,7 @@ function AllaKonton() {
       {rows.length <= 1 && (
         <div className="px-4">
           <EmptyState headline="Inga andra konton än ditt">
-            Tillverka Konto lägger till den första arbetaren.
+            Skapa konto lägger till den första arbetaren.
           </EmptyState>
         </div>
       )}

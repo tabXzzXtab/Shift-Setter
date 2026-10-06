@@ -363,7 +363,7 @@ export function DayTimeline({ date, from, readOnly = false }: {
                   </span>
                   {height >= 80 && (
                     <span className="block truncate text-[14px] font-bold" style={{ color: C.accentInk }}>
-                      {it.booked} av {it.headcount} platser
+                      {it.booked} av {it.headcount} {it.headcount === 1 ? "plats" : "platser"}
                     </span>
                   )}
                 </span>

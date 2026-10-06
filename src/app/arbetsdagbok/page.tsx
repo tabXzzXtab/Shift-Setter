@@ -8,7 +8,7 @@ import {
   SoftScreen, SoftSelect,
 } from "@/components/soft";
 import { derivesTenant, getSupabase } from "@/lib/supabase/client";
-import { addDays, hhmm, stampToTime, stockholmToday } from "@/lib/dates";
+import { addDays, hhmm, stampToTime, stockholmToday, svDate } from "@/lib/dates";
 import { Bristsurvey, fetchGaps, hasGaps, type Gaps } from "@/components/bristsurvey";
 import type { DocDay, DocPayload } from "@/lib/doc/arbetsdagbok";
 import { arbetsdagbokFilename, buildArbetsdagbokPdf } from "@/lib/doc/pdf";
@@ -201,7 +201,10 @@ function Arbetsdagbok() {
         if (!m) return false;
         return m[1]! < addDays(to, 1) && from < m[2]!;
       });
-      setOverlap(hit ? String(hit.covered).replace(/[[)]/g, "").replace(",", " – ") : null);
+      // covered is half-open, [from, to+1): the last day DOCUMENTED is the
+      // day before its upper bound, and that is the one to name.
+      const m = hit ? /^\[(.+),(.+)\)$/.exec(String(hit.covered)) : null;
+      setOverlap(m ? `${svDate(m[1]!)} – ${svDate(addDays(m[2]!, -1))}` : null);
     })();
 
     return () => { active = false; };

@@ -85,7 +85,7 @@ async function createPerson(page, name, email, role) {
   const block = await page.locator("[data-credentials]").first().innerText();
   const password = (await page.locator("[data-password]").first().innerText()).trim();
   if (!password) fail(`no password in the credential block:\n${block}`);
-  await page.getByRole("button", { name: "Tillverka arbetare" }).click();
+  await page.getByRole("button", { name: /^Skapa (arbetare|arbetsledare|administratör)$/ }).click();
   await page.getByText("Klar", { exact: false }).first().waitFor({ timeout: 20000 });
   return { email, password, name };
 }
@@ -165,7 +165,7 @@ try {
   await page.getByLabel("Timmar på rad 1").fill("8");
   await page.getByRole("button", { name: worker.name, exact: true }).click();
   await page.getByRole("button", { name: /Skapa 1 pass/ }).click();
-  await mustSee(page, "1 av 1 platser tillsatta", "the priority list did not fill the slot");
+  await mustSee(page, "1 av 1 plats tillsatt", "the priority list did not fill the slot");
   log("leader created the pass, then went silent -- nobody confirms the day");
   await signOut(page);
 
