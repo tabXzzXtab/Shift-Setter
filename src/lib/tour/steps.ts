@@ -17,12 +17,19 @@ import { addDays, stockholmToday } from "@/lib/dates";
  *             a character at a time and a ring on the button. The person
  *             presses it, and the press is caught.
  *
- * NOTHING HERE WRITES, AND NOTHING THE TOUR ASKS FOR DOES EITHER. Autofill
- * sets what a form shows. A step whose button would write -- Skapa projekt,
- * Skapa pass, Bekräfta dagen, a day painted on Min kalender, Acceptera,
- * Stämpla In, Generera Arbetsdagbok -- rings the real control and CATCHES the
- * press ("press", or "next" with `swallow`): the tour advances and the page
- * never sees it. Only navigation taps go through.
+ * NOTHING HERE WRITES, AND NOTHING THE TOUR ASKS FOR DOES EITHER -- with ONE
+ * exception. Autofill sets what a form shows. A step whose button would write
+ * -- Skapa projekt, Skapa pass, Bekräfta dagen, Acceptera, Stämpla In,
+ * Generera Arbetsdagbok -- rings the real control and CATCHES the press
+ * ("press", or "next" with `swallow`): the tour advances and the page never
+ * sees it. Navigation taps go through.
+ *
+ * THE EXCEPTION IS A DAY ON MIN KALENDER (owner, 2026-10-06). Marking a day
+ * the worker can work is the thing the step teaches, it creates no pass and
+ * tells nobody anything, and a tour that swallowed it left the worker
+ * believing they had booked a day they had not. That tap goes through, the
+ * förval row is written, and the step ends on the calendar's own
+ * "availability-saved" -- after the save, not on the tap.
  *
  * A STEP THAT CANNOT HAPPEN BECOMES A CARD. A first login usually has no offer
  * to accept, no day to confirm and no shift to stamp into, and a step waiting
@@ -242,7 +249,8 @@ const ARBETARE: Step[] = [
     targets: [{ find: () => document.querySelector("[data-date]")?.parentElement ?? null }],
     tip: "Tryck på en dag du kan jobba.",
     em: "dag",
-    until: "press",
+    // Not "press": the tap must reach the calendar and SAVE (see the header).
+    until: "availability-saved",
     missing: "Kalendern med dina arbetsdagar visas här.",
   },
   {
