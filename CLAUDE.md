@@ -33,8 +33,9 @@ Full specification: [docs/spec.md](docs/spec.md).
     from anything a caller sends. A worker's row cannot carry an own span at
     all. One true exception to the whole invariant, the bristsurvey — on a day
     no leader confirmed, hours come from the clock span where the worker clocked
-    both ends and the planned figure where they did not. Nobody types those.
-    That path, no other.
+    both ends, LESS THE LUNCH BREAKS THEY STAMPED (owner, 2026-10-06), and the
+    planned figure where they did not. Nobody types those. That path, no
+    other. Everywhere else a stamped break is shown, never summed into hours.
 2.  No worker holds two assignments whose HOURS OVERLAP. A morning shift and
     an afternoon Snabb Pass are two things that happened and print as two rows;
     being booked into two places at once is the thing this forbids, and a date

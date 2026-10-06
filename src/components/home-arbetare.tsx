@@ -7,7 +7,7 @@ import { SoftNastaPass } from "./nasta-pass-card";
 import { OfferStack, type Offer } from "./offer-stack";
 import { GroupedList, HomeTitle, SignOut, SoftSheet } from "./soft";
 import { getSupabase } from "@/lib/supabase/client";
-import { addDays, hhmm, passEndAt, stockholmToday } from "@/lib/dates";
+import { addDays, hhmm, passEndAt, stampToTime, stockholmToday } from "@/lib/dates";
 import { stampGate } from "@/lib/geo";
 import { fel } from "@/lib/fel";
 import { tourSignal } from "@/lib/tour/signal";
@@ -22,6 +22,8 @@ type Shift = {
   site_address: string | null;
   clock_in: string | null;
   clock_out: string | null;
+  /** When the break now running began, or null. From the stamp events. */
+  lunch_since: string | null;
 };
 
 type Note = { id: string; kind: string; work_date?: string };
@@ -43,6 +45,7 @@ const GROUND = "#f7f6f3";       // app background
 const SURFACE = "#ffffff";      // cards
 const PANEL = "#f1f0ed";        // empty states, map ground, "Neka"
 const HAIRLINE = "#e4e3df";     // row divider
+const BORDER = "#d3d1cd";       // the 1px edge of a white second-rank button
 
 const SHADOW_FLAT = "0 1px 3px rgba(36,24,15,.08)";
 const SHADOW_GROUP = "0 4px 18px rgba(36,24,15,.07), 0 1px 2px rgba(36,24,15,.05)";
@@ -166,7 +169,7 @@ export function HomeArbetare() {
       // at 06:00 and bad signal on site is normal.
       const [{ data: shifts }, { data: offered }, { data: unread }] = await Promise.all([
         sb.from("my_shift")
-          .select("id, work_date, start_time, end_time, project_name, site_address, clock_in, clock_out")
+          .select("id, work_date, start_time, end_time, project_name, site_address, clock_in, clock_out, lunch_since")
           .gte("work_date", addDays(today, -1))
           .lte("work_date", today)
           .order("work_date"),
@@ -218,23 +221,30 @@ export function HomeArbetare() {
    * `checking` is separate from `busy` so the button can say which of the two
    * waits it is in -- looking for the phone, or talking to the database.
    */
-  async function stamp(dir: "in" | "out") {
+  async function stamp(kind: "in" | "out" | "lunch_start" | "lunch_end") {
     if (!shift || busy || checking) return;
-
-    // Set before the first await. Geolocation can take seconds, and a second
-    // tap in that window would ask twice and stamp twice.
-    setChecking(true);
     setError(null);
 
-    const gate = await stampGate(shift.site_address);
-    setChecking(false);
-    if (!gate.ok) { setError(gate.message); return; }
+    // Only arriving and leaving are fenced. A break is often taken off site
+    // -- the van, the café across the road -- so Lunch Paus and Fortsätt
+    // Passet ask nothing of the phone (owner, 2026-10-06).
+    if (kind === "in" || kind === "out") {
+      // Set before the first await. Geolocation can take seconds, and a second
+      // tap in that window would ask twice and stamp twice.
+      setChecking(true);
+      const gate = await stampGate(shift.site_address);
+      setChecking(false);
+      if (!gate.ok) { setError(gate.message); return; }
+    }
 
+    // ONE DOOR, public.stamp: the database keeps the order of the four
+    // buttons, writes the server's time, and logs every press as evidence
+    // (stamp_event). Stämpla Ut during a break closes the break first.
     setBusy(true);
     const { error } = await getSupabase()
-      .rpc(dir === "in" ? "clock_in" : "clock_out", { p_tilldelning: shift.id });
+      .rpc("stamp", { p_tilldelning: shift.id, p_kind: kind });
     if (error) setError(fel(error, "Stämplingen gick inte igenom. Försök igen, eller prata med din arbetsledare."));
-    else if (dir === "in") tourSignal("stamped-in");
+    else if (kind === "in") tourSignal("stamped-in");
     setBusy(false);
     setReload((r) => r + 1);
   }
@@ -268,6 +278,9 @@ export function HomeArbetare() {
   }
 
   const clockedIn = Boolean(shift?.clock_in && !shift.clock_out);
+  /** On a break right now: the primary press becomes Fortsätt Passet. */
+  const onLunch = clockedIn && Boolean(shift?.lunch_since);
+  const lunchFrom = shift?.lunch_since ? stampToTime(shift.lunch_since) : "";
   /**
    * The next offer that has not already been and gone.
    *
@@ -343,13 +356,15 @@ export function HomeArbetare() {
           there is nothing to do. */}
       <HomeTitle
         title={
-          shift && clockedIn ? "Stämpla ut"
+          shift && onLunch ? "Lunchpaus"
+            : shift && clockedIn ? "Stämpla ut"
             : shift ? "Stämpla in"
               : front ? "Svara på pass"
                 : "Dina pass"
         }
         line={
-          shift && clockedIn ? "Stämpla ut innan du lämnar platsen."
+          shift && onLunch ? `Lunch sedan ${lunchFrom}. Tryck Fortsätt Passet när du är tillbaka.`
+            : shift && clockedIn ? "Stämpla ut innan du lämnar platsen."
             : shift ? "Du måste vara inom 4 km från arbetsplatsen."
               : front ? "Se till att du är ledig den dagen innan du accepterar."
                 : null
@@ -396,7 +411,7 @@ export function HomeArbetare() {
               */}
               <span
                 role="status"
-                aria-label={clockedIn ? "Instämplad" : "Inte instämplad"}
+                aria-label={onLunch ? `Lunchpaus sedan ${lunchFrom}` : clockedIn ? "Instämplad" : "Inte instämplad"}
                 className={`absolute right-5 top-5 block h-[9px] w-[9px] rounded-full ${
                   clockedIn ? "animate-livedot" : ""
                 }`}
@@ -423,27 +438,47 @@ export function HomeArbetare() {
                 {hhmm(shift.start_time)}–{hhmm(shift.end_time)}
               </div>
 
+              {/* THE FOUR PRESSES, one in front at a time:
+                    not in      -> Stämpla In
+                    working     -> Stämpla Ut, and Lunch Paus under it
+                    on a break  -> Fortsätt Passet, and Stämpla Ut under it
+                  The one in front is what the moment most likely needs; the
+                  one under it is the other thing that is allowed now. */}
               <button
                 type="button"
-                onClick={() => stamp(clockedIn ? "out" : "in")}
+                onClick={() => stamp(onLunch ? "lunch_end" : clockedIn ? "out" : "in")}
                 disabled={waiting}
                 aria-busy={waiting}
                 className="press-scale flex h-[66px] w-full items-center justify-center rounded-[12px] text-[23px] font-extrabold transition-[transform,background] duration-150 active:scale-[.985] disabled:opacity-60"
                 style={{
                   letterSpacing: "-.5px",
-                  background: primaryFill,
-                  color: clockedIn ? SURFACE : INK,
-                  boxShadow: primaryShadow,
+                  background: onLunch ? ACCENT : primaryFill,
+                  color: clockedIn && !onLunch ? SURFACE : INK,
+                  boxShadow: onLunch ? "0 6px 18px rgba(232,122,70,.28)" : primaryShadow,
                 }}
               >
                 {checking
                   ? "Söker plats…"
                   : busy
                     ? "Stämplar…"
-                    : clockedIn
-                      ? "Stämpla Ut"
-                      : "Stämpla In"}
+                    : onLunch
+                      ? "Fortsätt Passet"
+                      : clockedIn
+                        ? "Stämpla Ut"
+                        : "Stämpla In"}
               </button>
+
+              {clockedIn && (
+                <button
+                  type="button"
+                  onClick={() => stamp(onLunch ? "out" : "lunch_start")}
+                  disabled={waiting}
+                  className="press-scale mt-[10px] flex h-[54px] w-full items-center justify-center rounded-[12px] text-[17px] font-bold transition-transform duration-150 active:scale-[.985] disabled:opacity-60"
+                  style={{ background: SURFACE, border: `1px solid ${BORDER}`, color: INK }}
+                >
+                  {onLunch ? "Stämpla Ut" : "Lunch Paus"}
+                </button>
+              )}
             </>
           )}
         </div>

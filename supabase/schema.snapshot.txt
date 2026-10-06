@@ -6,6 +6,7 @@ enum   notification_kind = shift_deleted,shift_offered,day_unconfirmed,day_flagg
 enum   offer_state = offered,accepted,declined,withdrawn
 enum   release_reason = removed_by_leader,replaced_by_snabb,shift_deleted,absent_at_confirmation,account_paused,no_workers_left,closed_early
 enum   review_action = approved,rejected
+enum   stamp_kind = in,lunch_start,lunch_end,out
 enum   tenant_account_type = demo,sold,gift,owner
 column account.active boolean NOT NULL DEFAULT true
 column account.created_at timestamp with time zone NOT NULL DEFAULT now()
@@ -104,6 +105,7 @@ column my_shift.day_confirmed boolean
 column my_shift.end_time time without time zone
 column my_shift.filed boolean
 column my_shift.id uuid
+column my_shift.lunch_since timestamp with time zone
 column my_shift.pass_id uuid
 column my_shift.planned_hours numeric(4,2)
 column my_shift.project_id uuid
@@ -241,6 +243,12 @@ column push_token.platform text NOT NULL
 column push_token.tenant_id uuid NOT NULL
 column push_token.token text NOT NULL
 column push_token.updated_at timestamp with time zone NOT NULL DEFAULT now()
+column stamp_event.at timestamp with time zone NOT NULL DEFAULT now()
+column stamp_event.id bigint NOT NULL
+column stamp_event.kind stamp_kind NOT NULL
+column stamp_event.stamped_by uuid
+column stamp_event.tenant_id uuid NOT NULL
+column stamp_event.tilldelning_id uuid NOT NULL
 column tenant.account_type tenant_account_type NOT NULL
 column tenant.created_at timestamp with time zone NOT NULL DEFAULT now()
 column tenant.expires_at timestamp with time zone
@@ -430,6 +438,11 @@ constr push_token FOREIGN KEY (account_id) REFERENCES account(id) ON DELETE CASC
 constr push_token FOREIGN KEY (account_id, tenant_id) REFERENCES account(id, tenant_id) DEFERRABLE
 constr push_token FOREIGN KEY (tenant_id) REFERENCES tenant(id)
 constr push_token PRIMARY KEY (token)
+constr stamp_event FOREIGN KEY (stamped_by) REFERENCES account(id)
+constr stamp_event FOREIGN KEY (tenant_id) REFERENCES tenant(id)
+constr stamp_event FOREIGN KEY (tilldelning_id) REFERENCES tilldelning(id) ON DELETE CASCADE
+constr stamp_event FOREIGN KEY (tilldelning_id, tenant_id) REFERENCES tilldelning(id, tenant_id) DEFERRABLE
+constr stamp_event PRIMARY KEY (id)
 constr tenant CHECK (((account_type <> 'demo'::tenant_account_type) OR (expires_at IS NOT NULL)))
 constr tenant CHECK ((btrim(name) <> ''::text))
 constr tenant CHECK ((btrim(org_nr) <> ''::text))
@@ -501,6 +514,7 @@ index  CREATE INDEX project_leader_tenant ON public.project_leader USING btree (
 index  CREATE INDEX project_tenant ON public.project USING btree (tenant_id)
 index  CREATE INDEX push_token_account ON public.push_token USING btree (account_id)
 index  CREATE INDEX push_token_tenant ON public.push_token USING btree (tenant_id)
+index  CREATE INDEX stamp_event_tilldelning ON public.stamp_event USING btree (tilldelning_id, at, id)
 index  CREATE INDEX tilldelning_date_active_idx ON public.tilldelning USING btree (work_date, worker_id) WHERE (released_at IS NULL)
 index  CREATE INDEX tilldelning_pass_idx ON public.tilldelning USING btree (pass_id) WHERE (released_at IS NULL)
 index  CREATE INDEX tilldelning_tenant ON public.tilldelning USING btree (tenant_id)
@@ -532,6 +546,7 @@ index  CREATE UNIQUE INDEX project_id_tenant_key ON public.project USING btree (
 index  CREATE UNIQUE INDEX project_leader_pkey ON public.project_leader USING btree (project_id, account_id)
 index  CREATE UNIQUE INDEX project_pkey ON public.project USING btree (id)
 index  CREATE UNIQUE INDEX push_token_pkey ON public.push_token USING btree (token)
+index  CREATE UNIQUE INDEX stamp_event_pkey ON public.stamp_event USING btree (id)
 index  CREATE UNIQUE INDEX tenant_branding_pkey ON public.tenant_branding USING btree (tenant_id)
 index  CREATE UNIQUE INDEX tenant_org_nr_key ON public.tenant USING btree (org_nr)
 index  CREATE UNIQUE INDEX tenant_pkey ON public.tenant USING btree (id)
@@ -583,6 +598,9 @@ policy project_day.project_day_leader [ALL] USING((app.in_tenant(tenant_id) AND 
 policy project_leader.project_leader_admin_write [ALL] USING((app.in_tenant(tenant_id) AND app.is_admin())) CHECK((app.in_tenant(tenant_id) AND app.is_admin()))
 policy project_leader.project_leader_creator_insert [INSERT] USING(-) CHECK((app.in_tenant(tenant_id) AND (app.is_staff() AND app.created_project(project_id))))
 policy project_leader.project_leader_staff_select [SELECT] USING((app.in_tenant(tenant_id) AND app.is_staff())) CHECK(-)
+policy stamp_event.stamp_event_select [SELECT] USING((app.in_tenant(tenant_id) AND (EXISTS ( SELECT 1
+   FROM tilldelning t
+  WHERE (t.id = stamp_event.tilldelning_id))))) CHECK(-)
 policy tenant.tenant_member_select [SELECT] USING(app.in_tenant(id)) CHECK(-)
 policy tenant_branding.tenant_branding_insert [INSERT] USING(-) CHECK((app.in_tenant(tenant_id) AND app.is_admin()))
 policy tenant_branding.tenant_branding_select [SELECT] USING((app.in_tenant(tenant_id) AND app.is_staff())) CHECK(-)
@@ -617,6 +635,7 @@ rls    project enabled=t
 rls    project_day enabled=t
 rls    project_leader enabled=t
 rls    push_token enabled=t
+rls    stamp_event enabled=t
 rls    tenant enabled=t
 rls    tenant_branding enabled=t
 rls    tilldelning enabled=t
@@ -637,6 +656,7 @@ trig   aa_tenant_from_parent on profile -> tg_tenant_from_parent enabled=O
 trig   aa_tenant_from_parent on project_day -> tg_tenant_from_parent enabled=O
 trig   aa_tenant_from_parent on project_leader -> tg_tenant_from_parent enabled=O
 trig   aa_tenant_from_parent on push_token -> tg_tenant_from_parent enabled=O
+trig   aa_tenant_from_parent on stamp_event -> tg_tenant_from_parent enabled=O
 trig   aa_tenant_from_parent on tilldelning -> tg_tenant_from_parent enabled=O
 trig   aa_tenant_from_parent on worker -> tg_tenant_from_parent enabled=O
 trig   account_pause on account -> tg_account_pause enabled=O
@@ -670,6 +690,7 @@ trig   protect_bucket_control_update on storage.buckets -> protect_bucket_contro
 trig   protect_bucket_control_update_role on storage.buckets -> enforce_bucket_lifecycle_service_role enabled=O
 trig   protect_buckets_delete on storage.buckets -> protect_delete enabled=O
 trig   protect_objects_delete on storage.objects -> protect_delete enabled=O
+trig   stamp_event_append_only on stamp_event -> tg_stamp_event_append_only enabled=O
 trig   sync_work_date on tilldelning -> tg_sync_work_date enabled=O
 trig   tenant_branding_touch on tenant_branding -> tg_tenant_branding_touch enabled=O
 trig   tr_check_filters on realtime.subscription -> subscription_check_filters enabled=O
@@ -692,6 +713,7 @@ func   app.is_admin() md5=3d4f4a5b9492b42ec49925b7895a09c5
 func   app.is_staff() md5=2e999136779c7d843714a9924d1dc8fc
 func   app.is_super_admin() md5=9511c246186e1c41d18a83fb356d40ca
 func   app.leads_project(p_project uuid) md5=f1d9360a0c4753413b5ac7fa20a587db
+func   app.lunch_seconds(p_tilldelning uuid, p_until timestamp with time zone) md5=42b8b776a7aff78a8c2c002901812f33
 func   app.owns_personal_event(p_event uuid) md5=53a2a7184e8ff014bc28b9ddef92da47
 func   app.pass_end_at(p_date date, p_start time without time zone, p_end time without time zone) md5=5cbed15c09406f178bd3175eac1980f4
 func   app.pass_start_at(p_date date, p_start time without time zone) md5=9fa0f40882eca98efe820667c724d176
@@ -725,6 +747,7 @@ func   app.tg_pass_original_times() md5=ccba0ae23db959258ca76544abd62379
 func   app.tg_profile_touch() md5=2cd0a5f82ac61406b149da8b7d574ddc
 func   app.tg_project_created_by() md5=0524801edfe833eb33f991a838b4f9a0
 func   app.tg_project_leader_is_a_leader() md5=ad62ec9c666f500380fddff7feeba5d3
+func   app.tg_stamp_event_append_only() md5=fdeb9538412669e6d6bd1be6d3e8e524
 func   app.tg_super_admin_guard() md5=c835d63f2d851bed08cd84c8360480fe
 func   app.tg_super_admin_insert_guard() md5=1b7d486dda2928a8e4e1f42b7fc9886c
 func   app.tg_sync_work_date() md5=205305b41ade44114ec626dc29b463e5
@@ -740,12 +763,12 @@ func   public.approve_day(p_project uuid, p_work_date date, p_text text, p_rows 
 func   public.assign_snabb(p_pass uuid, p_worker uuid) md5=bbeabc4cd865bb365369a4e3246d2e41
 func   public.avboka_pass(p_tilldelning uuid) md5=ffb6a4d4af49a19225ffad911665abc9
 func   public.batch_shortfall(p_dates date[], p_slots_per_day integer) md5=8dd3975240b28be0721227084e229bc2
-func   public.bristsurvey_gaps(p_project uuid, p_from date, p_to date) md5=db6c75835ac6b6b6b70436d2a1180054
+func   public.bristsurvey_gaps(p_project uuid, p_from date, p_to date) md5=59186ee921179ad726bc7f74aa7a5aee
 func   public.cash_dist(money, money) md5=1acd79b2b4b9df652d58d90e72f05a29
-func   public.clock_in(p_tilldelning uuid) md5=c8858ed8115f06833d03d3c63748b169
-func   public.clock_out(p_tilldelning uuid) md5=e04c572777a7ede42c28eb205b134c23
+func   public.clock_in(p_tilldelning uuid) md5=58ff35586a320cb62d4d2ac6d033ddcc
+func   public.clock_out(p_tilldelning uuid) md5=bd124c71728c4420e883dfda500b8ad0
 func   public.close_pass(p_pass uuid, p_hours numeric) md5=7232e3a7219f6a34f1994df2dd987284
-func   public.complete_bristsurvey(p_project uuid, p_work_date date, p_text text) md5=e511adf511d6a1b6fa953d9d1113c1c7
+func   public.complete_bristsurvey(p_project uuid, p_work_date date, p_text text) md5=3935148409bdeb3e5c8e61630fc2a63a
 func   public.confirm_day(p_project uuid, p_date date, p_vad_vi_gjorde text, p_rows jsonb) md5=d384647d180b6ee448c7a2f8d9067054
 func   public.confirm_flagged_day(p_project uuid, p_work_date date, p_text text, p_rows jsonb) md5=5af47daac0ae6d9807a1ffe947a807bd
 func   public.create_snabb_pass(p_project uuid, p_worker uuid, p_date date, p_start time without time zone, p_end time without time zone, p_hours numeric, p_direkt boolean, p_text text, p_ledare jsonb) md5=a528b290c4c692d7f32f8d622e4a9c2d
@@ -951,6 +974,7 @@ func   public.register_push_token(p_token text, p_platform text) md5=6cd95f26b80
 func   public.reject_day(p_project uuid, p_work_date date, p_note text) md5=5e4ec66b9ad25be694015c2db8afa0d2
 func   public.release_assignment(p_tilldelning uuid, p_reason release_reason) md5=31d9dbd6079a9529e785435d07a54b3c
 func   public.replace_leader(p_tilldelning uuid, p_worker uuid) md5=f0ffb66be2966bab6e496b2e75af2a65
+func   public.stamp(p_tilldelning uuid, p_kind stamp_kind) md5=97d3531b1a07a55dd4fdbb4c2e9384b1
 func   public.swap_leaders(p_a uuid, p_b uuid) md5=63d79721d463aaa47add556da3014287
 func   public.swap_partners(p_tilldelning uuid) md5=25e16eee9af3a9571a01c1b718a824eb
 func   public.tenant_status() md5=c17f7938bd718e6c6057299822926284
@@ -984,6 +1008,8 @@ grant  DELETE on project_day to authenticated
 grant  DELETE on project_hours to anon
 grant  DELETE on project_hours to authenticated
 grant  DELETE on project_leader to authenticated
+grant  DELETE on stamp_event to anon
+grant  DELETE on stamp_event to authenticated
 grant  DELETE on tenant to anon
 grant  DELETE on tenant to authenticated
 grant  DELETE on tilldelning to authenticated
@@ -1017,6 +1043,8 @@ grant  INSERT on project_day to authenticated
 grant  INSERT on project_hours to anon
 grant  INSERT on project_hours to authenticated
 grant  INSERT on project_leader to authenticated
+grant  INSERT on stamp_event to anon
+grant  INSERT on stamp_event to authenticated
 grant  INSERT on tenant to anon
 grant  INSERT on tenant to authenticated
 grant  INSERT on tenant_branding to authenticated
@@ -1050,6 +1078,8 @@ grant  REFERENCES on project_day to authenticated
 grant  REFERENCES on project_hours to anon
 grant  REFERENCES on project_hours to authenticated
 grant  REFERENCES on project_leader to authenticated
+grant  REFERENCES on stamp_event to anon
+grant  REFERENCES on stamp_event to authenticated
 grant  REFERENCES on tenant to anon
 grant  REFERENCES on tenant to authenticated
 grant  REFERENCES on tilldelning to authenticated
@@ -1083,6 +1113,8 @@ grant  SELECT on project_day to authenticated
 grant  SELECT on project_hours to anon
 grant  SELECT on project_hours to authenticated
 grant  SELECT on project_leader to authenticated
+grant  SELECT on stamp_event to anon
+grant  SELECT on stamp_event to authenticated
 grant  SELECT on tenant to anon
 grant  SELECT on tenant to authenticated
 grant  SELECT on tenant_branding to authenticated
@@ -1116,6 +1148,8 @@ grant  TRIGGER on project_day to authenticated
 grant  TRIGGER on project_hours to anon
 grant  TRIGGER on project_hours to authenticated
 grant  TRIGGER on project_leader to authenticated
+grant  TRIGGER on stamp_event to anon
+grant  TRIGGER on stamp_event to authenticated
 grant  TRIGGER on tenant to anon
 grant  TRIGGER on tenant to authenticated
 grant  TRIGGER on tilldelning to authenticated
@@ -1148,6 +1182,8 @@ grant  TRUNCATE on project_day to authenticated
 grant  TRUNCATE on project_hours to anon
 grant  TRUNCATE on project_hours to authenticated
 grant  TRUNCATE on project_leader to authenticated
+grant  TRUNCATE on stamp_event to anon
+grant  TRUNCATE on stamp_event to authenticated
 grant  TRUNCATE on tenant to anon
 grant  TRUNCATE on tenant to authenticated
 grant  TRUNCATE on tilldelning to authenticated
@@ -1180,6 +1216,8 @@ grant  UPDATE on project_day to authenticated
 grant  UPDATE on project_hours to anon
 grant  UPDATE on project_hours to authenticated
 grant  UPDATE on project_leader to authenticated
+grant  UPDATE on stamp_event to anon
+grant  UPDATE on stamp_event to authenticated
 grant  UPDATE on tenant to anon
 grant  UPDATE on tenant to authenticated
 grant  UPDATE on tenant_branding to authenticated
@@ -1191,7 +1229,7 @@ view   public.arbetsledare_roster security_invoker=false md5=2888a8ba9668fc362ec
 view   public.cancelled_day security_invoker=false md5=19707702cb64f30f9e893a3504a09748
 view   public.day_history security_invoker=false md5=3060a8e61c0ffcbe837f8b688891d1fd
 view   public.my_offer security_invoker=false md5=9f934026a994b99897c1f299f5e22c01
-view   public.my_shift security_invoker=false md5=5e33783e05b0583d541a59bef0d07f8a
+view   public.my_shift security_invoker=false md5=bed959a77884b7b8c9e641cdac4779d3
 view   public.open_pass security_invoker=false md5=af584052dfd1a14f70d18749ae0e4fee
 view   public.project_hours security_invoker=false md5=9d8c9d237f12fc17116d5ccd39543c37
 view   public.worker_roster security_invoker=false md5=a717a3cc83c903a02cdee02ae2d8b075
@@ -1212,6 +1250,7 @@ funcdef app.is_admin() security=definer volatile=stable config=search_path="" re
 funcdef app.is_staff() security=definer volatile=stable config=search_path="" returns=boolean md5=4047199cb26dc87d3e7e3567480bc13d
 funcdef app.is_super_admin() security=definer volatile=stable config=search_path="" returns=boolean md5=45ee6f443b4d0599cd937ef9210e0d15
 funcdef app.leads_project(p_project uuid) security=definer volatile=stable config=search_path="" returns=boolean md5=855b172128a5d891554ebbe8b80893b7
+funcdef app.lunch_seconds(p_tilldelning uuid, p_until timestamp with time zone) security=definer volatile=stable config=search_path="" returns=numeric md5=3f469c4dbc3bdc8619176870d3cb547c
 funcdef app.owns_personal_event(p_event uuid) security=definer volatile=stable config=search_path="" returns=boolean md5=fdc76986eacf825a24858f73629d117c
 funcdef app.pass_end_at(p_date date, p_start time without time zone, p_end time without time zone) security=invoker volatile=stable config=search_path="" returns=timestamp with time zone md5=5792689ae892924bf79a0078b34ce998
 funcdef app.pass_start_at(p_date date, p_start time without time zone) security=invoker volatile=stable config=search_path="" returns=timestamp with time zone md5=39e2204d119f5e9073b917d3f247bc9f
@@ -1245,6 +1284,7 @@ funcdef app.tg_pass_original_times() security=invoker volatile=volatile config=s
 funcdef app.tg_profile_touch() security=definer volatile=volatile config=search_path="" returns=trigger md5=4c1bc14981b8021d40b6e51870a1493d
 funcdef app.tg_project_created_by() security=definer volatile=volatile config=search_path="" returns=trigger md5=5db7bde64df48720e529bf9815396ba5
 funcdef app.tg_project_leader_is_a_leader() security=definer volatile=volatile config=search_path="" returns=trigger md5=5b087b4d6b0cf846b256d1c522cc1f1e
+funcdef app.tg_stamp_event_append_only() security=invoker volatile=volatile config=search_path="" returns=trigger md5=8d06da544f6f5dc01a52544b01d1362e
 funcdef app.tg_super_admin_guard() security=definer volatile=volatile config=search_path="" returns=trigger md5=8d51e89a3eef1b46252e095b1408dee2
 funcdef app.tg_super_admin_insert_guard() security=definer volatile=volatile config=search_path="" returns=trigger md5=1b21bc62b8701c5915a6b49496b5c362
 funcdef app.tg_sync_work_date() security=definer volatile=volatile config=search_path="" returns=trigger md5=818fb4acb91973b818377bf4aea045b7
@@ -1260,12 +1300,12 @@ funcdef public.approve_day(p_project uuid, p_work_date date, p_text text, p_rows
 funcdef public.assign_snabb(p_pass uuid, p_worker uuid) security=definer volatile=volatile config=search_path="" returns=uuid md5=fc5556aae090a31f3d0b9bf323561e46
 funcdef public.avboka_pass(p_tilldelning uuid) security=definer volatile=volatile config=search_path="" returns=jsonb md5=6c58a11a9b58bb0decd6298652bf51a2
 funcdef public.batch_shortfall(p_dates date[], p_slots_per_day integer) security=definer volatile=stable config=search_path="" returns=TABLE(work_date date, available integer, slots integer, short integer) md5=73ee124b7fcc25205452dc0ed243e08a
-funcdef public.bristsurvey_gaps(p_project uuid, p_from date, p_to date) security=definer volatile=stable config=search_path="" returns=jsonb md5=6603396ab9abf3bf1173872f5e5b1bb6
+funcdef public.bristsurvey_gaps(p_project uuid, p_from date, p_to date) security=definer volatile=stable config=search_path="" returns=jsonb md5=3404ce3ba2609bd144a3c47ce9384735
 funcdef public.cash_dist(money, money) security=invoker volatile=immutable config=- returns=money md5=0174d3d6a80cb459b81f8ccf73bdc736
-funcdef public.clock_in(p_tilldelning uuid) security=definer volatile=volatile config=search_path="" returns=timestamp with time zone md5=337d8f186af0892beba247b56a268618
-funcdef public.clock_out(p_tilldelning uuid) security=definer volatile=volatile config=search_path="" returns=timestamp with time zone md5=e88288a711038e3440e866965b7dfdf4
+funcdef public.clock_in(p_tilldelning uuid) security=definer volatile=volatile config=search_path="" returns=timestamp with time zone md5=631c7404a76711a706ed526566261b5b
+funcdef public.clock_out(p_tilldelning uuid) security=definer volatile=volatile config=search_path="" returns=timestamp with time zone md5=e8efdfc4e8944e07417893b32cfb2883
 funcdef public.close_pass(p_pass uuid, p_hours numeric) security=definer volatile=volatile config=search_path="" returns=void md5=724167dbc2493b25e9a4a6bccc3ae7fd
-funcdef public.complete_bristsurvey(p_project uuid, p_work_date date, p_text text) security=invoker volatile=volatile config=search_path="" returns=void md5=540dd236b8149a6759b5550d4845f08f
+funcdef public.complete_bristsurvey(p_project uuid, p_work_date date, p_text text) security=invoker volatile=volatile config=search_path="" returns=void md5=4c29f6dc5ca9400540c5b512538ae642
 funcdef public.confirm_day(p_project uuid, p_date date, p_vad_vi_gjorde text, p_rows jsonb) security=invoker volatile=volatile config=search_path="" returns=void md5=0ff0fdfa663ce6e916ed2b7daf831bbd
 funcdef public.confirm_flagged_day(p_project uuid, p_work_date date, p_text text, p_rows jsonb) security=invoker volatile=volatile config=search_path="" returns=void md5=1ade12fc6f0d14ffd1f51b0e04259518
 funcdef public.create_snabb_pass(p_project uuid, p_worker uuid, p_date date, p_start time without time zone, p_end time without time zone, p_hours numeric, p_direkt boolean, p_text text, p_ledare jsonb) security=definer volatile=volatile config=search_path="" returns=uuid md5=da23b482c4418616bf5c37f5646683de
@@ -1471,6 +1511,7 @@ funcdef public.register_push_token(p_token text, p_platform text) security=defin
 funcdef public.reject_day(p_project uuid, p_work_date date, p_note text) security=invoker volatile=volatile config=search_path="" returns=void md5=fb9d34f928f24f4f4c11265c0f5f9a28
 funcdef public.release_assignment(p_tilldelning uuid, p_reason release_reason) security=definer volatile=volatile config=search_path="" returns=TABLE(reopened boolean, filled integer, offered integer) md5=f806294614c82cac7a08d964eea01fcc
 funcdef public.replace_leader(p_tilldelning uuid, p_worker uuid) security=definer volatile=volatile config=search_path="" returns=void md5=4891a709fadf5c63809f68ac4209441f
+funcdef public.stamp(p_tilldelning uuid, p_kind stamp_kind) security=definer volatile=volatile config=search_path="" returns=timestamp with time zone md5=b9d07c637a746fd64a0d044b33116177
 funcdef public.swap_leaders(p_a uuid, p_b uuid) security=definer volatile=volatile config=search_path="" returns=void md5=6a699de48f80a6e6a41ea010c41406ca
 funcdef public.swap_partners(p_tilldelning uuid) security=definer volatile=stable config=search_path="" returns=jsonb md5=cd9c68b70c37b62db3da621c3f78122a
 funcdef public.tenant_status() security=definer volatile=stable config=search_path="" returns=TABLE(tenant_id uuid, name text, account_type tenant_account_type, expires_at timestamp with time zone, expired boolean) md5=feb7eba3252adb6aae3862e50809ff19
@@ -1494,6 +1535,7 @@ grantfn app.is_admin() EXECUTE=authenticated
 grantfn app.is_staff() EXECUTE=authenticated
 grantfn app.is_super_admin() EXECUTE=PUBLIC,authenticated
 grantfn app.leads_project(p_project uuid) EXECUTE=authenticated
+grantfn app.lunch_seconds(p_tilldelning uuid, p_until timestamp with time zone) EXECUTE=PUBLIC,authenticated
 grantfn app.owns_personal_event(p_event uuid) EXECUTE=PUBLIC,authenticated
 grantfn app.pass_end_at(p_date date, p_start time without time zone, p_end time without time zone) EXECUTE=authenticated
 grantfn app.pass_start_at(p_date date, p_start time without time zone) EXECUTE=authenticated
@@ -1527,6 +1569,7 @@ grantfn app.tg_pass_original_times() EXECUTE=PUBLIC,authenticated
 grantfn app.tg_profile_touch() EXECUTE=PUBLIC,authenticated
 grantfn app.tg_project_created_by() EXECUTE=PUBLIC,authenticated
 grantfn app.tg_project_leader_is_a_leader() EXECUTE=PUBLIC,authenticated
+grantfn app.tg_stamp_event_append_only() EXECUTE=PUBLIC
 grantfn app.tg_super_admin_guard() EXECUTE=PUBLIC,authenticated
 grantfn app.tg_super_admin_insert_guard() EXECUTE=PUBLIC,authenticated
 grantfn app.tg_sync_work_date() EXECUTE=authenticated
@@ -1753,6 +1796,7 @@ grantfn public.register_push_token(p_token text, p_platform text) EXECUTE=authen
 grantfn public.reject_day(p_project uuid, p_work_date date, p_note text) EXECUTE=PUBLIC,anon,authenticated,service_role
 grantfn public.release_assignment(p_tilldelning uuid, p_reason release_reason) EXECUTE=PUBLIC,anon,authenticated,service_role
 grantfn public.replace_leader(p_tilldelning uuid, p_worker uuid) EXECUTE=PUBLIC,anon,authenticated,service_role
+grantfn public.stamp(p_tilldelning uuid, p_kind stamp_kind) EXECUTE=authenticated,service_role
 grantfn public.swap_leaders(p_a uuid, p_b uuid) EXECUTE=PUBLIC,anon,authenticated,service_role
 grantfn public.swap_partners(p_tilldelning uuid) EXECUTE=PUBLIC,anon,authenticated,service_role
 grantfn public.tenant_status() EXECUTE=anon,authenticated,service_role

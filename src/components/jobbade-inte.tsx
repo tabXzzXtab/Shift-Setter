@@ -29,9 +29,11 @@ import { C, DangerButton, SecondaryButton, SoftDialog } from "@/components/soft"
  *               the press leads.
  */
 export function StampLine({
-  name, clockIn, clockOut, onAsk, disabled,
+  name, clockIn, clockOut, onAsk, disabled, lunch,
 }: {
   name: string;
+  /** "Lunch 11:30–12:05 · 35 min" from lib/lunch.ts, or nothing. Context only. */
+  lunch?: string;
   /** "07:02", or "" when there is no stamp at that end. */
   clockIn: string;
   clockOut: string;
@@ -43,13 +45,17 @@ export function StampLine({
     return (
       <div data-stamp="done" className="mb-[12px] mt-[2px] text-[14px] font-medium" style={{ color: C.text2 }}>
         Stämplade {clockIn}–{clockOut}
+        {lunch && <span data-lunch className="block">{lunch}</span>}
       </div>
     );
   }
   if (clockIn) {
     return (
       <div data-stamp="in" className="mb-[12px] mt-[2px] flex items-center gap-[7px] text-[14px] font-semibold" style={{ color: C.warnInk }}>
-        {dot}Instämplad {clockIn} · ej utstämplad
+        <span>
+          <span className="flex items-center gap-[7px]">{dot}Instämplad {clockIn} · ej utstämplad</span>
+          {lunch && <span data-lunch className="block font-medium" style={{ color: C.text2 }}>{lunch}</span>}
+        </span>
       </div>
     );
   }
