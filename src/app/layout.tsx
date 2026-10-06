@@ -6,6 +6,7 @@ import { AgerarBanner } from "@/components/agerar-banner";
 import { Utgangen } from "@/components/utgangen";
 import { TourProvider } from "@/components/tour/tour-provider";
 import { AnalyticsTracker } from "@/components/analytics-tracker";
+import { RouteGuard } from "@/components/route-guard";
 import "./globals.css";
 
 /**
@@ -86,7 +87,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             <AgerarBanner />
             {/* The operator's analytics. Draws nothing; see the component. */}
             <AnalyticsTracker />
-            <Utgangen><TourProvider>{children}</TourProvider></Utgangen>
+            <Utgangen><TourProvider><RouteGuard>{children}</RouteGuard></TourProvider></Utgangen>
           </AccountProvider>
         </AuthProvider>
       </body>
