@@ -698,6 +698,7 @@ trig   protect_bucket_control_update on storage.buckets -> protect_bucket_contro
 trig   protect_bucket_control_update_role on storage.buckets -> enforce_bucket_lifecycle_service_role enabled=O
 trig   protect_buckets_delete on storage.buckets -> protect_delete enabled=O
 trig   protect_objects_delete on storage.objects -> protect_delete enabled=O
+trig   quiet_offer_on_release on tilldelning -> tg_quiet_offer_on_release enabled=O
 trig   stamp_event_append_only on stamp_event -> tg_stamp_event_append_only enabled=O
 trig   sync_work_date on tilldelning -> tg_sync_work_date enabled=O
 trig   tenant_branding_touch on tenant_branding -> tg_tenant_branding_touch enabled=O
@@ -756,6 +757,7 @@ func   app.tg_pass_original_times() md5=ccba0ae23db959258ca76544abd62379
 func   app.tg_profile_touch() md5=2cd0a5f82ac61406b149da8b7d574ddc
 func   app.tg_project_created_by() md5=0524801edfe833eb33f991a838b4f9a0
 func   app.tg_project_leader_is_a_leader() md5=ad62ec9c666f500380fddff7feeba5d3
+func   app.tg_quiet_offer_on_release() md5=2e0186518503ab5c1ee0d22190e80d80
 func   app.tg_stamp_event_append_only() md5=fdeb9538412669e6d6bd1be6d3e8e524
 func   app.tg_super_admin_guard() md5=c835d63f2d851bed08cd84c8360480fe
 func   app.tg_super_admin_insert_guard() md5=1b7d486dda2928a8e4e1f42b7fc9886c
@@ -1252,7 +1254,7 @@ view   public.account_directory security_invoker=false md5=16ab0adb9ebff46b12806
 view   public.arbetsledare_roster security_invoker=false md5=2888a8ba9668fc362ecbe60bb42f48cb
 view   public.cancelled_day security_invoker=false md5=19707702cb64f30f9e893a3504a09748
 view   public.day_history security_invoker=false md5=3060a8e61c0ffcbe837f8b688891d1fd
-view   public.my_notification security_invoker=false md5=9ec7e9baa6999ef404b50a5371022d8e
+view   public.my_notification security_invoker=false md5=8845bef1e024525eb6ea9ebb83712ffe
 view   public.my_offer security_invoker=false md5=9f934026a994b99897c1f299f5e22c01
 view   public.my_shift security_invoker=false md5=bed959a77884b7b8c9e641cdac4779d3
 view   public.open_pass security_invoker=false md5=af584052dfd1a14f70d18749ae0e4fee
@@ -1310,6 +1312,7 @@ funcdef app.tg_pass_original_times() security=invoker volatile=volatile config=s
 funcdef app.tg_profile_touch() security=definer volatile=volatile config=search_path="" returns=trigger md5=4c1bc14981b8021d40b6e51870a1493d
 funcdef app.tg_project_created_by() security=definer volatile=volatile config=search_path="" returns=trigger md5=5db7bde64df48720e529bf9815396ba5
 funcdef app.tg_project_leader_is_a_leader() security=definer volatile=volatile config=search_path="" returns=trigger md5=5b087b4d6b0cf846b256d1c522cc1f1e
+funcdef app.tg_quiet_offer_on_release() security=definer volatile=volatile config=search_path="" returns=trigger md5=799e2ef3f06bd6c9632a120f1a0823a5
 funcdef app.tg_stamp_event_append_only() security=invoker volatile=volatile config=search_path="" returns=trigger md5=8d06da544f6f5dc01a52544b01d1362e
 funcdef app.tg_super_admin_guard() security=definer volatile=volatile config=search_path="" returns=trigger md5=8d51e89a3eef1b46252e095b1408dee2
 funcdef app.tg_super_admin_insert_guard() security=definer volatile=volatile config=search_path="" returns=trigger md5=1b21bc62b8701c5915a6b49496b5c362
@@ -1597,6 +1600,7 @@ grantfn app.tg_pass_original_times() EXECUTE=PUBLIC,authenticated
 grantfn app.tg_profile_touch() EXECUTE=PUBLIC,authenticated
 grantfn app.tg_project_created_by() EXECUTE=PUBLIC,authenticated
 grantfn app.tg_project_leader_is_a_leader() EXECUTE=PUBLIC,authenticated
+grantfn app.tg_quiet_offer_on_release() EXECUTE=PUBLIC
 grantfn app.tg_stamp_event_append_only() EXECUTE=PUBLIC
 grantfn app.tg_super_admin_guard() EXECUTE=PUBLIC,authenticated
 grantfn app.tg_super_admin_insert_guard() EXECUTE=PUBLIC,authenticated

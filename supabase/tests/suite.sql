@@ -5983,4 +5983,55 @@ select pg_temp.ok(
   'Markera alla som lästa marks every one of mine and none of anybody else''s');
 
 
+-- ============================================================================
+-- "NYTT PASS" GOES QUIET (20261006150000)
+--
+-- Placing w1 on a shift writes shift_offered. Releasing the place marks it
+-- read. And a shift_offered about a day already gone reads as read through
+-- my_notification, while one about a coming day stays unread.
+-- ============================================================================
+reset role;
+select set_config('request.jwt.claims', '{}', true);
+
+insert into public.pass (id, project_id, work_date, start_time, end_time,
+                         planned_hours, headcount, created_by)
+values ('f1f1f1f1-0000-0000-0000-0000000000a5', 'f1f1f1f1-0000-0000-0000-00000000000f',
+        app.stockholm_today() + 20, '18:00', '21:00', 2.50, 1,
+        (select v from fx where k = 'admin'));
+insert into public.tilldelning (id, pass_id, worker_id, source, work_date)
+select 'f1f1f1f1-0000-0000-0000-0000000000b5', 'f1f1f1f1-0000-0000-0000-0000000000a5',
+       w.id, 'manuell', app.stockholm_today() + 20
+from public.worker w join fx on fx.v = w.account_id where fx.k = 'w1';
+
+update public.tilldelning
+   set released_at = now(), released_reason = 'shift_deleted'
+ where id = 'f1f1f1f1-0000-0000-0000-0000000000b5';
+
+select pg_temp.ok(
+  (select count(*) = 1 and bool_and(read_at is not null)
+   from public.notification
+   where kind = 'shift_offered'
+     and account_id = (select v from fx where k = 'w1')
+     and payload ->> 'pass_id' = 'f1f1f1f1-0000-0000-0000-0000000000a5'),
+  'NOTIS.cancelled_marks_read',
+  'releasing a worker''s place on a shift marks its "Nytt pass" read');
+
+insert into public.notification (id, account_id, kind, payload) values
+  ('f2f2f2f2-0000-0000-0000-0000000000c1', (select v from fx where k = 'w1'), 'shift_offered',
+   jsonb_build_object('project_id', 'aaaaaaaa-0000-0000-0000-00000000000a',
+                      'work_date', app.stockholm_today() - 2, 'pass_id', gen_random_uuid())),
+  ('f2f2f2f2-0000-0000-0000-0000000000c2', (select v from fx where k = 'w1'), 'shift_offered',
+   jsonb_build_object('project_id', 'aaaaaaaa-0000-0000-0000-00000000000a',
+                      'work_date', app.stockholm_today() + 2, 'pass_id', gen_random_uuid()));
+
+set local role authenticated;
+select pg_temp.act_as((select v from fx where k = 'w1'));
+select pg_temp.ok(
+  (select read_at is not null from public.my_notification where id = 'f2f2f2f2-0000-0000-0000-0000000000c1')
+  and (select read_at is null from public.my_notification where id = 'f2f2f2f2-0000-0000-0000-0000000000c2'),
+  'NOTIS.past_day_reads_as_read',
+  'a "Nytt pass" for a day already gone reads as read; one for a coming day does not');
+reset role;
+
+
 select pg_temp.ok(true, 'SUITE.complete', 'every assertion passed');

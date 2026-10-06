@@ -1423,6 +1423,23 @@ const CONTROLS = [
    perturbIn("public.mark_notifications_read(uuid[])",
              "where n.account_id = (select auth.uid())", "where true"),
    "NOTIS.mark_all_mine_only"],
+
+  // ---- 20261006150000: "Nytt pass" goes quiet ----------------------------------
+  ["a cancelled shift's Nytt pass is marked read",
+   "drop trigger quiet_offer_on_release on public.tilldelning",
+   "NOTIS.cancelled_marks_read"],
+
+  ["a past day's Nytt pass reads as read",
+   // The view with read_at as stored: a past day's offer stays unread forever.
+   `create or replace view public.my_notification with (security_invoker = false) as
+      select n.id, n.kind, n.payload, n.created_at, n.read_at,
+             nullif(n.payload ->> 'work_date', '')::date as work_date,
+             pr.name as project_name
+      from public.notification n
+      left join public.project pr
+        on pr.id = nullif(n.payload ->> 'project_id', '')::uuid and pr.tenant_id = n.tenant_id
+      where app.in_tenant(n.tenant_id) and n.account_id = (select auth.uid())`,
+   "NOTIS.past_day_reads_as_read"],
 ];
 
 const client = new pg.Client({
