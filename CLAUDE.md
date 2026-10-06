@@ -358,6 +358,15 @@ without re-testing reintroduces failures that already cost days.
 - **The Supabase CLI shim cannot be exec'd directly** — this project's absolute
   path contains a space (`Bella service`). `scripts/env.mjs` invokes its Node
   entrypoint through `process.execPath`. Use `supabaseCli()` from there.
+- **`npm run types:gen` IS BROKEN until the access token is replaced** (found
+  2026-10-06). `SUPABASE_ACCESS_TOKEN` in `.env.local` lacks the
+  `database_read` permission, and the CLI answers "Missing required
+  permission(s): database_read". Until a token with that scope is in
+  `.env.local`, `src/lib/supabase/database.types.ts` is edited BY HAND after
+  each migration, in the generator's own shape (alphabetical keys; NOT NULL
+  columns without a default are required on Insert). Migrations
+  20261006120000, 20261006130000 and 20261006140000 were typed that way.
+  The first run with a working token must regenerate and diff the file.
 - `.env.local` holds the database password and the access token. Gitignored.
   Never commit it, never echo it into a log, never inline it in a workflow file.
 
