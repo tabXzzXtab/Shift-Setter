@@ -372,10 +372,27 @@ function RouteChoice({ onChoose }: { onChoose: (r: Route) => void }) {
     here -- it was answered by the card that got us in, and asking twice
     invites somebody to answer differently on the screen that writes.        */
 
-/** Six digits: inside create-tenant's 6-20, and typeable on a phone keypad. */
+/**
+ * THE ADMIN'S PASSWORD IS STRONG (owner, 2026-10-06). It was six digits --
+ * typeable on a keypad, and a million guesses from the account that can
+ * remove everyone else. Now: 12 characters in three groups of four, always
+ * with an uppercase letter, a lowercase letter and a digit, from an alphabet
+ * with no look-alikes (no 0/O, 1/l/I), because a person copies it off a card.
+ * 14 with the dashes, inside create-tenant's 6-20.
+ */
+const PW_UPPER = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+const PW_LOWER = "abcdefghijkmnpqrstuvwxyz";
+const PW_DIGIT = "23456789";
 function generatePassword(): string {
-  const n = crypto.getRandomValues(new Uint32Array(1))[0]!;
-  return String(100000 + (n % 900000));
+  const all = PW_UPPER + PW_LOWER + PW_DIGIT;
+  const pick = (from: string) => from[crypto.getRandomValues(new Uint32Array(1))[0]! % from.length]!;
+  for (;;) {
+    const chars = Array.from({ length: 12 }, () => pick(all));
+    const s = chars.join("");
+    if (/[A-Z]/.test(s) && /[a-z]/.test(s) && /\d/.test(s)) {
+      return `${s.slice(0, 4)}-${s.slice(4, 8)}-${s.slice(8)}`;
+    }
+  }
 }
 
 const TYPE_WORD: Record<Route, string> = {

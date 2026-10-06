@@ -944,8 +944,10 @@ over the product.
 **Stage 3 — the company and its first admin.** Två kort: *Företaget* (namn,
 organisationsnummer, and *Fakturamejl* only where somebody will actually be
 invoiced) and *Administratören* (namn, e-post). Then the credential handover
-the Ny arbetare screen already uses: a six-digit password generated in the
-browser, shown once, and **Skapa företaget does not exist until it has been
+the Ny arbetare screen uses, with a stronger password: the admin's is 12
+characters in three groups of four (`Kx7m-Q2fa-9PtR`), always mixing upper
+case, lower case and digits, from an alphabet with no look-alikes. Generated
+in the browser, shown once, and **Skapa företaget does not exist until it has been
 copied** — a company created before anybody copied it is a company nobody can
 sign into.
 
