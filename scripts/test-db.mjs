@@ -1293,6 +1293,53 @@ const CONTROLS = [
    "with check (bucket_id = 'avatars' and (app.is_admin() or " +
    "(storage.foldername(name))[1] = (select auth.uid())::text))",
    "AVATAR.another_company_admin_cannot_write"],
+
+  // ---- 20261006120000: the gate reads the planned times ---------------------
+  ["the gate measures the day by its planned end, not the edited one",
+   // The lockout as it was: the leader's own correction made the day "not
+   // over yet" the moment it was stated.
+   perturbIn("app.tg_confirmation_guard()",
+             "app.pass_end_at(p.work_date, p.start_time_original, p.end_time_original)",
+             "app.pass_end_at(p.work_date, p.start_time, p.end_time)"),
+   "CONFIRM.original_end_is_the_gate"],
+
+  ["the planned times freeze when the shift starts",
+   perturbIn("app.tg_pass_original_times()",
+             "if now() < app.pass_start_at(old.work_date, old.start_time_original) then",
+             "if true then"),
+   "ORIGINAL.frozen_once_started"],
+
+  ["the planned times follow a reschedule before the shift starts",
+   perturbIn("app.tg_pass_original_times()",
+             "if now() < app.pass_start_at(old.work_date, old.start_time_original) then",
+             "if false then"),
+   "ORIGINAL.follows_before_start"],
+
+  ["nobody writes the planned times directly",
+   // The raise itself, not its condition: the condition is an OR of two
+   // tests, and "false and A or B" still raises on B.
+   perturbIn("app.tg_pass_original_times()",
+             "raise exception 'the planned times of a pass are not written directly; they follow start_time and end_time until the shift starts'
+      using errcode = 'insufficient_privilege';",
+             "null;"),
+   "ORIGINAL.not_writable"],
+
+  ["a new pass's plan is its own times, not the caller's",
+   // Honour whatever the insert sent; coalesce keeps every other fixture's
+   // NOT NULL satisfied so the suite reaches this assertion.
+   perturbIn("app.tg_pass_original_times()",
+             "    new.start_time_original := new.start_time;\n    new.end_time_original   := new.end_time;\n    return new;",
+             "    new.start_time_original := coalesce(new.start_time_original, new.start_time);\n" +
+             "    new.end_time_original   := coalesce(new.end_time_original, new.end_time);\n    return new;"),
+   "ORIGINAL.set_on_insert"],
+
+  ["Bekräfta is one transaction -- a refusal writes nothing",
+   // The day's write made survivable inside the call: the row writes above it
+   // stay, which is the partial save the browser's separate writes produced.
+   async (client) =>
+     (await perturbIn("public.confirm_day(uuid,date,text,jsonb)", "/*day*/", "begin /*day*/")(client))
+       .replace("/*end day*/", "exception when others then return; end; /*end day*/"),
+   "CONFIRM.refusal_writes_nothing"],
 ];
 
 const client = new pg.Client({

@@ -76,15 +76,18 @@ export async function pendingDays(): Promise<PendingDay[]> {
    */
   const { data: passes, error } = await sb
     .from("pass")
-    .select("id, project_id, work_date, start_time, end_time, planned_hours, project!pass_project_id_fkey(name, site_address)")
+    .select("id, project_id, work_date, start_time, end_time, start_time_original, end_time_original, planned_hours, project!pass_project_id_fkey(name, site_address)")
     .is("deleted_at", null)
     .order("work_date");
 
   if (error) throw new Error(error.message);
 
   const now = Date.now();
+  // THE PLANNED END, as tg_confirmation_guard measures it. Filtering on the
+  // edited end made a day the leader had just corrected to 12:30 vanish from
+  // the queue until 12:30 -- the other half of the lockout (20261006120000).
   const ended = (passes ?? []).filter(
-    (p) => passEndAt(p.work_date, p.start_time, p.end_time).getTime() <= now,
+    (p) => passEndAt(p.work_date, p.start_time_original, p.end_time_original).getTime() <= now,
   );
   if (ended.length === 0) return [];
 
