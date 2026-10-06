@@ -28,6 +28,7 @@
     "walkthrough:brist": "node scripts/walkthrough-brist.mjs",
     "walkthrough:admin": "node scripts/walkthrough-admin.mjs",
     "walkthrough:konton": "node scripts/walkthrough-konton.mjs",
+    "walkthrough:inloggning": "node scripts/walkthrough-inloggning.mjs",
     "walkthrough:ledare": "node scripts/walkthrough-ledare.mjs",
     "walkthrough:rollvakt": "node scripts/walkthrough-rollvakt.mjs",
     "walkthrough:sistaadmin": "node scripts/walkthrough-sistaadmin.mjs",
