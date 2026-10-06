@@ -52,7 +52,9 @@ export type Requirement =
   | "has-leader"
   | "days-waiting"
   | "has-offer"
-  | "has-confirmed-day";
+  | "has-confirmed-day"
+  /** A shift today the worker has not stamped into yet -- what Stämpla In needs. */
+  | "has-shift-to-stamp";
 
 /** "pass-month" is not a form to fill but the day picker's month: a nav step
  *  can ask for it (`prepare`) so the days it rings are on screen. */
@@ -286,6 +288,12 @@ const ARBETARE: Step[] = [
     tip: "Tryck Stämpla In när du är på plats.",
     em: "Stämpla In",
     until: "press",
+    // Asked of the database up front. Without it a worker with no shift today
+    // -- most of them, on a first login -- looked at an empty startsida for the
+    // eight seconds MISSING_AFTER_MS waits for a button that never comes.
+    requires: "has-shift-to-stamp",
+    otherwise:
+      "När du har ett pass idag visas Stämpla In högst upp på startsidan. Tryck på den när du är på plats. Det går när du är inom 4 km från arbetsplatsen.",
     missing:
       "När du har ett pass idag visas Stämpla In högst upp på startsidan. Tryck på den när du är på plats. Det går när du är inom 4 km från arbetsplatsen.",
   },
@@ -397,6 +405,14 @@ export async function met(req: Requirement): Promise<boolean> {
         // offer whose day has gone is still in my_offer, and is not one.
         const { data } = await sb
           .from("my_offer").select("pass_id").gte("work_date", stockholmToday()).limit(1);
+        return (data ?? []).length > 0;
+      }
+      case "has-shift-to-stamp": {
+        // The startsida's own test for drawing Stämpla In: a shift today with
+        // no clock-in yet.
+        const { data } = await sb
+          .from("my_shift").select("id")
+          .eq("work_date", stockholmToday()).is("clock_in", null).limit(1);
         return (data ?? []).length > 0;
       }
       case "has-confirmed-day": {

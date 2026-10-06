@@ -578,12 +578,19 @@ try {
 
     await nextCard(page, "På dagen, tryck in när du är på plats.", "worker card 8");
     // Step 9: the demo worker has no shift today, so Stämpla In never appears
-    // and the step must turn into its card rather than wait forever.
+    // and the step must turn into its card -- AT ONCE. It used to reveal an
+    // empty startsida and wait MISSING_AFTER_MS (8 s) for a button that could
+    // not come; it now asks the database first (requires: has-shift-to-stamp).
+    const nineFrom = Date.now();
     const nine = await settle(page, "worker step 9");
+    const nineTook = Date.now() - nineFrom;
     await shot(page, "arbetare-9");
     if (nine === "card") {
+      if (nineTook > 3000) {
+        fail(`worker step 9: with no shift today the card took ${nineTook} ms -- it must not wait for the button`);
+      }
       await nextCard(page, "När du har ett pass idag visas Stämpla In", "worker step 9 fallback");
-      log("worker: no shift today -- Stämpla In never appeared, and the step became its card");
+      log(`worker: no shift today -- step 9 arrived as its card in ${nineTook} ms, with no empty screen`);
     } else {
       const stamp = page.getByRole("button", { name: "Stämpla In" });
       await expectRingOn(page, stamp, "worker step 9");
