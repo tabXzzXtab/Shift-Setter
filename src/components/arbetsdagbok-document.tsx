@@ -104,7 +104,7 @@ export function ArbetsdagbokDocument({ payload }: { payload: DocPayload }) {
 
         <hr className="cover-divider" />
 
-        <div className="cover-line cover-project"><span className="cv-bold">Project:</span> {payload.cover.project}</div>
+        <div className="cover-line cover-project"><span className="cv-bold">Projekt:</span> {payload.cover.project}</div>
         <div className="cover-line cv-bold cover-hours">Ordinarie tid: {total}</div>
 
         <hr className="cover-divider" />

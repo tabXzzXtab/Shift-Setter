@@ -84,8 +84,14 @@ const { rows: had } = await db.query(
 
 if (had[0].days < DAYS) {
   await db.query(`
+    -- THE ADMIN THIS CHECK SIGNS IN AS, and that company's workers. It used
+    -- to take any active admin and any workers in the database, so a reseed
+    -- could put the fixture in somebody else's tenancy -- and since tenant_id
+    -- became NOT NULL it could not seed at all (invariant 12).
     with admin as (
-      select a.id from public.account a where a.role = 'admin' and a.active limit 1
+      select a.id, a.tenant_id from public.account a
+      join auth.users u on u.id = a.id
+      where lower(u.email) = lower($4) and a.role = 'admin' and a.active
     ),
     -- Ended days only: a day is not confirmable until its last shift is over.
     target as (
@@ -98,6 +104,7 @@ if (had[0].days < DAYS) {
     hands as (
       select w.id from public.worker w
       where w.deleted_at is null
+        and w.tenant_id = (select tenant_id from admin)
         and not exists (
           select 1 from public.tilldelning t
           where t.worker_id = w.id
@@ -110,9 +117,10 @@ if (had[0].days < DAYS) {
     proj as (
       insert into public.project (name, site_address, bestallare_address,
                                   bestallare_bolag, bestallare_orgnr, services,
-                                  start_date, created_by)
+                                  start_date, created_by, tenant_id)
       select $2, 'Brytgatan 2', 'Kundvägen 4', 'Kontroll AB', '556000-0000',
-             'Kontroll', app.stockholm_today() - $1::int, (select id from admin)
+             'Kontroll', app.stockholm_today() - $1::int, (select id from admin),
+             (select tenant_id from admin)
       returning id
     ),
     made as (
@@ -125,7 +133,7 @@ if (had[0].days < DAYS) {
     )
     insert into public.tilldelning (pass_id, worker_id, source, work_date)
     select m.id, h.id, 'manuell', m.work_date from made m cross join hands h`,
-    [WINDOW_BACK, PROJEKT, DAYS]);
+    [WINDOW_BACK, PROJEKT, DAYS, required("WALKTHROUGH_ADMIN_EMAIL")]);
   console.log(`seeded ${PROJEKT}: ${DAYS} ended days, 4 workers each`);
 }
 
@@ -298,6 +306,39 @@ if (contPages === 0) {
 if (rowPages <= dayCount) {
   problems.push(`${rowPages} page(s) carry rows for ${dayCount} day(s) -- no day spanned two pages`);
 }
+
+// ---- the cover's words and its total (2026-10-06) -------------------------
+// Ordinarie tid must be the EXACT sum of the hours filed for the range, read
+// here from the rows themselves rather than from anything the renderer did;
+// and the cover and footer speak Swedish: "Projekt:", "Postadress:".
+const allText = [];
+for (let i = 1; i <= doc.numPages; i++) {
+  const p = await doc.getPage(i);
+  allText.push((await p.getTextContent()).items.map((it) => it.str).join(" "));
+}
+const cover = allText[0];
+const check = new pg.Client({ connectionString: connectionString() });
+await check.connect();
+const { rows: [{ total }] } = await check.query(
+  `select coalesce(sum(t.confirmed_hours), 0)::text as total
+     from public.tilldelning t
+     join public.pass p on p.id = t.pass_id and p.deleted_at is null
+     join public.project pr on pr.id = p.project_id and pr.deleted_at is null
+    where pr.name = $1 and p.work_date between $2::date and $3::date
+      and t.released_at is null`, [PROJEKT, from, to]);
+await check.end();
+const want = `${String(Number(total)).replace(".", ",")}h`;
+const printed = /Ordinarie tid:\s*([\d,]+h)/.exec(cover)?.[1];
+if (printed !== want) {
+  problems.push(`Ordinarie tid prints ${printed ?? "nothing"}; the rows sum to exactly ${want}`);
+}
+if (!/Projekt:/.test(cover) || /Project:/.test(cover)) {
+  problems.push(`the cover's project label is not "Projekt:"`);
+}
+if (allText.some((t) => /Postadress Adress/.test(t)) || !allText.every((t) => /Postadress:/.test(t))) {
+  problems.push(`the footer does not read "Postadress:" on every page`);
+}
+console.log(`cover: Ordinarie tid ${printed} (rows sum to ${want}), "Projekt:", "Postadress:"`);
 
 if (problems.length) {
   for (const p of problems) console.error(`  - ${p}`);

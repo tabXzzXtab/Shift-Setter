@@ -74,16 +74,24 @@ export function parseHours(value: string | number | null | undefined): number {
   return Number.isFinite(n) ? n : 0;
 }
 
-/** VERBATIM from the DocMaker template, apart from row.passTyp1 -> row.hours. */
+/**
+ * The cover's Ordinarie tid: every row's hours, EXACTLY.
+ *
+ * DocMaker rounded the total to one decimal, so three rows of 0,25 printed as
+ * "0,8h" -- on a legal document, a figure that is not the sum of the figures
+ * printed under it. Hours are stored as numeric(4,2), so each row is a whole
+ * number of hundredths: they are added as integers (no floating-point drift)
+ * and printed with up to two decimals, Swedish comma, no trailing zeros.
+ */
 export function sumOrdinarieTid(days: DocDay[] | null | undefined): string {
-  let total = 0;
+  let hundredths = 0;
   (days || []).forEach((day) => {
     (day.rows || []).forEach((row) => {
-      total += parseHours(row.hours);
+      hundredths += Math.round(parseHours(row.hours) * 100);
     });
   });
-  const rounded = Math.round(total * 10) / 10;
-  const formatted = Number.isInteger(rounded) ? String(rounded) : String(rounded).replace(".", ",");
+  const total = hundredths / 100;
+  const formatted = Number.isInteger(total) ? String(total) : String(total).replace(".", ",");
   return `${formatted}h`;
 }
 
@@ -112,7 +120,7 @@ export function formatTimestamp(date: Date): string {
  * company.json, plus Kontakt for the one field the template never had.
  */
 export const FOOTER = {
-  postadressLabel: "Postadress Adress:",
+  postadressLabel: "Postadress:",
   telefonLabel: "Telefon",
   kontaktLabel: "Kontakt",
   bankgiroLabel: "Bankgiro",

@@ -478,6 +478,42 @@ try {
   }
   log("and the blank went to the database as null, which the CHECK requires");
 
+  // ---- the Arbetsdagbok page names only what is missing (10.2) ---------------
+  // The day was documented above, so this range genuinely overlaps an earlier
+  // document -- the case where "Du har redan gjort en arbetsdagbok" used to
+  // stand beside the refusal, asking to go on with something that could not.
+  await page.goto(`${BASE}/arbetsdagbok/`, { waitUntil: "networkidle" });
+  await field(page, "Projekt").selectOption({ label: name });
+  await field(page, "Från och med").fill(d);
+  await field(page, "Till och med").fill(d);
+  const missingBox = page.locator("[data-company-missing]");
+  try {
+    await missingBox.waitFor({ timeout: 15000 });
+  } catch {
+    await shot(page, "FAILED");
+    fail("with adress blank the Arbetsdagbok page says nothing before anything is pressed");
+  }
+  if ((await missingBox.getAttribute("data-company-missing")) !== "adress") {
+    fail(`it names ${await missingBox.getAttribute("data-company-missing")}, not adress alone`);
+  }
+  await mustSee(page, "Företagets adress saknas. Det trycks på arbetsdagboken.",
+                "the missing field is not named on its own");
+  if ((await missingBox.getByRole("link", { name: "Fyll i under Företaget" }).getAttribute("href"))?.replace(/\/$/, "") !== "/foretag") {
+    fail("the message does not link to Företaget");
+  }
+  if (!(await page.getByRole("button", { name: "Generera Arbetsdagbok" }).isDisabled())) {
+    fail("Generera Arbetsdagbok can still be pressed with the company's adress missing");
+  }
+  await page.waitForTimeout(1500);
+  if (await page.getByText("Du har redan gjort en arbetsdagbok", { exact: false }).count()) {
+    await shot(page, "FAILED");
+    fail("the already-generated warning still stands beside the refusal");
+  }
+  await shot(page, "ft3b-dokument-saknas");
+  log("the Arbetsdagbok page names only the adress, links to Företaget, holds Generera, and asks nothing about the earlier document");
+  // Back where the next step expects to be.
+  await page.goto(`${BASE}/foretag/`, { waitUntil: "networkidle" });
+
   // ---- the logo is the one that may be blank ---------------------------------
   //
   // Without this, everything above would pass against a screen that simply
