@@ -406,29 +406,33 @@ const CONTROLS = [
              "and v_start <= app.pass_end_at(p.work_date, p.start_time, p.end_time)"),
    "I2.back_to_back_is_allowed"],
 
-  // ---- Snabb Pass replaces what it collides with, and nothing else --------
-  ["a Snabb Pass leaves a shift it does not overlap",
-   // The time predicate removed from the release: back to clearing the day.
+  // ---- Snabb Pass refuses what it collides with, and nothing else --------
+  // (20261006100000: it used to release the clash; now it refuses it.)
+  ["a Snabb Pass is not refused by a shift it does not overlap",
+   // The time predicate removed from the clash check: every shift that week
+   // becomes "a clash". The first Snabb Pass in the suite is back to back
+   // with a morning shift and is refused at its own assertion.
    perturbIn("public.create_snabb_pass(uuid,uuid,date,time,time,numeric,boolean,text,jsonb)",
              "and app.pass_start_at(p.work_date, p.start_time) < app.pass_end_at(p_date, p_start, p_end)\n" +
-             "    and app.pass_start_at(p_date, p_start) < app.pass_end_at(p.work_date, p.start_time, p.end_time);",
-             ";"),
-   "SNABB.keeps_what_it_does_not_touch"],
+             "    and app.pass_start_at(p_date, p_start) < app.pass_end_at(p.work_date, p.start_time, p.end_time)\n" +
+             "  order by",
+             "  order by"),
+   "SNABB.admin_may_create"],
 
-  ["a Snabb Pass never takes the arbetsledare off the day",
-   // The source filter removed from the release. The ledare row is not a slot
-   // and nothing about a Snabb Pass on a worker concerns it.
+  ["an arbetsledare's own day is not a clash",
+   // The source filter removed from the clash check. A leader's ledare row is
+   // exempt from invariant 2, so a Snabb Pass on a leader must still go in.
    perturbIn("public.create_snabb_pass(uuid,uuid,date,time,time,numeric,boolean,text,jsonb)",
-             "and t.source     <> 'ledare'          -- never takes a leader off their day",
-             "and true"),
-   "SNABB.never_takes_the_leader_off"],
+             "and t.source     <> 'ledare'", "and true"),
+   "SNABB.leader_row_is_not_a_clash"],
 
-  ["a locked day is refused in the admin's own language",
-   // The friendly check removed, so invariant 5 raises instead and the admin
-   // gets the database's wording -- which is exactly what was reported.
+  ["a clash is refused in the admin's own language",
+   // The RPC's check removed. Invariant 2's guard still refuses -- the call
+   // still fails -- but in its own English, which is what the assertion on
+   // the Swedish sentence exists to catch.
    perturbIn("public.create_snabb_pass(uuid,uuid,date,time,time,numeric,boolean,text,jsonb)",
              "if v_stuck is not null then", "if false then"),
-   "SNABB.locked_day_refused_plainly"],
+   "SNABB.refuses_a_clash"],
 
   // ---- Snabb Pass filing its own day, and the four things it refuses ------
   //

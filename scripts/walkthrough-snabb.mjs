@@ -7,15 +7,12 @@
  *   - the ADMIN creates one
  *   - Ny Arbetare from inside the worker dropdown: same form, same
  *     copy-then-create gate, back to the shift screen to finish
- *   - the person's earlier assignment that day is released and the Snabb Pass
- *     wins -- one live assignment, never two
- *   - EFTER bekräftelse: it enters the confirmation queue and confirms like
- *     any other row -- what Snabb Pass always did, now one of two choices
- *   - FÖRE bekräftelse: on a day its own pass is alone on, the admin files it
- *     straight into the Arbetsdagbok, accepting the arbetsledare's hours on
- *     the same screen, and the day lands in NEITHER queue
- *   - pressing Före on a day somebody else works says why, rather than being
- *     a control that does nothing
+ *   - A CLASH IS REFUSED, NOT RESOLVED (20261006100000): a Snabb Pass whose
+ *     hours overlap the person's existing shift shows the shift in the way and
+ *     keeps Skapa disabled; moved clear of it, it saves, and BOTH shifts stand
+ *   - it enters the confirmation queue and confirms like any other row
+ *   - there is no "Generera arbetsdagbok direkt" choice any more (owner's
+ *     decision, 2026-10-06): every Snabb Pass goes to the arbetsledare
  */
 import { chromium, devices } from "playwright";
 import { mkdirSync } from "node:fs";
@@ -87,10 +84,7 @@ const page = await ctx.newPage();
 page.on("pageerror", (e) => fail(`page error: ${e.message}`));
 
 // A LANE, so two sweeps do not write to the same day. This one only ever goes
-// FURTHER BACK: both days have to be over already -- D so the day is
-// confirmable, DF because Före bekräftelse is only offered on a past date --
-// and a lane that could move forward would break both. The gap between them is
-// preserved, so DF stays two days clear of D.
+// FURTHER BACK: D has to be over already so the day is confirmable.
 //
 // This is the script that made the problem visible: 2026-09-27 reached 24
 // projects across a few sweeps, and step 07 could no longer find its own
@@ -98,11 +92,8 @@ page.on("pageerror", (e) => fail(`page error: ${e.message}`));
 const today = stockholmToday();
 const LANE = runLane(RUN, 45);
 const D = shiftDays(today, -1 - LANE);   // already over, so the day is confirmable
-// Two days before D, and nothing else on it. Före bekräftelse is only offered
-// on a day its own pass is alone on, so the two routes need two days.
-const DF = shiftDays(today, -3 - LANE);
 
-console.log(`\nSnabb Pass on ${D}, filed direkt on ${DF}\n`);
+console.log(`\nSnabb Pass on ${D}\n`);
 
 try {
   // ---- setup ----------------------------------------------------------------
@@ -211,28 +202,54 @@ try {
   await mustSee(page, "Lösenord:", "the credentials for the new worker were not shown");
   log(`admin created ${newName} from inside the dropdown and put them on the shift`);
 
-  // ---- and one for Ada, who already works that day --------------------------
+  // ---- and one for Ada, who already works 07:00-16:00 that day -------------
   await page.getByRole("button", { name: "Skapa ett till" }).click();
+  // No direkt card any more: every Snabb Pass goes to the arbetsledare.
+  if (await page.getByText("Generera arbetsdagbok direkt", { exact: false }).count()) {
+    fail('the "Generera arbetsdagbok direkt" card is still on the Snabb Pass screen');
+  }
   await field(page, "Projekt").selectOption({ label: project });
   await field(page, "Datum").fill(D);
   await page.keyboard.press("Escape");   // close the date card before the next control
-  await field(page, "Timmar").fill("4");
   await field(page, "Vem?").selectOption({ label: `Ada S${RUN}` });
-  await page.getByRole("button", { name: "Skapa Snabb Pass" }).click();
-  await mustSee(page, "Passet är inlagt", "the second Snabb Pass failed");
-  await shot(page, "42-snabb-skapat");
-  log("Snabb Pass for Ada, who already had a pass that day");
 
-  // ---- the earlier assignment is gone, exactly one stands -------------------
+  // SAME HOURS AS HER SHIFT: refused before the press, the shift named, and
+  // Skapa disabled -- nothing is replaced.
+  await mustSee(page, "Krockar med ett annat pass",
+    "a Snabb Pass across Ada's own shift showed no clash");
+  await mustSee(page, `${project} 07:00–16:00`, "the clash does not name the shift in the way");
+  const skapa = page.getByRole("button", { name: "Skapa Snabb Pass" });
+  if (!(await skapa.isDisabled())) fail("Skapa Snabb Pass is pressable while the hours clash");
+  await shot(page, "42-snabb-krock");
+  log("a clash with Ada's 07:00-16:00 is named on screen and Skapa is disabled");
+
+  // MOVED CLEAR OF IT: the refusal goes, and an evening shift on the same day
+  // is allowed (invariant 2: overlap, not the date, is the rule).
+  await field(page, "Börjar").fill("17:00");
+  await page.keyboard.press("Escape");
+  await field(page, "Slutar").fill("21:00");
+  await page.keyboard.press("Escape");
+  await page.getByText("Krockar med ett annat pass").first()
+    .waitFor({ state: "hidden", timeout: 20000 })
+    .catch(() => fail("the clash outlived the change of hours"));
+  await field(page, "Timmar").fill("3,5");
+  await skapa.click();
+  await mustSee(page, "Passet är inlagt", "the evening Snabb Pass for Ada failed");
+  await shot(page, "42-snabb-skapat");
+  log("moved to 17:00-21:00, the Snabb Pass for Ada saved");
+
+  // ---- nothing was taken away: both of Ada's shifts stand -------------------
   await signOut(page);
   await signIn(page, L.email, L.password);
   // The project's day on D: its passes and who stands on them.
   await openDayPage(page, BASE, D, project);
-  await mustSee(page, "0 av 1 platser", "the ordinary pass should have lost its worker");
+  if (await page.getByText("0 av 1 platser", { exact: false }).count()) {
+    fail("a pass on the day lost its worker; a Snabb Pass must never release anybody");
+  }
   const adaRows = await page.getByText(`Ada S${RUN}`, { exact: false }).count();
-  if (adaRows !== 1) fail(`Ada appears ${adaRows} times on ${D}; the Snabb Pass must win, not duplicate`);
+  if (adaRows !== 2) fail(`Ada appears ${adaRows} times on ${D}; her morning and her evening should both stand`);
   await shot(page, "43-dagen-efter-snabb");
-  log("the earlier assignment was released; Ada holds exactly one pass that day");
+  log("the morning shift is untouched; Ada holds two shifts that day");
 
   // ---- it still has to be confirmed -----------------------------------------
   await page.goto(`${BASE}/bekrafta/`, { waitUntil: "networkidle" });
@@ -240,67 +257,6 @@ try {
   await mustSee(page, `Ada S${RUN}`, "Ada's Snabb Pass did not enter the confirmation queue");
   await shot(page, "44-snabb-i-bekrafta");
   log("both Snabb Pass rows are in the confirmation queue, like any other");
-
-  // ---- FÖRE BEKRÄFTELSE: the admin files the day themselves -----------------
-  // Everything above ran on D, which somebody else is working, so the screen
-  // offered Efter and the flow was the old one. This is the other route.
-  await signOut(page);
-  await signIn(page, required("WALKTHROUGH_ADMIN_EMAIL"), required("WALKTHROUGH_ADMIN_PASSWORD"));
-  await page.goto(`${BASE}/snabb/`, { waitUntil: "networkidle" });
-  await field(page, "Projekt").selectOption({ label: project });
-
-  // The shared day first. Före is not on offer there, and the press has to SAY
-  // so -- a control that simply does nothing reads as a broken app.
-  await field(page, "Datum").fill(D);
-  await page.keyboard.press("Escape");   // close the date card before the next control
-  await page.getByRole("button", { name: "Före bekräftelse" }).click();
-  await mustSee(page, "bekräftas av arbetsledaren",
-    "pressing Före on a day somebody else works said nothing at all");
-  await shot(page, "45-fore-nekad");
-  log("Före is refused on a shared day, and says why on the press");
-
-  // A clean day on the same project. Changing the date clears the refusal --
-  // it was about the other day.
-  // Waited for rather than checked on the spot: the pass count for the new day
-  // is a round trip, and asserting the instant after a keystroke would be
-  // asserting that the screen is psychic rather than that it is correct.
-  await field(page, "Datum").fill(DF);
-  await page.keyboard.press("Escape");   // close the date card before the next control
-  await page.getByText("bekräftas av arbetsledaren").first()
-    .waitFor({ state: "hidden", timeout: 20000 })
-    .catch(() => fail("the refusal about the shared day outlived the day it was about"));
-  await field(page, "Vem?").selectOption({ label: `Ada S${RUN}` });
-  await field(page, "Timmar").fill("7");
-
-  // Invariant 6 and invariant 1, both on this screen because Före closes the
-  // day and there is no later stage to supply either in.
-  await field(page, "Vad vi gjorde").fill("Akut läckage, plan 1.");
-  await field(page, `Timmar — Ledare S${RUN} (arbetsledare)`).fill("6,5");
-  await shot(page, "46-fore-formularet");
-
-  await page.getByRole("button", { name: "Skapa och för in i arbetsdagboken" }).click();
-  await mustSee(page, "Passet är inlagt", "the Före Snabb Pass failed");
-  await mustSee(page, "Dagen är förd till arbetsdagboken",
-    "the screen did not say the day was filed");
-  await shot(page, "47-fore-skapat");
-  log(`filed ${DF} straight into the Arbetsdagbok, with the leader's own hours accepted`);
-
-  // ---- and it is in NEITHER queue -------------------------------------------
-  // Not the admin's: it never was a stage 1 claim. Not the leader's: it is
-  // finished. Asserted on the DATE, because the leader has other days here.
-  await page.goto(`${BASE}/bekraftelser/`, { waitUntil: "networkidle" });
-  if (await page.getByText(DF, { exact: false }).count()) {
-    fail(`${DF} is in the admin's review queue; a day filed direkt never enters it`);
-  }
-  await signOut(page);
-
-  await signIn(page, L.email, L.password);
-  await page.goto(`${BASE}/bekrafta/`, { waitUntil: "networkidle" });
-  if (await page.getByText(DF, { exact: false }).count()) {
-    fail(`${DF} is waiting on the arbetsledare; a day filed direkt is already confirmed`);
-  }
-  await shot(page, "48-fore-i-ingen-ko");
-  log("the filed day is in neither queue: nobody is waiting on it");
 
   console.log("\nSNABB PASS WALKTHROUGH COMPLETE.\n");
 } finally {

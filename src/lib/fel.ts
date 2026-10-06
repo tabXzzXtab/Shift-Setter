@@ -142,9 +142,11 @@ const TABLE: [string, string][] = [
   // because nobody wrote it an entry. (The locked-day refusal below has been
   // falling through to a generic fallback since it was written, for exactly
   // that reason.)
-  ["och den dagen är redan bekräftad och låst",
-   "Personen har ett pass som krockar, och den dagen är redan bekräftad och låst. "
-   + "Ändra tiderna eller välj någon annan."],
+  // create_snabb_pass refuses ANY clash since 20261006100000 -- it no longer
+  // replaces the shift in the way, locked day or not.
+  ["har redan ett pass som krockar",
+   "Personen har redan ett pass som krockar i tid. Ett Snabb Pass tar inte bort ett "
+   + "annat pass — ändra tiderna eller välj någon annan."],
   ["En dag med fler personer på bekräftas av arbetsledaren",
    "Det står redan pass på projektet den dagen. En dag som fler personer arbetar på "
    + "bekräftas av arbetsledaren — stäng av \"Generera arbetsdagbok direkt\"."],

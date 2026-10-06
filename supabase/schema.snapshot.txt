@@ -743,7 +743,7 @@ func   public.clock_out(p_tilldelning uuid) md5=e04c572777a7ede42c28eb205b134c23
 func   public.close_pass(p_pass uuid, p_hours numeric) md5=7232e3a7219f6a34f1994df2dd987284
 func   public.complete_bristsurvey(p_project uuid, p_work_date date, p_text text) md5=e511adf511d6a1b6fa953d9d1113c1c7
 func   public.confirm_flagged_day(p_project uuid, p_work_date date, p_text text, p_rows jsonb) md5=5af47daac0ae6d9807a1ffe947a807bd
-func   public.create_snabb_pass(p_project uuid, p_worker uuid, p_date date, p_start time without time zone, p_end time without time zone, p_hours numeric, p_direkt boolean, p_text text, p_ledare jsonb) md5=b40c6781cfa5205bd7301e0f63cccb2f
+func   public.create_snabb_pass(p_project uuid, p_worker uuid, p_date date, p_start time without time zone, p_end time without time zone, p_hours numeric, p_direkt boolean, p_text text, p_ledare jsonb) md5=a528b290c4c692d7f32f8d622e4a9c2d
 func   public.date_dist(date, date) md5=3983f43755ffa80d869985d91ee8e538
 func   public.decline_offer(p_pass uuid) md5=04cb255b51e245bac2ecfb0106a3b2d7
 func   public.delete_account(p_account uuid) md5=b1e07b082ff181343a268eecb086154f
@@ -1261,7 +1261,7 @@ funcdef public.clock_out(p_tilldelning uuid) security=definer volatile=volatile 
 funcdef public.close_pass(p_pass uuid, p_hours numeric) security=definer volatile=volatile config=search_path="" returns=void md5=724167dbc2493b25e9a4a6bccc3ae7fd
 funcdef public.complete_bristsurvey(p_project uuid, p_work_date date, p_text text) security=invoker volatile=volatile config=search_path="" returns=void md5=540dd236b8149a6759b5550d4845f08f
 funcdef public.confirm_flagged_day(p_project uuid, p_work_date date, p_text text, p_rows jsonb) security=invoker volatile=volatile config=search_path="" returns=void md5=1ade12fc6f0d14ffd1f51b0e04259518
-funcdef public.create_snabb_pass(p_project uuid, p_worker uuid, p_date date, p_start time without time zone, p_end time without time zone, p_hours numeric, p_direkt boolean, p_text text, p_ledare jsonb) security=definer volatile=volatile config=search_path="" returns=uuid md5=d50e5518a96e3b133f47bd41a52f2349
+funcdef public.create_snabb_pass(p_project uuid, p_worker uuid, p_date date, p_start time without time zone, p_end time without time zone, p_hours numeric, p_direkt boolean, p_text text, p_ledare jsonb) security=definer volatile=volatile config=search_path="" returns=uuid md5=da23b482c4418616bf5c37f5646683de
 funcdef public.date_dist(date, date) security=invoker volatile=immutable config=- returns=integer md5=053fc23cfc9549c4f7305a61bb68f309
 funcdef public.decline_offer(p_pass uuid) security=definer volatile=volatile config=search_path="" returns=void md5=59b359c76d6c1ca491f27e37e5647bfd
 funcdef public.delete_account(p_account uuid) security=definer volatile=volatile config=search_path="" returns=text md5=5b7e84929dcba2a12c90a8d998c8db2f

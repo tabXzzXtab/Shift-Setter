@@ -4,8 +4,7 @@ import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { AuthGate } from "@/components/auth-gate";
 import {
-  C, Card, CountedTextarea, PrimaryButton, Segmented, SoftField, SoftNotice, SoftScreen,
-  SoftDone, Stepper,
+  C, Card, PrimaryButton, SoftField, SoftNotice, SoftScreen, SoftDone, Stepper,
 } from "@/components/soft";
 import { NyArbetareForm, type CreatedWorker } from "@/components/ny-arbetare";
 import { DateField } from "@/components/date-field";
@@ -19,15 +18,6 @@ import { fel } from "@/lib/fel";
 
 type Project = { id: string; name: string };
 type Worker = { id: string; name: string };
-
-/**
- * An arbetsledare who will be placed on this day by app.sync_leader_day() the
- * moment the pass is written, and whose hours the admin has to accept if the
- * day is being filed straight into the Arbetsdagbok. `touched` is invariant
- * 1's distinction: until somebody types over it the figure follows the span,
- * and afterwards it is theirs and nothing recomputes it.
- */
-type Ledare = { worker_id: string; name: string; hours: string; touched: boolean };
 
 const NEW = "__ny__";
 
@@ -43,33 +33,21 @@ const NEW = "__ny__";
  * a no-show. The leader has already decided; this only records it.
  *
  * On paper it is an ordinary shift. It prints in the Arbetsdagbok exactly like
- * any other row. What it no longer always does is wait for a confirmation:
- * the admin chooses at creation time.
- *
- * EFTER BEKRÄFTELSE is what Snabb Pass has always done -- the day goes to the
- * arbetsledare, who confirms it at stage 1, and the admin approves at stage 2.
- * Right whenever the leader was running the day anyway, and the default in the
- * database (p_direkt omits to false) even though this screen offers Före first.
- *
- * FÖRE BEKRÄFTELSE files the day as the admin states it. That is the case this
- * escape hatch exists for: somebody dropped out at seven, the admin rang a
- * replacement, that person worked alone, and there is no leader who could
- * honestly confirm a day they were not on. It is offered only where the
- * question of whose hours are being locked does not arise -- one pass on the
- * day, a date that has already happened, an account of what was done, and an
- * accepted figure against every arbetsledare the day will place. Each of those
- * is refused by the database too; the screen's job is to say so before the
- * admin has typed a form they cannot submit.
+ * any other row, and the day goes to the arbetsledare to confirm and then to
+ * stage 2, as every day does. The "Generera arbetsdagbok direkt" choice (Före
+ * bekräftelse, filing the day at creation) is gone from this screen -- the
+ * owner's decision, 2026-10-06. The database still has the route; nothing
+ * sends p_direkt any more, and it defaults to false.
  *
  * If the person is not on the roster, the dropdown offers Ny Arbetare: the same
  * form, the same copy-then-create gate, and then straight back here to finish
  * as though nothing happened.
  *
- * If they already hold an assignment that day, the Snabb Pass wins and the
- * earlier one is released -- in one transaction, so invariant 2 is never
- * momentarily false. The amber panel says so BEFORE the button, which is the
- * handoff's rule for it: an override is explained where the decision is made,
- * not reported once it has happened.
+ * A CLASH IS REFUSED, NOT RESOLVED (owner's decision, 2026-10-06). If the
+ * person already holds a shift whose hours overlap these, nothing replaces it:
+ * the screen names the shift in the way and keeps Skapa disabled, and
+ * create_snabb_pass refuses it too (20261006100000). A second shift that does
+ * NOT overlap -- an afternoon after a morning -- is allowed (invariant 2).
  */
 function SnabbPass({ asked }: { asked: string | null }) {
   const { account } = useAccount();
@@ -93,48 +71,7 @@ function SnabbPass({ asked }: { asked: string | null }) {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [done, setDone] = useState<string | null>(null);
-  // Which route actually ran, kept apart from the live toggle: the confirmation
-  // screen has to describe what happened, and the toggle is still sitting where
-  // the admin left it for the next one.
-  const [doneDirekt, setDoneDirekt] = useState(false);
   const [reload, setReload] = useState(0);
-
-  // ---- the two modes -------------------------------------------------------
-  const [direkt, setDirekt] = useState(true);
-  const [gjorde, setGjorde] = useState("");
-  const [ledare, setLedare] = useState<Ledare[]>([]);
-  // How many passes already stand on this project that date. Not a courtesy
-  // count: it is the whole of whether Före is available, because project_day's
-  // key is (project, date) and confirming the day confirms everyone on it.
-  const [upptagen, setUpptagen] = useState(0);
-  const today = stockholmToday();
-
-  /**
-   * Why Före is not on offer -- DERIVED, not remembered.
-   *
-   * It was a piece of state set when the admin pressed the control, and that
-   * was wrong twice over. The pass count arrives from the database a moment
-   * after the date does, so a quick press was answered before the reason
-   * existed and the control simply flipped back with nothing said. And a
-   * reason set on one day outlived the move to another.
-   *
-   * Computed from the day itself, it cannot do either: it appears the instant
-   * the day is known to be unavailable, and it is gone the instant it is not.
-   */
-  const foreHinder =
-    upptagen > 0
-      ? `Det står redan ${upptagen} pass på projektet den ${date}. En dag som fler personer `
-        + "arbetar på bekräftas av arbetsledaren — annars låses deras timmar av någon som inte var där."
-      : date > today
-        ? `Den ${date} har inte varit än. Arbetsdagboken beskriver arbete som är utfört, `
-          + "så ett pass kan bara föras in i den i efterhand."
-        : null;
-
-  const foreMojlig = foreHinder === null;
-  // What is actually sent. The admin's choice AND the day allowing it -- a
-  // toggle left on from a day that allowed it must not follow them to one
-  // that does not.
-  const direktAktiv = direkt && foreMojlig;
 
   useEffect(() => {
     const sb = getSupabase();
@@ -149,42 +86,14 @@ function SnabbPass({ asked }: { asked: string | null }) {
     })();
   }, [reload]);
 
-  // Is the day already somebody's? Counted rather than fetched: the number is
-  // all the screen says, and the day may hold a whole crew.
-  // THE LAST RESPONSE IS NOT THE LATEST DAY. Changing the date starts a second
-  // count before the first has come back, and two round trips to the same
-  // table do not return in the order they were sent. Without this the answer
-  // about the day the admin just left could land after the answer about the
-  // day they moved to, and foreHinder -- derived, and correct -- would then be
-  // derived from a count belonging to a date nobody is looking at any more.
-  // The refusal about a shared day reappeared on a clean one, which is the
-  // exact failure the comment above foreHinder says it removed: the reason was
-  // no longer remembered, but the number it read was.
-  useEffect(() => {
-    let active = true;
-    void (async () => {
-      if (!projectId || !date) { setUpptagen(0); return; }
-      const { count } = await getSupabase()
-        .from("pass")
-        .select("id", { count: "exact", head: true })
-        .eq("project_id", projectId)
-        .eq("work_date", date)
-        .is("deleted_at", null);
-      if (!active) return;
-      setUpptagen(count ?? 0);
-    })();
-    return () => { active = false; };
-  }, [projectId, date]);
-
   /**
-   * WHAT THIS PASS WILL TAKE AWAY, if anything -- asked, not assumed.
+   * WHAT IS IN THE WAY, if anything -- asked, not assumed.
    *
-   * create_snabb_pass releases the worker's shifts that OVERLAP the new one and
-   * nothing else (invariant 2): non-leader rows from the day before to the day
-   * after, compared as real timestamps, so last night's 22:00-06:00 counts.
-   * The screen mirrors that rule so the warning appears exactly when the
-   * database will remove something, and says what. The warning used to stand
-   * on every Snabb Pass whether or not anything collided.
+   * create_snabb_pass refuses a pass whose hours OVERLAP one of the worker's
+   * shifts (invariant 2): non-leader rows from the day before to the day after,
+   * compared as real timestamps, so last night's 22:00-06:00 counts. The
+   * screen mirrors that rule exactly, so the refusal is on screen -- naming the
+   * shift -- before Skapa is pressed, and Skapa stays disabled while it is.
    */
   const [krock, setKrock] = useState<{ project: string; start: string; end: string; date: string }[]>([]);
   useEffect(() => {
@@ -226,43 +135,6 @@ function SnabbPass({ asked }: { asked: string | null }) {
     return () => { active = false; };
   }, [workerId, date, start, end]);
 
-  // The arbetsledare this project will place on the day. Read from
-  // project_leader rather than guessed, and filtered to those who HAVE a
-  // worker record -- a leader who never works shifts has nothing to place and
-  // app.sync_leader_day() skips them, so asking the admin for their hours
-  // would be asking about a row that will not exist.
-  useEffect(() => {
-    void (async () => {
-      if (!projectId) { setLedare([]); return; }
-      const sb = getSupabase();
-      const { data: pl } = await sb
-        .from("project_leader").select("account_id").eq("project_id", projectId);
-      const ids = (pl ?? []).map((r) => r.account_id);
-      if (ids.length === 0) { setLedare([]); return; }
-
-      const { data: ws } = await sb
-        .from("worker").select("id, name, account_id")
-        .in("account_id", ids).is("deleted_at", null);
-      setLedare((ws ?? []).map((w) => ({
-        worker_id: w.id, name: w.name, hours: "", touched: false,
-      })));
-    })();
-  }, [projectId]);
-
-  /**
-   * A leader's figure: the day's span less the ordinary break until somebody
-   * types over it, and theirs afterwards (invariant 1). Derived at render
-   * rather than stored, so changing a time cannot leave a stale number behind
-   * and there is no effect to keep in step with the two it depends on.
-   *
-   * The span IS the pass here -- Före only exists on a day with one pass -- so
-   * the leader's envelope and the worker's shift are the same hours, and they
-   * come off it the same way.
-   */
-  function ledarTimmar(l: Ledare) {
-    return l.touched ? l.hours : defaultHours(start, end);
-  }
-
   async function save() {
     setSaving(true);
     setError(null);
@@ -274,19 +146,6 @@ function SnabbPass({ asked }: { asked: string | null }) {
       p_start: start,
       p_end: end,
       p_hours: Number(hours.replace(",", ".")),
-      // p_direkt is always sent, so the route is stated rather than inferred
-      // from what is missing. The other two fall away on the Efter route and
-      // take their SQL defaults, because there is nothing yet to say -- the
-      // leader writes the account of the day and their own figure when they
-      // confirm it.
-      p_direkt: direktAktiv,
-      p_text: direktAktiv ? gjorde.trim() : undefined,
-      p_ledare: direktAktiv
-        ? ledare.map((l) => ({
-            worker: l.worker_id,
-            hours: Number(ledarTimmar(l).replace(",", ".")),
-          }))
-        : [],
     });
 
     if (error) {
@@ -295,7 +154,6 @@ function SnabbPass({ asked }: { asked: string | null }) {
       return;
     }
 
-    setDoneDirekt(direktAktiv);
     setDone(workers.find((w) => w.id === workerId)?.name ?? "Arbetaren");
     setSaving(false);
   }
@@ -337,18 +195,12 @@ function SnabbPass({ asked }: { asked: string | null }) {
       <SoftScreen title="" back="/">
         <SoftDone title="Passet är inlagt" line={`${done} är inlagd på ${date}.`} />
 
-        {/* WHICH ROUTE RAN, SAID PLAINLY. These two end in different places --
-            one day is finished and one is waiting on a person -- and an admin
-            who cannot tell them apart from this screen has to go and look. */}
         <p
           className="px-5 pt-[14px] text-[15px] font-medium"
           style={{ color: C.text2, textWrap: "pretty" }}
         >
-          {doneDirekt
-            ? "Dagen är förd till arbetsdagboken med de timmar du angav. Den är klar "
-              + "och kan inte ändras — arbetsdagboken kan skrivas ut direkt."
-            : "Passet syns som vilket pass som helst och ska bekräftas som vanligt. "
-              + "Arbetsledaren har fått en avisering om att dagen väntar på dem."}
+          Passet syns som vilket pass som helst och ska bekräftas som vanligt.
+          Arbetsledaren har fått en avisering om att dagen väntar på dem.
         </p>
 
         {credentials && (
@@ -403,13 +255,7 @@ function SnabbPass({ asked }: { asked: string | null }) {
     <SoftScreen
       title="Sätt in någon på ett pass"
       back="/"
-      // The line follows the mode: filed direkt, the hours are final the
-      // moment it is pressed; through the leader, the clash is what goes wrong.
-      subtitle={
-        direktAktiv
-          ? "Kontrollera timmarna innan du för in dagen."
-          : "Kontrollera att personen inte redan jobbar då."
-      }
+      subtitle="Kontrollera att personen inte redan jobbar då."
     >
       {(error || projects.length === 0) && (
         <div className="px-4 pb-[4px] pt-[10px]">
@@ -423,8 +269,6 @@ function SnabbPass({ asked }: { asked: string | null }) {
       <div className="px-4 pt-[14px]">
         <Card radius={16} pad="p-[18px]">
           <div className="mb-[14px]">
-            {/* Changing this changes whether Före is possible at all, so a
-                refusal about the old project must not outlive it. */}
             <PickField
               label="Projekt"
               value={projectId}
@@ -480,102 +324,15 @@ function SnabbPass({ asked }: { asked: string | null }) {
         </Card>
       </div>
 
-      {/* ---- THE TWO ROUTES ---------------------------------------------
-          Its own card, below the shift and above the button, because it is
-          not a detail of the shift -- it decides whether the day is finished
-          when this screen closes or handed to somebody. */}
-      <div className="px-4 pt-[14px]">
-        <Card radius={16} pad="p-[18px]">
-          <div
-            className="mb-[2px] text-[12px] font-bold uppercase"
-            style={{ letterSpacing: ".9px", color: C.text2 }}
-          >
-            Generera arbetsdagbok direkt
-          </div>
-          <p className="mb-[10px] text-[14px] font-medium" style={{ color: C.text2 }}>
-            Vem som bekräftar dagen.
-          </p>
-
-          <Segmented
-            label="Generera arbetsdagbok direkt"
-            value={direktAktiv ? "fore" : "efter"}
-            onChange={(v) => setDirekt(v === "fore")}
-            options={[
-              { value: "fore", label: "Före bekräftelse" },
-              { value: "efter", label: "Efter bekräftelse" },
-            ]}
-          />
-
-          {/* Shown whenever the admin has asked for Före and the day will not
-              give it -- which covers both the press and the day changing under
-              a choice already made. The control reads Efter either way; this
-              is what keeps that from looking like it ignored them. */}
-          {direkt && foreHinder && (
-            <div className="pt-[14px]">
-              <SoftNotice tone="warn">{foreHinder}</SoftNotice>
-            </div>
-          )}
-
-          <p
-            className="px-1 pt-[14px] text-[15px] font-medium"
-            style={{ color: C.text2, textWrap: "pretty" }}
-          >
-            {direktAktiv
-              ? "Dagen förs in i arbetsdagboken med en gång, med de timmar du anger här. "
-                + "Ingen arbetsledare bekräftar den och den går inte att ändra efteråt."
-              : "Dagen går till arbetsledaren, som bekräftar den som vanligt. Du godkänner "
-                + "den sedan i Bekräftelser."}
-          </p>
-
-          {direktAktiv && (
-            <>
-              <div className="pt-[18px]">
-                <SoftField label="Vad vi gjorde">
-                  <CountedTextarea
-                    rows={3}
-                    value={gjorde}
-                    onChange={(e) => setGjorde(e.target.value)}
-                    placeholder="Beskriv kortfattat vad som gjordes."
-                  />
-                </SoftField>
-              </div>
-
-              {/* INVARIANT 1, ITS LAST EDITABLE MOMENT. These rows are created
-                  by the database the instant the pass is written, and they are
-                  paid. Före closes the day, so there is no later stage in which
-                  to correct them -- which is exactly why they are typed here
-                  rather than computed behind the admin's back. */}
-              {ledare.map((l) => (
-                <div key={l.worker_id} className="pt-[18px]">
-                  <SoftField label={`Timmar — ${l.name} (arbetsledare)`} htmlFor={`ledare-${l.worker_id}`}>
-                    <Stepper
-                      id={`ledare-${l.worker_id}`}
-                      label={`Timmar — ${l.name} (arbetsledare)`}
-                      decLabel={`Färre, ${l.name}`}
-                      incLabel={`Fler, ${l.name}`}
-                      step={0.25}
-                      min={0}
-                      max={24}
-                      unit="h"
-                      value={ledarTimmar(l)}
-                      onChange={(v) => setLedare((ls) => ls.map((x) =>
-                        x.worker_id === l.worker_id ? { ...x, hours: v, touched: true } : x))}
-                    />
-                  </SoftField>
-                </div>
-              ))}
-            </>
-          )}
-        </Card>
-      </div>
-
-      {/* Red because it removes real work (notice audit R5) -- and only when
-          it will: the overlapping shifts, named. */}
+      {/* Red because it blocks the pass -- and only when something is really
+          in the way: the overlapping shifts, named. Nothing is replaced; the
+          admin changes the times or picks somebody else. */}
       {krock.length > 0 && (
         <div className="px-4 pt-[14px]">
           <SoftNotice tone="stop" headline="Krockar med ett annat pass">
-            {krock.map((k) => `${k.project} ${k.start}–${k.end}${k.date !== date ? ` (${k.date})` : ""}`).join(", ")}
-            {" "}tas bort och det här passet gäller i stället.
+            {workers.find((w) => w.id === workerId)?.name ?? "Personen"} jobbar redan{" "}
+            {krock.map((k) => `${k.project} ${k.start}–${k.end}${k.date !== date ? ` (${k.date})` : ""}`).join(", ")}.
+            {" "}Ändra tiderna eller välj en annan person.
           </SoftNotice>
         </div>
       )}
@@ -586,15 +343,12 @@ function SnabbPass({ asked }: { asked: string | null }) {
           disabled={
             saving || !projectId || !workerId
             || !(Number(hours.replace(",", ".")) > 0)
-            // Före cannot be submitted without the day's account: the database
-            // refuses it, and a button that fires a request it knows will
-            // bounce teaches the admin to distrust the screen.
-            || (direktAktiv && gjorde.trim() === "")
+            // A clash is refused by the database; a button that fires a
+            // request it knows will bounce teaches the admin to distrust it.
+            || krock.length > 0
           }
         >
-          {saving
-            ? "Skapar…"
-            : direktAktiv ? "Skapa och för in i arbetsdagboken" : "Skapa Snabb Pass"}
+          {saving ? "Skapar…" : "Skapa Snabb Pass"}
         </PrimaryButton>
       </div>
     </SoftScreen>

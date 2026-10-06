@@ -1886,7 +1886,9 @@ select pg_temp.ok(
 -- Skips the picking, never the confirming.
 -- ============================================================================
 
--- w3 already works that day on an ordinary pass. The Snabb Pass must win.
+-- w3 already works 07:00-16:00 that day on an ordinary pass. Since
+-- 20261006100000 a Snabb Pass never removes it: this one starts exactly where
+-- that shift ends (back to back is not an overlap), so both stand.
 insert into public.pass (id, project_id, work_date, start_time, end_time,
                          planned_hours, headcount, created_by)
 select 'eeeeeeee-0000-0000-0000-000000000030'::uuid,
@@ -1914,7 +1916,7 @@ begin
   perform public.create_snabb_pass(
     'aaaaaaaa-0000-0000-0000-00000000000a'::uuid,
     (select id from wid where k = 'w3'),
-    app.stockholm_today() - 10, '13:00'::time, '19:00'::time, 5.50);
+    app.stockholm_today() - 10, '16:00'::time, '19:00'::time, 2.50);
   insert into snabb_call values (true, null);
 exception when others then
   insert into snabb_call values (false, sqlerrm);
@@ -1940,21 +1942,22 @@ select pg_temp.ok(
   (select count(*) from public.tilldelning t
    join public.worker w on w.id = t.worker_id join fx on fx.v = w.account_id
    where fx.k = 'w3' and t.work_date = app.stockholm_today() - 10
-     and t.released_at is null) = 1,
-  'SNABB.one_assignment_stands',
-  'INVARIANT 2 holds: exactly one live assignment that date');
+     and t.released_at is null) = 2,
+  'SNABB.both_shifts_stand',
+  'back to back is two shifts, and the Snabb Pass removed nothing');
 
 select pg_temp.ok(
-  (select t.released_reason = 'replaced_by_snabb' from public.tilldelning t
+  (select t.released_at is null from public.tilldelning t
    where t.id = 'dddddddd-0000-0000-0000-000000000030'),
-  'SNABB.releases_earlier_same_day',
-  'the Snabb Pass wins and the earlier assignment is released');
+  'SNABB.earlier_shift_untouched',
+  'the morning shift is still live: a Snabb Pass never releases anybody');
 
 select pg_temp.ok(
-  (select t.source = 'snabb' from public.tilldelning t
+  (select bool_and(t.source = 'snabb') from public.tilldelning t
    join public.worker w on w.id = t.worker_id join fx on fx.v = w.account_id
    where fx.k = 'w3' and t.work_date = app.stockholm_today() - 10
-     and t.released_at is null),
+     and t.released_at is null
+     and t.id <> 'dddddddd-0000-0000-0000-000000000030'),
   'SNABB.marked_snabb', 'how it entered is recorded, even though it prints the same');
 
 -- ---- it bypasses the headcount, and nothing else does ---------------------
@@ -2017,7 +2020,7 @@ $$, 'SNABB.worker_cannot_create');
 reset role;
 
 -- ---- it skips the picking, never the confirming ---------------------------
--- The day carries the ordinary pass (its worker released) and the Snabb Pass.
+-- The day carries the ordinary pass (its worker still on it) and the Snabb Pass.
 -- Confirming it must still demand hours for the Snabb row like any other.
 set local role authenticated;
 select pg_temp.act_as((select v from fx where k = 'leaderA'));
@@ -2066,7 +2069,9 @@ set local role authenticated;
 select pg_temp.act_as((select v from fx where k = 'w3'));
 
 select pg_temp.ok(
-  (select day_confirmed and not filed and confirmed_hours is null
+  -- bool_and: w3 holds two shifts that day (the morning and the Snabb Pass),
+  -- and every one of them must keep its hours hidden.
+  (select bool_and(day_confirmed and not filed and confirmed_hours is null)
    from public.my_shift where work_date = app.stockholm_today() - 10),
   'I10.confirmed_is_not_enough',
   'confirmed but not filed: the day shows as confirmed and the hours stay hidden');
@@ -2995,18 +3000,23 @@ select 'dddddddd-0000-0000-0000-000000000045',
 -- is checked below instead, after the Snabb Pass, where it is this section's
 -- business and the EXISTS fails either way if Step 4b never ran.
 
+-- Through accepts(): with the clash check's time comparison removed, this
+-- afternoon pass would be refused as a clash -- and the control has to fail
+-- HERE, by name, not as a raw error further down.
 set local role authenticated;
 select pg_temp.act_as((select v from fx where k = 'admin'));
-select public.create_snabb_pass(
-  'aaaaaaaa-0000-0000-0000-00000000000a'::uuid,
-  (select id from wid where k = 'w2'),
-  app.stockholm_today() + 46, '14:00'::time, '18:00'::time, 4.00);
+select pg_temp.accepts($$
+  select public.create_snabb_pass(
+    'aaaaaaaa-0000-0000-0000-00000000000a'::uuid,
+    (select id from wid where k = 'w2'),
+    app.stockholm_today() + 46, '14:00'::time, '18:00'::time, 4.00)
+$$, 'SNABB.keeps_what_it_does_not_touch');
 reset role;
 
 select pg_temp.ok(
   (select released_at is null from public.tilldelning
    where id = 'dddddddd-0000-0000-0000-000000000045'),
-  'SNABB.keeps_what_it_does_not_touch',
+  'SNABB.morning_still_stands',
   'an afternoon Snabb Pass does not cancel that morning''s work');
 
 select pg_temp.ok(
@@ -3017,20 +3027,46 @@ select pg_temp.ok(
   'SNABB.two_shifts_one_day',
   'the morning and the Snabb Pass are two things that happened');
 
--- AND IT STILL REPLACES WHAT IT DOES COLLIDE WITH.
+-- AND WHAT IT DOES COLLIDE WITH, IT REFUSES (20261006100000). It used to
+-- release the morning and stand in its place; now nothing is written and the
+-- admin is told, in Swedish, which shift is in the way.
+create temporary table snabb_clash(ok boolean, err text);
+grant select, insert on snabb_clash to public;
+
 set local role authenticated;
 select pg_temp.act_as((select v from fx where k = 'admin'));
-select public.create_snabb_pass(
-  'aaaaaaaa-0000-0000-0000-00000000000a'::uuid,
-  (select id from wid where k = 'w2'),
-  app.stockholm_today() + 46, '10:00'::time, '15:00'::time, 5.00);
+do $clash$
+begin
+  perform public.create_snabb_pass(
+    'aaaaaaaa-0000-0000-0000-00000000000a'::uuid,
+    (select id from wid where k = 'w2'),
+    app.stockholm_today() + 46, '10:00'::time, '15:00'::time, 5.00);
+  insert into snabb_clash values (true, null);
+exception when others then
+  insert into snabb_clash values (false, sqlerrm);
+end $clash$;
 reset role;
 
 select pg_temp.ok(
-  (select released_reason = 'replaced_by_snabb' from public.tilldelning
-   where id = 'dddddddd-0000-0000-0000-000000000045'),
-  'SNABB.still_replaces_a_clash',
-  'a Snabb Pass across the morning does replace it, and says why');
+  (select not ok and err like '%har redan ett pass som krockar%' from snabb_clash),
+  'SNABB.refuses_a_clash',
+  'a Snabb Pass across the morning is refused, in Swedish: '
+    || coalesce((select err from snabb_clash), '(accepted)'));
+
+select pg_temp.ok(
+  (select err not like '%hours overlap%' from snabb_clash),
+  'SNABB.clash_not_the_guards_english',
+  'the admin reads the RPC''s sentence, not invariant 2''s backstop');
+
+select pg_temp.ok(
+  (select released_at is null from public.tilldelning
+   where id = 'dddddddd-0000-0000-0000-000000000045')
+  and (select count(*) from public.tilldelning t
+       where t.worker_id = (select id from wid where k = 'w2')
+         and t.work_date = app.stockholm_today() + 46
+         and t.released_at is null and t.source <> 'ledare') = 2,
+  'SNABB.clash_keeps_the_old_shift',
+  'the refused pass removed nothing and added nothing');
 
 -- THE LEADER IS STILL THERE -- and the Snabb Pass has to be given to the
 -- LEADER for this to mean anything.
@@ -3042,12 +3078,16 @@ select pg_temp.ok(
 -- where `t.source <> 'ledare'` is the only thing standing between them and
 -- being taken off the day they are leading -- which is Step 5c's decision to
 -- make, never a side effect of booking somebody an afternoon.
+-- Through accepts(): with the source filter gone from the clash check, the
+-- leader's own row would count as a clash and this would be refused.
 set local role authenticated;
 select pg_temp.act_as((select v from fx where k = 'admin'));
-select public.create_snabb_pass(
-  'aaaaaaaa-0000-0000-0000-00000000000a'::uuid,
-  (select id from wid where k = 'leaderA'),
-  app.stockholm_today() + 46, '09:00'::time, '11:00'::time, 2.00);
+select pg_temp.accepts($$
+  select public.create_snabb_pass(
+    'aaaaaaaa-0000-0000-0000-00000000000a'::uuid,
+    (select id from wid where k = 'leaderA'),
+    app.stockholm_today() + 46, '09:00'::time, '11:00'::time, 2.00)
+$$, 'SNABB.leader_row_is_not_a_clash');
 reset role;
 
 select pg_temp.ok(
@@ -3081,11 +3121,13 @@ exception when others then
 end $locked$;
 reset role;
 
+-- A clash on a locked day is now simply a clash, refused like any other --
+-- it never gets as far as invariant 5.
 select pg_temp.ok(
-  (select not ok and err like '%redan bekräftad och låst%'
+  (select not ok and err like '%har redan ett pass som krockar%'
    from snabb_locked),
   'SNABB.locked_day_refused_plainly',
-  'it says the day is confirmed and locked, in Swedish: '
+  'it names the clash in Swedish: '
     || coalesce((select err from snabb_locked), ''));
 
 select pg_temp.ok(
