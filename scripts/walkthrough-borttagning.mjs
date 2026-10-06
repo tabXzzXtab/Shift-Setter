@@ -154,6 +154,14 @@ const deleteButton = (page, project) =>
   page.locator(`section:has(> p:text-is("${project}"))`)
       .getByRole("button", { name: /Ta bort detta pass/ });
 
+/** "Ta bort passet?" -- the delete asks first; answer it. */
+async function confirmDelete(page) {
+  const dialog = page.getByRole("dialog", { name: "Ta bort passet?" });
+  await dialog.waitFor({ timeout: 10000 });
+  await dialog.getByRole("button", { name: "Ta bort", exact: true }).click();
+  await dialog.waitFor({ state: "detached", timeout: 10000 });
+}
+
 const browser = await chromium.launch();
 const ctx = await browser.newContext({
   ...devices["Pixel 7"], locale: "sv-SE", timezoneId: "Europe/Stockholm",
@@ -246,6 +254,7 @@ try {
   await openDay(page, PAST, P);
   await deleteButton(page, P).waitFor({ timeout: 20000 });
   await deleteButton(page, P).click();
+  await confirmDelete(page);
   await mustSee(page, "Passet har redan börjat", "a started pass was deleted");
 
   // ---- and the refusal is in Swedish ------------------------------------
@@ -278,7 +287,20 @@ try {
 
   // ---- the admin deletes the only shift on a day --------------------------
   await openDay(page, ONE, P);
+  // The press alone deletes nothing: it asks. Avbryt leaves the pass standing.
   await deleteButton(page, P).click();
+  {
+    const dialog = page.getByRole("dialog", { name: "Ta bort passet?" });
+    await dialog.waitFor({ timeout: 10000 });
+    await dialog.getByRole("button", { name: "Avbryt", exact: true }).click();
+    await dialog.waitFor({ state: "detached", timeout: 10000 });
+    await page.waitForTimeout(1500);
+    if (await page.getByText("Passet är borttaget").count()) fail("Avbryt deleted the pass anyway");
+    if (!(await deleteButton(page, P).count())) fail("after Avbryt the pass is gone from the day");
+  }
+  log("Ta bort detta pass asks first -- Avbryt leaves the pass where it was");
+  await deleteButton(page, P).click();
+  await confirmDelete(page);
   await mustSee(page, "Passet är borttaget", "the future pass was not deleted");
   await shot(page, "bo3-borttaget");
   log(`the admin deleted the only pass on ${ONE}`);
@@ -301,6 +323,7 @@ try {
   // ---- one of two is not a cancelled day ----------------------------------
   await openDay(page, TWO, P);
   await deleteButton(page, P).first().click();
+  await confirmDelete(page);
   await mustSee(page, "Passet är borttaget", "the first of two was not deleted");
   const stillRunning = await openDay(page, TWO, P);
   if (stillRunning.includes("Inställd dag")) {
@@ -314,6 +337,7 @@ try {
 
   // ---- and when the last one goes ------------------------------------------
   await deleteButton(page, P).first().click();
+  await confirmDelete(page);
   await mustSee(page, "Passet är borttaget", "the second of two was not deleted");
   const bothGone = await openDay(page, TWO, P);
   if (!bothGone.includes("Inställd dag") || !bothGone.includes("2 pass borttagna")) {

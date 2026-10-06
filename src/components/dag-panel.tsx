@@ -93,6 +93,8 @@ export function DagPanel({ date, heading = true, project }: {
   /** The booking whose trash icon was pressed: nothing is cancelled until the
    *  dialog's Bekräfta, because avboka_pass writes on the first call. */
   const [asking, setAsking] = useState<{ pass: PassRow; person: Person } | null>(null);
+  // The pass "Ta bort detta pass" was pressed on, waiting for its answer.
+  const [deleting, setDeleting] = useState<PassRow | null>(null);
   const [swap, setSwap] = useState<Options | null>(null);
   const [trade, setTrade] = useState<SwapOptions | null>(null);
 
@@ -370,6 +372,27 @@ export function DagPanel({ date, heading = true, project }: {
             </DangerButton>
           </div>
           <SecondaryButton onClick={() => setAsking(null)}>Avbryt</SecondaryButton>
+        </SoftDialog>
+      )}
+
+      {/* TA BORT PASSET? -- deleting a pass released everybody on it on the
+          first tap. Same shape as Avboka bokning?: the pass named, what happens
+          to the people on it, and the destructive answer first. */}
+      {deleting && (
+        <SoftDialog label="Ta bort passet?" onDismiss={() => setDeleting(null)}>
+          <h2 className="text-[19px] font-extrabold" style={{ letterSpacing: "-.5px" }}>
+            Ta bort passet?
+          </h2>
+          <p className="mb-[18px] mt-1 text-[15px] font-medium" style={{ color: C.text2, textWrap: "pretty" }}>
+            Passet {hhmm(deleting.start_time)}–{hhmm(deleting.end_time)} tas bort.
+            {deleting.people.length > 0 && " Alla som är bokade får besked."} Det går inte att ångra.
+          </p>
+          <div className="mb-[10px]">
+            <DangerButton onClick={() => { const d = deleting; setDeleting(null); void cancelPass(d); }}>
+              Ta bort
+            </DangerButton>
+          </div>
+          <SecondaryButton onClick={() => setDeleting(null)}>Avbryt</SecondaryButton>
         </SoftDialog>
       )}
 
@@ -676,7 +699,7 @@ export function DagPanel({ date, heading = true, project }: {
                   {account?.role === "admin" && (
                     <button
                       type="button"
-                      onClick={() => cancelPass(p)}
+                      onClick={() => setDeleting(p)}
                       disabled={busy === p.id}
                       className="press-scale flex h-12 w-full items-center justify-center rounded-[10px] text-[15px] font-bold transition-transform duration-[110ms] hover:bg-[#ebe9e5] active:scale-[.985] disabled:opacity-40"
                       style={{ background: C.stopBg, color: C.stopInk }}
