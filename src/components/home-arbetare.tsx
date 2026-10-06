@@ -252,7 +252,9 @@ export function HomeArbetare() {
       // Losing a race is normal here, so it is worded as a fact, not a fault.
       setNote(/full|not offered/i.test(error.message)
         ? "Någon annan hann först. Passet är taget."
-        : error.message);
+        // Anything else is the database's sentence, so it goes through fel():
+        // a closed day once reached a worker as raw English.
+        : fel(error, take ? "Passet kunde inte tas. Försök igen." : "Svaret kunde inte sparas. Försök igen."));
     } else if (take) {
       setNote("Passet är ditt.");
       tourSignal("offer-accepted");

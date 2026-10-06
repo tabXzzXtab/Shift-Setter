@@ -6034,4 +6034,67 @@ select pg_temp.ok(
 reset role;
 
 
+-- ---- 20261006160100: a confirmed day takes no new passes; two day notices ----
+--
+-- A day forty days back on Projekt A, one worker on it. Confirmed by writing
+-- the row with the confirmation guard stood down: what is under test here is
+-- what happens AROUND a confirmation, not the confirmation itself.
+-- The two notice triggers are switched on inside this run: on the live
+-- database they wait (disabled) for the frontend that renders their kinds.
+alter table public.project_day enable trigger notify_day_approved;
+alter table public.project_day enable trigger notify_day_awaiting_review;
+
+insert into public.pass (id, project_id, work_date, start_time, end_time, planned_hours, headcount, created_by)
+values ('f3f3f3f3-0000-0000-0000-0000000000a1', 'aaaaaaaa-0000-0000-0000-00000000000a',
+        app.stockholm_today() - 40, '07:00', '16:00', 8.50, 1, (select v from fx where k = 'admin'));
+insert into public.tilldelning (id, pass_id, worker_id, source, work_date)
+select 'f3f3f3f3-0000-0000-0000-0000000000b1', 'f3f3f3f3-0000-0000-0000-0000000000a1',
+       w.id, 'manuell', app.stockholm_today() - 40
+from public.worker w join fx on fx.v = w.account_id where fx.k = 'w1';
+
+alter table public.project_day disable trigger confirmation_guard;
+insert into public.project_day (project_id, work_date, vad_vi_gjorde, confirmed_at, confirmed_by, confirmed_via, stage)
+values ('aaaaaaaa-0000-0000-0000-00000000000a', app.stockholm_today() - 40, 'Gjorde saker', now(),
+        (select v from fx where k = 'leaderA'), 'leader', 'leader_confirmed');
+alter table public.project_day enable trigger confirmation_guard;
+
+select pg_temp.ok(
+  (select count(*) from public.notification n
+     where n.kind = 'day_awaiting_review'
+       and n.payload ->> 'work_date' = (app.stockholm_today() - 40)::text)
+  = (select count(*) from public.account a
+       join public.project p on p.tenant_id = a.tenant_id
+      where p.id = 'aaaaaaaa-0000-0000-0000-00000000000a'
+        and a.role = 'admin' and a.active and a.deleted_at is null)
+  and (select count(*) from public.notification n
+     where n.kind = 'day_awaiting_review'
+       and n.payload ->> 'work_date' = (app.stockholm_today() - 40)::text) > 0
+  and not exists (select 1 from public.notification n
+     where n.kind = 'day_awaiting_review'
+       and n.account_id in (select v from fx where k in ('w1', 'leaderA'))),
+  'DAYNOTICE.admins_told',
+  'a leader-confirmed day tells every active admin of its company, and nobody else');
+
+select pg_temp.rejects($s$
+  insert into public.pass (project_id, work_date, start_time, end_time, planned_hours, headcount, created_by)
+  values ('aaaaaaaa-0000-0000-0000-00000000000a', app.stockholm_today() - 40, '17:00', '18:00', 0.50, 1,
+          (select v from fx where k = 'admin'))
+$s$, 'CLOSED.no_new_pass');
+
+alter table public.project_day disable trigger confirmation_guard;
+update public.project_day set stage = 'admin_confirmed'
+ where project_id = 'aaaaaaaa-0000-0000-0000-00000000000a' and work_date = app.stockholm_today() - 40;
+alter table public.project_day enable trigger confirmation_guard;
+
+select pg_temp.ok(
+  (select count(*) = 1 from public.notification n
+     where n.kind = 'day_approved' and n.account_id = (select v from fx where k = 'w1')
+       and n.payload ->> 'work_date' = (app.stockholm_today() - 40)::text)
+  and not exists (select 1 from public.notification n
+     where n.kind = 'day_approved'
+       and n.account_id in (select v from fx where k in ('leaderA', 'admin'))),
+  'DAYNOTICE.workers_told',
+  'an approved day tells the worker on it -- not the arbetsledare, not the admin');
+
+
 select pg_temp.ok(true, 'SUITE.complete', 'every assertion passed');

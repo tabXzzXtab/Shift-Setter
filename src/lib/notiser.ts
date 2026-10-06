@@ -13,7 +13,8 @@ import { svDate } from "@/lib/dates";
  */
 export type NotisKind =
   | "shift_offered" | "shift_deleted" | "day_unconfirmed" | "day_flagged"
-  | "leader_replaced" | "pass_closed" | "snabb_review" | "day_admin_confirmed";
+  | "leader_replaced" | "pass_closed" | "snabb_review" | "day_admin_confirmed"
+  | "day_approved" | "day_awaiting_review";
 
 export type NotisRow = {
   id: string;
@@ -37,6 +38,10 @@ export function notisText(n: NotisRow): { title: string; body: string } {
       return { title: "Pass skickat tillbaka", body: `Dagen ${datum} på ${projekt} behöver din bekräftelse igen` };
     case "day_admin_confirmed":
       return { title: "Dag bekräftad", body: `Dagen ${datum} på ${projekt} är bekräftad av admin` };
+    case "day_approved":
+      return { title: "Dag godkänd", body: `Din dag ${datum} på ${projekt} är godkänd` };
+    case "day_awaiting_review":
+      return { title: "Dag att granska", body: `Dagen ${datum} på ${projekt} är bekräftad och väntar på dig` };
     case "snabb_review":
       return { title: "Snabb Pass att granska", body: `${datum} på ${projekt} behöver din genomgång` };
     case "leader_replaced":
@@ -66,7 +71,10 @@ export function notisHref(n: NotisRow): string {
     case "snabb_review":
       return `/bekrafta${day}`;
     case "day_flagged":
+    case "day_awaiting_review":
       return `/granska${day}`;
+    case "day_approved":
+      return "/mina-pass";
     case "day_admin_confirmed":
       return "/historik";
   }

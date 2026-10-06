@@ -61,7 +61,9 @@ function Acceptera() {
       setNote(
         /full|not offered/i.test(error.message)
           ? "Någon annan hann först. Passet är taget."
-          : error.message,
+          // Through fel(), never raw: a closed day once reached a worker as
+          // the database's own English.
+          : fel(error, take ? "Passet kunde inte tas. Försök igen." : "Svaret kunde inte sparas. Försök igen."),
       );
     } else if (take) {
       setNote("Passet är ditt.");

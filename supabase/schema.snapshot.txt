@@ -2,7 +2,7 @@ enum   app_role = admin,arbetsledare,arbetare
 enum   assignment_source = handplockad,forval,oppen,manuell,snabb,ledare
 enum   confirmation_source = leader,bristsurvey,worker_ansvarig,ingen_ledare,snabb
 enum   day_stage = leader_confirmed,admin_confirmed
-enum   notification_kind = shift_deleted,shift_offered,day_unconfirmed,day_flagged,leader_replaced,pass_closed,snabb_review,day_admin_confirmed
+enum   notification_kind = shift_deleted,shift_offered,day_unconfirmed,day_flagged,leader_replaced,pass_closed,snabb_review,day_admin_confirmed,day_approved,day_awaiting_review
 enum   offer_state = offered,accepted,declined,withdrawn
 enum   release_reason = removed_by_leader,replaced_by_snabb,shift_deleted,absent_at_confirmation,account_paused,no_workers_left,closed_early
 enum   review_action = approved,rejected
@@ -685,10 +685,13 @@ trig   no_overlapping_assignment on tilldelning -> tg_no_overlapping_assignment 
 trig   notification_only_read on notification -> tg_notification_only_read enabled=O
 trig   notification_push on notification -> tg_notification_push enabled=O
 trig   notify_day_admin_confirmed on project_day -> tg_notify_day_admin_confirmed enabled=O
+trig   notify_day_approved on project_day -> tg_notify_day_approved enabled=D
+trig   notify_day_awaiting_review on project_day -> tg_notify_day_awaiting_review enabled=D
 trig   notify_day_rejected on day_review -> tg_notify_day_rejected enabled=O
 trig   notify_shift_offered on tilldelning -> tg_notify_shift_offered enabled=O
 trig   pass_delete_guard on pass -> tg_pass_delete_guard enabled=O
 trig   pass_edit_guard on pass -> tg_pass_edit_guard enabled=O
+trig   pass_on_closed_day on pass -> tg_pass_on_closed_day enabled=O
 trig   pass_original_times on pass -> tg_pass_original_times enabled=O
 trig   profile_touch on profile -> tg_profile_touch enabled=O
 trig   project_created_by on project -> tg_project_created_by enabled=O
@@ -747,12 +750,15 @@ func   app.tg_leader_day() md5=d55ddf7a8227ddd0f73386690ee55145
 func   app.tg_leader_day_pass() md5=691021ec0d2c47200fc8dd2106b10d59
 func   app.tg_no_overlapping_assignment() md5=a6917b75c0aeecbf8fd19916a862ae79
 func   app.tg_notification_only_read() md5=e4d55d7a1adb07bd1bc95982a83a5b34
-func   app.tg_notification_push() md5=e306719c3732ed1f73746af1d71ff582
+func   app.tg_notification_push() md5=4336d9d781a0171f636de2343d4253b0
 func   app.tg_notify_day_admin_confirmed() md5=ccb9359e62bd6af58d7c85f1b648e2ec
+func   app.tg_notify_day_approved() md5=157b081bf1d723ca5feadcd7a52535d3
+func   app.tg_notify_day_awaiting_review() md5=2f14bb58aef2d4f0ff76c2e8b72c43ab
 func   app.tg_notify_day_rejected() md5=a81a4e05ff04ea1cc09e93e5006e0e84
 func   app.tg_notify_shift_offered() md5=95e0e4d529b8c65dbc6e551b962c71b9
 func   app.tg_pass_delete_guard() md5=91f1c76f9afd189463ca8c9f26b04390
 func   app.tg_pass_edit_guard() md5=dda07b7abfaa8f7eb519081febb29535
+func   app.tg_pass_on_closed_day() md5=9fc1cf5400120c2c8d4113e760942d9f
 func   app.tg_pass_original_times() md5=ccba0ae23db959258ca76544abd62379
 func   app.tg_profile_touch() md5=2cd0a5f82ac61406b149da8b7d574ddc
 func   app.tg_project_created_by() md5=0524801edfe833eb33f991a838b4f9a0
@@ -1302,12 +1308,15 @@ funcdef app.tg_leader_day() security=definer volatile=volatile config=search_pat
 funcdef app.tg_leader_day_pass() security=definer volatile=volatile config=search_path="" returns=trigger md5=788576683f47d0093f1a87f497d0e5f3
 funcdef app.tg_no_overlapping_assignment() security=definer volatile=volatile config=search_path="" returns=trigger md5=7f643813676d0a9e142f3a2b7eddc74d
 funcdef app.tg_notification_only_read() security=invoker volatile=volatile config=search_path="" returns=trigger md5=b4402923e8fce70cf6de4b770ee6fdf5
-funcdef app.tg_notification_push() security=definer volatile=volatile config=search_path="" returns=trigger md5=ff3aa5e85bb292dbd71a23ba7bd6c23c
+funcdef app.tg_notification_push() security=definer volatile=volatile config=search_path="" returns=trigger md5=b3d57130418def730a23a3b0062e7432
 funcdef app.tg_notify_day_admin_confirmed() security=definer volatile=volatile config=search_path="" returns=trigger md5=321ce9cfee5e64e604839a0f888710f4
+funcdef app.tg_notify_day_approved() security=definer volatile=volatile config=search_path="" returns=trigger md5=27bacd102fa9e6aed293c872026bdcd5
+funcdef app.tg_notify_day_awaiting_review() security=definer volatile=volatile config=search_path="" returns=trigger md5=01c17fe96a9b3f40a8ef10a880a5ecdb
 funcdef app.tg_notify_day_rejected() security=definer volatile=volatile config=search_path="" returns=trigger md5=88257841c309459fb8da8677d40b0939
 funcdef app.tg_notify_shift_offered() security=definer volatile=volatile config=search_path="" returns=trigger md5=ac17eafd2d93f3e18ca0eb2dca0c353f
 funcdef app.tg_pass_delete_guard() security=definer volatile=volatile config=search_path="" returns=trigger md5=3df9ba54c1ac648c41176432d0d9407d
 funcdef app.tg_pass_edit_guard() security=definer volatile=volatile config=search_path="" returns=trigger md5=9aedd9c59e2f2e296b0ce2afc03dd2d9
+funcdef app.tg_pass_on_closed_day() security=definer volatile=volatile config=search_path="" returns=trigger md5=5d7e94ce903d8d96c488389a59d5b96e
 funcdef app.tg_pass_original_times() security=invoker volatile=volatile config=search_path="" returns=trigger md5=cc429cba4e92c75cd2b6381cabf59fd2
 funcdef app.tg_profile_touch() security=definer volatile=volatile config=search_path="" returns=trigger md5=4c1bc14981b8021d40b6e51870a1493d
 funcdef app.tg_project_created_by() security=definer volatile=volatile config=search_path="" returns=trigger md5=5db7bde64df48720e529bf9815396ba5
@@ -1592,10 +1601,13 @@ grantfn app.tg_no_overlapping_assignment() EXECUTE=PUBLIC,authenticated
 grantfn app.tg_notification_only_read() EXECUTE=PUBLIC
 grantfn app.tg_notification_push() EXECUTE=(none)
 grantfn app.tg_notify_day_admin_confirmed() EXECUTE=(none)
+grantfn app.tg_notify_day_approved() EXECUTE=PUBLIC
+grantfn app.tg_notify_day_awaiting_review() EXECUTE=PUBLIC
 grantfn app.tg_notify_day_rejected() EXECUTE=(none)
 grantfn app.tg_notify_shift_offered() EXECUTE=(none)
 grantfn app.tg_pass_delete_guard() EXECUTE=authenticated
 grantfn app.tg_pass_edit_guard() EXECUTE=PUBLIC,authenticated
+grantfn app.tg_pass_on_closed_day() EXECUTE=PUBLIC
 grantfn app.tg_pass_original_times() EXECUTE=PUBLIC,authenticated
 grantfn app.tg_profile_touch() EXECUTE=PUBLIC,authenticated
 grantfn app.tg_project_created_by() EXECUTE=PUBLIC,authenticated

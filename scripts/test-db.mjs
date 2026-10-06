@@ -1440,6 +1440,21 @@ const CONTROLS = [
         on pr.id = nullif(n.payload ->> 'project_id', '')::uuid and pr.tenant_id = n.tenant_id
       where app.in_tenant(n.tenant_id) and n.account_id = (select auth.uid())`,
    "NOTIS.past_day_reads_as_read"],
+
+  // ---- 20261006160100: a confirmed day takes no new passes; two notices -------
+  ["a confirmed day takes no new passes",
+   "drop trigger pass_on_closed_day on public.pass",
+   "CLOSED.no_new_pass"],
+
+  ["a leader-confirmed day tells the company's admins",
+   perturbIn("app.tg_notify_day_awaiting_review()",
+             "where a.tenant_id  = new.tenant_id", "where false and a.tenant_id  = new.tenant_id"),
+   "DAYNOTICE.admins_told"],
+
+  ["an approved day tells the workers on it",
+   perturbIn("app.tg_notify_day_approved()",
+             "where t.project_id  = new.project_id", "where false and t.project_id  = new.project_id"),
+   "DAYNOTICE.workers_told"],
 ];
 
 const client = new pg.Client({
