@@ -44,11 +44,29 @@ export function AccountProvider({ children }: { children: ReactNode }) {
     let active = true;
 
     void (async () => {
-      const { data } = await getSupabase()
+      const sb = getSupabase();
+      // RIGHT AFTER LOGIN THE FIRST READ CAN COME BACK EMPTY. The session is
+      // in the auth client a moment before every request carries its token, so
+      // the first read of account_directory could go out without it -- a 401,
+      // or RLS answering with no row -- and the startsida drew "Kontot är inte
+      // aktivt" for an account that is perfectly active. Neither answer is
+      // final the first time: ask again, after re-reading the session, at 0,4,
+      // 0,8 and 1,6 s. Only an answer that is still empty after that is taken
+      // to mean what it says (a paused or removed account then waits ~3 s for
+      // its message, which is the cost).
+      const ask = () => sb
         .from("account_directory")
         .select("id, role, active, worker_id, name")
         .eq("id", uid)
         .maybeSingle();
+      let { data } = await ask();
+      for (const wait of [400, 800, 1600]) {
+        if (!active || (data?.id && data.role)) break;
+        await new Promise((r) => setTimeout(r, wait));
+        if (!active) return;
+        await sb.auth.getSession();
+        ({ data } = await ask());
+      }
 
       if (!active) return;
       setFetched({

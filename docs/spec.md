@@ -783,7 +783,7 @@ That block is the entire enforcement mechanism. The admin needs the document; on
 
 **Account creation needs elevated credentials**, so it runs through a separate function with its own deployment path. Creating an auth user requires the service-role key, which cannot ship in a static bundle.
 
-**Role is read from the database, not the token.** A role change takes effect on next load rather than persisting stale for the token's lifetime.
+**Role is read from the database, not the token.** A role change takes effect on next load rather than persisting stale for the token's lifetime. **An empty first answer is asked again.** Right after login the first read of `account_directory` can leave before the session's token does and come back 401 or empty; the account is read up to four times (0, 0,4, 0,8, 1,6 s, re-reading the session in between) before an empty answer is taken to mean the account is not active, so *Kontot är inte aktivt* no longer flashes up for an active one.
 
 **A screen that is not a role's sends that role home.** One table in `src/components/route-guard.tsx`, applied in the root layout, names who may open each route: Arbetsdagbok, Granska, Snabb Pass, Alla Konton, Ny arbetare, Redigera Projekt and Ställ in ditt företag are the admin's; the calendar, passes, projects, Bekräfta, Bekräftelser, Företaget and creating from a day are admin and arbetsledare. Everything else is every signed-in role's. A refused visit is sent to `/` and the screen is never drawn on the way, not even for a frame. It is a courtesy and not a boundary — RLS is — and it reads the database role, so an operator "acting as" an arbetare is still an admin and can always reach `/super` to leave. `npm run walkthrough:rollvakt` drives it.
 
