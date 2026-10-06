@@ -11,7 +11,7 @@ import { DateField } from "@/components/date-field";
 import { PickField } from "@/components/pick-field";
 import { TimeField } from "@/components/time-wheel";
 import { getSupabase } from "@/lib/supabase/client";
-import { stockholmToday } from "@/lib/dates";
+import { stockholmToday, svDate } from "@/lib/dates";
 import { defaultHours } from "@/lib/hours";
 import { useAccount } from "@/lib/account";
 import { fel } from "@/lib/fel";
@@ -193,7 +193,7 @@ function SnabbPass({ asked }: { asked: string | null }) {
   if (done) {
     return (
       <SoftScreen title="" back="/">
-        <SoftDone title="Passet är inlagt" line={`${done} är inlagd på ${date}.`} />
+        <SoftDone title="Passet är inlagt" line={`${done} är inlagd ${svDate(date)}.`} />
 
         <p
           className="px-5 pt-[14px] text-[15px] font-medium"
@@ -331,7 +331,7 @@ function SnabbPass({ asked }: { asked: string | null }) {
         <div className="px-4 pt-[14px]">
           <SoftNotice tone="stop" headline="Krockar med ett annat pass">
             {workers.find((w) => w.id === workerId)?.name ?? "Personen"} jobbar redan{" "}
-            {krock.map((k) => `${k.project} ${k.start}–${k.end}${k.date !== date ? ` (${k.date})` : ""}`).join(", ")}.
+            {krock.map((k) => `${k.project} ${k.start}–${k.end}${k.date !== date ? ` (${svDate(k.date)})` : ""}`).join(", ")}.
             {" "}Ändra tiderna eller välj en annan person.
           </SoftNotice>
         </div>

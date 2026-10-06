@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, type ClipboardEvent, type KeyboardEvent, type ReactNode } from "react";
+import { svDate } from "@/lib/dates";
 import {
   BackArrow, C, Card, ChevronRight, IconButton, PrimaryButton, SHADOW, SoftField,
   SoftInput, SoftNotice, Tag,
@@ -625,7 +626,7 @@ function SignupForm({
             </div>
             {made.expires_at && (
               <div className="mt-[6px] text-[15px] font-bold">
-                Provperioden går ut {made.expires_at.slice(0, 10)}
+                Provperioden går ut {svDate(made.expires_at)}
               </div>
             )}
           </div>

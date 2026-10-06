@@ -69,7 +69,7 @@ async function createPerson(page, name, email, role) {
   await page.getByRole("button", { name: /Kopiera inloggning/ }).click();
   const password = (await page.locator("[data-password]").first().innerText()).trim();
   if (!password) fail(`no password for ${name}`);
-  await page.getByRole("button", { name: "Tillverka arbetare" }).click();
+  await page.getByRole("button", { name: /^Skapa (arbetare|arbetsledare|administratör)$/ }).click();
   await page.getByText("Klar", { exact: false }).first().waitFor({ timeout: 20000 });
   return { email, password, name };
 }
@@ -124,7 +124,7 @@ async function makePass(page, project, date, pick) {
   await page.getByLabel("Timmar på rad 1").fill("8");
   await page.getByRole("button", { name: pick, exact: true }).click();
   await page.getByRole("button", { name: /Skapa 1 pass/ }).click();
-  await mustSee(page, "1 av 1 platser tillsatta", `${date} did not fill with ${pick}`);
+  await mustSee(page, "1 av 1 plats tillsatt", `${date} did not fill with ${pick}`);
 }
 
 /**
@@ -223,7 +223,7 @@ try {
 
   await popup.getByRole("button", { name: B.name, exact: true }).click();
   await mustSee(page, `${B.name} tog ${A.name}s plats`, "picking a name did not fill the slot");
-  await mustSee(page, "1 av 1 platser", "the slot did not come back to full");
+  await mustSee(page, "1 av 1 plats", "the slot did not come back to full");
   await shot(page, "v2-utbytt");
   log(`${B.name} took the place; the shift is full again and headcount never dropped`);
 
@@ -250,7 +250,7 @@ try {
 
   await near.getByRole("button", { name: "Ingen av dem", exact: true }).click();
   await page.waitForTimeout(1500);
-  await mustSee(page, "0 av 1 platser", "declining the popup should leave the slot open");
+  await mustSee(page, "0 av 1 plats", "declining the popup should leave the slot open");
   log("closing it without picking leaves the slot open, and sends nothing out");
 
   console.log("\nAVBOKA PASS (WORKER) COMPLETE.\n");

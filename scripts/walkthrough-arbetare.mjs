@@ -73,7 +73,7 @@ async function createPerson(page, name, email, role) {
   await page.getByRole("button", { name: /Kopiera inloggning/ }).click();
   const password = (await page.locator("[data-password]").first().innerText()).trim();
   if (!password) fail(`no password for ${name}`);
-  await page.getByRole("button", { name: "Tillverka arbetare" }).click();
+  await page.getByRole("button", { name: /^Skapa (arbetare|arbetsledare|administratör)$/ }).click();
   await page.getByText("Klar", { exact: false }).first().waitFor({ timeout: 20000 });
   return { email, password, name };
 }

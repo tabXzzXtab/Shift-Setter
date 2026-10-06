@@ -78,7 +78,7 @@ async function createPerson(page, name, email, role) {
   await page.getByRole("button", { name: /Kopiera inloggning/ }).click();
   const password = (await page.locator("[data-password]").first().innerText()).trim();
   if (!password) fail(`no password in credential block for ${name}`);
-  await page.getByRole("button", { name: "Tillverka arbetare" }).click();
+  await page.getByRole("button", { name: /^Skapa (arbetare|arbetsledare|administratör)$/ }).click();
   await page.getByText("Klar", { exact: false }).first().waitFor({ timeout: 20000 });
   return { email, password };
 }
@@ -267,7 +267,7 @@ try {
 
   await page.getByRole("button", { name: /Skapa 1 pass/ }).click();
   await mustSee(page, "Passen är skapade", "the near pass did not generate");
-  await mustSee(page, "0 av 1 platser tillsatta", "an empty förval list should assign nobody");
+  await mustSee(page, "0 av 1 plats tillsatt", "an empty förval list should assign nobody");
   await mustSee(page, "Acceptera Pass", "the slot should have gone out as Acceptera Pass");
   log("nobody assigned; the slot went out as Acceptera Pass");
   await signOut(page);

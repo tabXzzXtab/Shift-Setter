@@ -35,6 +35,20 @@ export function addDays(ymd: string, days: number): string {
   return t.toISOString().slice(0, 10);
 }
 
+/**
+ * "8 oktober", or "8 oktober 2027" outside the current year -- a date as it is
+ * written in a sentence. Takes YYYY-MM-DD, or a timestamp, which is read as
+ * its Stockholm date (invariant 9). A raw "2026-10-08" on a screen reads as a
+ * database leaking through, not as something a person wrote.
+ */
+export function svDate(value: string): string {
+  const ymd = /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : YMD.format(new Date(value));
+  const [y, m, d] = ymd.split("-").map(Number);
+  const text = new Intl.DateTimeFormat("sv-SE", { timeZone: "UTC", day: "numeric", month: "long" })
+    .format(new Date(Date.UTC(y!, m! - 1, d!, 12)));
+  return String(y) === stockholmToday().slice(0, 4) ? text : `${text} ${y}`;
+}
+
 /** "MÅNDAG 16 AUG" -- the confirmation list's day heading. */
 export function longDayHeading(ymd: string): string {
   const [y, m, d] = ymd.split("-").map(Number);

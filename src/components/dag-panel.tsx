@@ -8,7 +8,7 @@ import {
 import { BytArbetsledare, replacementOptions, type Options } from "./byt-arbetsledare";
 import { BytaPlats, swapPartners, type SwapOptions } from "./byta-plats";
 import { getSupabase } from "@/lib/supabase/client";
-import { hhmm, longDayHeading } from "@/lib/dates";
+import { hhmm, longDayHeading, svDate } from "@/lib/dates";
 import { useAccount } from "@/lib/account";
 import { useMonthColour } from "@/lib/project-palette";
 import { fel } from "@/lib/fel";
@@ -334,7 +334,7 @@ export function DagPanel({ date, heading = true, project }: {
             className="mb-[14px] mt-1 text-[15px] font-medium"
             style={{ color: C.text2, textWrap: "pretty" }}
           >
-            {vacancy.removed} är borttagen. De här har förvalt {vacancy.work_date} och
+            {vacancy.removed} är borttagen. De här har förvalt {svDate(vacancy.work_date)} och
             är lediga.
           </p>
 
@@ -538,7 +538,7 @@ export function DagPanel({ date, heading = true, project }: {
               {/* Step 4b: the leader's row was never a slot the pass demanded,
                   so it is not counted against the headcount here either. */}
               <p className="mb-[14px] text-[15px] font-bold" style={{ color: C.accentInk }}>
-                {p.people.filter((x) => x.source !== "ledare").length} av {p.headcount} platser
+                {p.people.filter((x) => x.source !== "ledare").length} av {p.headcount} {p.headcount === 1 ? "plats" : "platser"}
               </p>
 
               <ul className="mb-[14px] flex flex-col gap-2">

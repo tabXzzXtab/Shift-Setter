@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { svDate } from "@/lib/dates";
 import { useRouter } from "next/navigation";
 import { AuthGate } from "@/components/auth-gate";
 import {
@@ -165,7 +166,7 @@ function SuperScreen() {
                     worth saying on a list rather than on its own screen. */}
                 {t.expires_at && (
                   <div className="pt-[6px] text-[13px] font-semibold" style={{ color: C.text2 }}>
-                    Går ut {t.expires_at.slice(0, 10)}
+                    Går ut {svDate(t.expires_at)}
                   </div>
                 )}
 

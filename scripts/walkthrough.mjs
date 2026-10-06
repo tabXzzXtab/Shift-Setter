@@ -121,13 +121,13 @@ async function createPerson(page, name, email, role) {
   // app, so it says why instead. Asserting on `disabled` was asserting on the
   // older design; this asserts on the guarantee, which is that no account is
   // made until somebody is holding the credentials.
-  const create = page.getByRole("button", { name: "Tillverka arbetare" });
+  const create = page.getByRole("button", { name: /^Skapa (arbetare|arbetsledare|administratör)$/ });
   await create.click();
   try {
     await page.getByText("Kopiera inloggningen först", { exact: false })
       .first().waitFor({ timeout: 10000 });
   } catch {
-    fail(`"Tillverka arbetare" said nothing when pressed before the login was copied`);
+    fail(`"Skapa arbetare" said nothing when pressed before the login was copied`);
   }
 
   await page.getByRole("button", { name: /Kopiera inloggning/ }).click();
@@ -251,7 +251,7 @@ try {
   await shot(page, "07-skapa-pass");
   await page.getByRole("button", { name: /Skapa 1 pass/ }).click();
   await mustSee(page, "Passen är skapade", "the pass did not generate");
-  await mustSee(page, "1 av 1 platser tillsatta", "the priority list did not fill the slot");
+  await mustSee(page, "1 av 1 plats tillsatt", "the priority list did not fill the slot");
   await shot(page, "07b-tillsatt");
   log(`created a pass on ${yesterday}, 07:00-16:00, 8 h; the tiers filled it`);
 

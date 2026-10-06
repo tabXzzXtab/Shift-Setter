@@ -92,7 +92,7 @@ async function createPerson(page, name, email, role) {
   await page.getByRole("button", { name: /Kopiera inloggning/ }).click();
   const password = (await page.locator("[data-password]").first().innerText()).trim();
   if (!password) fail(`no password for ${name}`);
-  await page.getByRole("button", { name: "Tillverka arbetare" }).click();
+  await page.getByRole("button", { name: /^Skapa (arbetare|arbetsledare|administratör)$/ }).click();
   await page.getByText("Klar", { exact: false }).first().waitFor({ timeout: 20000 });
   return { email, password, name };
 }
@@ -240,7 +240,7 @@ try {
   await page.getByLabel("Timmar på rad 1").fill("8");
   await page.getByRole("button", { name: W.name, exact: true }).click();
   await page.getByRole("button", { name: /Skapa 1 pass/ }).click();
-  await mustSee(page, "1 av 1 platser tillsatta", "the shift was not created");
+  await mustSee(page, "1 av 1 plats tillsatt", "the shift was not created");
   await signOut(page);
   log(`${W.name} has a shift today on ${P}, at ${ADDRESS}`);
 

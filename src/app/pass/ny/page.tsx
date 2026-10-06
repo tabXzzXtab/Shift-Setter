@@ -255,7 +255,7 @@ function NyttPass({ asked, fromDay = false }: { asked: string | null; fromDay?: 
               {result.passes} pass
             </div>
             <div className="mt-1 text-[15px] font-medium" style={{ color: C.text2 }}>
-              {result.filled} av {result.slots} platser tillsatta
+              {result.filled} av {result.slots} {result.slots === 1 ? "plats tillsatt" : "platser tillsatta"}
             </div>
           </Card>
         </div>
@@ -265,7 +265,7 @@ function NyttPass({ asked, fromDay = false }: { asked: string | null; fromDay?: 
         {result.slots > result.filled && (
           <div className="px-4 pt-[14px]">
             <SoftNotice tone="quiet" headline="För få tillgängliga arbetare">
-              {result.slots - result.filled} plats(er) gick ut som Acceptera Pass.
+              {result.slots - result.filled} {result.slots - result.filled === 1 ? "plats" : "platser"} gick ut som Acceptera Pass.
             </SoftNotice>
           </div>
         )}
@@ -341,7 +341,7 @@ function NyttPass({ asked, fromDay = false }: { asked: string | null; fromDay?: 
             <span
               data-picked-count={days.length}
               aria-live="polite"
-              aria-label={`${days.length} dagar valda`}
+              aria-label={days.length === 1 ? "1 dag vald" : `${days.length} dagar valda`}
               className="text-[20px] font-extrabold"
               style={{ letterSpacing: "-.5px" }}
             >
@@ -375,7 +375,7 @@ function NyttPass({ asked, fromDay = false }: { asked: string | null; fromDay?: 
           className="press-scale flex h-[60px] w-full items-center justify-between rounded-[12px] px-4 text-[17px] font-bold transition-transform duration-[110ms] hover:bg-[#e9e8e4] active:scale-[.985]"
           style={{ letterSpacing: "-.2px", background: C.surface, border: `1px solid ${C.border}`, color: C.inkHover }}
         >
-          <span>{days.length} dag(ar) valda</span>
+          <span>{days.length === 1 ? "1 dag vald" : `${days.length} dagar valda`}</span>
           <span aria-hidden className="text-[15px] font-bold">Ändra</span>
         </button>
       </div>

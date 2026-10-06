@@ -179,9 +179,9 @@ try {
   // list. Wait for something only the LOADED screen has.
   await page.getByRole("heading", { name: "Hitta ett konto" }).waitFor({ timeout: 20000 });
   try {
-    await page.getByRole("link", { name: /Tillverka Konto/ }).waitFor({ timeout: 20000 });
+    await page.getByRole("link", { name: /Skapa konto/ }).waitFor({ timeout: 20000 });
   } catch {
-    fail("Tillverka Konto is not at the top of Alla Konton");
+    fail("Skapa konto is not at the top of Alla Konton");
   }
 
   const konton = page.locator("[data-konto]");
