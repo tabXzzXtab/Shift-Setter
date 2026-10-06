@@ -74,3 +74,7 @@ scripts/temp-accounts.mjs
 # disappear the next time somebody runs `cap add`.
 ios/
 android/
+
+# Brand source material -- kept locally, never in this public repo (2026-10-06)
+/Brand Images/
+/favicon and icon/
