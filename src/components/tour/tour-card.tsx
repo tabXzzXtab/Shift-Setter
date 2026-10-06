@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, type ReactNode } from "react";
 import { C, PrimaryButton } from "@/components/soft";
 import { TOUR_UI } from "@/lib/tour/targets";
 
@@ -45,6 +45,19 @@ export function TourCard({
 }) {
   const box = useRef<HTMLDivElement>(null);
 
+  // A NEW CARD TAKES NO PRESS FOR ITS FIRST ARMED_MS. Every card draws its one
+  // button in the same place, so the second click of a double-click -- or an
+  // impatient second press -- landed on the NEXT card's button the instant it
+  // appeared: a card was skipped, or "Visa mig" opened the app before its
+  // sentence had been read. Measured: two clicks 150 ms apart skipped cards 4
+  // and 6 of the admin tour and opened step 1 unseen. Restarted whenever the
+  // card shows another step, because React reuses this component from one
+  // step to the next; a layout effect, so it is set before the card paints.
+  const shownAt = useRef(0);
+  useLayoutEffect(() => { shownAt.current = performance.now(); }, [title, button, step]);
+  const armed = (fn?: () => void) =>
+    fn && (() => { if (performance.now() - shownAt.current >= ARMED_MS) fn(); });
+
   // The button takes focus: the screen has exactly one thing to do.
   useEffect(() => {
     box.current?.querySelector<HTMLButtonElement>("[data-tour-next] button, button[data-tour-next]")?.focus();
@@ -58,6 +71,9 @@ export function TourCard({
       aria-modal="true"
       aria-label={title}
       className="fixed inset-0 z-[80] flex flex-col overflow-y-auto"
+      // A HELD-DOWN ENTER IS ONE PRESS. The button has focus, and a held key
+      // repeats -- each repeat a click on whichever card is showing by then.
+      onKeyDownCapture={(e) => { if (e.key === "Enter" && e.repeat) e.preventDefault(); }}
       style={{ background: C.surface, color: C.ink, fontFamily: "var(--font-inter), system-ui, sans-serif" }}
     >
       <div className="mx-auto flex min-h-full w-full max-w-[420px] flex-col px-6 pb-[max(28px,env(safe-area-inset-bottom))] pt-[max(18px,env(safe-area-inset-top))]">
@@ -65,7 +81,7 @@ export function TourCard({
           {onClose && (
             <button
               type="button"
-              onClick={onClose}
+              onClick={armed(onClose)}
               aria-label="Avsluta guiden"
               className="-ml-[10px] flex h-11 w-11 shrink-0 items-center justify-center rounded-full"
             >
@@ -136,12 +152,12 @@ export function TourCard({
 
         <div className="flex flex-col items-center gap-3">
           <div data-tour-next className="w-full">
-            <PrimaryButton onClick={onNext}>{button}</PrimaryButton>
+            <PrimaryButton onClick={armed(onNext)}>{button}</PrimaryButton>
           </div>
           {onSkip && (
             <button
               type="button"
-              onClick={onSkip}
+              onClick={armed(onSkip)}
               className="h-11 px-4 text-[16px] font-bold"
               style={{ color: C.text2 }}
             >
@@ -151,6 +167,30 @@ export function TourCard({
         </div>
       </div>
     </div>
+  );
+}
+
+/** How long a newly shown card ignores presses. */
+const ARMED_MS = 400;
+
+/**
+ * A step's database check still running: the same white screen, empty.
+ *
+ * NEVER THE BARE APP DURING A CHECK. A step that needs the app asks the
+ * database first whether it can happen (met() in steps.ts) and nothing was
+ * drawn until it answered -- 100-550 ms of the real app between two white
+ * cards, which is the flicker, and a window in which no tour listener was
+ * attached, so a click there reached the page itself (before step 8, the
+ * real Generera Arbetsdagbok). This holds the white screen through it.
+ */
+export function TourPending() {
+  return (
+    <div
+      {...{ [TOUR_UI]: "pending" }}
+      aria-hidden
+      className="fixed inset-0 z-[80]"
+      style={{ background: C.surface }}
+    />
   );
 }
 
