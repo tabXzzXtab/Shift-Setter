@@ -793,7 +793,7 @@ func   public.date_dist(date, date) md5=3983f43755ffa80d869985d91ee8e538
 func   public.decline_offer(p_pass uuid) md5=04cb255b51e245bac2ecfb0106a3b2d7
 func   public.delete_account(p_account uuid) md5=b1e07b082ff181343a268eecb086154f
 func   public.delete_pass(p_pass uuid) md5=67099d2049be452c7345da20559621c3
-func   public.delete_project(p_project uuid) md5=ef96a822f4646f369415ebb7e00230ad
+func   public.delete_project(p_project uuid, p_cancel_future boolean) md5=8af50a8a1e8e5fdf01ad604b89b35f0c
 func   public.enter_tenant(p_tenant uuid) md5=84fc57e9e813330d89270036ba81f7bd
 func   public.exit_tenant() md5=00fa08df92fac949f6d363588d0633c0
 func   public.fill_passes(p_batch uuid) md5=5ff896fe1619e686acaad13700243189
@@ -988,6 +988,7 @@ func   public.mark_notifications_read(p_ids uuid[]) md5=d35f0b2a7015545b3f6e3d68
 func   public.note_pin_attempt(p_ip text) md5=bed4f7c8d09c8223c7b07c8297f99078
 func   public.oid_dist(oid, oid) md5=98f1ff8d3c8373653d6d3a2e298a7eba
 func   public.place_replacement(p_pass uuid, p_worker uuid) md5=163d23be215e0ccf6e882b5aaeaee43d
+func   public.project_delete_impact(p_project uuid) md5=def4a1e6bb5d2862238fcb60cf4f3518
 func   public.register_push_token(p_token text, p_platform text) md5=6cd95f26b804eb022ce9863b4f94991b
 func   public.reject_day(p_project uuid, p_work_date date, p_note text) md5=5e4ec66b9ad25be694015c2db8afa0d2
 func   public.release_assignment(p_tilldelning uuid, p_reason release_reason) md5=31d9dbd6079a9529e785435d07a54b3c
@@ -1351,7 +1352,7 @@ funcdef public.date_dist(date, date) security=invoker volatile=immutable config=
 funcdef public.decline_offer(p_pass uuid) security=definer volatile=volatile config=search_path="" returns=void md5=59b359c76d6c1ca491f27e37e5647bfd
 funcdef public.delete_account(p_account uuid) security=definer volatile=volatile config=search_path="" returns=text md5=5b7e84929dcba2a12c90a8d998c8db2f
 funcdef public.delete_pass(p_pass uuid) security=definer volatile=volatile config=search_path="" returns=void md5=151d431550a7838913500b9b626b2622
-funcdef public.delete_project(p_project uuid) security=definer volatile=volatile config=search_path="" returns=void md5=2ded4649bbbc2f21cc52fb4629c7a9bd
+funcdef public.delete_project(p_project uuid, p_cancel_future boolean) security=definer volatile=volatile config=search_path="" returns=void md5=768f7f1820440b3ebb1b52f03cbeb853
 funcdef public.enter_tenant(p_tenant uuid) security=definer volatile=volatile config=search_path="" returns=void md5=17ee54caca46a63a0224d072ab66300c
 funcdef public.exit_tenant() security=definer volatile=volatile config=search_path="" returns=void md5=a8a402888f036998628dc6dab31f3884
 funcdef public.fill_passes(p_batch uuid) security=definer volatile=volatile config=search_path="" returns=TABLE(filled_pass uuid, for_date date, slots integer, filled integer, offered integer) md5=a186bf9b81d78f0efa8b5f9d15c87c39
@@ -1546,6 +1547,7 @@ funcdef public.mark_notifications_read(p_ids uuid[]) security=definer volatile=v
 funcdef public.note_pin_attempt(p_ip text) security=definer volatile=volatile config=search_path="" returns=text md5=54865e0b1d428911d913c47e12255683
 funcdef public.oid_dist(oid, oid) security=invoker volatile=immutable config=- returns=oid md5=997dbbedac9c532c2dfe9e61df3963bc
 funcdef public.place_replacement(p_pass uuid, p_worker uuid) security=definer volatile=volatile config=search_path="" returns=void md5=a4dc12da0b95490d39627820e6aab132
+funcdef public.project_delete_impact(p_project uuid) security=definer volatile=stable config=search_path="" returns=TABLE(passes integer, people integer, running boolean) md5=802b88de0482989a56c84f730b77852d
 funcdef public.register_push_token(p_token text, p_platform text) security=definer volatile=volatile config=search_path="" returns=void md5=18ff73feef8fead7216ea2a523932253
 funcdef public.reject_day(p_project uuid, p_work_date date, p_note text) security=invoker volatile=volatile config=search_path="" returns=void md5=fb9d34f928f24f4f4c11265c0f5f9a28
 funcdef public.release_assignment(p_tilldelning uuid, p_reason release_reason) security=definer volatile=volatile config=search_path="" returns=TABLE(reopened boolean, filled integer, offered integer) md5=f806294614c82cac7a08d964eea01fcc
@@ -1642,7 +1644,7 @@ grantfn public.date_dist(date, date) EXECUTE=PUBLIC,anon,authenticated,postgres,
 grantfn public.decline_offer(p_pass uuid) EXECUTE=PUBLIC,authenticated,service_role
 grantfn public.delete_account(p_account uuid) EXECUTE=anon,authenticated,service_role
 grantfn public.delete_pass(p_pass uuid) EXECUTE=PUBLIC,authenticated,service_role
-grantfn public.delete_project(p_project uuid) EXECUTE=anon,authenticated,service_role
+grantfn public.delete_project(p_project uuid, p_cancel_future boolean) EXECUTE=anon,authenticated,service_role
 grantfn public.enter_tenant(p_tenant uuid) EXECUTE=anon,authenticated,service_role
 grantfn public.exit_tenant() EXECUTE=anon,authenticated,service_role
 grantfn public.fill_passes(p_batch uuid) EXECUTE=PUBLIC,anon,authenticated,service_role
@@ -1837,6 +1839,7 @@ grantfn public.mark_notifications_read(p_ids uuid[]) EXECUTE=authenticated,servi
 grantfn public.note_pin_attempt(p_ip text) EXECUTE=service_role
 grantfn public.oid_dist(oid, oid) EXECUTE=PUBLIC,anon,authenticated,postgres,service_role
 grantfn public.place_replacement(p_pass uuid, p_worker uuid) EXECUTE=PUBLIC,anon,authenticated,service_role
+grantfn public.project_delete_impact(p_project uuid) EXECUTE=authenticated,service_role
 grantfn public.register_push_token(p_token text, p_platform text) EXECUTE=authenticated,service_role
 grantfn public.reject_day(p_project uuid, p_work_date date, p_note text) EXECUTE=PUBLIC,anon,authenticated,service_role
 grantfn public.release_assignment(p_tilldelning uuid, p_reason release_reason) EXECUTE=PUBLIC,anon,authenticated,service_role

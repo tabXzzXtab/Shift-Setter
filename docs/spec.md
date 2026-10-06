@@ -978,7 +978,9 @@ over the product.
 
 **Stage 3 — the company and its first admin.** Två kort: *Företaget* (namn,
 organisationsnummer, and *Fakturamejl* only where somebody will actually be
-invoiced) and *Administratören* (namn, e-post). Then the credential handover
+invoiced) and *Administratören* (namn, e-post). The organisationsnummer
+writes its own dash: digits only, at most ten, and `556677-8899` from
+`5566778899` typed or pasted. Then the credential handover
 the Ny arbetare screen uses, with a stronger password: the admin's is 12
 characters in three groups of four (`Kx7m-Q2fa-9PtR`), always mixing upper
 case, lower case and digits, from an alphabet with no look-alikes. Generated
@@ -1069,7 +1071,7 @@ identical controls on a screen with three projects.
 
 **Redigera Projekt** opens an edit page on all seven of the project's business fields — name, site address, start date, services (optional; empty saves as nothing), and the three bestallare fields. Admin only; anyone else is sent to their own landing page. The route is `/projekt/redigera?id=<uuid>` and **not** `/projekt/<id>/redigera`, because there is no server (Section 6): a static export writes one file per route at build time, and a project id does not exist until long after the build. Next refuses a dynamic route without `generateStaticParams` under `output: "export"`, and no build could enumerate a uuid minted later.
 
-**Ta bort projekt** sits at the bottom of that page, behind a confirmation step — *Är du säker? Detta går inte att ångra.* It is refused while anybody is still booked onto a day that has not happened yet: *Projektet har aktiva pass och kan inte tas bort.* Today and future only. Work already done is what a finished project is made of, and blocking on it would make every completed project permanent — while a live assignment on a future day is a person whose booking the deletion would take away.
+**Ta bort projekt** sits at the bottom of that page and opens a popup that first asks `public.project_delete_impact()` what the press would do (owner, 2026-10-06 — it used to refuse outright while anybody was booked ahead). With nobody booked it is the plain *Det går inte att ångra.* With people booked on days that have not started, it says how many passes are cancelled and how many people are told, and offers **Ta bort ändå**: `delete_project(id, true)` then cancels every not-yet-started pass through `public.delete_pass()` — released as `shift_deleted`, notified, never re-offered, exactly as Ta bort pass — before the project goes. A shift **running right now** still refuses, with or without the warning, and the popup says so instead of offering the button: a started shift is a fact to be confirmed, and a removed project's hours count nowhere (invariant 8). Shifts that already ended are past work and never block. `p_cancel_future` defaults to false, so an old bundle that never shows the warning gets the old refusal.
 
 The deletion is **soft**, and that is not a detail. `deleted_at` is set and the row stays, because a hard delete cascades the arbetsdagbok rows, the confirmed days, the passes and the leader memberships away with it, and invariant 5 does not lose a filed document because a project was tidied up. What makes it a deletion instead is invariant 8: every derived view already joins `project ... and deleted_at is null`, and `project_admin_write` now carries the same test — so the one role that can delete a project is no longer the one role that would still see it afterwards, in Alla Projekt and in the project pickers on Arbetsdagbok, Nytt Pass, Snabb Pass and Alla Pass.
 

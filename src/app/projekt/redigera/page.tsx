@@ -6,7 +6,7 @@ import { AuthGate } from "@/components/auth-gate";
 import { useAccount } from "@/lib/account";
 import {
   C, Card, DangerButton, PrimaryButton, SecondaryButton, SoftField, SoftInput,
-  SoftNotice, SoftScreen, SoftToast,
+  SoftDialog, SoftNotice, SoftScreen, SoftToast,
 } from "@/components/soft";
 import { CardTitle } from "@/components/card-title";
 import { getSupabase } from "@/lib/supabase/client";
@@ -32,6 +32,13 @@ import { fel } from "@/lib/fel";
  * form whose every write is refused. Same for the delete: the refusal lives in
  * public.delete_project(), and the confirmation step is a courtesy in front of
  * it rather than the thing holding the rule up.
+ *
+ * A WARNING, NOT A WALL (owner, 2026-10-06). Ta bort projekt used to refuse
+ * while anybody was booked from today on. Now the popup asks
+ * project_delete_impact() first and says how many passes and people the press
+ * cancels; "Ta bort ändå" cancels each of them the way Ta bort pass does --
+ * released, told -- and then removes the project. A shift running right now
+ * still refuses, and the popup says so instead of offering the button.
  *
  * TWO CARDS, NOT ONE COLUMN. The handoff splits the seven fields into what the
  * project is and who is being billed, because those are read at different
@@ -95,6 +102,8 @@ function RedigeraProjekt({ id }: { id: string | null }) {
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  /** What the press would cancel, read when the popup opens. */
+  const [impact, setImpact] = useState<{ passes: number; people: number; running: boolean } | null>(null);
   const [deleting, setDeleting] = useState(false);
 
   // Anyone who is not an admin goes to their own landing page. "/" is the
@@ -159,6 +168,22 @@ function RedigeraProjekt({ id }: { id: string | null }) {
     setSaving(false);
   }
 
+  async function openConfirm() {
+    if (!project) return;
+    setError(null);
+    setImpact(null);
+    setConfirming(true);
+    const { data, error: iErr } = await getSupabase().rpc("project_delete_impact", {
+      p_project: project.id,
+    });
+    if (iErr || !data?.[0]) {
+      setError(fel(iErr, "Det gick inte att se vad som påverkas. Försök igen."));
+      setConfirming(false);
+      return;
+    }
+    setImpact(data[0]);
+  }
+
   async function onDelete() {
     if (!project) return;
     setDeleting(true);
@@ -166,6 +191,7 @@ function RedigeraProjekt({ id }: { id: string | null }) {
 
     const { error: dErr } = await getSupabase().rpc("delete_project", {
       p_project: project.id,
+      p_cancel_future: true,
     });
 
     if (dErr) {
@@ -268,42 +294,63 @@ function RedigeraProjekt({ id }: { id: string | null }) {
         a decision.
       */}
       <div className="px-4 pt-[26px]">
-        {!confirming ? (
-          <>
-            <DangerButton
-              onClick={() => {
-                setError(null);
-                setConfirming(true);
-              }}
-            >
-              Ta bort projekt
-            </DangerButton>
-            <p
-              className="pt-[10px] text-center text-[14px] font-medium"
-              style={{ color: C.text2 }}
-            >
-              Går inte att ångra.
-            </p>
-          </>
-        ) : (
-          <div className="rounded-[14px] p-[18px]" style={{ background: C.stopBg }}>
-            <p
-              className="mb-[14px] text-[17px] font-bold"
-              style={{ letterSpacing: "-.2px", color: C.stopInk }}
-            >
-              Är du säker? Detta går inte att ångra.
-            </p>
-            <div className="mb-[10px]">
-              <DangerButton solid onClick={onDelete} disabled={deleting}>
-                {deleting ? "Tar bort…" : "Ja, ta bort projektet"}
-              </DangerButton>
-            </div>
-            <SecondaryButton onClick={() => setConfirming(false)} disabled={deleting}>
-              Avbryt
-            </SecondaryButton>
-          </div>
-        )}
+        <DangerButton onClick={() => void openConfirm()}>Ta bort projekt</DangerButton>
+        <p
+          className="pt-[10px] text-center text-[14px] font-medium"
+          style={{ color: C.text2 }}
+        >
+          Går inte att ångra.
+        </p>
       </div>
+
+      {confirming && impact && (
+        <SoftDialog label="Ta bort projekt" onDismiss={deleting ? undefined : () => setConfirming(false)}>
+          {impact.running ? (
+            <>
+              <h2 className="text-[19px] font-extrabold" style={{ letterSpacing: "-.5px" }}>
+                Ett pass pågår just nu
+              </h2>
+              <p className="mb-[18px] mt-1 text-[15px] font-medium" style={{ color: C.text2 }}>
+                Projektet kan tas bort när passet är slut eller stängt.
+              </p>
+              <SecondaryButton onClick={() => setConfirming(false)}>Stäng</SecondaryButton>
+            </>
+          ) : (
+            <>
+              <h2 className="text-[19px] font-extrabold" style={{ letterSpacing: "-.5px" }}>
+                Ta bort {project.name}?
+              </h2>
+              {impact.passes > 0 ? (
+                <p className="mb-[18px] mt-1 text-[15px] font-medium" style={{ color: C.text2 }}>
+                  {impact.passes === 1 ? "1 pass" : `${impact.passes} pass`} framåt i tiden avbokas
+                  {impact.people > 0 && (
+                    <>
+                      , och{" "}
+                      <b style={{ color: C.stopInk }}>
+                        {impact.people === 1 ? "1 person" : `${impact.people} personer`}
+                      </b>{" "}
+                      får ett meddelande om att passet är borttaget
+                    </>
+                  )}
+                  . Det går inte att ångra.
+                </p>
+              ) : (
+                <p className="mb-[18px] mt-1 text-[15px] font-medium" style={{ color: C.text2 }}>
+                  Det går inte att ångra.
+                </p>
+              )}
+              <div className="mb-[10px]">
+                <DangerButton solid onClick={onDelete} disabled={deleting}>
+                  {deleting ? "Tar bort…" : impact.people > 0 ? "Ta bort ändå" : "Ja, ta bort projektet"}
+                </DangerButton>
+              </div>
+              <SecondaryButton onClick={() => setConfirming(false)} disabled={deleting}>
+                Avbryt
+              </SecondaryButton>
+            </>
+          )}
+        </SoftDialog>
+      )}
     </SoftScreen>
   );
 }

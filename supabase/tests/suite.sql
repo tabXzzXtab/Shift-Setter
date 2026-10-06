@@ -111,6 +111,19 @@ grant select on fx to public;
 -- control -- tenant B reaching for tenant A's rows and getting nothing.
 -- ============================================================================
 
+-- THE SUITE BRINGS ITS OWN HOME TENANCY (2026-10-06). The fixtures used to sit
+-- in Bella Service AB's live tenancy, under its real id. That tenancy was
+-- removed when the owner re-registered the company, so the suite now creates
+-- a tenancy under the same id itself -- rolled back with everything else --
+-- and no longer depends on any company existing. Its org number is one no
+-- real company holds, so it cannot collide with whoever registers next.
+insert into public.tenant (id, name, org_nr, account_type)
+values ('2f9a6d15-4c83-4e71-9a2b-5d07e3b8c164', 'Suite Hem AB', '000000-0001', 'sold')
+on conflict (id) do nothing;
+insert into public.tenant_branding (tenant_id, address, contact_name, phone)
+values ('2f9a6d15-4c83-4e71-9a2b-5d07e3b8c164', 'Svitgatan 1, 111 11 Stockholm', 'Svit Kontakt', '08-000 00 00')
+on conflict (tenant_id) do nothing;
+
 do $suite_tenant$
 declare t text;
 begin
@@ -6095,6 +6108,101 @@ select pg_temp.ok(
        and n.account_id in (select v from fx where k in ('leaderA', 'admin'))),
   'DAYNOTICE.workers_told',
   'an approved day tells the worker on it -- not the arbetsledare, not the admin');
+
+
+-- ============================================================================
+-- TA BORT PROJEKT WARNS, THEN CANCELS (20261006170000)
+--
+-- f3: one pass sixty days out with w2 on it. Without the flag the old refusal
+-- stands; with it the pass is cancelled the Ta bort pass way -- w2 released
+-- as shift_deleted and told -- and the project goes.
+-- f4: a pass running RIGHT NOW (today 00:00-23:59) with a fresh arbetare on
+-- it, free all day so invariant 2 is not what refuses. Refused with the flag.
+-- ============================================================================
+reset role;
+select set_config('request.jwt.claims', '{}', true);
+
+insert into public.project (id, name, site_address, bestallare_address,
+                            bestallare_bolag, bestallare_orgnr, services, start_date)
+values ('d7d7d7d7-0000-0000-0000-00000000000f', 'Borttaget Med Folk', 'Gata 73', 'Kund 73',
+        'Bolag AB', '556000-0073', 'Bygg', app.stockholm_today() - 10),
+       ('d8d8d8d8-0000-0000-0000-00000000000f', 'Pågår Nu', 'Gata 74', 'Kund 74',
+        'Bolag AB', '556000-0074', 'Bygg', app.stockholm_today() - 10);
+
+insert into public.pass (id, project_id, work_date, start_time, end_time,
+                         planned_hours, headcount, created_by)
+values ('d7d7d7d7-0000-0000-0000-0000000000a1', 'd7d7d7d7-0000-0000-0000-00000000000f',
+        app.stockholm_today() + 60, '07:00', '16:00', 8.50, 2, (select v from fx where k = 'admin')),
+       ('d8d8d8d8-0000-0000-0000-0000000000a1', 'd8d8d8d8-0000-0000-0000-00000000000f',
+        app.stockholm_today(), '00:00', '23:59', 8.00, 1, (select v from fx where k = 'admin'));
+
+insert into public.tilldelning (pass_id, worker_id, source, work_date)
+select 'd7d7d7d7-0000-0000-0000-0000000000a1', w.id, 'manuell', app.stockholm_today() + 60
+from public.worker w join fx on fx.v = w.account_id where fx.k = 'w2';
+insert into auth.users (instance_id, id, aud, role, email, encrypted_password,
+                        email_confirmed_at, created_at, updated_at,
+                        raw_app_meta_data, raw_user_meta_data)
+values ('00000000-0000-0000-0000-000000000000',
+        'd8d8d8d8-0000-0000-0000-0000000000cc', 'authenticated', 'authenticated',
+        'running@suite.test', '', now(), now(), now(), '{}'::jsonb, '{}'::jsonb);
+insert into public.account (id, role, active)
+values ('d8d8d8d8-0000-0000-0000-0000000000cc', 'arbetare', true);
+insert into public.worker (id, account_id, name, email)
+values ('d8d8d8d8-0000-0000-0000-0000000000ff', 'd8d8d8d8-0000-0000-0000-0000000000cc',
+        'Running', 'running@suite.test');
+insert into public.tilldelning (pass_id, worker_id, source, work_date)
+values ('d8d8d8d8-0000-0000-0000-0000000000a1', 'd8d8d8d8-0000-0000-0000-0000000000ff',
+        'manuell', app.stockholm_today());
+-- The same person was on the future pass too and was taken off: the warning
+-- must not count them.
+insert into public.tilldelning (pass_id, worker_id, source, work_date)
+values ('d7d7d7d7-0000-0000-0000-0000000000a1', 'd8d8d8d8-0000-0000-0000-0000000000ff',
+        'manuell', app.stockholm_today() + 60);
+update public.tilldelning set released_at = now(), released_reason = 'removed_by_leader'
+ where pass_id = 'd7d7d7d7-0000-0000-0000-0000000000a1'
+   and worker_id = 'd8d8d8d8-0000-0000-0000-0000000000ff';
+
+set local role authenticated;
+select pg_temp.act_as((select v from fx where k = 'admin'));
+
+-- What the warning says before the press: one pass to cancel, one person on it.
+select pg_temp.ok(
+  (select passes = 1 and people = 1 and not running
+   from public.project_delete_impact('d7d7d7d7-0000-0000-0000-00000000000f')),
+  'DELPROJ.impact_counts', 'the warning counts the passes and people the press will cancel');
+
+-- No flag: the old refusal, for a bundle that never showed the warning.
+select pg_temp.rejects($$
+  select public.delete_project('d7d7d7d7-0000-0000-0000-00000000000f')
+$$, 'DELPROJ.no_flag_still_refuses');
+
+select pg_temp.accepts($$
+  select public.delete_project('d7d7d7d7-0000-0000-0000-00000000000f', true)
+$$, 'DELPROJ.cancel_accepted');
+
+reset role;
+select pg_temp.ok(
+  (select deleted_at is not null from public.project where id = 'd7d7d7d7-0000-0000-0000-00000000000f')
+  and (select deleted_at is not null from public.pass where id = 'd7d7d7d7-0000-0000-0000-0000000000a1')
+  and (select released_at is not null and released_reason = 'shift_deleted'
+       from public.tilldelning where pass_id = 'd7d7d7d7-0000-0000-0000-0000000000a1'
+         and worker_id = (select w.id from public.worker w join fx on fx.v = w.account_id where fx.k = 'w2'))
+  and exists (select 1 from public.notification
+              where account_id = (select v from fx where k = 'w2') and kind = 'shift_deleted'
+                and payload ->> 'pass_id' = 'd7d7d7d7-0000-0000-0000-0000000000a1'),
+  'DELPROJ.cancel_releases_and_tells',
+  'going past the warning cancels the future pass as Ta bort pass does: released, told, then the project goes');
+
+-- Running now: refused, flag or no flag, and the warning says so first.
+set local role authenticated;
+select pg_temp.act_as((select v from fx where k = 'admin'));
+select pg_temp.ok(
+  (select running from public.project_delete_impact('d8d8d8d8-0000-0000-0000-00000000000f')),
+  'DELPROJ.impact_sees_running', 'the warning knows a shift is running now');
+select pg_temp.rejects($$
+  select public.delete_project('d8d8d8d8-0000-0000-0000-00000000000f', true)
+$$, 'DELPROJ.running_still_refuses');
+reset role;
 
 
 select pg_temp.ok(true, 'SUITE.complete', 'every assertion passed');

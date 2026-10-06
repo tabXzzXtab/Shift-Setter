@@ -220,6 +220,8 @@ const TABLE: [string, string][] = [
   // ---- deleting and closing -----------------------------------------------
   ["project has active passes with workers assigned",
    "Projektet har pass med bokad personal framåt i tiden. Avboka dem först, eller låt projektet ligga kvar."],
+  ["project has a shift running now",
+   "Ett pass pågår just nu. Projektet kan tas bort när passet är slut eller stängt."],
   ["project is already deleted", "Projektet är redan borttaget."],
   ["a project records who created it; that cannot be changed",
    "Vem som skapade projektet kan inte ändras."],
