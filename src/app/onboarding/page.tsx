@@ -504,12 +504,16 @@ function SignupForm({
    */
   const missing = [
     company.trim() === "" && "företagets namn",
-    !/^\d{6}-\d{4}$/.test(orgNr.trim()) && "organisationsnummer, skrivet som 556677-8899",
+    orgNr.trim() === "" && "organisationsnummer",
     invoiceRequired && !invoice.includes("@") && "fakturamejl",
     adminName.trim() === "" && "administratörens namn",
     !adminEmail.includes("@") && "administratörens e-post",
   ].filter((m): m is string => Boolean(m));
-  const ready = missing.length === 0;
+  // A number that IS there but in the wrong shape is not missing, and saying
+  // "saknas" about it sent people looking for an empty field (owner,
+  // 2026-10-06). It gets its own sentence: how to write it.
+  const orgMalformed = orgNr.trim() !== "" && !/^\d{6}-\d{4}$/.test(orgNr.trim());
+  const ready = missing.length === 0 && !orgMalformed;
 
   function credentialBlock(pw: string) {
     return [
@@ -682,7 +686,12 @@ function SignupForm({
       <div className="pt-[22px]">
         {tried && !ready && (
           <div className="pb-[14px]">
-            <SoftNotice tone="warn">Det här saknas: {missing.join(", ")}.</SoftNotice>
+            <SoftNotice tone="warn">
+              {[
+                missing.length > 0 && `Det här saknas: ${missing.join(", ")}.`,
+                orgMalformed && "Skriv organisationsnumret som 556677-8899.",
+              ].filter(Boolean).join(" ")}
+            </SoftNotice>
           </div>
         )}
         {error && (
