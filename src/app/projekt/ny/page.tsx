@@ -10,6 +10,8 @@ import { CardTitle } from "@/components/card-title";
 import { DateField } from "@/components/date-field";
 import { PickField } from "@/components/pick-field";
 import { useTourAutofill } from "@/components/tour/use-tour-autofill";
+import { useTourSandbox } from "@/components/tour/tour-provider";
+import { SANDBOX_LEADER } from "@/lib/tour/sandbox";
 import { useAccount } from "@/lib/account";
 import { derivesTenant, getSupabase } from "@/lib/supabase/client";
 import { addDays, stockholmToday } from "@/lib/dates";
@@ -49,7 +51,12 @@ function NyttProjekt() {
   const me = account?.id ?? null;
   const iAmLeader = account?.role === "arbetsledare";
 
-  const [leaders, setLeaders] = useState<{ id: string; name: string | null }[]>([]);
+  const [realLeaders, setLeaders] = useState<{ id: string; name: string | null }[]>([]);
+  // The admin guide's sandbox: a first company has no arbetsledare yet, and
+  // the example project needs one to name. Shown, never saved -- the guide
+  // catches Skapa projekt (lib/tour/sandbox.ts).
+  const sandbox = useTourSandbox();
+  const leaders = sandbox && realLeaders.length === 0 ? [SANDBOX_LEADER] : realLeaders;
   // null means "nobody has touched the field yet", which is not the same as
   // the empty choice: picking "Välj…" back out has to leave it empty rather
   // than snap to the default again.

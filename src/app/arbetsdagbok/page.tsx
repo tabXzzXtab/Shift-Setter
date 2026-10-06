@@ -16,6 +16,8 @@ import { arbetsdagbokFilename, buildArbetsdagbokPdf } from "@/lib/doc/pdf";
 import { loadSender } from "@/lib/doc/sender";
 import { fel } from "@/lib/fel";
 import { tourSignal } from "@/lib/tour/signal";
+import { useTourSandbox } from "@/components/tour/tour-provider";
+import { SANDBOX_PROJECT } from "@/lib/tour/sandbox";
 
 /**
  * The marker on the date rail. Filled rather than outlined, because it is not
@@ -178,7 +180,24 @@ function Arbetsdagbok() {
    */
   const shareFile = useRef<File | null>(null);
 
+  // THE ADMIN GUIDE'S SANDBOX (lib/tour/sandbox.ts). While it runs this page
+  // shows the sandbox's project with nothing missing and nothing documented
+  // before, and reads none of it from the database; the guide catches
+  // Generera Arbetsdagbok and shows the sandbox's document instead.
+  const sandbox = useTourSandbox();
   useEffect(() => {
+    if (!sandbox) return;
+    const id = window.setTimeout(() => {
+      setProjects([{ ...SANDBOX_PROJECT, tenant_id: "" }]);
+      setProjectId(SANDBOX_PROJECT.id);
+      setCompanyMissing([]);
+      setOverlap(null);
+    }, 0);
+    return () => window.clearTimeout(id);
+  }, [sandbox]);
+
+  useEffect(() => {
+    if (sandbox) return;
     getSupabase()
       .from("project")
       .select("id, tenant_id, name, bestallare_address, bestallare_bolag, bestallare_orgnr")
@@ -194,9 +213,10 @@ function Arbetsdagbok() {
         if (asked && rows.some((r) => r.id === asked)) setProjectId(asked);
         else if (rows.length === 1) setProjectId(rows[0]!.id);
       });
-  }, []);
+  }, [sandbox]);
 
   useEffect(() => {
+    if (sandbox) return;
     const project = projects.find((p) => p.id === projectId);
     if (!project) return;
     let active = true;
@@ -214,14 +234,14 @@ function Arbetsdagbok() {
       setCompanyMissing(missing);
     })();
     return () => { active = false; };
-  }, [projectId, projects]);
+  }, [projectId, projects, sandbox]);
 
   // Half-open [from, to+1). Invariant 9: adjacent documents abut without
   // overlapping by a day, and the picker stays inclusive for the human.
   const covered = `[${from},${addDays(to, 1)})`;
 
   useEffect(() => {
-    if (!projectId) return;
+    if (!projectId || sandbox) return;
     let active = true;
 
     void (async () => {
@@ -243,7 +263,7 @@ function Arbetsdagbok() {
     })();
 
     return () => { active = false; };
-  }, [projectId, from, to]);
+  }, [projectId, from, to, sandbox]);
 
   /**
    * Stopped before generation, not after: the spec's warning is about what is
