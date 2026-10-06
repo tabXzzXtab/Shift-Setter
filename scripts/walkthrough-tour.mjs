@@ -19,11 +19,13 @@
  *     onboarding_step_{id}, and a second login shows no tour
  *   - a browser that has not opted in (every other walkthrough) never sees it
  *
- * THE TOUR IS FRONTEND-ONLY. Every control that would write -- Skapa projekt,
- * Skapa N pass, a day on Min kalender, Acceptera, Stämpla In, Bekräfta dagen,
- * Generera Arbetsdagbok -- is caught by the tour and never reaches the page.
- * The run PRESSES the ones it reaches and asserts that nothing was written:
- * no Fasad Malmö project, no pass, the worker's day still unmarked.
+ * THE TOUR IS FRONTEND-ONLY, BAR ONE WRITE. Every control that would write --
+ * Skapa projekt, Skapa N pass, Acceptera, Stämpla In, Bekräfta dagen, Generera
+ * Arbetsdagbok -- is caught by the tour and never reaches the page. The run
+ * PRESSES the ones it reaches and asserts that nothing was written: no Fasad
+ * Malmö project, no pass. The exception (owner, 2026-10-06) is a day on
+ * Arbetsdagar: that tap goes through, and the run asserts the förval row WAS
+ * written before the tour moved on.
  *
  * NEGATIVE CONTROL: TOUR_NEGATIVE=1 swallows every write of an
  * onboarding_complete_ key, as if "Kom igång" no longer saved it. The run must
@@ -533,7 +535,8 @@ try {
     await page.waitForURL((u) => u.pathname.startsWith("/min-kalender"), { timeout: 20000 });
     log("worker: Arbetsdagar ringed and tapped");
 
-    // The tap is caught: the tour moves on and the day stays unmarked.
+    // The one write the tour lets through (owner, 2026-10-06): the tap reaches
+    // the calendar, the day is SAVED, and the tour moves on after the save.
     await showMe(page, "Tryck på en dag du kan jobba.", "worker step 3");
     const grid = page.locator("[data-date]").first().locator("..");
     await expectRingOn(page, grid, "worker step 3");
@@ -548,9 +551,14 @@ try {
     if (!day) fail("worker: no unmarked day next month to tap");
     await tap(page, page.locator(`[data-date="${day}"]`));
     await expectCard(page, "När arbetsledaren skapar pass på de dagarna du bokat", "worker: tapping a day did not advance the tour");
-    const still = await page.locator(`[data-date="${day}"]`).getAttribute("aria-label");
-    if (!/omarkerad$/.test(still ?? "")) fail(`worker: the tour let the tap through -- ${day} reads "${still}"`);
-    log(`worker: tapped ${day}; the tour moved on and the day is still unmarked`);
+    const saved = count(`select count(*)::int as n from public.forval f
+        join public.worker w on w.id = f.worker_id
+        join auth.users u on u.id = w.account_id
+       where lower(u.email) = lower('${esc(email)}') and f.work_date = '${day}' and f.can_work`);
+    if (saved !== 1) fail(`worker: tapping ${day} in the tour saved ${saved} förval row(s), not 1 -- the tour swallowed it`);
+    const marked = await page.locator(`[data-date="${day}"]`).getAttribute("aria-label");
+    if (/omarkerad$/.test(marked ?? "")) fail(`worker: ${day} still reads "${marked}" after the tour moved on`);
+    log(`worker: tapped ${day}; it was SAVED as a day they can work, and only then did the tour move on`);
     await nextCard(page, "När arbetsledaren skapar pass på de dagarna du bokat", "worker card 4");
     await nextCard(page, "Har du inte förbokat?", "worker card 5");
 
