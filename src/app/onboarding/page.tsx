@@ -485,6 +485,18 @@ function FormFrame({
   );
 }
 
+/**
+ * THE DASH WRITES ITSELF (owner, 2026-10-06). Digits only, at most ten, and
+ * the dash goes in before the last four as soon as there are more than six --
+ * "5566778899" typed or pasted reads 556677-8899. Backspacing past the seventh
+ * digit drops the dash with it, so it never fights the
+ * person deleting.
+ */
+function withDash(raw: string): string {
+  const d = raw.replace(/\D/g, "").slice(0, 10);
+  return d.length > 6 ? `${d.slice(0, 6)}-${d.slice(6)}` : d;
+}
+
 function SignupForm({
   pin, route, onBack,
 }: {
@@ -660,9 +672,10 @@ function SignupForm({
           <SoftField label="Organisationsnummer" help="Skrivs som 556677-8899.">
             <SoftInput
               value={orgNr}
-              onChange={(e) => setOrgNr(e.target.value)}
+              onChange={(e) => setOrgNr(withDash(e.target.value))}
               placeholder="556677-8899"
               inputMode="numeric"
+              maxLength={11}
             />
           </SoftField>
         </div>
