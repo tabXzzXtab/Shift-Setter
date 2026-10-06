@@ -352,7 +352,7 @@ try {
     log("admin: Visa mig, then Nytt projekt ringed; a tap on it opened the form");
 
     // Nothing is typed until the person asks to see it.
-    await showMe(page, "Vi fyller i ett exempelprojekt åt dig.", "admin step 3");
+    await showMe(page, "Så här skapar du ett projekt.", "admin step 3");
 
     // Caught mid-type: the typewriter, not a value set in one go.
     const name = page.locator('input[name="name"]');

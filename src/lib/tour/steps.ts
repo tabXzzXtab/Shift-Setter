@@ -315,10 +315,12 @@ const ADMIN: Step[] = [
     forms: ["projekt"],
     submit: { projekt: { name: "Skapa projekt" } },
     tip: {
-      projekt: "Ett exempelprojekt. Tryck Skapa projekt.",
+      projekt: "Tryck Skapa projekt.",
     },
-    say: "Vi fyller i ett exempelprojekt åt dig. Inget sparas förrän du trycker själv.",
-    em: "exempelprojekt",
+    // Said as the real thing, not "an example" (owner, 2026-10-06): the admin
+    // should picture doing it for real. The press is still caught.
+    say: "Så här skapar du ett projekt.",
+    em: "skapar du ett projekt",
     until: "next",
     requires: "has-leader",
   },

@@ -115,10 +115,10 @@ function NyttProjekt() {
   // step with both, which is a second source of truth for the same answer.
   const leaderId = chosen ?? (iAmLeader && me ? me : leaders.length === 1 ? leaders[0]!.id : "");
 
-  // The first-launch tour's example project. The inputs are uncontrolled -- the
-  // submit reads FormData -- so their own values are what gets written. The
-  // beställare is plainly an example: whatever is pressed with it becomes a
-  // real project, and it prints on a real Arbetsdagbok.
+  // The first-launch tour's project. The inputs are uncontrolled -- the submit
+  // reads FormData -- so their own values are what gets written. It reads as a
+  // real one, not "an example" (owner, 2026-10-06): the tour catches the press
+  // on Skapa projekt, so none of it is ever saved.
   const form = useRef<HTMLFormElement>(null);
   const input = (name: string) => form.current?.elements.namedItem(name) as HTMLInputElement | null;
   const into = (name: string, text: string, typed = true) => ({
@@ -133,7 +133,7 @@ function NyttProjekt() {
     ...(leaderId ? [] : [{ text: leaders[0]!.id, typed: false, write: (v: string) => setChosen(v) }]),
     // The example is a new beställare, so its fields have to be on screen.
     { text: "Ny beställare", typed: false, write: () => setNyBest(true) },
-    into("bestallare_bolag", "Exempelbolaget AB"),
+    into("bestallare_bolag", "Storgatans Fastigheter AB"),
     into("bestallare_address", "Södra Förstadsgatan 4, 211 43 Malmö"),
     into("bestallare_orgnr", "556000-0000"),
   ]);
