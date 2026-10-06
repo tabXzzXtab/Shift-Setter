@@ -1022,6 +1022,12 @@ deliberately, and nothing does it for you.
 
 Each role lands on what it does most, and nothing important is more than one press away.
 
+### Before login — Välkommen
+
+`/login` opens on a greeting, not a form: the whole screen in the brand orange, **BYGGKOLL**, "Rätt folk. Rätt dag. **Rätt timmar.**", one white **Logga in** button, and under it "Inget konto? Din arbetsgivare skapar det åt dig." There is no sign-up and no social login — accounts are made by an admin — so that line answers the question a "Skapa konto" button would raise. **Logga in** shows the form, headed "Logga in", with the line about which credentials to use.
+
+It is shown on every logged-out arrival and nothing is stored: a session lasts until somebody logs out, so it is met on a first visit, after **Logga ut** and after a password reset. An automated browser (`navigator.webdriver`) goes straight to the form unless it opts in with `byggkoll.welcome-test`, so the walkthroughs that sign in are unaffected.
+
 ### Admin
 
 **Landing page** — three buttons, then the list:
