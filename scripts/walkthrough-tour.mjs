@@ -103,7 +103,9 @@ async function tap(page, locator) {
 
 const card = (page) => page.locator('[data-tour-ui="card"]');
 /** A step's full screen that leads into the app. */
-const reveal = (page) => card(page).filter({ has: page.getByRole("button", { name: "Visa mig", exact: true }) });
+// "Visa mig" leads into the app; "Fyll i" (an autofill step, Brilliant 05) does too.
+const REVEAL = /^(Visa mig|Fyll i)$/;
+const reveal = (page) => card(page).filter({ has: page.getByRole("button", { name: REVEAL }) });
 /** A full screen that is the whole step: a card, or a step that fell back to one. */
 const plain = (page) => card(page).filter({ has: page.getByRole("button", { name: "Nästa", exact: true }) });
 const rings = (page) => page.locator('[data-tour-ui="rings"] > div');
@@ -172,7 +174,7 @@ async function showMe(page, text, why) {
   }
   await expectFullScreen(page, why);
   await expectPainted(page, why);
-  await tap(page, reveal(page).getByRole("button", { name: "Visa mig", exact: true }));
+  await tap(page, reveal(page).getByRole("button", { name: REVEAL }));
   await reveal(page).filter({ hasText: text }).waitFor({ state: "detached", timeout: 20000 })
     .catch(() => fail(`${why}: Visa mig left the full screen standing`));
 }
@@ -335,8 +337,8 @@ try {
 
     await expectCard(page, "Allt börjar med ett projekt.", "admin: first login");
     await expectFullScreen(page, "admin: first login");
-    // Progress is the numbered dots, a progressbar to assistive tech: a
-    // quarter on step one, never empty.
+    // Progress is Brilliant's bar, a progressbar to assistive tech: a quarter
+    // on step one, never empty.
     const bar = page.getByRole("progressbar", { name: "Hur långt du har kommit" });
     if ((await bar.getAttribute("aria-valuenow")) !== "25") {
       fail(`admin: the first card's progress is ${await bar.getAttribute("aria-valuenow")}, wanted 25`);
@@ -345,7 +347,7 @@ try {
     await nextCard(page, "Allt börjar med ett projekt.", "admin: first login");
     log("admin: first login opens on step 1, the project card");
 
-    await showMe(page, "Tryck på Nytt projekt.", "admin step 2");
+    await showMe(page, "Börja med att skapa ditt första projekt.", "admin step 2");
     const nytt = page.getByRole("link", { name: "Nytt projekt" });
     await expectRingOn(page, nytt, "admin step 2");
     await shot(page, "admin-2-ring");
@@ -364,6 +366,8 @@ try {
     }, null, { timeout: 20000 }).catch(() => fail("admin: never saw the project name part-typed"));
     await page.waitForFunction(() => document.querySelector('input[name="name"]')?.value === "Fasad Malmö",
       null, { timeout: 30000 }).catch(() => fail("admin: the project name never finished typing"));
+    // Filled: Brilliant 06's card says what to press, THEN the ring shows where.
+    await showMe(page, "Tryck Skapa projekt när allt stämmer.", "admin step 3, after the filling");
     await rings(page).first().waitFor({ timeout: 30000 })
       .catch(() => fail("admin: autofill finished and nothing was ringed"));
     const values = await page.evaluate(() =>
@@ -396,8 +400,11 @@ try {
     // Step 8 is on the startsida and the admin is on /projekt/ny.
     await reveal(page).filter({ hasText: "Generera Arbetsdagbok" }).waitFor({ timeout: 20000 })
       .catch(() => fail("admin step 8: no Visa mig while on another screen"));
-    if ((await settle(page, "admin step 8")) !== "ring") fail("admin step 8: arrived as a card, with a project in the tenancy");
-    const row = page.locator("[data-project] > button");
+    // THE SANDBOX: the project the guide "created" is on the startsida whether
+    // or not the company has one, so this step is always a ring.
+    if ((await settle(page, "admin step 8")) !== "ring") fail("admin step 8: arrived as a card -- the sandbox project is missing");
+    const row = page.locator("[data-project] > button").first();
+    if (!(await row.innerText()).includes("Fasad Malmö")) fail("admin step 8: the first project is not the sandbox's Fasad Malmö");
     await expectRingOn(page, row, "admin step 8 (the project row, until it is open)");
     await tap(page, row);
     const gen = page.getByRole("link", { name: "Generera Arbetsdagbok" });
@@ -407,21 +414,23 @@ try {
     await page.waitForURL((u) => u.pathname.startsWith("/arbetsdagbok"), { timeout: 20000 });
     log("admin: off-screen step offered Visa mig; the ring moved from the row to Generera Arbetsdagbok; arriving advanced it");
 
-    // Step 9: ringed if a confirmed day exists in the tenancy, a card if not.
-    const nine = await settle(page, "admin step 9");
+    // Step 9: ALWAYS a ring in the sandbox -- its project, company and worked
+    // days are sandbox.ts's -- and the caught press shows the sandbox's
+    // document on screen: 3 + 3 rows of 7,5 7,5 8 / 8 6,5 8,5 = 46h by hand.
+    if ((await settle(page, "admin step 9")) !== "ring") fail("admin step 9: arrived as a card -- the sandbox has a confirmed day");
     await shot(page, "admin-9");
-    if (nine === "ring") {
-      const generera = page.getByRole("button", { name: "Generera Arbetsdagbok" });
-      await expectRingOn(page, generera, "admin step 9");
-      await tap(page, generera);
-      await expectCard(page, "Välkommen till ByggKoll.", "admin: pressing Generera Arbetsdagbok did not move the tour on");
-      const filed = count(`select count(*)::int as n from public.arbetsdagbok where generated_at > to_timestamp(${t0})`);
-      if (filed !== 0) fail(`admin: the tour let Generera Arbetsdagbok through -- ${filed} filed`);
-      log("admin: step 9 ringed Generera Arbetsdagbok; pressed, caught, and nothing was filed");
-    } else {
-      await nextCard(page, "Här genererar du Arbetsdagboken", "admin step 9 fallback");
-      log("admin: step 9 had no confirmed day to file, and arrived as a card");
-    }
+    const generera = page.getByRole("button", { name: "Generera Arbetsdagbok" });
+    await expectRingOn(page, generera, "admin step 9");
+    await tap(page, generera);
+    await expectCard(page, "Så här blir arbetsdagboken.", "admin: pressing Generera Arbetsdagbok did not open the preview");
+    const doc = await page.locator("[data-tour-preview]").innerText();
+    if (!/Ordinarie tid:\s*46h/.test(doc)) fail(`admin: the preview's Ordinarie tid is not 46h: ${/Ordinarie tid:.*/.exec(doc)?.[0]}`);
+    if (!doc.includes("Fasad Malmö") || !doc.includes("Ditt Företag AB")) fail("admin: the preview is not the sandbox's project and company");
+    await shot(page, "admin-9-forhandsvisning");
+    const filed = count(`select count(*)::int as n from public.arbetsdagbok where generated_at > to_timestamp(${t0})`);
+    if (filed !== 0) fail(`admin: the tour let Generera Arbetsdagbok through -- ${filed} filed`);
+    await nextCard(page, "Så här blir arbetsdagboken.", "admin preview");
+    log("admin: step 9 ringed Generera Arbetsdagbok; the press was caught, the sandbox document showed (46h, Fasad Malmö), nothing was filed");
 
     await finish(page, "admin");
     await secondLogin(page, email, password, "admin");

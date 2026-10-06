@@ -129,8 +129,11 @@ and embeds them rather than linking to them.
 
 **Ställ in ditt företag** is the same form, met first. While the company has no
 adress, kontaktperson or telefon, its admin is sent there from the start page
-before anything else — the tour included, which waits and starts once it is
-saved. The question is asked of the database, not of the device
+— **after the guide** (owner, 2026-10-06; Brilliant's onboarding row: Guiden
+som sandlåda → Slutför ditt konto → Ställ in ditt företag). The guide runs on
+the sandbox's company, so it no longer waits for the real one; the start page
+holds the redirect while the guide is still to run or running on this device,
+and the guide goes home when it ends. The question is asked of the database, not of the device
 (`src/lib/company-setup.ts`), so it is true on every phone at once and never
 for a company that already has the three; it fails open, so a read that does not
 come back never locks an admin out. Title and one line — *"Det här trycks på er
@@ -1173,7 +1176,7 @@ Both are the bottom sheet described above.
 
 ### Första gången — the tour
 
-**Once per account per device, on the first visit there.** `onboarding_complete_{account_id}` is set in `localStorage` the moment the tour STARTS, not at **Kom igång**: somebody who closed the app halfway would otherwise have it back on every later visit. The step to resume at lives in `sessionStorage`, so a reload in the same session carries on and a new visit does not bring it back. **Guide**, in the profile sheet for all three roles, replays it from step 1. Per device is the trade: a new phone plays it again. For a company's admin it waits for **Ställ in ditt företag** (see *Företaget* above) and starts when that is saved. **Existing accounts see it too**, once each, on their next login — that is deliberate, not a side effect. The role comes from the account row like everywhere else. It never starts for an operator acting inside another tenancy, nor on `/login`, `/onboarding`, `/super` or the password screens, and an automated browser (`navigator.webdriver`) only sees it when it opts in with `byggkoll.tour-test`, so the other walkthroughs are unaffected.
+**Once per account per device, on the first visit there.** `onboarding_complete_{account_id}` is set in `localStorage` the moment the tour STARTS, not at **Kom igång**: somebody who closed the app halfway would otherwise have it back on every later visit. The step to resume at lives in `sessionStorage`, so a reload in the same session carries on and a new visit does not bring it back. **Guide**, in the profile sheet for all three roles, replays it from step 1. Per device is the trade: a new phone plays it again. For a company's admin it comes FIRST, before **Ställ in ditt företag** (see *Företaget* above), on the sandbox below. **Existing accounts see it too**, once each, on their next login — that is deliberate, not a side effect. The role comes from the account row like everywhere else. It never starts for an operator acting inside another tenancy, nor on `/login`, `/onboarding`, `/super` or the password screens, and an automated browser (`navigator.webdriver`) only sees it when it opts in with `byggkoll.tour-test`, so the other walkthroughs are unaffected.
 
 **Every step is a white full screen first** (Duolingo's pattern): nothing of the app shows behind it and nothing floats. At the top, ✕ ends the guide and the steps are numbered dots (a progressbar to assistive tech); in the middle, one orange disc with the step's drawing inside it — a brand image from `public/tour/`, chosen per step in `src/lib/tour/steps.ts` and never the same as the step before — and one sentence, its key word in the brand colour; at the foot, the one button and **Hoppa över** for this step alone.
 
@@ -1181,7 +1184,9 @@ Both are the bottom sheet described above.
 
 **A step that cannot happen becomes a card.** A first login usually has no offer, no waiting day, no shift today. Such a step is checked against the database when it starts and, unmet, shows an explanation card instead (or is skipped when the card before it already said it); a nav step whose element has not appeared after 8 s does the same. Every nav and autofill step's full screen carries **Hoppa över**, and **Visa mig** takes the person there from any other screen. Nothing traps anybody: a caught control that is disabled (Bekräfta dagen before its text is in) still moves the step on.
 
-- **Admin:** project card → **Nytt projekt** → the form fills with an example (Fasad Malmö, a start two weeks out, an obviously example beställare; **Skapa projekt** is caught, nothing is created) → four cards on who does what → the project's **Generera Arbetsdagbok** → the button on that page, if a confirmed day exists.
+- **Admin, in a sandbox** (owner, 2026-10-06; `src/lib/tour/sandbox.ts`): project card → **Nytt projekt** → **Fyll i**: the form fills with the sandbox's project (Fasad Malmö; an arbetsledare is supplied if the company has none) → *"Tryck Skapa projekt när allt stämmer."* → **Skapa projekt** is caught, nothing is created → four cards on who does what → the sandbox project, first on the start page → its **Generera Arbetsdagbok** → on that page, the sandbox project with the sandbox company's details and nothing documented before → **Generera Arbetsdagbok** is caught and the sandbox's Arbetsdagbok is shown **on screen only** — two worked days, Ordinarie tid 46h, never downloaded, never filed. Nothing of the sandbox is read from or written to the database, and no step turns into its fallback card for want of real data: the requirements are met by the sandbox, not asked.
+
+**The screens are Brilliant's** (canvas *1 Admin*, *Guide 03–14 · vit helskärm*): ✕ and a 4px progress bar; the drawing at its own size; one 27px regular sentence, left-aligned, its key word bold in the brand ink; a 58px button with a hard 5px shadow; *Hoppa över* under it, on the last screen too.
 - **Arbetsledare:** two cards → **Skapa pass** → one day two weeks out, 07:00–16:00, **8** typed as the hours, **Skapa N pass** caught → two cards → **Bekräfta pass** → Timmar and Vad vi gjorde ringed, **Bekräfta dagen** caught, and that press moves on. **No autofill on Bekräfta**: those figures are the leader's claim about a real day and confirming is final (invariants 1 and 5). No day waiting: a card explains the screen instead.
 - **Arbetare:** card → **Arbetsdagar** → tap a day (**saved** — the one write the tour lets through) → two cards → **Visa alla** → **Acceptera** on the queue (caught) → card → **Stämpla In** (caught; no stamp). No offer, no shift today: cards instead.
 

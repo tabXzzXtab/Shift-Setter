@@ -6,7 +6,7 @@ import {
 import { usePathname, useRouter } from "next/navigation";
 import { useAccount, type Role } from "@/lib/account";
 import { getSupabase } from "@/lib/supabase/client";
-import { SETUP_ROUTE, companySetupNeeded } from "@/lib/company-setup";
+import { SETUP_ROUTE } from "@/lib/company-setup";
 import { DONE, SEQUENCES, met, type FormKey, type Step } from "@/lib/tour/steps";
 import {
   automatedWithoutOptIn, completeTour, markSeen, requestReplay, saveStep, sessionStep,
@@ -14,7 +14,8 @@ import {
 } from "@/lib/tour/storage";
 import { onTourSignal } from "@/lib/tour/signal";
 import { resolveTargets, samePath } from "@/lib/tour/targets";
-import { TourCard, TourPending } from "./tour-card";
+import { TourCard, TourPending, TourPreview } from "./tour-card";
+import { sandboxPayload } from "@/lib/tour/sandbox";
 import { TourBlocker, TourRings } from "./tour-spotlight";
 
 /** Screens nobody is being shown around: signed out, or not a tenancy's app. */
@@ -38,6 +39,17 @@ const TourCtx = createContext<TourApi | null>(null);
 
 export function useTour(): TourApi | null {
   return useContext(TourCtx);
+}
+
+/**
+ * THE ADMIN TOUR IS A SANDBOX (owner, 2026-10-06; sandbox.ts). True while an
+ * admin's guide is running: the screens it walks through then show the
+ * sandbox's project, arbetsledare and company in place of the database's --
+ * read nowhere, saved nowhere -- so no step is skipped for want of real data.
+ */
+const SandboxCtx = createContext(false);
+export function useTourSandbox(): boolean {
+  return useContext(SandboxCtx);
 }
 
 /** Guide: replay the tour from its first step. Always available, running or not. */
@@ -74,6 +86,10 @@ export function TourProvider({ children }: { children: ReactNode }) {
    * only a ring, or the form filling itself -- once this is its index.
    */
   const [revealed, setRevealed] = useState<number | null>(null);
+  /** An autofill step whose after-card (Brilliant 06) has been pressed through. */
+  const [afterSeen, setAfterSeen] = useState<number | null>(null);
+  /** The sandbox step whose caught press opened the document preview. */
+  const [previewing, setPreviewing] = useState<number | null>(null);
   /** Bumped by Guide, so the start effect runs again for the same account. */
   const [replays, setReplays] = useState(0);
 
@@ -91,12 +107,11 @@ export function TourProvider({ children }: { children: ReactNode }) {
     void (async () => {
       const { data } = await getSupabase().rpc("acting_tenant");
       if (!live || (Array.isArray(data) && data.length > 0)) return;
-      // THE COMPANY FIRST. An admin whose company has no address, contact or
-      // phone is sent to Ställ in ditt företag, and the tour waits -- nothing
-      // is marked seen -- until it is saved. The effect runs again on the way
-      // back from that screen, which is what starts the tour.
-      if (await companySetupNeeded(account.id, account.role)) return;
-      if (!live) return;
+      // THE GUIDE FIRST, THE COMPANY AFTER (owner, 2026-10-06; Brilliant's
+      // onboarding row: Guiden som sandlåda -> Slutför ditt konto -> Ställ in
+      // ditt företag). The admin's guide runs on the sandbox's company, so it
+      // no longer waits for the real one; home.tsx holds the redirect to Ställ
+      // in ditt företag until the guide is over, and finish() goes home.
       const steps = SEQUENCES[account.role];
       markSeen(account.id);
       const from = Math.min(resume ?? 0, steps.length);
@@ -126,6 +141,7 @@ export function TourProvider({ children }: { children: ReactNode }) {
   const verdict = gate?.index === index ? gate : null;
   const hidden = OFF_ROUTES.some((r) => samePath(pathname, r) || pathname.startsWith(`${r}/`));
   const onRoute = step !== null && step.type !== "card" && samePath(pathname, step.route);
+  const sandbox = active?.role === "admin" && !done;
 
   const go = useCallback((to: number) => {
     if (!active) return;
@@ -134,22 +150,30 @@ export function TourProvider({ children }: { children: ReactNode }) {
     setFilled([]);
     setFilling(null);
     setRevealed(null);
+    setAfterSeen(null);
+    setPreviewing(null);
   }, [active]);
 
   const next = useCallback(() => go(index + 1), [go, index]);
 
   // Nothing to clean up on the way out: the tour writes nothing.
+  // An admin goes home after it: the startsida is where Slutför ditt konto /
+  // Ställ in ditt företag takes over now that the guide comes first.
   const finish = useCallback(() => {
     if (!active) return;
     completeTour(active.accountId);
     setRun(null);
-  }, [active]);
+    if (active.role === "admin") router.push("/");
+  }, [active, router]);
 
   // ---- can this step happen? ------------------------------------------------
   useEffect(() => {
     if (!step || step.type === "card") return;
     let live = true;
     void (async () => {
+      // In the sandbox every requirement is met by sandbox.ts: nothing is
+      // asked of the database, and no step turns into its fallback card.
+      if (sandbox) { if (live) setGate({ index, state: "ok" }); return; }
       if (step.requires && !(await met(step.requires))) {
         if (!live) return;
         if (step.otherwise) setGate({ index, state: "fallback", text: step.otherwise });
@@ -159,7 +183,7 @@ export function TourProvider({ children }: { children: ReactNode }) {
       if (live) setGate({ index, state: "ok" });
     })();
     return () => { live = false; };
-  }, [step, index, go]);
+  }, [step, index, go, sandbox]);
 
   // ---- a nav step whose element never appears becomes a card ---------------
   useEffect(() => {
@@ -238,7 +262,7 @@ export function TourProvider({ children }: { children: ReactNode }) {
   // because advancing earlier would leave the trailing click to land, uncaught,
   // on the very button the step just caught.
   const catching: { resolve: () => Element[]; advances: boolean } | null =
-    verdict?.state !== "ok" || !step ? null
+    verdict?.state !== "ok" || !step || previewing === index ? null
       : step.type === "nav" && step.until === "press"
         ? { resolve: () => resolveTargets(step.targets, step.all), advances: true }
         : step.type === "nav" && step.until === "next" && step.swallow
@@ -249,6 +273,7 @@ export function TourProvider({ children }: { children: ReactNode }) {
             ? { resolve: submitResolve, advances: true }
             : null;
   const catchResolve = catching?.resolve;
+  const opensPreview = sandbox && step?.type === "nav" && !!step.preview;
   const catchAdvances = catching?.advances ?? false;
   useEffect(() => {
     if (!catchResolve) return;
@@ -264,13 +289,16 @@ export function TourProvider({ children }: { children: ReactNode }) {
       const disabledHit = e.type === "pointerup" && !!(hit as Element).closest?.(":disabled");
       if (catchAdvances && !done && (e.type === "click" || e.type === "touchend" || disabledHit)) {
         done = true;
-        go(index + 1);
+        // The sandbox's Generera Arbetsdagbok: the press is still caught --
+        // nothing is generated -- and the sandbox's document is shown instead.
+        if (opensPreview) setPreviewing(index);
+        else go(index + 1);
       }
     };
     const types = ["pointerdown", "pointerup", "mousedown", "mouseup", "touchstart", "touchend", "click"];
     for (const t of types) document.addEventListener(t, onEvent, { capture: true, passive: false });
     return () => { for (const t of types) document.removeEventListener(t, onEvent, { capture: true }); };
-  }, [catchResolve, catchAdvances, go, index]);
+  }, [catchResolve, catchAdvances, go, index, opensPreview]);
 
   const navResolve = useCallback(
     (): Element[] => (step?.type === "nav" ? resolveTargets(step.targets, step.all) : []),
@@ -297,13 +325,21 @@ export function TourProvider({ children }: { children: ReactNode }) {
       overlay = (
         <TourCard
           {...shared} progress={100} step={active.steps.length}
-          title={DONE.title} em={DONE.em} line={DONE.line} button={DONE.button} image={DONE.image} onNext={finish}
+          title={DONE.title} em={DONE.em} line={DONE.line} button={DONE.button} image={DONE.image}
+          onNext={finish} onSkip={finish}
         />
       );
     } else if (step?.type === "card") {
       overlay = <TourCard {...shared} image={step.image} title={step.text} em={step.em} button="Nästa" onNext={next} onSkip={next} />;
     } else if (step && verdict?.state === "fallback") {
       overlay = <TourCard {...shared} image={step.image} title={verdict.text ?? ""} button="Nästa" onNext={next} onSkip={next} />;
+    } else if (step && verdict?.state === "ok" && previewing === index && step.type === "nav" && step.preview) {
+      overlay = (
+        <TourPreview
+          {...shared} title={step.preview.text} em={step.preview.em} line={step.preview.line}
+          payload={sandboxPayload()} onNext={next} onClose={finish}
+        />
+      );
     } else if (step && verdict?.state === "ok") {
       if (revealed !== index || !onRoute) {
         const say = step.type === "nav" ? (step.tip || step.say || "") : step.say;
@@ -312,7 +348,7 @@ export function TourProvider({ children }: { children: ReactNode }) {
             {...shared}
             title={say}
             em={step.em}
-            button="Visa mig"
+            button={step.type === "autofill" ? "Fyll i" : "Visa mig"}
             image={step.image}
             onNext={() => {
               setRevealed(index);
@@ -323,6 +359,15 @@ export function TourProvider({ children }: { children: ReactNode }) {
         );
       } else if (step.type === "nav") {
         overlay = <TourRings key={index} resolve={navResolve} />;
+      } else if (!filling && lastFilled && step.after && afterSeen !== index) {
+        // The form has filled itself; one card says what to press next
+        // (Brilliant 06), then the ring shows where.
+        overlay = (
+          <TourCard
+            {...shared} image={step.after.image} title={step.after.text} em={step.after.em}
+            button="Visa mig" onNext={() => setAfterSeen(index)} onSkip={next}
+          />
+        );
       } else if (!filling && lastFilled) {
         overlay = <TourRings key={`${index}|${lastFilled}`} resolve={submitResolve} />;
       } else {
@@ -339,8 +384,10 @@ export function TourProvider({ children }: { children: ReactNode }) {
   return (
     <ReplayCtx.Provider value={account?.active ? replay : null}>
       <TourCtx.Provider value={active ? api : null}>
-        {children}
-        {overlay}
+        <SandboxCtx.Provider value={sandbox}>
+          {children}
+          {overlay}
+        </SandboxCtx.Provider>
       </TourCtx.Provider>
     </ReplayCtx.Provider>
   );

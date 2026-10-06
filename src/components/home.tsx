@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAccount } from "@/lib/account";
 import { SETUP_ROUTE, companySetupNeeded } from "@/lib/company-setup";
+import { automatedWithoutOptIn, sessionStep, tourComplete } from "@/lib/tour/storage";
+import { useTourSandbox } from "./tour/tour-provider";
 import { registerToken } from "@/lib/push";
 import { HomeAdmin } from "./home-admin";
 import { HomeArbetsledare } from "./home-arbetsledare";
@@ -57,17 +59,26 @@ export function Home() {
    */
   const router = useRouter();
   const [homeFor, setHomeFor] = useState<string | null>(null);
+  // THE GUIDE FIRST (owner, 2026-10-06): the admin's guide runs on the
+  // sandbox's company (lib/tour/sandbox.ts), so Ställ in ditt företag waits
+  // until it is over -- not started yet on this device, or running now. When
+  // it ends the tour provider goes home and `guiding` turning false re-asks.
+  // A browser the tour never runs in (automated, not opted in) is sent on at
+  // once, as before.
+  const guiding = useTourSandbox();
   useEffect(() => {
     if (!account || account.role !== "admin") return;
     let live = true;
     void (async () => {
       const needed = await companySetupNeeded(account.id, account.role);
       if (!live) return;
-      if (needed) router.replace(SETUP_ROUTE);
+      const guideFirst = !automatedWithoutOptIn()
+        && (guiding || !tourComplete(account.id) || sessionStep(account.id) !== null);
+      if (needed && !guideFirst) router.replace(SETUP_ROUTE);
       else setHomeFor(account.id);
     })();
     return () => { live = false; };
-  }, [account, router]);
+  }, [account, router, guiding]);
 
   if (loading) return <SoftScreen title="Laddar…"><span /></SoftScreen>;
 

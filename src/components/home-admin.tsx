@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { useTourReplay } from "./tour/tour-provider";
+import { useTourReplay, useTourSandbox } from "./tour/tour-provider";
+import { SANDBOX_PROJECT } from "@/lib/tour/sandbox";
 import {
   C, EmptyState, GroupedList, HomeTitle, SHADOW, SignOut, SoftNotice, SoftSheet,
 } from "./soft";
@@ -74,6 +75,10 @@ const PROFILE_MENU = [
 export function HomeAdmin() {
   /** Guide: the first-launch tour again, from its first step. */
   const replay = useTourReplay();
+  // THE ADMIN GUIDE'S SANDBOX (lib/tour/sandbox.ts): the project the guide
+  // "created" is first in the list -- shown, never saved -- so step 8 has a
+  // project to open whether or not the company has one yet.
+  const sandbox = useTourSandbox();
   const [rows, setRows] = useState<Row[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState<"menu" | "profile" | null>(null);
@@ -102,6 +107,11 @@ export function HomeAdmin() {
     })();
     return () => { active = false; };
   }, []);
+
+  const list: Row[] | null = sandbox
+    ? [{ project_id: SANDBOX_PROJECT.id, name: SANDBOX_PROJECT.name, site_address: SANDBOX_PROJECT.site_address },
+       ...(rows ?? [])]
+    : rows;
 
   return (
     <main
@@ -210,14 +220,14 @@ export function HomeAdmin() {
             </h2>
           </div>
 
-          {rows === null && (
+          {list === null && (
             <p className="px-1 text-[15px] font-medium" style={{ color: C.text2 }}>Laddar…</p>
           )}
-          {rows !== null && rows.length === 0 && <EmptyState>Inga projekt än.</EmptyState>}
+          {list !== null && list.length === 0 && <EmptyState>Inga projekt än.</EmptyState>}
 
-          {rows !== null && rows.length > 0 && (
+          {list !== null && list.length > 0 && (
             <div className="flex flex-col gap-2">
-              {rows.map((p) => {
+              {list.map((p) => {
                 const shown = openProject === p.project_id;
                 return (
                 <div

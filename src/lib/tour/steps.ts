@@ -87,6 +87,12 @@ type Gate = {
 export type NavStep = Gate & {
   type: "nav";
   image: TourImage;
+  /**
+   * The admin sandbox's last step: the caught press on Generera Arbetsdagbok
+   * opens the sandbox's document on screen (sandbox.ts) before the step ends.
+   * Never downloaded, never filed.
+   */
+  preview?: { text: string; em?: string; line: string };
   /** The pathname the element lives on. Elsewhere, the tour offers to go. */
   route: string;
   targets: Target[];
@@ -128,9 +134,15 @@ export type AutofillStep = Gate & {
    *  submit, which is caught -- nothing real is created. Every autofill step
    *  in the tour is this now: the tour writes nothing. */
   until: "next";
-  /** The full-screen sentence before "Visa mig" starts the filling. */
+  /** The full-screen sentence before "Fyll i" starts the filling. */
   say: string;
   em?: string;
+  /**
+   * The card between the filled form and the ring on its button (Brilliant
+   * 06, "Tryck Skapa projekt när allt stämmer."): the form has filled itself,
+   * and this says what to press before the ring shows where.
+   */
+  after?: { text: string; em?: string; image: TourImage };
 };
 
 /** `em`: the word or phrase in the sentence drawn in the brand colour. */
@@ -344,8 +356,8 @@ const ADMIN: Step[] = [
     image: "ritning",
     route: "/",
     targets: [{ name: "Nytt projekt" }],
-    tip: "Tryck på Nytt projekt.",
-    em: "Nytt projekt",
+    tip: "Börja med att skapa ditt första projekt.",
+    em: "första projekt",
     until: "tap",
     requires: "has-leader",
     otherwise:
@@ -365,6 +377,7 @@ const ADMIN: Step[] = [
     // should picture doing it for real. The press is still caught.
     say: "Så här skapar du ett projekt.",
     em: "skapar du ett projekt",
+    after: { text: "Tryck Skapa projekt när allt stämmer.", em: "Skapa projekt", image: "murslev" },
     until: "next",
     requires: "has-leader",
   },
@@ -385,17 +398,22 @@ const ADMIN: Step[] = [
     until: { route: "/arbetsdagbok" },
     requires: "has-project",
     otherwise:
-      "Arbetsdagboken genereras per projekt. När du har ett projekt öppnar du det på startsidan och trycker Generera Arbetsdagbok.",
+      "Arbetsdagboken skapas per projekt.",
     missing: "Dina projekt listas på startsidan under Alla projekt.",
   },
   {
     type: "nav",
-    image: "ritning",
+    image: "hyvel",
     route: "/arbetsdagbok",
     targets: [{ name: "Generera Arbetsdagbok" }],
     tip: "Välj period och tryck Generera Arbetsdagbok.",
     em: "Generera Arbetsdagbok",
     until: "press",
+    preview: {
+      text: "Så här blir arbetsdagboken.",
+      em: "arbetsdagboken",
+      line: "Den visas bara här. Ingenting sparas och ingenting laddas ner.",
+    },
     requires: "has-confirmed-day",
     otherwise:
       "Här genererar du Arbetsdagboken: välj projekt och period och tryck Generera Arbetsdagbok. Just nu finns inga bekräftade dagar att ta med. När arbetsledaren har bekräftat sina dagar gör du det här.",
@@ -411,9 +429,10 @@ export const SEQUENCES: Record<Role, Step[]> = {
 
 export const DONE = {
   image: "hjalm-rund" as TourImage,
-  title: "Välkommen till ByggKoll.",
+  // One sentence, as Brilliant draws it (Guide slutkort, canvas 1 Admin).
+  title: "Välkommen till ByggKoll. Du vet nu vad du behöver göra.",
   em: "ByggKoll",
-  line: "Du vet nu vad du behöver göra.",
+  line: undefined as string | undefined,
   button: "Kom igång",
 };
 
