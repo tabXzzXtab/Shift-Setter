@@ -11,7 +11,7 @@ import { PickField } from "@/components/pick-field";
 import { TimeField } from "@/components/time-wheel";
 import { PaintCalendar } from "@/components/paint-calendar";
 import { derivesTenant, getSupabase } from "@/lib/supabase/client";
-import { stockholmToday } from "@/lib/dates";
+import { stockholmToday, svDate } from "@/lib/dates";
 import { defaultHours } from "@/lib/hours";
 import { fel } from "@/lib/fel";
 import { useTourAutofill } from "@/components/tour/use-tour-autofill";
@@ -92,6 +92,15 @@ function NyttPass({ asked, fromDay = false }: { asked: string | null; fromDay?: 
   const [projectsLoaded, setProjectsLoaded] = useState(false);
   const [workers, setWorkers] = useState<Worker[]>([]);
   const [projectId, setProjectId] = useState("");
+  /**
+   * A CONFIRMED DAY IS CLOSED to new passes (owner, 2026-10-06). Keyed
+   * project|date, either stage: a leader-confirmed day is final for the
+   * leader, and a pass added after it would sit outside the claim they made.
+   * The database refuses the insert whatever this screen does
+   * (pass_on_closed_day); this is the picker not offering what will bounce.
+   */
+  const [closed, setClosed] = useState<Set<string>>(new Set());
+  const [droppedNote, setDroppedNote] = useState<string | null>(null);
   const [rows, setRows] = useState<Row[]>([newRow()]);
   const [handpicked, setHandpicked] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -122,8 +131,29 @@ function NyttPass({ asked, fromDay = false }: { asked: string | null; fromDay?: 
       const { data: w } = await sb
         .from("worker_roster").select("id, name").eq("role", "arbetare").order("name");
       setWorkers((w ?? []).flatMap((x) => (x.id && x.name ? [{ id: x.id, name: x.name }] : [])));
+      const { data: c } = await sb
+        .from("project_day").select("project_id, work_date").not("confirmed_at", "is", null);
+      setClosed(new Set((c ?? []).map((x) => `${x.project_id}|${x.work_date}`)));
     })();
   }, []);
+
+  const isClosed = (date: string) => projectId !== "" && closed.has(`${projectId}|${date}`);
+
+  /**
+   * The project is chosen on the SECOND screen, so with several projects the
+   * picker cannot know which days are closed. Choosing one there drops any
+   * day it has already confirmed, and says so -- rather than letting the
+   * database refuse the whole batch at Skapa.
+   */
+  function chooseProject(id: string) {
+    setProjectId(id);
+    const shut = days.filter((d) => closed.has(`${id}|${d}`));
+    if (shut.length === 0) { setDroppedNote(null); return; }
+    setDays((d) => d.filter((x) => !shut.includes(x)));
+    setDroppedNote(shut.length === 1
+      ? `${svDate(shut[0]!)} är redan bekräftad för projektet och togs bort.`
+      : `${shut.length} dagar är redan bekräftade för projektet och togs bort.`);
+  }
 
   /**
    * Changing a time re-suggests the hours -- but only while the leader has not
@@ -140,6 +170,7 @@ function NyttPass({ asked, fromDay = false }: { asked: string | null; fromDay?: 
   }
 
   function toggleDay(date: string) {
+    if (isClosed(date)) return;
     setDays((d) => (d.includes(date) ? d.filter((x) => x !== date) : [...d, date]));
   }
 
@@ -317,7 +348,8 @@ function NyttPass({ asked, fromDay = false }: { asked: string | null; fromDay?: 
             onPaint={toggleDay}
             look={(date) => {
               const on = days.includes(date);
-              const past = date < today;
+              const shut = isClosed(date);
+              const past = date < today || shut;
               return {
                 className: on ? "font-extrabold" : "font-semibold",
                 style: {
@@ -325,7 +357,7 @@ function NyttPass({ asked, fromDay = false }: { asked: string | null; fromDay?: 
                   color: past ? C.chevron : on ? C.onAccent : C.ink,
                   cursor: past ? "default" : "pointer",
                 },
-                label: `${Number(date.slice(8))} ${on ? "vald" : "inte vald"}`,
+                label: `${Number(date.slice(8))} ${shut ? "bekräftad, kan inte väljas" : on ? "vald" : "inte vald"}`,
               };
             }}
           />
@@ -371,6 +403,7 @@ function NyttPass({ asked, fromDay = false }: { asked: string | null; fromDay?: 
   return (
     <SoftScreen title="Beskriv passen" back={back} subtitle="Kontrollera tiderna och antalet personer.">
       {error && <div className="px-4 pb-[10px] pt-[2px]"><SoftNotice tone="stop">{error}</SoftNotice></div>}
+      {droppedNote && <div className="px-4 pb-[10px] pt-[2px]"><SoftNotice tone="warn">{droppedNote}</SoftNotice></div>}
 
       <div className="px-4 pt-[2px]">
         <button
@@ -389,7 +422,7 @@ function NyttPass({ asked, fromDay = false }: { asked: string | null; fromDay?: 
           <PickField
             label="Projekt"
             value={projectId}
-            onChange={setProjectId}
+            onChange={chooseProject}
             options={projects.map((p) => ({ value: p.id, label: p.name }))}
           />
           {/* A pass belongs to a project, so an empty list is the one thing

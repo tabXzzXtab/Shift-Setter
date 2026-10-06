@@ -863,6 +863,12 @@ These are the ones worth a buzz: a shift you could take and somebody else will i
 | `leader_replaced` | Du har bytts ut | Du är inte längre arbetsledare för [datum] på [projektnamn] | no |
 | `pass_closed` | Pass stängt | Passet [datum] på [projektnamn] har stängts | no |
 | `day_flagged` | Dag flaggad | Dagen [datum] på [projektnamn] kräver din uppmärksamhet | no |
+| `day_approved` | Dag godkänd | Din dag [datum] på [projektnamn] är godkänd | yes |
+| `day_awaiting_review` | Dag att granska | Dagen [datum] på [projektnamn] är bekräftad och väntar på dig | yes |
+
+**`day_approved`** goes to the WORKERS on a day — everyone with an unreleased, non-arbetsledare row — when it reaches `admin_confirmed`, by **every** route: stage 2, the bristsurvey, a flagged day, a Snabb Pass filed direkt (owner, 2026-10-06). It carries no hours (invariant 10). The leader keeps `day_admin_confirmed`. **`day_awaiting_review`** goes to the company's active admins each time a day becomes `leader_confirmed`, including after a rejection — never to an operator. Both open where the day is: Mina pass, and Granska for that day.
+
+**A confirmed day takes no new passes** (owner, 2026-10-06). `pass_on_closed_day` refuses a pass inserted on, or moved onto, a day whose `confirmed_at` is set — at either stage; rejection reopens it. Skapa pass draws such a day like a past one and will not select it; with several projects, choosing one on the second screen drops any of its confirmed days and says so.
 
 ---
 
