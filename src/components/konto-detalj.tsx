@@ -106,6 +106,11 @@ export function KontoDetalj({ askedId }: { askedId: string | null }) {
   const [note, setNote] = useState<string | null>(null);
   /** Plain confirmations fade (SoftToast); ones with a consequence stay as `note`. */
   const [toast, setToast] = useState<string | null>(null);
+  // A refused role change, said UNDER the selector. It used to be the notice
+  // at the top of the page, out of sight from the Roll card; pressing Spara
+  // then cleared it and said "Sparat." about the profile, which read as if the
+  // demotion had gone through. Spara does not touch this one.
+  const [roleError, setRoleError] = useState<string | null>(null);
   const [tick, setTick] = useState(0);
   const filePicker = useRef<HTMLInputElement>(null);
 
@@ -241,10 +246,15 @@ export function KontoDetalj({ askedId }: { askedId: string | null }) {
 
   async function setRole(role: Role) {
     if (!row) return;
-    setBusy(true); setError(null); setNote(null);
+    setBusy(true); setError(null); setNote(null); setRoleError(null);
     const { error } = await getSupabase().from("account").update({ role }).eq("id", row.id);
-    if (error) setError(fel(error, "Rollen kunde inte ändras. Kontakta administratören."));
-    else setToast(`Rollen ändrad till ${ROLE_LABEL[role]}.`);
+    if (error) {
+      // invariant 11, said for this act. fel()'s sentence is written to cover
+      // pausing and removing as well; here the reader just tried a demotion.
+      setRoleError(/last active admin/i.test(error.message ?? "")
+        ? "Det går inte att ta bort den sista administratören. Gör någon annan till administratör först."
+        : fel(error, "Rollen kunde inte ändras. Kontakta administratören."));
+    } else setToast(`Rollen ändrad till ${ROLE_LABEL[role]}.`);
     setBusy(false);
     setTick((t) => t + 1);
     if (isSelf) reload();
@@ -394,6 +404,11 @@ export function KontoDetalj({ askedId }: { askedId: string | null }) {
                 <option value="admin">Admin</option>
               </SoftSelect>
             </SoftField>
+            {roleError && (
+              <div className="pt-[12px]" data-roll-fel>
+                <SoftNotice tone="stop">{roleError}</SoftNotice>
+              </div>
+            )}
           </Card>
         </div>
       )}
