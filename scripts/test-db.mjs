@@ -677,7 +677,10 @@ const CONTROLS = [
              t.confirmed_hours::numeric,
              (pd.confirmed_at is not null) as day_confirmed,
              exists (select 1 from public.arbetsdagbok a
-                     where a.project_id = p.project_id and p.work_date <@ a.covered) as filed
+                     where a.project_id = p.project_id and p.work_date <@ a.covered) as filed,
+             -- Carried so the view keeps its columns (20261006130000 added it);
+             -- a view cannot be replaced with fewer.
+             null::timestamptz as lunch_since
       from public.tilldelning t
       join public.pass p on p.id = t.pass_id and p.deleted_at is null
       join public.project pr on pr.id = p.project_id and pr.deleted_at is null
@@ -1319,8 +1322,8 @@ const CONTROLS = [
    // The raise itself, not its condition: the condition is an OR of two
    // tests, and "false and A or B" still raises on B.
    perturbIn("app.tg_pass_original_times()",
-             "raise exception 'the planned times of a pass are not written directly; they follow start_time and end_time until the shift starts'
-      using errcode = 'insufficient_privilege';",
+             "raise exception 'the planned times of a pass are not written directly; they follow start_time and end_time until the shift starts'\n" +
+             "      using errcode = 'insufficient_privilege';",
              "null;"),
    "ORIGINAL.not_writable"],
 
@@ -1340,6 +1343,57 @@ const CONTROLS = [
      (await perturbIn("public.confirm_day(uuid,date,text,jsonb)", "/*day*/", "begin /*day*/")(client))
        .replace("/*end day*/", "exception when others then return; end; /*end day*/"),
    "CONFIRM.refusal_writes_nothing"],
+
+  // ---- 20261006130000: lunch is stamped ---------------------------------------
+  ["a break needs a shift that has begun",
+   perturbIn("public.stamp(uuid,stamp_kind)",
+             "elsif v_row.clock_in is null then", "elsif false then"),
+   "STAMP.lunch_needs_in"],
+
+  ["nobody presses on somebody else's shift",
+   perturbIn("public.stamp(uuid,stamp_kind)",
+             "where t.id = p_tilldelning and t.worker_id = v_worker and t.released_at is null",
+             "where t.id = p_tilldelning and t.released_at is null"),
+   "STAMP.not_someone_elses"],
+
+  ["a break ends only once it has begun",
+   perturbIn("public.stamp(uuid,stamp_kind)",
+             "    if not v_lunch then\n      raise exception 'not on a break'",
+             "    if false then\n      raise exception 'not on a break'"),
+   "STAMP.lunch_end_needs_start"],
+
+  ["one break at a time",
+   perturbIn("public.stamp(uuid,stamp_kind)",
+             "    if v_lunch then\n      raise exception 'already on a break'",
+             "    if false then\n      raise exception 'already on a break'"),
+   "STAMP.one_break_at_a_time"],
+
+  ["stamping out on a break ends the break",
+   perturbIn("public.stamp(uuid,stamp_kind)",
+             "    if v_lunch then\n      insert into public.stamp_event",
+             "    if false then\n      insert into public.stamp_event"),
+   "STAMP.out_ends_the_break"],
+
+  ["nothing is pressed after stamping out",
+   perturbIn("public.stamp(uuid,stamp_kind)",
+             "  if v_row.clock_out is not null then\n    raise exception 'already clocked out",
+             "  if false then\n    raise exception 'already clocked out"),
+   "STAMP.nothing_after_out"],
+
+  ["invariant 3 -- a stamp event is not edited",
+   "alter table public.stamp_event disable trigger stamp_event_append_only",
+   "STAMP.append_only_update"],
+
+  ["invariant 3 -- a stamp event is not deleted, except with its assignment",
+   perturbIn("app.tg_stamp_event_append_only()",
+             "if pg_trigger_depth() <= 1 then", "if false then"),
+   "STAMP.append_only_delete"],
+
+  ["the bristsurvey subtracts stamped breaks (invariant 1's one exception)",
+   perturbIn("public.complete_bristsurvey(uuid,date,text)",
+             "then round((extract(epoch from (t.clock_out - t.clock_in)) - app.lunch_seconds(t.id, t.clock_out))",
+             "then round((extract(epoch from (t.clock_out - t.clock_in)))"),
+   "BRIST.lunch_subtracted"],
 ];
 
 const client = new pg.Client({

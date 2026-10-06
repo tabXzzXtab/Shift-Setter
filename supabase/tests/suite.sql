@@ -5781,4 +5781,141 @@ select pg_temp.ok(
   'CONFIRM.correction_and_confirmation_both_land',
   'the day is confirmed, the correction is on the pass, and the plan is untouched');
 
+-- ============================================================================
+-- LUNCH: STAMP EVENTS (20261006130000)
+--
+-- w3 on the 'Planerad Tid' project, sixteen days out (stamp() has no date
+-- window -- the soft clocking window is the browser's), pressing the whole
+-- sequence. Then a past day with stamped times and a stamped break, surveyed.
+-- ============================================================================
+reset role;
+select set_config('request.jwt.claims', '{}', true);
+
+insert into public.pass (id, project_id, work_date, start_time, end_time,
+                         planned_hours, headcount, created_by)
+values ('f1f1f1f1-0000-0000-0000-0000000000a3', 'f1f1f1f1-0000-0000-0000-00000000000f',
+        app.stockholm_today() + 16, '07:00', '16:00', 8.50, 1,
+        (select v from fx where k = 'admin'));
+insert into public.tilldelning (id, pass_id, worker_id, source, work_date)
+select 'f1f1f1f1-0000-0000-0000-0000000000b3', 'f1f1f1f1-0000-0000-0000-0000000000a3',
+       w.id, 'manuell', app.stockholm_today() + 16
+from public.worker w join fx on fx.v = w.account_id where fx.k = 'w3';
+
+set local role authenticated;
+select pg_temp.act_as((select v from fx where k = 'w3'));
+
+select pg_temp.rejects($$
+  select public.stamp('f1f1f1f1-0000-0000-0000-0000000000b3', 'lunch_start')
+$$, 'STAMP.lunch_needs_in');
+
+select pg_temp.accepts($$
+  select public.stamp('f1f1f1f1-0000-0000-0000-0000000000b3', 'in')
+$$, 'STAMP.in_accepted');
+
+-- Somebody else's shift is not theirs to press on, at any step.
+select pg_temp.act_as((select v from fx where k = 'w2'));
+select pg_temp.rejects($$
+  select public.stamp('f1f1f1f1-0000-0000-0000-0000000000b3', 'lunch_start')
+$$, 'STAMP.not_someone_elses');
+select pg_temp.act_as((select v from fx where k = 'w3'));
+
+-- Held twice: here, and by tg_clock_evidence refusing a worker's second
+-- clock_in. Asserted for the record; invariant 3's controls cover the trigger.
+select pg_temp.rejects($$
+  select public.stamp('f1f1f1f1-0000-0000-0000-0000000000b3', 'in')
+$$, 'STAMP.in_once');
+
+select pg_temp.rejects($$
+  select public.stamp('f1f1f1f1-0000-0000-0000-0000000000b3', 'lunch_end')
+$$, 'STAMP.lunch_end_needs_start');
+
+select pg_temp.accepts($$
+  select public.stamp('f1f1f1f1-0000-0000-0000-0000000000b3', 'lunch_start')
+$$, 'STAMP.lunch_start_accepted');
+select pg_temp.rejects($$
+  select public.stamp('f1f1f1f1-0000-0000-0000-0000000000b3', 'lunch_start')
+$$, 'STAMP.one_break_at_a_time');
+
+-- A second break is allowed (owner, 2026-10-06).
+select pg_temp.accepts($$
+  select public.stamp('f1f1f1f1-0000-0000-0000-0000000000b3', 'lunch_end')
+$$, 'STAMP.lunch_end_accepted');
+select pg_temp.accepts($$
+  select public.stamp('f1f1f1f1-0000-0000-0000-0000000000b3', 'lunch_start')
+$$, 'STAMP.second_break');
+
+-- Stämpla Ut on a break closes the break at the same instant.
+select pg_temp.accepts($$
+  select public.stamp('f1f1f1f1-0000-0000-0000-0000000000b3', 'out')
+$$, 'STAMP.out_accepted');
+
+reset role;
+select pg_temp.ok(
+  (select string_agg(kind::text, ',' order by at, id) = 'in,lunch_start,lunch_end,lunch_start,lunch_end,out'
+          and (select max(at) filter (where kind = 'lunch_end') = max(at) filter (where kind = 'out')
+               from public.stamp_event where tilldelning_id = 'f1f1f1f1-0000-0000-0000-0000000000b3')
+   from public.stamp_event where tilldelning_id = 'f1f1f1f1-0000-0000-0000-0000000000b3')
+  and (select clock_out is not null from public.tilldelning
+       where id = 'f1f1f1f1-0000-0000-0000-0000000000b3'),
+  'STAMP.out_ends_the_break',
+  'stamping out on a break ends the break at the same instant, then stamps out');
+
+select pg_temp.ok(
+  (select bool_and(e.tenant_id = t.tenant_id)
+   from public.stamp_event e join public.tilldelning t on t.id = e.tilldelning_id
+   where e.tilldelning_id = 'f1f1f1f1-0000-0000-0000-0000000000b3'),
+  'STAMP.tenant_from_parent', 'a stamp belongs to its assignment''s company');
+
+set local role authenticated;
+select pg_temp.act_as((select v from fx where k = 'w3'));
+select pg_temp.rejects($$
+  select public.stamp('f1f1f1f1-0000-0000-0000-0000000000b3', 'lunch_start')
+$$, 'STAMP.nothing_after_out');
+
+-- Invariant 3: evidence is not edited or removed -- not even by the owner role.
+reset role;
+select pg_temp.rejects($$
+  update public.stamp_event set at = at - interval '1 hour'
+  where tilldelning_id = 'f1f1f1f1-0000-0000-0000-0000000000b3'
+$$, 'STAMP.append_only_update');
+select pg_temp.rejects($$
+  delete from public.stamp_event where tilldelning_id = 'f1f1f1f1-0000-0000-0000-0000000000b3'
+$$, 'STAMP.append_only_delete');
+
+-- THE BRISTSURVEY SUBTRACTS STAMPED BREAKS. Four days ago: w3 stamped
+-- 07:00-16:00 with a break 12:00-12:45. By hand: 9 h - 0.75 h = 8.25 h.
+-- No leader confirmed the day; the admin surveys it.
+select pg_temp.act_as((select v from fx where k = 'admin'));   -- staff: the stamps keep their times
+insert into public.pass (id, project_id, work_date, start_time, end_time,
+                         planned_hours, headcount, created_by)
+values ('f1f1f1f1-0000-0000-0000-0000000000a4', 'f1f1f1f1-0000-0000-0000-00000000000f',
+        app.stockholm_today() - 4, '07:00', '16:00', 8.50, 1,
+        (select v from fx where k = 'admin'));
+insert into public.tilldelning (id, pass_id, worker_id, source, work_date, clock_in, clock_out)
+select 'f1f1f1f1-0000-0000-0000-0000000000b4', 'f1f1f1f1-0000-0000-0000-0000000000a4',
+       w.id, 'manuell', app.stockholm_today() - 4,
+       ((app.stockholm_today() - 4) + time '07:00') at time zone 'Europe/Stockholm',
+       ((app.stockholm_today() - 4) + time '16:00') at time zone 'Europe/Stockholm'
+from public.worker w join fx on fx.v = w.account_id where fx.k = 'w3';
+insert into public.stamp_event (tilldelning_id, kind, at) values
+  ('f1f1f1f1-0000-0000-0000-0000000000b4', 'lunch_start',
+   ((app.stockholm_today() - 4) + time '12:00') at time zone 'Europe/Stockholm'),
+  ('f1f1f1f1-0000-0000-0000-0000000000b4', 'lunch_end',
+   ((app.stockholm_today() - 4) + time '12:45') at time zone 'Europe/Stockholm');
+
+set local role authenticated;
+select pg_temp.act_as((select v from fx where k = 'admin'));
+select pg_temp.accepts($$
+  select public.complete_bristsurvey('f1f1f1f1-0000-0000-0000-00000000000f',
+                                     app.stockholm_today() - 4, 'Lunchen drogs av')
+$$, 'BRIST.lunch_survey_accepted');
+
+reset role;
+select pg_temp.ok(
+  (select confirmed_hours = 8.25 from public.tilldelning
+   where id = 'f1f1f1f1-0000-0000-0000-0000000000b4'),
+  'BRIST.lunch_subtracted',
+  'the survey files the clock span less the stamped break: 9 h - 45 min = 8,25 h');
+
+
 select pg_temp.ok(true, 'SUITE.complete', 'every assertion passed');

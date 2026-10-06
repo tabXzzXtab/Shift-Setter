@@ -1621,6 +1621,33 @@ export type Database = {
           },
         ]
       }
+      stamp_event: {
+        Row: {
+          at: string
+          id: number
+          kind: Database["public"]["Enums"]["stamp_kind"]
+          stamped_by: string | null
+          tenant_id: string
+          tilldelning_id: string
+        }
+        Insert: {
+          at?: string
+          id?: never
+          kind: Database["public"]["Enums"]["stamp_kind"]
+          stamped_by?: string | null
+          tenant_id: string
+          tilldelning_id: string
+        }
+        Update: {
+          at?: string
+          id?: never
+          kind?: Database["public"]["Enums"]["stamp_kind"]
+          stamped_by?: string | null
+          tenant_id?: string
+          tilldelning_id?: string
+        }
+        Relationships: []
+      }
       tenant: {
         Row: {
           account_type: Database["public"]["Enums"]["tenant_account_type"]
@@ -2050,6 +2077,7 @@ export type Database = {
           end_time: string | null
           filed: boolean | null
           id: string | null
+          lunch_since: string | null
           pass_id: string | null
           planned_hours: number | null
           project_id: string | null
@@ -2294,6 +2322,13 @@ export type Database = {
       }
       swap_leaders: { Args: { p_a: string; p_b: string }; Returns: undefined }
       swap_partners: { Args: { p_tilldelning: string }; Returns: Json }
+      stamp: {
+        Args: {
+          p_kind: Database["public"]["Enums"]["stamp_kind"]
+          p_tilldelning: string
+        }
+        Returns: string
+      }
       tenant_status: {
         Args: never
         Returns: {
@@ -2340,6 +2375,7 @@ export type Database = {
         | "no_workers_left"
         | "closed_early"
       review_action: "approved" | "rejected"
+      stamp_kind: "in" | "lunch_start" | "lunch_end" | "out"
       tenant_account_type: "demo" | "sold" | "gift" | "owner"
     }
     CompositeTypes: {
@@ -2506,6 +2542,7 @@ export const Constants = {
         "closed_early",
       ],
       review_action: ["approved", "rejected"],
+      stamp_kind: ["in", "lunch_start", "lunch_end", "out"],
       tenant_account_type: ["demo", "sold", "gift", "owner"],
     },
   },

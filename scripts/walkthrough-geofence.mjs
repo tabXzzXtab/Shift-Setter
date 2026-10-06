@@ -8,6 +8,12 @@
  *   50 km away           -> blocked, told how far away they are
  *   on the site          -> stamped, and the stamp is the server's as before
  *
+ * Then lunch, whichever way the fence is set (20261006130000): Lunch Paus
+ * from 50 km away goes through -- a break is not fenced -- then Fortsätt
+ * Passet, a second Lunch Paus, and Stämpla Ut DURING that break, which must
+ * end the break at the same instant. The presses are read back from
+ * stamp_event, not inferred from the screen.
+ *
  * The site is Bruksgatan 8 in Hörby, which is the address of the one real
  * project in this database and one Nominatim actually places. The run asserts
  * that it still does, first -- an address that stopped geocoding would make
@@ -17,7 +23,8 @@
 import { chromium, devices } from "playwright";
 import { mkdirSync, readFileSync } from "node:fs";
 import path from "node:path";
-import { required } from "./env.mjs";
+import pg from "pg";
+import { connectionString, required } from "./env.mjs";
 
 const BASE = process.env.BASE_URL ?? "http://localhost:3000";
 
@@ -331,6 +338,68 @@ try {
 
     console.log("\nGEOFENCE COMPLETE.\n");
   }
+
+  // ---- lunch: Lunch Paus -> Fortsätt Passet -> Lunch Paus -> Stämpla Ut ------
+  const press = async (label) => {
+    const b = page.getByRole("button", { name: label, exact: true });
+    await b.waitFor({ timeout: 20000 });
+    await b.click();
+  };
+  const sees = async (label, why) => {
+    try {
+      await page.getByRole("button", { name: label, exact: true }).waitFor({ timeout: 20000 });
+    } catch {
+      await shot(page, "FAILED");
+      fail(`${why} (never offered "${label}")`);
+    }
+  };
+
+  await ctx.setGeolocation(FAR);
+  await page.reload({ waitUntil: "networkidle" });
+  await press("Lunch Paus");
+  await sees("Fortsätt Passet", "Lunch Paus from 50 km away did not start a break -- breaks are not fenced");
+  await mustSee(page, "Lunch sedan", "a break running does not say since when");
+  await shot(page, "gf5-lunch");
+  log("Lunch Paus from 50 km away starts a break -- the fence is for arriving and leaving");
+
+  await press("Fortsätt Passet");
+  await sees("Lunch Paus", "Fortsätt Passet did not end the break");
+  log("Fortsätt Passet ends it, and Lunch Paus is offered again");
+
+  await press("Lunch Paus");
+  await sees("Fortsätt Passet", "a second break could not start");
+  await ctx.setGeolocation(SITE);
+  await press("Stämpla Ut");
+  try {
+    await page.getByRole("button", { name: "Fortsätt Passet", exact: true })
+      .waitFor({ state: "detached", timeout: 20000 });
+  } catch {
+    await shot(page, "FAILED");
+    fail("Stämpla Ut during a break left the break running");
+  }
+  log("a second break, and Stämpla Ut during it");
+
+  const db = new pg.Client({ connectionString: connectionString() });
+  await db.connect();
+  const { rows: ev } = await db.query(
+    `select e.kind::text as kind, e.at
+       from public.stamp_event e
+       join public.tilldelning t on t.id = e.tilldelning_id
+       join public.worker w on w.id = t.worker_id
+       join auth.users u on u.id = w.account_id
+      where lower(u.email) = lower($1) and t.work_date = $2
+      order by e.at, e.id`, [W.email, TODAY]);
+  await db.end();
+  const kinds = ev.map((e) => e.kind).join(",");
+  if (kinds !== "in,lunch_start,lunch_end,lunch_start,lunch_end,out") {
+    fail(`stamp_event holds ${kinds}, not in,lunch_start,lunch_end,lunch_start,lunch_end,out`);
+  }
+  if (ev[4].at.getTime() !== ev[5].at.getTime()) {
+    fail("the break did not end at the same instant as Stämpla Ut");
+  }
+  await shot(page, "gf6-utstamplad");
+  log("stamp_event reads in, break, break, out -- and the last break ends exactly at Stämpla Ut");
+  console.log("\nLUNCH COMPLETE.\n");
 } finally {
   await browser.close();
 }

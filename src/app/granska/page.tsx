@@ -12,6 +12,7 @@ import { TimeField } from "@/components/time-wheel";
 import { getSupabase } from "@/lib/supabase/client";
 import { hhmm, longDayHeading, stampToTime } from "@/lib/dates";
 import { reviewDays } from "@/lib/review-days";
+import { lunchLines } from "@/lib/lunch";
 import { fel } from "@/lib/fel";
 
 type Row = {
@@ -64,6 +65,8 @@ type Edit = { start: string; end: string; hours: string };
  */
 function Granska({ askedProject, askedDate }: { askedProject: string | null; askedDate: string | null }) {
   const [day, setDay] = useState<Day | null | undefined>(undefined);
+  // Stamped breaks per row, beside the stamps (lib/lunch.ts). Never hours.
+  const [lunch, setLunch] = useState<Map<string, string>>(new Map());
   const [edits, setEdits] = useState<Record<string, Edit>>({});
   const [gjorde, setGjorde] = useState("");
   const [rejecting, setRejecting] = useState(false);
@@ -176,6 +179,8 @@ function Granska({ askedProject, askedDate }: { askedProject: string | null; ask
       setGjorde(first.vad_vi_gjorde);
       setNote("");
       setRejecting(false);
+      const breaks = await lunchLines(rows.map((r) => r.tilldelning_id));
+      if (active) setLunch(breaks);
     })();
 
     return () => { active = false; };
@@ -374,6 +379,7 @@ function Granska({ askedProject, askedDate }: { askedProject: string | null; ask
                   name={r.worker_name}
                   clockIn={stampToTime(r.clock_in)}
                   clockOut={stampToTime(r.clock_out)}
+                  lunch={lunch.get(r.tilldelning_id)}
                   disabled={busy}
                   onAsk={() => setAsking(r)}
                 />

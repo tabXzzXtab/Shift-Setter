@@ -13,6 +13,7 @@ import { getSupabase } from "@/lib/supabase/client";
 import { hhmm, longDayHeading, passEndAt, stampToTime } from "@/lib/dates";
 import { pendingDays } from "@/lib/pending-days";
 import { defaultHours } from "@/lib/hours";
+import { lunchLines } from "@/lib/lunch";
 import { fel } from "@/lib/fel";
 import { tourSignal } from "@/lib/tour/signal";
 
@@ -174,6 +175,8 @@ function Bekrafta({ askedProject, askedDate }: { askedProject: string | null; as
     Record<string, { start: string; end: string; h: string; m: string }>
   >({});
   const [gjorde, setGjorde] = useState("");
+  // Stamped breaks per row, beside the stamps (lib/lunch.ts). Never hours.
+  const [lunch, setLunch] = useState<Map<string, string>>(new Map());
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -309,6 +312,9 @@ function Bekrafta({ askedProject, askedDate }: { askedProject: string | null; as
       );
       setGjorde(first.vad_vi_gjorde);
       setBarGone(false);
+      // The stamped breaks, beside the stamps. Shown, never summed into hours.
+      const breaks = await lunchLines(rows.map((r) => r.tilldelning_id));
+      if (active) setLunch(breaks);
     })();
 
     return () => { active = false; };
@@ -550,6 +556,7 @@ function Bekrafta({ askedProject, askedDate }: { askedProject: string | null; as
                   name={r.worker_name}
                   clockIn={stampToTime(r.clock_in)}
                   clockOut={stampToTime(r.clock_out)}
+                  lunch={lunch.get(r.tilldelning_id)}
                   disabled={running}
                   onAsk={() => setAsking(r)}
                 />
