@@ -14,8 +14,8 @@ import {
 } from "@/lib/tour/storage";
 import { onTourSignal } from "@/lib/tour/signal";
 import { resolveTargets, samePath } from "@/lib/tour/targets";
-import { TourCard } from "./tour-card";
-import { TourRings } from "./tour-spotlight";
+import { TourCard, TourPending } from "./tour-card";
+import { TourBlocker, TourRings } from "./tour-spotlight";
 
 /** Screens nobody is being shown around: signed out, or not a tenancy's app. */
 const OFF_ROUTES = ["/login", "/onboarding", "/super", "/glomt-losenord", "/aterstall-losenord", SETUP_ROUTE];
@@ -325,7 +325,14 @@ export function TourProvider({ children }: { children: ReactNode }) {
         overlay = <TourRings key={index} resolve={navResolve} />;
       } else if (!filling && lastFilled) {
         overlay = <TourRings key={`${index}|${lastFilled}`} resolve={submitResolve} />;
+      } else {
+        // The form is filling itself, or about to: nothing to tap yet.
+        overlay = <TourBlocker key={index} />;
       }
+    } else if (step) {
+      // The step's database check has not answered yet (met()): the white
+      // screen stays, so the app never shows between two cards (TourPending).
+      overlay = <TourPending key={index} />;
     }
   }
 

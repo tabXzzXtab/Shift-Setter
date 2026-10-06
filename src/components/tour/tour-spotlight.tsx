@@ -65,23 +65,63 @@ export function TourRings({ resolve }: { resolve: () => Element[] }) {
     return () => window.clearTimeout(id);
   }, [found, brought, resolve]);
 
+  // SETTLED: found, brought into view, and still for SETTLE_MS. Every move of
+  // the box restarts the wait, so a smooth scroll settles when it stops.
+  const [settled, setSettled] = useState(false);
+  useEffect(() => {
+    if (!brought || settled) return;
+    const id = window.setTimeout(() => setSettled(true), SETTLE_MS);
+    return () => window.clearTimeout(id);
+  }, [boxes, brought, settled]);
+
   return (
-    <div {...{ [TOUR_UI]: "rings" }} className="pointer-events-none fixed inset-0 z-[70]" aria-hidden>
-      {boxes.map((b, i) => (
-        <div
-          key={i}
-          className="absolute rounded-[14px]"
-          style={{
-            top: b.top - PAD,
-            left: b.left - PAD,
-            width: b.width + PAD * 2,
-            height: b.height + PAD * 2,
-            boxShadow: `0 0 0 3px ${C.accent}${single ? ", 0 0 0 9999px rgba(36,24,15,.30)" : ""}`,
-          }}
-        >
-          <div className="animate-tourpulse absolute inset-0 rounded-[14px]" />
-        </div>
-      ))}
-    </div>
+    <>
+      {!settled && <TourBlocker />}
+      <div {...{ [TOUR_UI]: "rings" }} className="pointer-events-none fixed inset-0 z-[70]" aria-hidden>
+        {boxes.map((b, i) => (
+          <div
+            key={i}
+            className="absolute rounded-[14px]"
+            style={{
+              top: b.top - PAD,
+              left: b.left - PAD,
+              width: b.width + PAD * 2,
+              height: b.height + PAD * 2,
+              boxShadow: `0 0 0 3px ${C.accent}${single ? ", 0 0 0 9999px rgba(36,24,15,.30)" : ""}`,
+            }}
+          >
+            <div className="animate-tourpulse absolute inset-0 rounded-[14px]" />
+          </div>
+        ))}
+      </div>
+    </>
   );
+}
+
+/** How long the ring must stand still before the page takes taps again. */
+const SETTLE_MS = 250;
+/** No step may hold the page longer than this, found or not. */
+const BLOCK_MAX_MS = 10000;
+
+/**
+ * NO TAP BEFORE THE RING (owner, 2026-10-06). After "Visa mig" the full
+ * screen goes at once, but the ring is drawn only when its element has been
+ * found -- after a navigation, a data load, a scroll; and on an autofill step
+ * only once the form has filled itself. In between the page showed with
+ * nothing on it and took any tap: that read as the screen flashing open, and
+ * a tap there landed on whatever was under the finger.
+ *
+ * So the page takes no taps until the ring stands still -- transparent, so
+ * nothing changes on screen -- and never for longer than BLOCK_MAX_MS: a
+ * target that never comes is the provider's to turn into a card, and nobody
+ * is held on a page that cannot be used.
+ */
+export function TourBlocker() {
+  const [gone, setGone] = useState(false);
+  useEffect(() => {
+    const id = window.setTimeout(() => setGone(true), BLOCK_MAX_MS);
+    return () => window.clearTimeout(id);
+  }, []);
+  if (gone) return null;
+  return <div aria-hidden className="fixed inset-0 z-[71]" style={{ touchAction: "none" }} />;
 }
