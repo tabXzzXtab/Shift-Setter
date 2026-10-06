@@ -2271,7 +2271,10 @@ export type Database = {
       decline_offer: { Args: { p_pass: string }; Returns: undefined }
       delete_account: { Args: { p_account: string }; Returns: string }
       delete_pass: { Args: { p_pass: string }; Returns: undefined }
-      delete_project: { Args: { p_project: string }; Returns: undefined }
+      delete_project: {
+        Args: { p_cancel_future?: boolean; p_project: string }
+        Returns: undefined
+      }
       enter_tenant: { Args: { p_tenant: string }; Returns: undefined }
       exit_tenant: { Args: never; Returns: undefined }
       fill_passes: {
@@ -2312,6 +2315,14 @@ export type Database = {
       place_replacement: {
         Args: { p_pass: string; p_worker: string }
         Returns: undefined
+      }
+      project_delete_impact: {
+        Args: { p_project: string }
+        Returns: {
+          passes: number
+          people: number
+          running: boolean
+        }[]
       }
       register_push_token: {
         Args: { p_platform: string; p_token: string }

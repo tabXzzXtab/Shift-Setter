@@ -960,13 +960,13 @@ const CONTROLS = [
   ["a project with somebody on a future day cannot be deleted",
    // The refusal short-circuited. Past work still would not block -- that is
    // the assertion below this one, and it must keep passing.
-   perturbIn("public.delete_project(uuid)", "if exists (", "if false and exists ("),
+   perturbIn("public.delete_project(uuid,boolean)", "if not p_cancel_future and exists (", "if false and exists ("),
    "PROJEKT.active_passes_block"],
 
   ["deleting a project is an admin act",
    // Without the gate the leader of the project deletes it, which is exactly
    // the confusion app.leads_project() would have introduced here.
-   perturbIn("public.delete_project(uuid)", "if not app.is_admin() then", "if false then"),
+   perturbIn("public.delete_project(uuid,boolean)", "if not app.is_admin() then", "if false then"),
    "PROJEKT.admin_only"],
 
   ["invariant 8 -- a deleted project leaves the admin's reads",
@@ -977,6 +977,28 @@ const CONTROLS = [
    "create policy project_admin_write on public.project for all to authenticated " +
    "using (app.is_admin()) with check (app.is_admin() and deleted_at is null)",
    "PROJEKT.invisible_after_delete"],
+
+  // ---- ta bort projekt varnar, och avbokar sedan (20261006170000) ---------
+
+  ["going past the warning cancels the passes the Ta bort pass way",
+   // Without the loop the project goes and its future pass stays live with
+   // somebody on it -- booked onto a project that no longer exists.
+   perturbIn("public.delete_project(uuid,boolean)",
+             "    perform public.delete_pass(r.id);", "    null;"),
+   "DELPROJ.cancel_releases_and_tells"],
+
+  ["a shift running now refuses even past the warning",
+   perturbIn("public.delete_project(uuid,boolean)",
+             "refused whatever the caller says.\n  if exists (",
+             "refused whatever the caller says.\n  if false and exists ("),
+   "DELPROJ.running_still_refuses"],
+
+  ["the warning counts only the people a press would cancel",
+   // Counting the leader too, or released rows, inflates the number the
+   // admin reads before deciding.
+   perturbIn("public.project_delete_impact(uuid)",
+             "and t.released_at is null and t.source <> 'ledare'),", "),"),
+   "DELPROJ.impact_counts"],
 
   ["deleted_at is never set by a client UPDATE",
    // The policy exactly as it stood BEFORE this migration, both halves widened.
