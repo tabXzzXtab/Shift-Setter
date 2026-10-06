@@ -133,11 +133,13 @@ column pass.created_by uuid NOT NULL
 column pass.deleted_at timestamp with time zone
 column pass.deleted_by uuid
 column pass.end_time time without time zone NOT NULL
+column pass.end_time_original time without time zone NOT NULL
 column pass.headcount smallint NOT NULL
 column pass.id uuid NOT NULL DEFAULT gen_random_uuid()
 column pass.planned_hours numeric(4,2) NOT NULL
 column pass.project_id uuid NOT NULL
 column pass.start_time time without time zone NOT NULL
+column pass.start_time_original time without time zone NOT NULL
 column pass.tenant_id uuid NOT NULL
 column pass.work_date date NOT NULL
 column pass_batch.created_at timestamp with time zone NOT NULL DEFAULT now()
@@ -659,6 +661,7 @@ trig   notify_day_rejected on day_review -> tg_notify_day_rejected enabled=O
 trig   notify_shift_offered on tilldelning -> tg_notify_shift_offered enabled=O
 trig   pass_delete_guard on pass -> tg_pass_delete_guard enabled=O
 trig   pass_edit_guard on pass -> tg_pass_edit_guard enabled=O
+trig   pass_original_times on pass -> tg_pass_original_times enabled=O
 trig   profile_touch on profile -> tg_profile_touch enabled=O
 trig   project_created_by on project -> tg_project_created_by enabled=O
 trig   project_leader_is_a_leader on project_leader -> tg_project_leader_is_a_leader enabled=O
@@ -705,7 +708,7 @@ func   app.tg_arbetsdagbok_guard() md5=7f057dbe06f84893c079302373dc7324
 func   app.tg_assignment_write_guard() md5=f881334e120d8c970a332cb2e581f32b
 func   app.tg_block_guard() md5=b26fbbab450281b7deb537ec3212c1bd
 func   app.tg_clock_evidence() md5=6c33ff53dff91ccee095fa5abb4ec25d
-func   app.tg_confirmation_guard() md5=bcd2fd859f43ba80534a1d0fae4787a8
+func   app.tg_confirmation_guard() md5=b7b70bc26a8536dc1db26a5d0ad5f1ce
 func   app.tg_handpick_is_an_arbetare() md5=ae1fa4cafeecff7403d574bc1acb9ec7
 func   app.tg_headcount_guard() md5=f670cf086f1ab865d3d818b75225c070
 func   app.tg_last_admin_guard() md5=44de8af11b6ff9528d320c169c3aee34
@@ -718,6 +721,7 @@ func   app.tg_notify_day_rejected() md5=a81a4e05ff04ea1cc09e93e5006e0e84
 func   app.tg_notify_shift_offered() md5=95e0e4d529b8c65dbc6e551b962c71b9
 func   app.tg_pass_delete_guard() md5=91f1c76f9afd189463ca8c9f26b04390
 func   app.tg_pass_edit_guard() md5=dda07b7abfaa8f7eb519081febb29535
+func   app.tg_pass_original_times() md5=ccba0ae23db959258ca76544abd62379
 func   app.tg_profile_touch() md5=2cd0a5f82ac61406b149da8b7d574ddc
 func   app.tg_project_created_by() md5=0524801edfe833eb33f991a838b4f9a0
 func   app.tg_project_leader_is_a_leader() md5=ad62ec9c666f500380fddff7feeba5d3
@@ -742,6 +746,7 @@ func   public.clock_in(p_tilldelning uuid) md5=c8858ed8115f06833d03d3c63748b169
 func   public.clock_out(p_tilldelning uuid) md5=e04c572777a7ede42c28eb205b134c23
 func   public.close_pass(p_pass uuid, p_hours numeric) md5=7232e3a7219f6a34f1994df2dd987284
 func   public.complete_bristsurvey(p_project uuid, p_work_date date, p_text text) md5=e511adf511d6a1b6fa953d9d1113c1c7
+func   public.confirm_day(p_project uuid, p_date date, p_vad_vi_gjorde text, p_rows jsonb) md5=d384647d180b6ee448c7a2f8d9067054
 func   public.confirm_flagged_day(p_project uuid, p_work_date date, p_text text, p_rows jsonb) md5=5af47daac0ae6d9807a1ffe947a807bd
 func   public.create_snabb_pass(p_project uuid, p_worker uuid, p_date date, p_start time without time zone, p_end time without time zone, p_hours numeric, p_direkt boolean, p_text text, p_ledare jsonb) md5=a528b290c4c692d7f32f8d622e4a9c2d
 func   public.date_dist(date, date) md5=3983f43755ffa80d869985d91ee8e538
@@ -1223,7 +1228,7 @@ funcdef app.tg_arbetsdagbok_guard() security=definer volatile=volatile config=se
 funcdef app.tg_assignment_write_guard() security=definer volatile=volatile config=search_path="" returns=trigger md5=1f38f1a6ba7a0e8238ba37cdac90b467
 funcdef app.tg_block_guard() security=definer volatile=volatile config=search_path="" returns=trigger md5=0e76010ffcdaf3fc0d74b36f0eff898f
 funcdef app.tg_clock_evidence() security=definer volatile=volatile config=search_path="" returns=trigger md5=a4bc533747c9dc657cd477e6210e47af
-funcdef app.tg_confirmation_guard() security=definer volatile=volatile config=search_path="" returns=trigger md5=b2d2aed280af33516a8e1feae0205fbb
+funcdef app.tg_confirmation_guard() security=definer volatile=volatile config=search_path="" returns=trigger md5=04da9cd37390867027165cbeb7af074e
 funcdef app.tg_handpick_is_an_arbetare() security=definer volatile=volatile config=search_path="" returns=trigger md5=d92a232820c68d5c4030507e0893ac1c
 funcdef app.tg_headcount_guard() security=definer volatile=volatile config=search_path="" returns=trigger md5=0e575331ea5ecc8a9f0b290a7a5c2de3
 funcdef app.tg_last_admin_guard() security=definer volatile=volatile config=search_path="" returns=trigger md5=f9a6ea23232f35f31ae9e9526fbf6833
@@ -1236,6 +1241,7 @@ funcdef app.tg_notify_day_rejected() security=definer volatile=volatile config=s
 funcdef app.tg_notify_shift_offered() security=definer volatile=volatile config=search_path="" returns=trigger md5=ac17eafd2d93f3e18ca0eb2dca0c353f
 funcdef app.tg_pass_delete_guard() security=definer volatile=volatile config=search_path="" returns=trigger md5=3df9ba54c1ac648c41176432d0d9407d
 funcdef app.tg_pass_edit_guard() security=definer volatile=volatile config=search_path="" returns=trigger md5=9aedd9c59e2f2e296b0ce2afc03dd2d9
+funcdef app.tg_pass_original_times() security=invoker volatile=volatile config=search_path="" returns=trigger md5=cc429cba4e92c75cd2b6381cabf59fd2
 funcdef app.tg_profile_touch() security=definer volatile=volatile config=search_path="" returns=trigger md5=4c1bc14981b8021d40b6e51870a1493d
 funcdef app.tg_project_created_by() security=definer volatile=volatile config=search_path="" returns=trigger md5=5db7bde64df48720e529bf9815396ba5
 funcdef app.tg_project_leader_is_a_leader() security=definer volatile=volatile config=search_path="" returns=trigger md5=5b087b4d6b0cf846b256d1c522cc1f1e
@@ -1260,6 +1266,7 @@ funcdef public.clock_in(p_tilldelning uuid) security=definer volatile=volatile c
 funcdef public.clock_out(p_tilldelning uuid) security=definer volatile=volatile config=search_path="" returns=timestamp with time zone md5=e88288a711038e3440e866965b7dfdf4
 funcdef public.close_pass(p_pass uuid, p_hours numeric) security=definer volatile=volatile config=search_path="" returns=void md5=724167dbc2493b25e9a4a6bccc3ae7fd
 funcdef public.complete_bristsurvey(p_project uuid, p_work_date date, p_text text) security=invoker volatile=volatile config=search_path="" returns=void md5=540dd236b8149a6759b5550d4845f08f
+funcdef public.confirm_day(p_project uuid, p_date date, p_vad_vi_gjorde text, p_rows jsonb) security=invoker volatile=volatile config=search_path="" returns=void md5=0ff0fdfa663ce6e916ed2b7daf831bbd
 funcdef public.confirm_flagged_day(p_project uuid, p_work_date date, p_text text, p_rows jsonb) security=invoker volatile=volatile config=search_path="" returns=void md5=1ade12fc6f0d14ffd1f51b0e04259518
 funcdef public.create_snabb_pass(p_project uuid, p_worker uuid, p_date date, p_start time without time zone, p_end time without time zone, p_hours numeric, p_direkt boolean, p_text text, p_ledare jsonb) security=definer volatile=volatile config=search_path="" returns=uuid md5=da23b482c4418616bf5c37f5646683de
 funcdef public.date_dist(date, date) security=invoker volatile=immutable config=- returns=integer md5=053fc23cfc9549c4f7305a61bb68f309
@@ -1516,6 +1523,7 @@ grantfn app.tg_notify_day_rejected() EXECUTE=(none)
 grantfn app.tg_notify_shift_offered() EXECUTE=(none)
 grantfn app.tg_pass_delete_guard() EXECUTE=authenticated
 grantfn app.tg_pass_edit_guard() EXECUTE=PUBLIC,authenticated
+grantfn app.tg_pass_original_times() EXECUTE=PUBLIC,authenticated
 grantfn app.tg_profile_touch() EXECUTE=PUBLIC,authenticated
 grantfn app.tg_project_created_by() EXECUTE=PUBLIC,authenticated
 grantfn app.tg_project_leader_is_a_leader() EXECUTE=PUBLIC,authenticated
@@ -1540,6 +1548,7 @@ grantfn public.clock_in(p_tilldelning uuid) EXECUTE=PUBLIC,authenticated,service
 grantfn public.clock_out(p_tilldelning uuid) EXECUTE=PUBLIC,authenticated,service_role
 grantfn public.close_pass(p_pass uuid, p_hours numeric) EXECUTE=PUBLIC,anon,authenticated,service_role
 grantfn public.complete_bristsurvey(p_project uuid, p_work_date date, p_text text) EXECUTE=PUBLIC,anon,authenticated,service_role
+grantfn public.confirm_day(p_project uuid, p_date date, p_vad_vi_gjorde text, p_rows jsonb) EXECUTE=authenticated,service_role
 grantfn public.confirm_flagged_day(p_project uuid, p_work_date date, p_text text, p_rows jsonb) EXECUTE=PUBLIC,anon,authenticated,service_role
 grantfn public.create_snabb_pass(p_project uuid, p_worker uuid, p_date date, p_start time without time zone, p_end time without time zone, p_hours numeric, p_direkt boolean, p_text text, p_ledare jsonb) EXECUTE=PUBLIC,anon,authenticated,service_role
 grantfn public.date_dist(date, date) EXECUTE=PUBLIC,anon,authenticated,postgres,service_role

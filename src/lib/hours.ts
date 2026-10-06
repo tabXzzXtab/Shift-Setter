@@ -10,31 +10,18 @@
  * already draws that line for an auto-assigned leader's prefilled hours; this
  * is the same line at creation.
  *
+ * AN AUTO-ASSIGNED ARBETSLEDARE GETS THE SAME (owner, 2026-10-06). Their
+ * prefill on Bekräfta is the workers' envelope minus the same half hour --
+ * "lunch comes off the envelope like anyone else's". It used to be the whole
+ * envelope, on the reading that the break was theirs to subtract; in testing
+ * that gave Lars 0,75 h for a 45-minute envelope where 0,25 was right.
+ *
  * Thirty minutes because that is the ordinary unpaid break. Where the real
  * break is longer -- and it often is -- the leader types the real number, which
  * is exactly why the field stays editable and independent of the two times.
  */
 export function defaultHours(start: string, end: string): string {
   return format(minutesBetween(start, end) - 30);
-}
-
-/**
- * The whole span, with no break taken off -- an auto-assigned arbetsledare's
- * prefill (Step 4b).
- *
- * Deliberately different from defaultHours. The spec says a leader's hours are
- * "prefilled from that span" and that "the prefilled number is a starting point
- * the leader overwrites before confirming -- lunch comes off it like anyone
- * else's". So the break is theirs to subtract, not ours to assume: their day is
- * the workers' envelope, and a leader who was on site from the first arrival to
- * the last departure did not necessarily take the same half hour anyone else
- * did.
- *
- * Still a prefill, not a derivation. Invariant 1 holds for the same reason it
- * holds above: a human accepts or corrects this figure before it is stored.
- */
-export function spanHours(start: string, end: string): string {
-  return format(minutesBetween(start, end));
 }
 
 function minutesBetween(start: string, end: string): number {

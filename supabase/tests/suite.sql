@@ -5669,4 +5669,116 @@ select pg_temp.rejects($$
   from public.project where id = 'aaaaaaaa-0000-0000-0000-00000000000a'
 $$, 'PROJECT.services_never_blank');
 
+-- ============================================================================
+-- THE GATE READS THE PLANNED TIMES; BEKRÄFTA IS ONE TRANSACTION (20261006120000)
+--
+-- Its own project, so nothing above can share its days. D is YESTERDAY, so a
+-- correction that runs it overnight ends tonight -- still ahead of now(); F is
+-- a fortnight ahead and not started. Nobody works D: w3 already holds shifts
+-- yesterday and today, and an overnight correction would collide with them
+-- (invariant 2) before the gate was ever asked. w3 works F; leaderA leads.
+-- ============================================================================
+reset role;
+select set_config('request.jwt.claims', '{}', true);
+
+insert into public.project (id, name, site_address, bestallare_address,
+                            bestallare_bolag, bestallare_orgnr, services, start_date)
+values ('f1f1f1f1-0000-0000-0000-00000000000f', 'Planerad Tid', 'Gata 61', 'Kund 61',
+        'Bolag AB', '556000-0000', 'Bygg', app.stockholm_today() - 40);
+insert into public.project_leader (project_id, account_id)
+select 'f1f1f1f1-0000-0000-0000-00000000000f'::uuid, v from fx where k = 'leaderA';
+
+insert into public.pass (id, project_id, work_date, start_time, end_time,
+                         planned_hours, headcount, created_by)
+values ('f1f1f1f1-0000-0000-0000-0000000000a1', 'f1f1f1f1-0000-0000-0000-00000000000f',
+        app.stockholm_today() - 1, '10:00', '11:30', 1.00, 1,
+        (select v from fx where k = 'admin'));
+
+-- The plan is what the pass was made with, whatever the caller says it was.
+select pg_temp.accepts($$
+  insert into public.pass (id, project_id, work_date, start_time, end_time,
+                           start_time_original, end_time_original,
+                           planned_hours, headcount, created_by)
+  values ('f1f1f1f1-0000-0000-0000-0000000000a2', 'f1f1f1f1-0000-0000-0000-00000000000f',
+          app.stockholm_today() + 15, '07:00', '16:00', '01:00', '02:00', 8.50, 1,
+          (select v from fx where k = 'admin'))
+$$, 'ORIGINAL.set_on_insert.accepted');
+select pg_temp.ok(
+  (select start_time_original = '07:00' and end_time_original = '16:00'
+   from public.pass where id = 'f1f1f1f1-0000-0000-0000-0000000000a2'),
+  'ORIGINAL.set_on_insert', 'a new pass''s planned times are its own, not what the caller sent');
+
+insert into public.tilldelning (pass_id, worker_id, source, work_date)
+select p.id, w.id, 'manuell', p.work_date
+from public.pass p, public.worker w join fx on fx.v = w.account_id
+where fx.k = 'w3'
+  and p.id = 'f1f1f1f1-0000-0000-0000-0000000000a2';
+
+set local role authenticated;
+select pg_temp.act_as((select v from fx where k = 'admin'));
+
+-- Before the shift starts an edit is a reschedule: the plan moves with it.
+update public.pass set end_time = '12:00' where id = 'f1f1f1f1-0000-0000-0000-0000000000a2';
+select pg_temp.ok(
+  (select end_time_original = '12:00' from public.pass
+   where id = 'f1f1f1f1-0000-0000-0000-0000000000a2'),
+  'ORIGINAL.follows_before_start', 'rescheduling a shift that has not started moves its plan');
+
+-- From its start on, an edit is a correction: the plan stays.
+update public.pass set end_time = '12:00' where id = 'f1f1f1f1-0000-0000-0000-0000000000a1';
+select pg_temp.ok(
+  (select end_time = '12:00' and end_time_original = '11:30' from public.pass
+   where id = 'f1f1f1f1-0000-0000-0000-0000000000a1'),
+  'ORIGINAL.frozen_once_started', 'correcting a shift that has started leaves its plan where it was');
+
+select pg_temp.rejects($$
+  update public.pass set end_time_original = '05:00'
+  where id = 'f1f1f1f1-0000-0000-0000-0000000000a1'
+$$, 'ORIGINAL.not_writable');
+
+-- A REFUSED CONFIRMATION WRITES NOTHING. F has not happened, so the gate
+-- refuses -- and the time correction and the hours sent with it must not
+-- have landed either. That partial save is the bug this replaced.
+select pg_temp.act_as((select v from fx where k = 'leaderA'));
+do $$
+begin
+  perform public.confirm_day(
+    'f1f1f1f1-0000-0000-0000-00000000000f', app.stockholm_today() + 15, 'Planerat',
+    (select jsonb_agg(jsonb_build_object(
+       'tilldelning_id', t.id, 'pass_id', t.pass_id, 'start_time', '07:00',
+       'end_time', '13:00', 'hours', 5, 'late', true, 'move_times', true))
+     from public.tilldelning t
+     where t.pass_id = 'f1f1f1f1-0000-0000-0000-0000000000a2' and t.source = 'manuell'));
+exception when others then null;
+end $$;
+select pg_temp.ok(
+  (select p.end_time = '12:00'
+          and (select t.confirmed_hours is null from public.tilldelning t
+               where t.pass_id = p.id and t.source = 'manuell')
+   from public.pass p where p.id = 'f1f1f1f1-0000-0000-0000-0000000000a2'),
+  'CONFIRM.refusal_writes_nothing',
+  'a refused Bekräfta leaves the shift''s times and the hours as they were');
+
+-- THE REPRODUCTION. D was planned to end 11:30 yesterday. The leader corrects
+-- the pass to 23:59-23:58 -- a shift that now runs overnight and ends tonight
+-- at 23:58 -- and confirms. Measured against the correction the day is "not
+-- over yet"; measured against the plan it is long over, and confirms.
+-- (Only the two minutes before midnight could make the correction past too.)
+update public.pass set start_time = '23:59', end_time = '23:58'
+where id = 'f1f1f1f1-0000-0000-0000-0000000000a1';
+select pg_temp.accepts($$
+  select public.confirm_day(
+    'f1f1f1f1-0000-0000-0000-00000000000f', app.stockholm_today() - 1, 'Göt plattan', '[]'::jsonb)
+$$, 'CONFIRM.original_end_is_the_gate');
+
+reset role;
+select pg_temp.ok(
+  (select pd.stage = 'leader_confirmed' and p.end_time = '23:58' and p.end_time_original = '11:30'
+   from public.project_day pd
+   join public.pass p on p.id = 'f1f1f1f1-0000-0000-0000-0000000000a1'
+   where pd.project_id = 'f1f1f1f1-0000-0000-0000-00000000000f'
+     and pd.work_date = app.stockholm_today() - 1),
+  'CONFIRM.correction_and_confirmation_both_land',
+  'the day is confirmed, the correction is on the pass, and the plan is untouched');
+
 select pg_temp.ok(true, 'SUITE.complete', 'every assertion passed');

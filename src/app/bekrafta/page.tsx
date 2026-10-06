@@ -9,10 +9,10 @@ import {
 } from "@/components/soft";
 import { TimeField } from "@/components/time-wheel";
 import { JobbadeInteDialog, StampLine } from "@/components/jobbade-inte";
-import { derivesTenant, getSupabase } from "@/lib/supabase/client";
+import { getSupabase } from "@/lib/supabase/client";
 import { hhmm, longDayHeading, passEndAt, stampToTime } from "@/lib/dates";
 import { pendingDays } from "@/lib/pending-days";
-import { spanHours } from "@/lib/hours";
+import { defaultHours } from "@/lib/hours";
 import { fel } from "@/lib/fel";
 import { tourSignal } from "@/lib/tour/signal";
 
@@ -272,11 +272,11 @@ function Bekrafta({ askedProject, askedDate }: { askedProject: string | null; as
           pass_id: a.pass_id,
           start,
           end,
-          // A leader's figure is prefilled from the envelope, with no break
-          // taken off: lunch is theirs to subtract. A worker's is the pass's
-          // planned number.
+          // A leader's figure is prefilled from the envelope less the same
+          // half-hour break as anyone's (lib/hours.ts). A worker's is the
+          // pass's planned number.
           planned_hours: leader
-            ? Number(spanHours(start, end).replace(",", "."))
+            ? Number(defaultHours(start, end).replace(",", "."))
             : Number(p.planned_hours),
           clock_in: a.clock_in,
           clock_out: a.clock_out,
@@ -320,7 +320,13 @@ function Bekrafta({ askedProject, askedDate }: { askedProject: string | null; as
     setError(null);
     const sb = getSupabase();
 
-    for (const row of day.rows) {
+    // ONE CALL, ALL OR NOTHING (20261006120000). This was three kinds of write
+    // from the browser -- the corrected times, then each person's hours, then
+    // the day -- and when the guard refused the day the first two had already
+    // landed. public.confirm_day runs them in one transaction as the leader
+    // (security invoker: the same policies and triggers), so a refusal now
+    // leaves the day exactly as it was.
+    const payload = day.rows.map((row) => {
       const e = edits[row.tilldelning_id]!;
       const hours = joinHours(e.h, e.m);
       const timesChanged = e.start !== row.start || e.end !== row.end;
@@ -331,55 +337,33 @@ function Bekrafta({ askedProject, askedDate }: { askedProject: string | null; as
       // note about floating point.
       const before = row.confirmed_hours ?? row.planned_hours;
       const hoursChanged = Math.round(hours * 60) !== Math.round(before * 60);
-
       // A leader's span is read-only on this screen, so it cannot have moved --
       // and this says so rather than relying on two strings still being equal.
       // Stage 2 is where own_start/own_end are corrected, through approve_day,
       // which routes them by the row's source rather than trusting a caller.
-      if (timesChanged && !row.is_leader) {
-        const { error: tErr } = await sb
-          .from("pass")
-          .update({ start_time: e.start, end_time: e.end })
-          .eq("id", row.pass_id);
-        if (tErr) {
-          setError(fel(tErr, "Tiderna kunde inte sparas. Kontakta administratören."));
-          setSaving(false);
-          return;
-        }
-      }
+      const moveTimes = timesChanged && !row.is_leader;
+      return {
+        tilldelning_id: row.tilldelning_id,
+        pass_id: row.pass_id,
+        start_time: e.start,
+        end_time: e.end,
+        hours,
+        // One row, one late mark, however many fields were edited.
+        late: moveTimes || hoursChanged,
+        move_times: moveTimes,
+      };
+    });
 
-      // One row, one late mark, however many fields were edited.
-      const { error: aErr } = await sb
-        .from("tilldelning")
-        .update({
-          confirmed_hours: hours,
-          late: (timesChanged && !row.is_leader) || hoursChanged,
-        })
-        .eq("id", row.tilldelning_id);
-      if (aErr) {
-        setError(fel(aErr, "Timmarna kunde inte sparas. Kontakta administratören."));
-        setSaving(false);
-        return;
-      }
-    }
-
-    // The day record and the confirmation are one write. The database refuses
-    // a confirmation whose "Vad Vi Gjorde" is blank, and refuses it from anyone
-    // who is not the assigned arbetsledare.
-    // Upsert, not insert: a day the admin sent back already has its row, with
-    // the rejection recorded on it. That record is not the leader's to clear
-    // and the guard keeps it whatever this write says.
-    const { error: dErr } = await sb.from("project_day").upsert(
-      derivesTenant({
-        project_id: day.project_id,
-        work_date: day.work_date,
-        vad_vi_gjorde: gjorde.trim(),
-        confirmed_at: new Date().toISOString(),
-        confirmed_by: (await sb.auth.getUser()).data.user!.id,
-        confirmed_via: "leader",
-      }),
-      { onConflict: "project_id,work_date" },
-    );
+    // The database refuses a confirmation whose "Vad Vi Gjorde" is blank, and
+    // refuses it from anyone who is not the leader on the day. A day the admin
+    // sent back already has its row, rejection and all; the call upserts it and
+    // the guard keeps the rejection whatever this says.
+    const { error: dErr } = await sb.rpc("confirm_day", {
+      p_project: day.project_id,
+      p_date: day.work_date,
+      p_vad_vi_gjorde: gjorde.trim(),
+      p_rows: payload,
+    });
 
     if (dErr) {
       setError(fel(dErr, "Dagen kunde inte bekräftas. Kontakta administratören."));

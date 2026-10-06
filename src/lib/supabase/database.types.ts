@@ -518,11 +518,13 @@ export type Database = {
           deleted_at: string | null
           deleted_by: string | null
           end_time: string
+          end_time_original: string
           headcount: number
           id: string
           planned_hours: number
           project_id: string
           start_time: string
+          start_time_original: string
           tenant_id: string
           work_date: string
         }
@@ -533,11 +535,13 @@ export type Database = {
           deleted_at?: string | null
           deleted_by?: string | null
           end_time: string
+          end_time_original: string
           headcount: number
           id?: string
           planned_hours: number
           project_id: string
           start_time: string
+          start_time_original: string
           tenant_id: string
           work_date: string
         }
@@ -548,11 +552,13 @@ export type Database = {
           deleted_at?: string | null
           deleted_by?: string | null
           end_time?: string
+          end_time_original?: string
           headcount?: number
           id?: string
           planned_hours?: number
           project_id?: string
           start_time?: string
+          start_time_original?: string
           tenant_id?: string
           work_date?: string
         }
@@ -2188,6 +2194,15 @@ export type Database = {
       }
       complete_bristsurvey: {
         Args: { p_project: string; p_text: string; p_work_date: string }
+        Returns: undefined
+      }
+      confirm_day: {
+        Args: {
+          p_date: string
+          p_project: string
+          p_rows: Json
+          p_vad_vi_gjorde: string
+        }
         Returns: undefined
       }
       confirm_flagged_day: {

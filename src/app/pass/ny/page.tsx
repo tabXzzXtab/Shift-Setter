@@ -209,6 +209,10 @@ function NyttPass({ asked, fromDay = false }: { asked: string | null; fromDay?: 
         work_date,
         start_time: r.start,
         end_time: r.end,
+        // The plan the confirmation gate reads. Sent because the column is
+        // required; pass_original_times sets it from the times regardless.
+        start_time_original: r.start,
+        end_time_original: r.end,
         planned_hours: Number(r.hours.replace(",", ".")),
         headcount: r.headcount,
         created_by: me,

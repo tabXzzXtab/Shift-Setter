@@ -556,7 +556,7 @@ The priority list is for workers. A leader does not queue for their own project.
 
 **Their times are the workers' envelope.** Earliest shift start to latest shift end, across every worker on that project that day. A leader who arrives before the first person and leaves after the last is the ordinary case, and that span is what the row shows.
 
-**Their hours are prefilled from that span and stay editable.** The prefilled number is a starting point the leader overwrites before confirming — lunch comes off it like anyone else's. This does not weaken invariant 1: a number a human must accept or correct is not a derived number. Nothing writes a leader's hours that no human looked at.
+**Their hours are prefilled from that span and stay editable.** The prefill is the envelope less the same 30-minute break as anyone's prefill — lunch comes off it like anyone else's — and the leader overwrites it before confirming where the real break was different. (It was once the whole envelope, on the reading that the break was theirs to subtract; a 45-minute envelope then prefilled 0,75 h where 0,25 was right.) This does not weaken invariant 1: a number a human must accept or correct is not a derived number. Nothing writes a leader's hours that no human looked at.
 
 **The row exists because workers are there, and only while they are.** Take the last worker off a project's day and the leader's row goes with it — released, not deleted, because a leader who had already clocked in leaves evidence and invariant 3 does not lose evidence when a schedule changes. Put a worker back on that day and the leader is placed again. Only a person taking the leader off (Step 5c) keeps them off; a row released because the shift was deleted or the day emptied is the basis disappearing, not a decision anyone made.
 
@@ -671,7 +671,7 @@ Confirmation happens twice. The leader states what happened; the admin reviews t
 
 **Stage 1 — the arbetsledare**
 
-**Trigger.** A day becomes confirmable the minute its last shift has ended. Not at midnight, not the next morning — when the final shift on that day is over by the clock. **One exception, backwards only:** a Snabb Pass filed *direkt* (Step 7) files a date that is today or earlier without waiting for the shift's end time, because that route records an arrangement the admin already knows the whole of — they made it. A future date it still refuses.
+**Trigger.** A day becomes confirmable the minute its last shift has ended **as planned**. The gate reads `pass.start_time_original` / `end_time_original`, which follow the pass's times while the shift has not started — moving next Tuesday from 07–16 to 07–12 is a reschedule, and the day becomes confirmable at 12 — and freeze when it starts. Nobody writes them directly. So a leader who corrects a worker's end from 11:30 to 12:30 on Bekräfta is correcting the record, not moving the gate: measured against the correction, the day stopped being over the moment it was stated, and the leader was locked out of it until 12:30. The confirmation queue reads the same planned end, so the day cannot vanish from it either. Not at midnight, not the next morning — when the final shift on that day is over by the clock. **One exception, backwards only:** a Snabb Pass filed *direkt* (Step 7) files a date that is today or earlier without waiting for the shift's end time, because that route records an arrangement the admin already knows the whole of — they made it. A future date it still refuses.
 
 **Who.** The arbetsledare assigned to that project. Assignment is set by the admin at project creation, and a project may have several. An arbetsledare sees only the days belonging to projects they are on.
 
@@ -697,6 +697,8 @@ Every field on the row is editable. Start time, end time, hours worked — the l
 **Before a day can be confirmed**, the leader writes a few words about what that day's workers did. This is the "Vad Vi Gjorde" text, mandatory, one per project per day, and it prints on every row of that day's table in the document.
 
 **Removing someone who wasn't there.** If a person on the list did not actually work that shift, the leader removes them from the day here. That is different from deleting a shift — it corrects the record of who was present.
+
+**Bekräfta dagen is one transaction.** The corrected times, each row's hours and late mark, and the day itself go through `public.confirm_day()` in one call, as the leader (security invoker — the same policies and triggers). If anything refuses, nothing lands: the time corrections used to be written first, separately, and survived a refused confirmation.
 
 **Confirming writes `leader_confirmed`.** The day leaves the leader's queue, and the leader cannot edit it again. **Stage 1 is final for them.** The only thing that puts the day back in their hands is the admin rejecting it.
 
