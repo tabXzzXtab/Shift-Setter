@@ -872,6 +872,8 @@ These are the ones worth a buzz: a shift you could take and somebody else will i
 
 **The startsida draws no notifications any more.** It used to draw every unread one as a card with an *Okej* — for some workers 249 cards, most reading only *Du har en ny notis.* — and a leader's or an admin's notifications were drawn nowhere at all.
 
+**"Nytt pass" goes quiet by itself** (owner, 2026-10-06). It is written when a worker is placed on a shift, and nobody answers it, so left alone it piled up. It stops counting as unread when it stops being news: **when the shift is cancelled** — the worker's place on it released, for any reason — a trigger marks it read; **when its day has passed**, `my_notification` reads it as read from the end of that day. The second needs a clock and there is none, so it is computed on every read rather than written, which also clears the old pile without touching a row.
+
 **Reading is the only write.** The list reads `my_notification`, a view carrying its own tenant and account predicate (it runs as its owner, so a worker sees the project's name without being able to read `project`). Marking goes through `mark_notifications_read(p_ids)` — all of the caller's unread when no ids are given — and `tg_notification_only_read` refuses any other change to a notification, and refuses un-reading one. Before it, the own-row UPDATE policy let an account rewrite the text of its own notifications.
 
 ## 6c. Tenancy — one company, one world
