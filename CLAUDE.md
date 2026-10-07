@@ -506,6 +506,17 @@ probe run without it once left fixture rows in the database.
 
 ### Running the walkthroughs
 
+**THE OLD BELLA SERVICE AB TENANCY IS GONE (owner, 2026-10-06).** It was the
+demo home every walkthrough and `demo:reset` below was written against. The
+owner had it removed (by hand, with counts shown first, per the tenancy section
+above) to re-register the company fresh: 189 accounts including
+`admin@bellaservice.se`, 76 projects, 232 passes. Until the new tenancy exists
+and `.env.local`'s `WALKTHROUGH_ADMIN_EMAIL` / `DEMO_ADMIN_EMAIL` name an admin
+in it, every walkthrough fails at login and `demo:reset` refuses (it looks the
+tenancy up by name). `test:db` is unaffected: `suite.sql` now creates its own
+home tenancy under the old id, inside its rolled-back transaction. Where the
+text below says "Bella's tenancy", read "the new company's", once it exists.
+
 **`npm run demo:reset` is OPTIONAL, and run deliberately when the suite needs a
 clean slate — not as a reflex before every sweep.**
 
