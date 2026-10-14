@@ -371,6 +371,18 @@ function Bekrafta({ askedProject, askedDate }: { askedProject: string | null; as
       p_rows: payload,
     });
 
+    // SOMEBODY ELSE CLOSED IT FIRST -- the same leader in another browser, or
+    // the admin. The day is no longer this screen's to edit, so it goes at
+    // once, exactly as it does for the browser that won: the form left on
+    // screen under the refusal stayed editable with Bekräfta dagen pressable,
+    // asking for an answer the database had already taken (stress test 4).
+    if (dErr && /stage 1 is final|admin_confirmed and final/.test(dErr.message)) {
+      setDay(null);
+      setSaving(false);
+      setReload((r) => r + 1);
+      return;
+    }
+
     if (dErr) {
       setError(fel(dErr, "Dagen kunde inte bekräftas. Kontakta administratören."));
       setSaving(false);
