@@ -707,6 +707,8 @@ Every field on the row is editable. Start time, end time, hours worked — the l
 
 **Bekräfta dagen is one transaction.** The corrected times, each row's hours and late mark, and the day itself go through `public.confirm_day()` in one call, as the leader (security invoker — the same policies and triggers). If anything refuses, nothing lands: the time corrections used to be written first, separately, and survived a refused confirmation.
 
+**A day somebody else closed first leaves the screen.** If the same leader confirms the day in another browser, or the admin approves it, before this press lands, `confirm_day()` refuses it (stage 1 is final, or admin_confirmed and final). The screen then drops the day at once and shows what the winning browser shows, *Inget att bekräfta*, or the next waiting day. It used to keep the day as a live form under the refusal, editable and with Bekräfta dagen still pressable (stress test 4, 2026-10-12).
+
 **Confirming writes `leader_confirmed`.** The day leaves the leader's queue, and the leader cannot edit it again. **Stage 1 is final for them.** The only thing that puts the day back in their hands is the admin rejecting it.
 
 **The Arbetsdagbok can be generated from here.** The admin does not have to have looked at the day first.
