@@ -1,36 +1,23 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 /**
- * The native shell around app.bellaserviceab.se.
+ * The native shell that ships the bundled static export.
  *
- * THE SHELL LOADS THE LIVE SITE, it does not ship the build. `server.url`
- * overrides `webDir` at runtime: the WebView navigates to the origin below and
- * the contents of `out/` are never read on device. That is what makes a release
- * a deploy rather than a store submission -- the web app updates and every
- * installed copy updates with it, without review.
+ * `server.url` has been removed. The WebView now serves from `webDir` (out/)
+ * instead of the live site, which is required for App Store submission.
  *
- * It is also what the App Store has the most to say about. See the note in
- * README/handoff on Guideline 4.2: a shell whose only content is a remote
- * website is the shape Apple rejects, and the way out is native capability the
- * browser cannot offer, not a better description.
+ * Guideline 4.2 note: a shell whose only content is a remote website is what
+ * Apple rejects. With server.url gone the app ships the full static bundle and
+ * uses native capabilities (push notifications, geofence) the browser cannot
+ * offer — that is the correct answer.
  *
- * `webDir` stays pointed at `out/` because the CLI requires it and because it
- * is the correct answer the day `server.url` comes off -- `npm run build`
- * writes the static export there, so a bundled build needs no other change.
- *
- * NO CLEARTEXT. The origin is HTTPS and nothing on device may fall back to
- * plain HTTP: the browser holds the auth token and talks to PostgREST directly,
- * so the transport is the only thing between that token and the network.
- * Android would otherwise permit cleartext to arbitrary hosts in debug builds.
+ * NO CLEARTEXT. All traffic to Supabase PostgREST is HTTPS only. The auth
+ * token lives in the WebView and the transport is the only thing protecting it.
  */
 const config: CapacitorConfig = {
   appId: 'se.bellaserviceab.byggkoll',
   appName: 'ByggKoll',
   webDir: 'out',
-  server: {
-    url: 'https://app.bellaserviceab.se',
-    cleartext: false,
-  },
 };
 
 export default config;
