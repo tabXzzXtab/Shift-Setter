@@ -10,14 +10,33 @@ workflows:
       xcode: latest
       cocoapods: default
     scripts:
+      - name: Set up keychain
+        script: keychain initialize
+
+      - name: Fetch signing files
+        script: |
+          app-store-connect fetch-signing-files se.bellaserviceab.byggkoll \
+            --type IOS_APP_STORE \
+            --create
+
+      - name: Add certs to keychain
+        script: keychain add-certificates
+
+      - name: Set up code signing settings
+        script: xcode-project use-profiles
+
       - name: Install deps
         script: npm ci
+
       - name: Build static export
         script: npm run build
+
       - name: Capacitor sync
         script: npx cap sync ios
+
       - name: Pod install
         script: cd ios/App && pod install
+
       - name: Build IPA
         script: |
           xcode-project build-ipa \
