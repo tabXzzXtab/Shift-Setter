@@ -1,0 +1,35 @@
+workflows:
+  ios-app-store:
+    name: iOS App Store
+    max_build_duration: 60
+    environment:
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: se.bellaserviceab.byggkoll
+      node: 20.x
+      xcode: latest
+      cocoapods: default
+    scripts:
+      - name: Install deps
+        script: npm ci
+      - name: Build static export
+        script: npm run build
+      - name: Capacitor sync
+        script: npx cap sync ios
+      - name: Pod install
+        script: cd ios/App && pod install
+      - name: Build IPA
+        script: |
+          xcode-project build-ipa \
+            --workspace "ios/App/App.xcworkspace" \
+            --scheme "App" \
+            --config "Release"
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+    publishing:
+      app_store_connect:
+        api_key: $APP_STORE_CONNECT_PRIVATE_KEY
+        key_id: $APP_STORE_CONNECT_KEY_ID
+        issuer_id: $APP_STORE_CONNECT_ISSUER_ID
+        submit_to_testflight: false
