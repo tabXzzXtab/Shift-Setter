@@ -3,9 +3,6 @@ workflows:
     name: iOS App Store
     max_build_duration: 60
     environment:
-      ios_signing:
-        distribution_type: app_store
-        bundle_identifier: se.bellaserviceab.byggkoll
       node: 20.x
       xcode: latest
       cocoapods: default
