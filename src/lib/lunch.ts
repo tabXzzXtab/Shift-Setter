@@ -54,3 +54,4 @@ export async function lunchLines(tilldelningIds: string[]): Promise<Map<string, 
   }
   return out;
 }
+

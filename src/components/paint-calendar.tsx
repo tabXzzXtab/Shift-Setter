@@ -120,3 +120,4 @@ export function PaintCalendar({
 
   return <MonthCard month={month} onMonthChange={onMonthChange} gap={2}>{grid}</MonthCard>;
 }
+

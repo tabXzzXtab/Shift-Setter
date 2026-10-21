@@ -14,9 +14,9 @@ import type { CapacitorConfig } from '@capacitor/cli';
  * NO CLEARTEXT. All traffic to Supabase PostgREST is HTTPS only. The auth
  * token lives in the WebView and the transport is the only thing protecting it.
  */
-const config: CapacitorConfig = {
-  appId: 'se.bellaserviceab.byggkoll',
-  appName: 'ByggKoll',
+const config: CapacitorConfig = { 
+  appId: 'se.bellaserviceab.UrKoll',
+  appName: 'UrKoll',
   webDir: 'out',
 };
 

@@ -138,3 +138,4 @@ export function footerRight(s: DocSender): string[] {
     s.momsreg && `${FOOTER.momsregLabel}: ${s.momsreg}`,
   ].filter((l): l is string => Boolean(l));
 }
+

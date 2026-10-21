@@ -42,3 +42,4 @@ export async function companySetupNeeded(accountId: string, role: Role): Promise
     return false;
   }
 }
+

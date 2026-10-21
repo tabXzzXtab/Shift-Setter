@@ -54,3 +54,4 @@ export async function loadSender(tenantId: string): Promise<DocSender> {
     logoFailed: Boolean(b.logo_path) && !logo,
   };
 }
+

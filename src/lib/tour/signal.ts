@@ -20,7 +20,7 @@ export type TourSignal =
   /** The leader tapped both of the days the tour ringed on Välj dagar. */
   | "tour-days-picked";
 
-const EVENT = "byggkoll:tour-signal";
+const EVENT = "UrKoll:tour-signal";
 
 export function tourSignal(signal: TourSignal) {
   try {
@@ -33,3 +33,4 @@ export function onTourSignal(handler: (signal: TourSignal) => void): () => void 
   window.addEventListener(EVENT, listener);
   return () => window.removeEventListener(EVENT, listener);
 }
+

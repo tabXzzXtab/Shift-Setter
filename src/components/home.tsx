@@ -103,3 +103,4 @@ export function Home() {
   if (account.role === "arbetsledare") return <HomeArbetsledare />;
   return <HomeArbetare />;
 }
+

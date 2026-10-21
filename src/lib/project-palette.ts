@@ -65,3 +65,4 @@ export function useMonthColour(month: string): (projectId: string) => string | n
   return (projectId: string) =>
     ids && ids.includes(projectId) ? projectColour(colourIndex(ids, projectId)) : null;
 }
+

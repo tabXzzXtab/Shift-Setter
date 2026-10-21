@@ -20,7 +20,7 @@ const completeKey = (accountId: string) => `onboarding_complete_${accountId}`;
 const stepKey = (accountId: string) => `onboarding_step_${accountId}`;
 
 /** Set by the tour's own walkthrough. See the note on AUTOMATED BROWSERS. */
-export const TOUR_TEST_KEY = "byggkoll.tour-test";
+export const TOUR_TEST_KEY = "UrKoll.tour-test";
 
 export function tourComplete(accountId: string): boolean {
   try {
@@ -82,3 +82,4 @@ export function automatedWithoutOptIn(): boolean {
     return false;
   }
 }
+

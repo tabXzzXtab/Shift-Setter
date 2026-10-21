@@ -22,3 +22,4 @@ export function CardTitle({ children, mb = 14 }: { children: ReactNode; mb?: 4 |
     </div>
   );
 }
+

@@ -182,3 +182,4 @@ export async function forgetToken(): Promise<void> {
     // Nothing to do. The next person to sign in on this handset takes the row.
   }
 }
+

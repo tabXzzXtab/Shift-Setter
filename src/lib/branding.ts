@@ -136,3 +136,4 @@ export async function removeLogo(tenantId: string, previous: string | null): Pro
   if (error) throw error;
   if (previous) await sb.storage.from(BRANDING_BUCKET).remove([previous]);
 }
+

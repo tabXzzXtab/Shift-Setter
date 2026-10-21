@@ -36,9 +36,9 @@ const inter = Inter({
 const BASE = "";
 
 export const metadata: Metadata = {
-  title: "ByggKoll",
+  title: "UrKoll",
   description: "Skiftplanering och Arbetsdagbok",
-  applicationName: "ByggKoll",
+  applicationName: "UrKoll",
   manifest: `${BASE}/manifest.json`,
   icons: {
     icon: [
@@ -94,3 +94,4 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     </html>
   );
 }
+

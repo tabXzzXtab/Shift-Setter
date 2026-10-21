@@ -323,7 +323,7 @@ const TABLE: [string, string][] = [
  * followable from the other end.
  */
 export const UTGANGEN =
-  "Din provperiod har gått ut. Kontakta oss för att fortsätta använda ByggKoll.";
+  "Din provperiod har gått ut. Kontakta oss för att fortsätta använda UrKoll.";
 
 export function fel(error: unknown, fallback: string): string {
   const raw = textOf(error as Felkalla).trim();
@@ -334,3 +334,4 @@ export function fel(error: unknown, fallback: string): string {
   }
   return fallback;
 }
+

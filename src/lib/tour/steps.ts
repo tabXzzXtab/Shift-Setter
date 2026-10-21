@@ -430,8 +430,8 @@ export const SEQUENCES: Record<Role, Step[]> = {
 export const DONE = {
   image: "hjalm-rund" as TourImage,
   // One sentence, as Brilliant draws it (Guide slutkort, canvas 1 Admin).
-  title: "Välkommen till ByggKoll. Du vet nu vad du behöver göra.",
-  em: "ByggKoll",
+  title: "Välkommen till UrKoll. Du vet nu vad du behöver göra.",
+  em: "UrKoll",
   line: undefined as string | undefined,
   button: "Kom igång",
 };
@@ -483,3 +483,4 @@ export async function met(req: Requirement): Promise<boolean> {
     return false;
   }
 }
+

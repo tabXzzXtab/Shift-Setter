@@ -87,3 +87,4 @@ export function derivesTenant<T extends object>(row: T): T & { tenant_id: string
 export function derivesTenant(row: object): never {
   return row as never;
 }
+
