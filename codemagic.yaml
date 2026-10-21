@@ -37,7 +37,9 @@ workflows:
         script: npx cap sync ios
 
       - name: Pod install
-        script: cd ios/App && pod install
+        script: |
+          find . -name "Podfile" -not -path "*/node_modules/*"
+          cd ios/App && pod install
 
       - name: Build IPA
         script: |
@@ -45,6 +47,7 @@ workflows:
             --workspace "ios/App/App.xcworkspace" \
             --scheme "App" \
             --config "Release"
+            
     artifacts:
       - build/ios/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log
