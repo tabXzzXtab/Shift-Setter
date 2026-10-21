@@ -556,6 +556,60 @@ export function SoftInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
 }
 
 /**
+ * A password field with an eye that shows what was typed (owner, 2026-10-21).
+ *
+ * The passwords handed out here are copied off a card -- `Kx7m-Q2fa-9PtR` --
+ * and a row of dots gives nobody a way to see which character went wrong.
+ *
+ * The same box as a picker: a wrapper owns the border and the focus ring, the
+ * input is transparent inside it, and the eye sits at the right edge as a 44px
+ * target. The eye is muted ink, not a status colour -- it changes nothing.
+ *
+ * THE PRESS DOES NOT TAKE THE FOCUS. On a phone the keyboard closes when the
+ * input loses focus, so a tap on the eye would hide the keyboard in the middle
+ * of typing; preventing the pointer's default keeps the caret in the field.
+ * Hidden again each time the screen opens; the choice is never stored.
+ */
+export function PasswordInput(props: Omit<React.InputHTMLAttributes<HTMLInputElement>, "type">) {
+  const { className = "", style, ...rest } = props;
+  const [shown, setShown] = useState(false);
+  return (
+    <span
+      className="flex h-[52px] w-full min-w-0 items-center overflow-hidden rounded-[14px] border border-[#e4e3df] outline-none focus-within:border-[#b64e10] focus-within:outline-1 focus-within:outline-[#b64e10]"
+      style={{ background: C.surface }}
+    >
+      <input
+        {...rest}
+        type={shown ? "text" : "password"}
+        autoCapitalize="none"
+        autoCorrect="off"
+        spellCheck={false}
+        className={`h-full w-full min-w-0 border-0 bg-transparent pl-[14px] text-[16px] font-medium outline-none ${className}`}
+        style={{ color: C.ink, ...style }}
+      />
+      <button
+        type="button"
+        aria-label={shown ? "Dölj lösenord" : "Visa lösenord"}
+        aria-pressed={shown}
+        onPointerDown={(e) => e.preventDefault()}
+        onClick={() => setShown((s) => !s)}
+        className="mr-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-[10px] active:bg-[#e9e8e4]"
+      >
+        <svg width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden>
+          <path
+            d="M1.9 11s3.3-6.4 9.1-6.4 9.1 6.4 9.1 6.4-3.3 6.4-9.1 6.4S1.9 11 1.9 11Z"
+            stroke={C.text2} strokeWidth="2" strokeLinejoin="round"
+          />
+          <circle cx="11" cy="11" r="2.8" stroke={C.text2} strokeWidth="2" />
+          {/* Struck through while the password is showing: the press hides it. */}
+          {shown && <path d="M3.5 3.5l15 15" stroke={C.text2} strokeWidth="2" strokeLinecap="round" />}
+        </svg>
+      </button>
+    </span>
+  );
+}
+
+/**
  * The multi-line variant of SoftInput, for the one field that is prose.
  *
  * Same fill, radius, focus ring and type as the input -- only the height

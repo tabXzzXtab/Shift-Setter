@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { getSupabase } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/supabase/auth";
 import {
-  C, Card, PrimaryButton, SHADOW, SoftField, SoftInput, SoftNotice,
+  C, Card, PasswordInput, PrimaryButton, SHADOW, SoftField, SoftInput, SoftNotice,
 } from "@/components/soft";
 
 /**
@@ -107,9 +107,11 @@ export default function LoginPage() {
           </div>
 
           <div className="mb-5">
-            <SoftField label="Lösenord">
-              <SoftInput
-                type="password"
+            {/* htmlFor: the field holds a second control, the eye, and a label
+                left to choose could press it instead of focusing the input. */}
+            <SoftField label="Lösenord" htmlFor="losenord">
+              <PasswordInput
+                id="losenord"
                 required
                 autoComplete="current-password"
                 value={password}
