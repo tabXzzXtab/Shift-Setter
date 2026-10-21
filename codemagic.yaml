@@ -30,6 +30,9 @@ workflows:
       - name: Build static export
         script: npm run build
 
+      - name: Add iOS platform
+        script: npx cap add ios
+
       - name: Capacitor sync
         script: npx cap sync ios
 
