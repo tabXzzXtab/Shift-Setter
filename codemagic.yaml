@@ -3,6 +3,8 @@ workflows:
     name: iOS App Store
     max_build_duration: 60
     environment:
+      groups:
+        - app-store
       node: 20.x
       xcode: latest
       cocoapods: default
