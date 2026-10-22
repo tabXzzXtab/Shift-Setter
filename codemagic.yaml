@@ -1,4 +1,4 @@
-﻿workflows:
+workflows:
   ios-app-store:
     name: iOS App Store
     max_build_duration: 60
@@ -30,7 +30,7 @@
       - name: Build IPA
         script: |
           xcode-project build-ipa \
-            --workspace "ios/App/App.xcworkspace" \
+            --project "ios/App/App.xcodeproj" \
             --scheme "App" \
             --config "Release"
     artifacts:
