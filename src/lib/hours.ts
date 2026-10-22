@@ -46,3 +46,4 @@ function format(minutes: number): string {
   // Swedish decimal comma, and no trailing ",0" on a whole number.
   return Number.isInteger(hours) ? String(hours) : String(hours).replace(".", ",");
 }
+

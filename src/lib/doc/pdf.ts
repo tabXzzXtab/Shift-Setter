@@ -388,3 +388,4 @@ export function arbetsdagbokFilename(from: string, to: string, project: string):
 
   return `${ddmon(from)}-${ddmon(to)}-${to.slice(0, 4)}-${slug}.pdf`;
 }
+

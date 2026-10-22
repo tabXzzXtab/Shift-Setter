@@ -533,3 +533,4 @@ export function KontoDetalj({ askedId }: { askedId: string | null }) {
     </SoftScreen>
   );
 }
+

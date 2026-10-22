@@ -79,3 +79,4 @@ export function notisHref(n: NotisRow): string {
       return "/historik";
   }
 }
+

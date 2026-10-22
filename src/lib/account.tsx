@@ -102,3 +102,4 @@ export function useAccount(): State {
   if (!ctx) throw new Error("useAccount must be used inside <AccountProvider>");
   return ctx;
 }
+

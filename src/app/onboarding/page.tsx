@@ -233,7 +233,7 @@ function PinGate({ onPass }: { onPass: (pin: string) => void }) {
   }
 
   return (
-    <Frame title="Ange din kod" line="Koden fick du av din kontaktperson på ByggKoll.">
+    <Frame title="Ange din kod" line="Koden fick du av din kontaktperson på UrKoll.">
       {error && (
         <div className="pb-[14px]">
           <SoftNotice tone="stop">{error}</SoftNotice>
@@ -309,13 +309,13 @@ const ROUTES: { key: Route; title: string; body: string }[] = [
     key: "demo",
     title: "Tilldela Demo",
     body:
-      "Tilldela ByggKoll till en företagsägare som får tillgång till appen " +
+      "Tilldela UrKoll till en företagsägare som får tillgång till appen " +
       "med begränsad tillgång av 3 veckor kostnadsfri tillgång",
   },
   {
     key: "sald",
-    title: "Sålt ByggKoll",
-    body: "Har du sålt ByggKoll och användaren har bekräftat att de ska betala?",
+    title: "Sålt UrKoll",
+    body: "Har du sålt UrKoll och användaren har bekräftat att de ska betala?",
   },
 ];
 
@@ -361,7 +361,7 @@ function RouteChoice({ onChoose }: { onChoose: (r: Route) => void }) {
           className="flex min-h-[44px] items-center px-2 text-[15px] font-semibold underline underline-offset-[3px]"
           style={{ color: C.text2 }}
         >
-          Ge Bort ByggKoll
+          Ge Bort UrKoll
         </button>
       </div>
     </Frame>
@@ -740,3 +740,4 @@ function SignupForm({
     </FormFrame>
   );
 }
+

@@ -115,7 +115,7 @@ function SuperScreen() {
       <SoftScreen title="Välj ett företag" back="/">
         <div className="px-4 pt-[2px]">
           <SoftNotice tone="quiet">
-            Den här sidan är för dem som driver ByggKoll. Ditt konto hör till ett
+            Den här sidan är för dem som driver UrKoll. Ditt konto hör till ett
             företag och ser bara det.
           </SoftNotice>
         </div>
@@ -213,3 +213,4 @@ export default function Page() {
     </AuthGate>
   );
 }
+

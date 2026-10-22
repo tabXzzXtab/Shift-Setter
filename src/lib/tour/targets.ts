@@ -64,3 +64,4 @@ export function resolveTargets(targets: Target[], all = false): Element[] {
 /** Trailing slashes differ between a static export and the dev server. */
 export const samePath = (a: string, b: string) =>
   (a.replace(/\/+$/, "") || "/") === (b.replace(/\/+$/, "") || "/");
+

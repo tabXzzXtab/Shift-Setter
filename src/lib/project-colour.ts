@@ -37,3 +37,4 @@ export function projectColour(index: number): string {
 export function colourIndex(projectIds: string[], id: string): number {
   return Math.max(0, [...projectIds].sort().indexOf(id));
 }
+

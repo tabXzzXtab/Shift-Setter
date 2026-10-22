@@ -27,7 +27,7 @@ import { getSupabase } from "@/lib/supabase/client";
  * the database switches recording off for the rest of the page's life.
  */
 
-export const ANALYTICS_TEST_KEY = "byggkoll.analytics-test";
+export const ANALYTICS_TEST_KEY = "UrKoll.analytics-test";
 
 const FLUSH_MS = 10_000;
 const FLUSH_AT = 25;
@@ -144,3 +144,4 @@ export async function flush(leaving = false) {
     /* never the app's problem */
   }
 }
+

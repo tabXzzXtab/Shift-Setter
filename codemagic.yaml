@@ -1,0 +1,44 @@
+﻿workflows:
+  ios-app-store:
+    name: iOS App Store
+    max_build_duration: 60
+    environment:
+      groups:
+        - app-store
+      node: 22.11.0
+      xcode: latest
+    scripts:
+      - name: Set up keychain
+        script: keychain initialize
+      - name: Fetch signing files
+        script: |
+          app-store-connect fetch-signing-files se.bellaserviceab.urkoll \
+            --type IOS_APP_STORE \
+            --create
+      - name: Add certs to keychain
+        script: keychain add-certificates
+      - name: Install deps
+        script: npm ci
+      - name: Prepare web dir
+        script: mkdir -p out
+      - name: Add iOS platform
+        script: npx cap add ios
+      - name: Capacitor sync
+        script: npx cap sync ios
+      - name: Set up code signing settings
+        script: xcode-project use-profiles
+      - name: Build IPA
+        script: |
+          xcode-project build-ipa \
+            --project "ios/App/App.xcodeproj" \
+            --scheme "App" \
+            --config "Release"
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+    publishing:
+      app_store_connect:
+        api_key: $APP_STORE_CONNECT_PRIVATE_KEY
+        key_id: $APP_STORE_CONNECT_KEY_ID
+        issuer_id: $APP_STORE_CONNECT_ISSUER_ID
+        submit_to_testflight: false

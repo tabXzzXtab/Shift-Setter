@@ -13,3 +13,4 @@ export default function StallInPage() {
   const router = useRouter();
   return <CompanyForm mode="setup" onDone={() => router.replace("/")} />;
 }
+

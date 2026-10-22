@@ -155,3 +155,4 @@ export function passEndAt(ymd: string, start: string, end: string): Date {
   const e = hhmm(end);
   return stockholmWallClock(e <= s ? addDays(ymd, 1) : ymd, e);
 }
+

@@ -146,7 +146,7 @@ export default function LoginPage() {
 }
 
 /** Set before the page loads, an automated browser sees the welcome screen. */
-const WELCOME_TEST_KEY = "byggkoll.welcome-test";
+const WELCOME_TEST_KEY = "UrKoll.welcome-test";
 
 /**
  * Every walkthrough signs in from a fresh browser, and a screen in front of
@@ -169,7 +169,7 @@ function skipWelcome(): boolean {
  *
  * The whole screen in the brand orange, because this is the one moment the
  * colour gets to be the screen; what stands on it is the dark ink (6.1:1),
- * never white (2.9:1). One sentence about what ByggKoll is for, one button,
+ * never white (2.9:1). One sentence about what UrKoll is for, one button,
  * and where an account comes from -- there is no sign-up and no social login,
  * so the line under the button answers the question a "Skapa konto" button
  * would have raised.
@@ -191,7 +191,7 @@ function Welcome({ onLogin }: { onLogin: () => void }) {
           className="text-center text-[15px] font-extrabold"
           style={{ letterSpacing: "4px" }}
         >
-          BYGGKOLL
+          UrKoll
         </p>
         <h1
           className="pt-[18px] text-[46px] font-medium leading-[1.1]"
@@ -219,3 +219,4 @@ function Welcome({ onLogin }: { onLogin: () => void }) {
     </main>
   );
 }
+

@@ -125,3 +125,4 @@ export function TourBlocker() {
   if (gone) return null;
   return <div aria-hidden className="fixed inset-0 z-[71]" style={{ touchAction: "none" }} />;
 }
+

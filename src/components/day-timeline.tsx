@@ -390,3 +390,4 @@ export function DayTimeline({ date, from, readOnly = false }: {
     </div>
   );
 }
+

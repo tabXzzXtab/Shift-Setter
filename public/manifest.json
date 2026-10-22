@@ -1,6 +1,6 @@
 {
-  "name": "ByggKoll",
-  "short_name": "ByggKoll",
+  "name": "UrKoll",
+  "short_name": "UrKoll",
   "description": "Skiftplanering och Arbetsdagbok",
   "lang": "sv",
   "display": "standalone",
@@ -24,3 +24,4 @@
     }
   ]
 }
+

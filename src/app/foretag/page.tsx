@@ -10,3 +10,4 @@ import { CompanyForm } from "@/components/company-form";
 export default function ForetagPage() {
   return <CompanyForm mode="settings" />;
 }
+

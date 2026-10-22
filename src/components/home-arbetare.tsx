@@ -523,7 +523,7 @@ export function HomeArbetare() {
             </div>
             <div className="mt-[2px] text-[14px] font-medium" style={{ textWrap: "pretty" }}>
               Du får inga aviseringar om nya pass eller ändringar. Slå på dem
-              för ByggKoll i telefonens inställningar.
+              för UrKoll i telefonens inställningar.
             </div>
           </div>
         </div>
@@ -611,3 +611,4 @@ export function HomeArbetare() {
     </div>
   );
 }
+

@@ -51,7 +51,7 @@ function windowFor(period: string) {
 const MAX_ROWS = 60;
 
 /**
- * Analys -- time on screen and taps, for the people who run ByggKoll.
+ * Analys -- time on screen and taps, for the people who run UrKoll.
  *
  * THE BOUNDARY IS THE DATABASE. analytics_screen_times and analytics_taps
  * refuse anybody who is not the operator, and nobody at all can read the raw
@@ -139,7 +139,7 @@ function AnalysScreen() {
     return (
       <SoftScreen title="Se användningen" back="/">
         <div className="px-4 pt-[2px]">
-          <SoftNotice tone="quiet">Den här sidan är för dem som driver ByggKoll.</SoftNotice>
+          <SoftNotice tone="quiet">Den här sidan är för dem som driver UrKoll.</SoftNotice>
         </div>
       </SoftScreen>
     );
@@ -277,3 +277,4 @@ export default function Page() {
     </AuthGate>
   );
 }
+

@@ -7,7 +7,7 @@ import { getSupabase } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/supabase/auth";
 
 /** Where the chosen role is kept. See the note on ROLE below. */
-export const ACTING_ROLE_KEY = "byggkoll.agerar-roll";
+export const ACTING_ROLE_KEY = "UrKoll.agerar-roll";
 
 export type ActingRole = "admin" | "arbetsledare" | "arbetare";
 
@@ -114,3 +114,4 @@ export function AgerarBanner() {
     </div>
   );
 }
+

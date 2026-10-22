@@ -159,3 +159,4 @@ export async function removeAvatar(accountId: string, previous: string | null) {
   if (error) throw error;
   if (previous) await sb.storage.from(AVATAR_BUCKET).remove([previous]);
 }
+
