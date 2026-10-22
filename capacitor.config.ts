@@ -1,7 +1,7 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 /**
- * The native shell around app.bellaserviceab.se.
+ * The native shell around urkoll.se.
  *
  * THE SHELL LOADS THE LIVE SITE, it does not ship the build. `server.url`
  * overrides `webDir` at runtime: the WebView navigates to the origin below and
@@ -24,11 +24,11 @@ import type { CapacitorConfig } from '@capacitor/cli';
  * Android would otherwise permit cleartext to arbitrary hosts in debug builds.
  */
 const config: CapacitorConfig = {
-  appId: 'se.bellaserviceab.byggkoll',
-  appName: 'ByggKoll',
+  appId: 'se.bellaserviceab.urkoll',
+  appName: 'UrKoll',
   webDir: 'out',
   server: {
-    url: 'https://app.bellaserviceab.se',
+    url: 'https://urkoll.se',
     cleartext: false,
   },
 };
