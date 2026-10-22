@@ -7,7 +7,6 @@
         - app-store
       node: 22.11.0
       xcode: latest
-      cocoapods: default
     scripts:
       - name: Set up keychain
         script: keychain initialize
@@ -28,16 +27,6 @@
         script: npx cap add ios
       - name: Capacitor sync
         script: npx cap sync ios
-      - name: Pod install
-        script: |
-          PODFILE=$(find ios -name "Podfile" | head -1)
-          if [ -z "$PODFILE" ]; then
-            echo "ERROR: No Podfile found anywhere in ios/"
-            find ios -type f | head -20
-            exit 1
-          fi
-          echo "Found Podfile at: $PODFILE"
-          cd "$(dirname "$PODFILE")" && pod install
       - name: Build IPA
         script: |
           xcode-project build-ipa \
