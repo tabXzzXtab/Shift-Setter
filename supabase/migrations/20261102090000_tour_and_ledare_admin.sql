@@ -41,11 +41,11 @@ create or replace view public.account_directory with (security_invoker = false) 
  SELECT a.id,
     a.role,
     a.active,
-    a.has_seen_tour,
     w.id AS worker_id,
     COALESCE(w.name, u.raw_user_meta_data ->> 'name'::text) AS name,
     COALESCE(w.email, u.email::text) AS email,
-    p.avatar_path
+    p.avatar_path,
+    a.has_seen_tour
    FROM public.account a
      LEFT JOIN public.worker w ON w.account_id = a.id AND w.deleted_at IS NULL
      LEFT JOIN auth.users u ON u.id = a.id

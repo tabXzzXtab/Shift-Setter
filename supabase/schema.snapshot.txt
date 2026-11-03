@@ -12,6 +12,7 @@ column account.active boolean NOT NULL DEFAULT true
 column account.created_at timestamp with time zone NOT NULL DEFAULT now()
 column account.created_by uuid
 column account.deleted_at timestamp with time zone
+column account.has_seen_tour boolean NOT NULL DEFAULT false
 column account.id uuid NOT NULL
 column account.role app_role NOT NULL DEFAULT 'arbetare'::app_role
 column account.super_admin boolean NOT NULL DEFAULT false
@@ -19,6 +20,7 @@ column account.tenant_id uuid NOT NULL DEFAULT app.current_tenant_id()
 column account_directory.active boolean
 column account_directory.avatar_path text
 column account_directory.email text
+column account_directory.has_seen_tour boolean
 column account_directory.id uuid
 column account_directory.name text
 column account_directory.role app_role
@@ -676,6 +678,7 @@ trig   block_guard on tilldelning -> tg_block_guard enabled=O
 trig   clock_evidence on tilldelning -> tg_clock_evidence enabled=O
 trig   confirmation_guard on project_day -> tg_confirmation_guard enabled=O
 trig   enforce_bucket_name_length_trigger on storage.buckets -> enforce_bucket_name_length enabled=O
+trig   enforce_versioning_status_transition on storage.buckets -> enforce_versioning_status_transition enabled=O
 trig   handpick_is_an_arbetare on pass_batch_handpick -> tg_handpick_is_an_arbetare enabled=O
 trig   headcount_guard on tilldelning -> tg_headcount_guard enabled=O
 trig   last_admin_guard on account -> tg_last_admin_guard enabled=O
@@ -774,6 +777,8 @@ func   app.tg_worker_self_edit_guard() md5=7e933362e1f8d5f23547d75ed47b6736
 func   app.week_start(d date) md5=4a8f6c192e41cf4a14ebb5f87e671c29
 func   public.accept_offer(p_pass uuid) md5=0a13c8479d443e02895be68fb42741b3
 func   public.acting_tenant() md5=951cdb8518f12ecbca3cac801e4168e6
+func   public.admin_assign_leader(p_pass uuid, p_worker uuid) md5=0bdbe01d2e90f0f0a6a7aa91a1c1ce38
+func   public.admin_release_leader(p_tilldelning uuid) md5=f94b5206e860a7ee17366a481e6775c8
 func   public.analytics_screen_times(p_from timestamp with time zone, p_to timestamp with time zone, p_tenant uuid) md5=03c784cbad507ddf14256a4acfffc593
 func   public.analytics_taps(p_screen text, p_role app_role, p_from timestamp with time zone, p_to timestamp with time zone, p_tenant uuid) md5=ecad6cf81da9a2027829bb00dad64f59
 func   public.approve_day(p_project uuid, p_work_date date, p_text text, p_rows jsonb) md5=14ef16d933b5962d1b89c79d5f42c018
@@ -985,6 +990,7 @@ func   public.leader_replacement_options(p_tilldelning uuid) md5=8dc052b44921db2
 func   public.leave_day_unsupervised(p_tilldelning uuid) md5=431f40ea74504337e2cfacc64bb8bcdb
 func   public.make_worker_ansvarig(p_tilldelning uuid, p_worker uuid) md5=4be667eaebfcf47f4a23d6c80a23409e
 func   public.mark_notifications_read(p_ids uuid[]) md5=d35f0b2a7015545b3f6e3d68605b0051
+func   public.mark_tour_seen() md5=50a7074be0c8a1155188b1d23168f6ba
 func   public.note_pin_attempt(p_ip text) md5=bed4f7c8d09c8223c7b07c8297f99078
 func   public.oid_dist(oid, oid) md5=98f1ff8d3c8373653d6d3a2e298a7eba
 func   public.place_replacement(p_pass uuid, p_worker uuid) md5=163d23be215e0ccf6e882b5aaeaee43d
@@ -1257,7 +1263,7 @@ grant  UPDATE on tenant_branding to authenticated
 grant  UPDATE on tilldelning to authenticated
 grant  UPDATE on worker to authenticated
 grant  UPDATE on worker_roster to authenticated
-view   public.account_directory security_invoker=false md5=16ab0adb9ebff46b12806dca19eacac5
+view   public.account_directory security_invoker=false md5=cf6064204ec677ffbd8806d563d406e0
 view   public.arbetsledare_roster security_invoker=false md5=2888a8ba9668fc362ecbe60bb42f48cb
 view   public.cancelled_day security_invoker=false md5=19707702cb64f30f9e893a3504a09748
 view   public.day_history security_invoker=false md5=3060a8e61c0ffcbe837f8b688891d1fd
@@ -1333,6 +1339,8 @@ funcdef app.tg_worker_self_edit_guard() security=definer volatile=volatile confi
 funcdef app.week_start(d date) security=invoker volatile=immutable config=search_path="" returns=date md5=9a761c1ce03a2f776be8f6ecf059b293
 funcdef public.accept_offer(p_pass uuid) security=definer volatile=volatile config=search_path="" returns=uuid md5=457b20388f9d2b1df0c3b7f956c94feb
 funcdef public.acting_tenant() security=definer volatile=stable config=search_path="" returns=TABLE(tenant_id uuid, tenant_name text, entered_at timestamp with time zone) md5=202dd4443573f47593f67844778788d5
+funcdef public.admin_assign_leader(p_pass uuid, p_worker uuid) security=definer volatile=volatile config=search_path="" returns=void md5=988a7ae703c6095e5aeee5cb935cedf3
+funcdef public.admin_release_leader(p_tilldelning uuid) security=definer volatile=volatile config=search_path="" returns=void md5=ad6258297ad285a0dc726df6ff3960f0
 funcdef public.analytics_screen_times(p_from timestamp with time zone, p_to timestamp with time zone, p_tenant uuid) security=definer volatile=stable config=search_path="" returns=TABLE(screen text, role app_role, visits bigint, avg_ms integer, median_ms integer, p90_ms integer, taps bigint) md5=b80032e6144a2d7217404a4791c8fb36
 funcdef public.analytics_taps(p_screen text, p_role app_role, p_from timestamp with time zone, p_to timestamp with time zone, p_tenant uuid) security=definer volatile=stable config=search_path="" returns=TABLE(x_bin integer, y_bin integer, taps bigint) md5=e2ea72c1a88adc44ca112b309aefc10f
 funcdef public.approve_day(p_project uuid, p_work_date date, p_text text, p_rows jsonb) security=invoker volatile=volatile config=search_path="" returns=void md5=8faa80af66b6bddf99782034be0990e3
@@ -1544,6 +1552,7 @@ funcdef public.leader_replacement_options(p_tilldelning uuid) security=definer v
 funcdef public.leave_day_unsupervised(p_tilldelning uuid) security=definer volatile=volatile config=search_path="" returns=void md5=93cc48d5819fe7beee7f61e651a92dff
 funcdef public.make_worker_ansvarig(p_tilldelning uuid, p_worker uuid) security=definer volatile=volatile config=search_path="" returns=void md5=86dfb6c56c216d46e6e8936926490e61
 funcdef public.mark_notifications_read(p_ids uuid[]) security=definer volatile=volatile config=search_path="" returns=integer md5=7a1154877b009d2da239458fa95073a1
+funcdef public.mark_tour_seen() security=definer volatile=volatile config=search_path="" returns=void md5=a1eb9933c79530f048f06482453b76ac
 funcdef public.note_pin_attempt(p_ip text) security=definer volatile=volatile config=search_path="" returns=text md5=54865e0b1d428911d913c47e12255683
 funcdef public.oid_dist(oid, oid) security=invoker volatile=immutable config=- returns=oid md5=997dbbedac9c532c2dfe9e61df3963bc
 funcdef public.place_replacement(p_pass uuid, p_worker uuid) security=definer volatile=volatile config=search_path="" returns=void md5=a4dc12da0b95490d39627820e6aab132
@@ -1625,6 +1634,8 @@ grantfn app.tg_worker_self_edit_guard() EXECUTE=authenticated
 grantfn app.week_start(d date) EXECUTE=PUBLIC,authenticated
 grantfn public.accept_offer(p_pass uuid) EXECUTE=PUBLIC,authenticated,service_role
 grantfn public.acting_tenant() EXECUTE=anon,authenticated,service_role
+grantfn public.admin_assign_leader(p_pass uuid, p_worker uuid) EXECUTE=PUBLIC,anon,authenticated,service_role
+grantfn public.admin_release_leader(p_tilldelning uuid) EXECUTE=PUBLIC,anon,authenticated,service_role
 grantfn public.analytics_screen_times(p_from timestamp with time zone, p_to timestamp with time zone, p_tenant uuid) EXECUTE=anon,authenticated,service_role
 grantfn public.analytics_taps(p_screen text, p_role app_role, p_from timestamp with time zone, p_to timestamp with time zone, p_tenant uuid) EXECUTE=anon,authenticated,service_role
 grantfn public.approve_day(p_project uuid, p_work_date date, p_text text, p_rows jsonb) EXECUTE=PUBLIC,anon,authenticated,service_role
@@ -1836,6 +1847,7 @@ grantfn public.leader_replacement_options(p_tilldelning uuid) EXECUTE=PUBLIC,ano
 grantfn public.leave_day_unsupervised(p_tilldelning uuid) EXECUTE=PUBLIC,anon,authenticated,service_role
 grantfn public.make_worker_ansvarig(p_tilldelning uuid, p_worker uuid) EXECUTE=PUBLIC,anon,authenticated,service_role
 grantfn public.mark_notifications_read(p_ids uuid[]) EXECUTE=authenticated,service_role
+grantfn public.mark_tour_seen() EXECUTE=PUBLIC,anon,authenticated,service_role
 grantfn public.note_pin_attempt(p_ip text) EXECUTE=service_role
 grantfn public.oid_dist(oid, oid) EXECUTE=PUBLIC,anon,authenticated,postgres,service_role
 grantfn public.place_replacement(p_pass uuid, p_worker uuid) EXECUTE=PUBLIC,anon,authenticated,service_role
