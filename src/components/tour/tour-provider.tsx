@@ -98,10 +98,11 @@ export function TourProvider({ children }: { children: ReactNode }) {
     if (loading || !account?.active) return;
     if (run?.accountId === account.id) return;
     if (automatedWithoutOptIn()) return;
-    // Seen already, and not running in this session (a reload mid-tour) or
-    // asked for again (Guide): nothing to show.
+    // DB flag is the source of truth: once set it survives device changes and
+    // iOS WebView storage clears. localStorage (tourComplete) is the fast-path
+    // for the same session. A resume mid-session always wins over both.
     const resume = sessionStep(account.id);
-    if (tourComplete(account.id) && resume === null) return;
+    if ((account.has_seen_tour || tourComplete(account.id)) && resume === null) return;
 
     let live = true;
     void (async () => {
@@ -113,7 +114,12 @@ export function TourProvider({ children }: { children: ReactNode }) {
       // no longer waits for the real one; home.tsx holds the redirect to Ställ
       // in ditt företag until the guide is over, and finish() goes home.
       const steps = SEQUENCES[account.role];
+      // Mark as seen in localStorage immediately (fast-path for this session)
+      // and in the database (durable, cross-device). The DB write is fire-and-
+      // forget: if it fails the tour replays once more on the next login, which
+      // is less bad than blocking startup on a network round-trip.
       markSeen(account.id);
+      void getSupabase().rpc("mark_tour_seen");
       const from = Math.min(resume ?? 0, steps.length);
       saveStep(account.id, from);
       setIndex(from);

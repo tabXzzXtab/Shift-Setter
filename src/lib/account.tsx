@@ -10,6 +10,7 @@ export type Account = {
   id: string;
   role: Role;
   active: boolean;
+  has_seen_tour: boolean;
   worker_id: string | null;
   name: string | null;
 };
@@ -56,7 +57,7 @@ export function AccountProvider({ children }: { children: ReactNode }) {
       // its message, which is the cost).
       const ask = () => sb
         .from("account_directory")
-        .select("id, role, active, worker_id, name")
+        .select("id, role, active, has_seen_tour, worker_id, name")
         .eq("id", uid)
         .maybeSingle();
       let { data } = await ask();
@@ -77,6 +78,7 @@ export function AccountProvider({ children }: { children: ReactNode }) {
                 id: data.id,
                 role: data.role as Role,
                 active: data.active ?? false,
+                has_seen_tour: data.has_seen_tour ?? false,
                 worker_id: data.worker_id,
                 name: data.name,
               }

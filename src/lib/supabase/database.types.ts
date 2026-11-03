@@ -23,6 +23,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           deleted_at: string | null
+          has_seen_tour: boolean
           id: string
           role: Database["public"]["Enums"]["app_role"]
           super_admin: boolean
@@ -33,6 +34,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           deleted_at?: string | null
+          has_seen_tour?: boolean
           id: string
           role?: Database["public"]["Enums"]["app_role"]
           super_admin?: boolean
@@ -43,6 +45,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           deleted_at?: string | null
+          has_seen_tour?: boolean
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
           super_admin?: boolean
@@ -1967,6 +1970,7 @@ export type Database = {
           active: boolean | null
           avatar_path: string | null
           email: string | null
+          has_seen_tour: boolean | null
           id: string | null
           name: string | null
           role: Database["public"]["Enums"]["app_role"] | null
@@ -2165,6 +2169,15 @@ export type Database = {
     }
     Functions: {
       accept_offer: { Args: { p_pass: string }; Returns: string }
+      admin_assign_leader: {
+        Args: { p_pass: string; p_worker: string }
+        Returns: undefined
+      }
+      admin_release_leader: {
+        Args: { p_tilldelning: string }
+        Returns: undefined
+      }
+      mark_tour_seen: { Args: never; Returns: undefined }
       acting_tenant: {
         Args: never
         Returns: {

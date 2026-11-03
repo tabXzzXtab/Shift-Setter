@@ -97,6 +97,13 @@ export function DagPanel({ date, heading = true, project }: {
   const [deleting, setDeleting] = useState<PassRow | null>(null);
   const [swap, setSwap] = useState<Options | null>(null);
   const [trade, setTrade] = useState<SwapOptions | null>(null);
+  /** Admin: confirm before removing a ledare directly. */
+  const [removingLedare, setRemovingLedare] = useState<{
+    tilldelning_id: string; name: string; pass: PassRow;
+  } | null>(null);
+  /** Admin: pick a ledare to place on a pass that has none. */
+  const [assigningLedare, setAssigningLedare] = useState<PassRow | null>(null);
+  const [ledareCandidates, setLedareCandidates] = useState<{ id: string; name: string }[] | null>(null);
 
   /**
    * Two leaders trading the same day. Offered only when the day actually holds
@@ -288,6 +295,54 @@ export function DagPanel({ date, heading = true, project }: {
     setBusy(null);
   }
 
+  /** Admin: directly release a ledare assignment (bypass replace flow). */
+  async function adminRemoveLedare(tilldelningId: string) {
+    setBusy(tilldelningId);
+    setError(null);
+    setNote(null);
+    const { error } = await getSupabase()
+      .rpc("admin_release_leader", { p_tilldelning: tilldelningId });
+    if (error) setError(fel(error, "Arbetsledaren kunde inte tas bort. Kontakta administratören."));
+    else setNote("Arbetsledaren är borttagen från dagen.");
+    setRemovingLedare(null);
+    setReload((n) => n + 1);
+    setBusy(null);
+  }
+
+  /** Admin: open the ledare picker for a pass that has none. */
+  async function openAssignLedare(p: PassRow) {
+    setBusy(p.id);
+    setError(null);
+    setLedareCandidates(null);
+    setAssigningLedare(p);
+    const { data, error } = await getSupabase()
+      .from("worker_roster")
+      .select("id, name")
+      .eq("role", "arbetsledare");
+    if (error) {
+      setError(fel(error, "Kunde inte läsa arbetsledarna. Ladda om sidan."));
+      setAssigningLedare(null);
+    } else {
+      setLedareCandidates((data ?? []).map((w) => ({ id: String(w.id), name: (w.name as string | null) ?? "Okänd" })));
+    }
+    setBusy(null);
+  }
+
+  /** Admin: place the chosen ledare on assigningLedare's pass. */
+  async function assignLedare(workerId: string, name: string) {
+    if (!assigningLedare) return;
+    setBusy(workerId);
+    setError(null);
+    const { error } = await getSupabase()
+      .rpc("admin_assign_leader", { p_pass: assigningLedare.id, p_worker: workerId });
+    if (error) setError(fel(error, "Arbetelsdaren kunde inte tilldelas. Kontakta administratören."));
+    else setNote(`${name} tilldelas som arbetsledare för dagen.`);
+    setAssigningLedare(null);
+    setLedareCandidates(null);
+    setReload((n) => n + 1);
+    setBusy(null);
+  }
+
   /**
    * Is there an arbetsledare on ANOTHER project this day? The swap needs
    * somebody who already has a day to trade, which is the difference between
@@ -402,6 +457,60 @@ export function DagPanel({ date, heading = true, project }: {
           onClose={() => setTrade(null)}
           onDone={(message) => { setTrade(null); setNote(message); setReload((n) => n + 1); }}
         />
+      )}
+
+      {/* TA BORT ARBETSLEDARE? -- admin only; skips the replacement flow. */}
+      {removingLedare && (
+        <SoftDialog label="Ta bort arbetsledare?" onDismiss={() => setRemovingLedare(null)}>
+          <h2 className="text-[19px] font-extrabold" style={{ letterSpacing: "-.5px" }}>
+            Ta bort arbetsledare?
+          </h2>
+          <p className="mb-[18px] mt-1 text-[15px] font-medium" style={{ color: C.text2, textWrap: "pretty" }}>
+            {removingLedare.name} tas bort som ansvarig för passet {hhmm(removingLedare.pass.start_time)}–{hhmm(removingLedare.pass.end_time)}.
+            Om någon annan ledare är tillgänglig sätts de in automatiskt.
+          </p>
+          <div className="mb-[10px]">
+            <DangerButton
+              onClick={() => adminRemoveLedare(removingLedare.tilldelning_id)}
+            >
+              Ta bort
+            </DangerButton>
+          </div>
+          <SecondaryButton onClick={() => setRemovingLedare(null)}>Avbryt</SecondaryButton>
+        </SoftDialog>
+      )}
+
+      {/* TILLDELA ARBETSLEDARE -- admin picks a ledare for a pass with none. */}
+      {assigningLedare && (
+        <SoftDialog label="Tilldela arbetsledare" onDismiss={() => { setAssigningLedare(null); setLedareCandidates(null); }}>
+          <h2 className="text-[19px] font-extrabold" style={{ letterSpacing: "-.5px" }}>
+            Tilldela arbetsledare
+          </h2>
+          <p className="mb-[14px] mt-1 text-[15px] font-medium" style={{ color: C.text2, textWrap: "pretty" }}>
+            Välj vem som är ansvarig för passet {hhmm(assigningLedare.start_time)}–{hhmm(assigningLedare.end_time)}.
+          </p>
+          {ledareCandidates === null ? (
+            <p className="text-[15px] font-medium" style={{ color: C.text2 }}>Laddar…</p>
+          ) : ledareCandidates.length === 0 ? (
+            <p className="text-[15px] font-medium" style={{ color: C.text2 }}>
+              Inga arbetsledare finns registrerade i systemet.
+            </p>
+          ) : (
+            <div className="mb-3">
+              <ChoiceList
+                disabled={busy !== null}
+                choices={ledareCandidates.map((w) => ({
+                  key: w.id,
+                  label: w.name,
+                  onClick: () => assignLedare(w.id, w.name),
+                }))}
+              />
+            </div>
+          )}
+          <SecondaryButton onClick={() => { setAssigningLedare(null); setLedareCandidates(null); }}>
+            Avbryt
+          </SecondaryButton>
+        </SoftDialog>
       )}
 
       {swap && (
@@ -577,30 +686,65 @@ export function DagPanel({ date, heading = true, project }: {
 
                 {/* Placed automatically because their people are here, with the
                     span running from the first arrival to the last departure.
-                    No trash icon: a leader is never simply absent, and taking one
-                    off forces the question of who is answerable for the day. */}
+                    Admin gets a trash icon -- direct removal without the
+                    replacement flow; a non-admin still uses Avboka Pass. */}
                 {p.people.filter((x) => x.source === "ledare").map((person) => (
                   <li
                     key={person.tilldelning_id}
-                    className="flex items-center justify-between gap-2 rounded-[10px] px-[14px] py-3"
-                    style={{ background: C.panel2 }}
+                    className="flex items-stretch gap-2"
                   >
-                    <span className="min-w-0 truncate text-[17px] font-bold" style={{ letterSpacing: "-.2px" }}>
-                      {person.name}
+                    <span
+                      className="flex min-w-0 flex-1 items-center justify-between rounded-[10px] px-[14px] py-3"
+                      style={{ background: C.panel2 }}
+                    >
+                      <span className="min-w-0 truncate text-[17px] font-bold" style={{ letterSpacing: "-.2px" }}>
+                        {person.name}
+                      </span>
+                      <span className="shrink-0 pl-2 text-right">
+                        <Tag tone="warn">Arbetsledare</Tag>
+                        {person.own_start && person.own_end && (
+                          <span
+                            className="mt-1 block text-[14px] font-medium"
+                            style={{ color: C.text2 }}
+                          >
+                            {hhmm(person.own_start)}–{hhmm(person.own_end)}
+                          </span>
+                        )}
+                      </span>
                     </span>
-                    <span className="shrink-0 text-right">
-                      <Tag tone="warn">Arbetsledare</Tag>
-                      {person.own_start && person.own_end && (
-                        <span
-                          className="mt-1 block text-[14px] font-medium"
-                          style={{ color: C.text2 }}
-                        >
-                          {hhmm(person.own_start)}–{hhmm(person.own_end)}
-                        </span>
-                      )}
-                    </span>
+                    {account?.role === "admin" && (
+                      <button
+                        type="button"
+                        aria-label={`Ta bort ${person.name} som arbetsledare`}
+                        onClick={() => setRemovingLedare({ tilldelning_id: person.tilldelning_id, name: person.name, pass: p })}
+                        disabled={busy === person.tilldelning_id}
+                        className="press-scale flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-[10px] transition-transform duration-[110ms] hover:bg-[#ebe9e5] active:scale-[.985] disabled:opacity-40"
+                        style={{ background: C.stopBg }}
+                      >
+                        <svg width="14" height="16" viewBox="0 0 14 16" fill="none" aria-hidden>
+                          <path d="M1.6 4.2h10.8M5 4.2V2.4h4v1.8M2.8 4.2l.8 9.4h6.8l.8-9.4"
+                            stroke={C.stopInk} strokeWidth="1.8"
+                            strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      </button>
+                    )}
                   </li>
                 ))}
+
+                {/* Admin: place a ledare when none is assigned yet. */}
+                {account?.role === "admin" && p.people.filter((x) => x.source === "ledare").length === 0 && (
+                  <li>
+                    <button
+                      type="button"
+                      onClick={() => openAssignLedare(p)}
+                      disabled={busy === p.id}
+                      className="press-scale flex h-12 w-full items-center justify-center rounded-[10px] px-3 text-[15px] font-bold transition-transform duration-[110ms] hover:bg-[#e9e8e4] active:scale-[.985] disabled:opacity-40"
+                      style={{ background: C.surface, border: `1px solid ${C.border}`, color: C.inkHover }}
+                    >
+                      Tilldela arbetsledare
+                    </button>
+                  </li>
+                )}
 
                 {/* Not a trash icon, and that is the point: this does not take
                     somebody off a day, it asks who is answerable for it instead. */}
