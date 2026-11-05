@@ -682,8 +682,6 @@ trig   enforce_versioning_status_transition on storage.buckets -> enforce_versio
 trig   handpick_is_an_arbetare on pass_batch_handpick -> tg_handpick_is_an_arbetare enabled=O
 trig   headcount_guard on tilldelning -> tg_headcount_guard enabled=O
 trig   last_admin_guard on account -> tg_last_admin_guard enabled=O
-trig   leader_day on tilldelning -> tg_leader_day enabled=O
-trig   leader_day_pass on pass -> tg_leader_day_pass enabled=O
 trig   no_overlapping_assignment on tilldelning -> tg_no_overlapping_assignment enabled=O
 trig   notification_only_read on notification -> tg_notification_only_read enabled=O
 trig   notification_push on notification -> tg_notification_push enabled=O
@@ -696,9 +694,11 @@ trig   pass_delete_guard on pass -> tg_pass_delete_guard enabled=O
 trig   pass_edit_guard on pass -> tg_pass_edit_guard enabled=O
 trig   pass_on_closed_day on pass -> tg_pass_on_closed_day enabled=O
 trig   pass_original_times on pass -> tg_pass_original_times enabled=O
+trig   place_self_as_confirmer on tilldelning -> tg_place_self_as_confirmer enabled=O
 trig   profile_touch on profile -> tg_profile_touch enabled=O
 trig   project_created_by on project -> tg_project_created_by enabled=O
 trig   project_leader_is_a_leader on project_leader -> tg_project_leader_is_a_leader enabled=O
+trig   protect_active_lifecycle_states on storage.buckets -> protect_active_lifecycle_states enabled=O
 trig   protect_bucket_control_insert on storage.buckets -> protect_bucket_control_columns enabled=O
 trig   protect_bucket_control_update on storage.buckets -> protect_bucket_control_columns enabled=O
 trig   protect_bucket_control_update_role on storage.buckets -> enforce_bucket_lifecycle_service_role enabled=O
@@ -710,6 +710,8 @@ trig   sync_work_date on tilldelning -> tg_sync_work_date enabled=O
 trig   tenant_branding_touch on tenant_branding -> tg_tenant_branding_touch enabled=O
 trig   tr_check_filters on realtime.subscription -> subscription_check_filters enabled=O
 trig   update_objects_updated_at on storage.objects -> update_updated_at_column enabled=O
+trig   wake_lifecycle_on_policy_write on storage.buckets -> wake_lifecycle_state enabled=O
+trig   wake_lifecycle_on_versioning_enable on storage.buckets -> wake_lifecycle_state enabled=O
 trig   worker_self_edit_guard on worker -> tg_worker_self_edit_guard enabled=O
 func   app.confirms_project(p_project uuid, p_work_date date) md5=46099961ff1935ecc58e80568426eb8b
 func   app.created_project(p_project uuid) md5=598f8bf9d52e3dfe8578a72ef447e971
@@ -749,8 +751,6 @@ func   app.tg_confirmation_guard() md5=b7b70bc26a8536dc1db26a5d0ad5f1ce
 func   app.tg_handpick_is_an_arbetare() md5=ae1fa4cafeecff7403d574bc1acb9ec7
 func   app.tg_headcount_guard() md5=f670cf086f1ab865d3d818b75225c070
 func   app.tg_last_admin_guard() md5=44de8af11b6ff9528d320c169c3aee34
-func   app.tg_leader_day() md5=d55ddf7a8227ddd0f73386690ee55145
-func   app.tg_leader_day_pass() md5=691021ec0d2c47200fc8dd2106b10d59
 func   app.tg_no_overlapping_assignment() md5=a6917b75c0aeecbf8fd19916a862ae79
 func   app.tg_notification_only_read() md5=e4d55d7a1adb07bd1bc95982a83a5b34
 func   app.tg_notification_push() md5=4336d9d781a0171f636de2343d4253b0
@@ -763,6 +763,7 @@ func   app.tg_pass_delete_guard() md5=91f1c76f9afd189463ca8c9f26b04390
 func   app.tg_pass_edit_guard() md5=dda07b7abfaa8f7eb519081febb29535
 func   app.tg_pass_on_closed_day() md5=9fc1cf5400120c2c8d4113e760942d9f
 func   app.tg_pass_original_times() md5=ccba0ae23db959258ca76544abd62379
+func   app.tg_place_self_as_confirmer() md5=8c6f919f1b62be9d877f3fb751ca2046
 func   app.tg_profile_touch() md5=2cd0a5f82ac61406b149da8b7d574ddc
 func   app.tg_project_created_by() md5=0524801edfe833eb33f991a838b4f9a0
 func   app.tg_project_leader_is_a_leader() md5=ad62ec9c666f500380fddff7feeba5d3
@@ -778,7 +779,7 @@ func   app.week_start(d date) md5=4a8f6c192e41cf4a14ebb5f87e671c29
 func   public.accept_offer(p_pass uuid) md5=0a13c8479d443e02895be68fb42741b3
 func   public.acting_tenant() md5=951cdb8518f12ecbca3cac801e4168e6
 func   public.admin_assign_leader(p_pass uuid, p_worker uuid) md5=0bdbe01d2e90f0f0a6a7aa91a1c1ce38
-func   public.admin_release_leader(p_tilldelning uuid) md5=f94b5206e860a7ee17366a481e6775c8
+func   public.admin_release_leader(p_tilldelning uuid) md5=9dfaaa6a41d617c10f0b9e593b5be361
 func   public.analytics_screen_times(p_from timestamp with time zone, p_to timestamp with time zone, p_tenant uuid) md5=03c784cbad507ddf14256a4acfffc593
 func   public.analytics_taps(p_screen text, p_role app_role, p_from timestamp with time zone, p_to timestamp with time zone, p_tenant uuid) md5=ecad6cf81da9a2027829bb00dad64f59
 func   public.approve_day(p_project uuid, p_work_date date, p_text text, p_rows jsonb) md5=14ef16d933b5962d1b89c79d5f42c018
@@ -1004,6 +1005,7 @@ func   public.swap_leaders(p_a uuid, p_b uuid) md5=63d79721d463aaa47add556da3014
 func   public.swap_partners(p_tilldelning uuid) md5=25e16eee9af3a9571a01c1b718a824eb
 func   public.tenant_status() md5=c17f7938bd718e6c6057299822926284
 func   public.time_dist(time without time zone, time without time zone) md5=570a6afc92722fa17cb3fb725c661bb5
+func   public.transfer_confirmation(p_pass uuid, p_to_worker uuid) md5=546a0ce79eb607c83cc73e565e030340
 func   public.ts_dist(timestamp without time zone, timestamp without time zone) md5=cd9d836b7dd414c3713096792f16bf8d
 func   public.tstz_dist(timestamp with time zone, timestamp with time zone) md5=d9abd396677b459458fae044fa46f4b1
 grant  DELETE on account to authenticated
@@ -1311,8 +1313,6 @@ funcdef app.tg_confirmation_guard() security=definer volatile=volatile config=se
 funcdef app.tg_handpick_is_an_arbetare() security=definer volatile=volatile config=search_path="" returns=trigger md5=d92a232820c68d5c4030507e0893ac1c
 funcdef app.tg_headcount_guard() security=definer volatile=volatile config=search_path="" returns=trigger md5=0e575331ea5ecc8a9f0b290a7a5c2de3
 funcdef app.tg_last_admin_guard() security=definer volatile=volatile config=search_path="" returns=trigger md5=f9a6ea23232f35f31ae9e9526fbf6833
-funcdef app.tg_leader_day() security=definer volatile=volatile config=search_path="" returns=trigger md5=1397c1e4582203fb93a0018a29126a04
-funcdef app.tg_leader_day_pass() security=definer volatile=volatile config=search_path="" returns=trigger md5=788576683f47d0093f1a87f497d0e5f3
 funcdef app.tg_no_overlapping_assignment() security=definer volatile=volatile config=search_path="" returns=trigger md5=7f643813676d0a9e142f3a2b7eddc74d
 funcdef app.tg_notification_only_read() security=invoker volatile=volatile config=search_path="" returns=trigger md5=b4402923e8fce70cf6de4b770ee6fdf5
 funcdef app.tg_notification_push() security=definer volatile=volatile config=search_path="" returns=trigger md5=b3d57130418def730a23a3b0062e7432
@@ -1325,6 +1325,7 @@ funcdef app.tg_pass_delete_guard() security=definer volatile=volatile config=sea
 funcdef app.tg_pass_edit_guard() security=definer volatile=volatile config=search_path="" returns=trigger md5=9aedd9c59e2f2e296b0ce2afc03dd2d9
 funcdef app.tg_pass_on_closed_day() security=definer volatile=volatile config=search_path="" returns=trigger md5=5d7e94ce903d8d96c488389a59d5b96e
 funcdef app.tg_pass_original_times() security=invoker volatile=volatile config=search_path="" returns=trigger md5=cc429cba4e92c75cd2b6381cabf59fd2
+funcdef app.tg_place_self_as_confirmer() security=definer volatile=volatile config=search_path="" returns=trigger md5=17d1a68385a52abe8ab55cb711f9c598
 funcdef app.tg_profile_touch() security=definer volatile=volatile config=search_path="" returns=trigger md5=4c1bc14981b8021d40b6e51870a1493d
 funcdef app.tg_project_created_by() security=definer volatile=volatile config=search_path="" returns=trigger md5=5db7bde64df48720e529bf9815396ba5
 funcdef app.tg_project_leader_is_a_leader() security=definer volatile=volatile config=search_path="" returns=trigger md5=5b087b4d6b0cf846b256d1c522cc1f1e
@@ -1340,7 +1341,7 @@ funcdef app.week_start(d date) security=invoker volatile=immutable config=search
 funcdef public.accept_offer(p_pass uuid) security=definer volatile=volatile config=search_path="" returns=uuid md5=457b20388f9d2b1df0c3b7f956c94feb
 funcdef public.acting_tenant() security=definer volatile=stable config=search_path="" returns=TABLE(tenant_id uuid, tenant_name text, entered_at timestamp with time zone) md5=202dd4443573f47593f67844778788d5
 funcdef public.admin_assign_leader(p_pass uuid, p_worker uuid) security=definer volatile=volatile config=search_path="" returns=void md5=988a7ae703c6095e5aeee5cb935cedf3
-funcdef public.admin_release_leader(p_tilldelning uuid) security=definer volatile=volatile config=search_path="" returns=void md5=ad6258297ad285a0dc726df6ff3960f0
+funcdef public.admin_release_leader(p_tilldelning uuid) security=definer volatile=volatile config=search_path="" returns=void md5=7d6a601066f45f7426b8057c7fc84068
 funcdef public.analytics_screen_times(p_from timestamp with time zone, p_to timestamp with time zone, p_tenant uuid) security=definer volatile=stable config=search_path="" returns=TABLE(screen text, role app_role, visits bigint, avg_ms integer, median_ms integer, p90_ms integer, taps bigint) md5=b80032e6144a2d7217404a4791c8fb36
 funcdef public.analytics_taps(p_screen text, p_role app_role, p_from timestamp with time zone, p_to timestamp with time zone, p_tenant uuid) security=definer volatile=stable config=search_path="" returns=TABLE(x_bin integer, y_bin integer, taps bigint) md5=e2ea72c1a88adc44ca112b309aefc10f
 funcdef public.approve_day(p_project uuid, p_work_date date, p_text text, p_rows jsonb) security=invoker volatile=volatile config=search_path="" returns=void md5=8faa80af66b6bddf99782034be0990e3
@@ -1566,6 +1567,7 @@ funcdef public.swap_leaders(p_a uuid, p_b uuid) security=definer volatile=volati
 funcdef public.swap_partners(p_tilldelning uuid) security=definer volatile=stable config=search_path="" returns=jsonb md5=cd9c68b70c37b62db3da621c3f78122a
 funcdef public.tenant_status() security=definer volatile=stable config=search_path="" returns=TABLE(tenant_id uuid, name text, account_type tenant_account_type, expires_at timestamp with time zone, expired boolean) md5=feb7eba3252adb6aae3862e50809ff19
 funcdef public.time_dist(time without time zone, time without time zone) security=invoker volatile=immutable config=- returns=interval md5=8801e6dea2facf63a20dd9a006954403
+funcdef public.transfer_confirmation(p_pass uuid, p_to_worker uuid) security=definer volatile=volatile config=search_path="" returns=void md5=aee3b36db1910501a7f40908ffc10b36
 funcdef public.ts_dist(timestamp without time zone, timestamp without time zone) security=invoker volatile=immutable config=- returns=interval md5=08531fe18b363d069feec1bdfcd04b64
 funcdef public.tstz_dist(timestamp with time zone, timestamp with time zone) security=invoker volatile=immutable config=- returns=interval md5=5c617ffed7741ec780071a5bf792097f
 grantfn app.confirms_project(p_project uuid, p_work_date date) EXECUTE=PUBLIC,authenticated
@@ -1606,8 +1608,6 @@ grantfn app.tg_confirmation_guard() EXECUTE=authenticated
 grantfn app.tg_handpick_is_an_arbetare() EXECUTE=PUBLIC,authenticated
 grantfn app.tg_headcount_guard() EXECUTE=authenticated
 grantfn app.tg_last_admin_guard() EXECUTE=authenticated
-grantfn app.tg_leader_day() EXECUTE=PUBLIC,authenticated
-grantfn app.tg_leader_day_pass() EXECUTE=PUBLIC,authenticated
 grantfn app.tg_no_overlapping_assignment() EXECUTE=PUBLIC,authenticated
 grantfn app.tg_notification_only_read() EXECUTE=PUBLIC
 grantfn app.tg_notification_push() EXECUTE=(none)
@@ -1620,6 +1620,7 @@ grantfn app.tg_pass_delete_guard() EXECUTE=authenticated
 grantfn app.tg_pass_edit_guard() EXECUTE=PUBLIC,authenticated
 grantfn app.tg_pass_on_closed_day() EXECUTE=PUBLIC
 grantfn app.tg_pass_original_times() EXECUTE=PUBLIC,authenticated
+grantfn app.tg_place_self_as_confirmer() EXECUTE=PUBLIC
 grantfn app.tg_profile_touch() EXECUTE=PUBLIC,authenticated
 grantfn app.tg_project_created_by() EXECUTE=PUBLIC,authenticated
 grantfn app.tg_project_leader_is_a_leader() EXECUTE=PUBLIC,authenticated
@@ -1861,5 +1862,6 @@ grantfn public.swap_leaders(p_a uuid, p_b uuid) EXECUTE=PUBLIC,anon,authenticate
 grantfn public.swap_partners(p_tilldelning uuid) EXECUTE=PUBLIC,anon,authenticated,service_role
 grantfn public.tenant_status() EXECUTE=anon,authenticated,service_role
 grantfn public.time_dist(time without time zone, time without time zone) EXECUTE=PUBLIC,anon,authenticated,postgres,service_role
+grantfn public.transfer_confirmation(p_pass uuid, p_to_worker uuid) EXECUTE=PUBLIC,anon,authenticated,service_role
 grantfn public.ts_dist(timestamp without time zone, timestamp without time zone) EXECUTE=PUBLIC,anon,authenticated,postgres,service_role
 grantfn public.tstz_dist(timestamp with time zone, timestamp with time zone) EXECUTE=PUBLIC,anon,authenticated,postgres,service_role
