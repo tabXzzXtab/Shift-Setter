@@ -2178,6 +2178,7 @@ export type Database = {
         Returns: undefined
       }
       mark_tour_seen: { Args: never; Returns: undefined }
+      transfer_confirmation: { Args: { p_pass: string; p_to_worker: string }; Returns: undefined }
       acting_tenant: {
         Args: never
         Returns: {

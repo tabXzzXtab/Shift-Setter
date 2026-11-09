@@ -104,6 +104,9 @@ export function DagPanel({ date, heading = true, project }: {
   /** Admin: pick a ledare to place on a pass that has none. */
   const [assigningLedare, setAssigningLedare] = useState<PassRow | null>(null);
   const [ledareCandidates, setLedareCandidates] = useState<{ id: string; name: string }[] | null>(null);
+  /** Admin: transfer confirmer role to a different worker. */
+  const [transferringPass, setTransferringPass] = useState<PassRow | null>(null);
+  const [transferCandidates, setTransferCandidates] = useState<{ id: string; name: string }[] | null>(null);
 
   /**
    * Two leaders trading the same day. Offered only when the day actually holds
@@ -343,6 +346,41 @@ export function DagPanel({ date, heading = true, project }: {
     setBusy(null);
   }
 
+  /** Admin: open the confirmer-transfer dialog for a pass whose day has workers. */
+  function openTransferConfirmation(p: PassRow) {
+    setError(null);
+    setNote(null);
+    // Candidates = all workers on this project-day (non-ledare), deduped by worker_id.
+    const seen = new Set<string>();
+    const candidates: { id: string; name: string }[] = [];
+    for (const q of passes ?? []) {
+      if (q.project_id !== p.project_id) continue;
+      for (const person of q.people) {
+        if (person.source === "ledare") continue;
+        if (seen.has(person.worker_id)) continue;
+        seen.add(person.worker_id);
+        candidates.push({ id: person.worker_id, name: person.name });
+      }
+    }
+    setTransferCandidates(candidates);
+    setTransferringPass(p);
+  }
+
+  /** Admin: execute the transfer to the chosen worker. */
+  async function transferConfirmation(workerId: string, name: string) {
+    if (!transferringPass) return;
+    setBusy(workerId);
+    setError(null);
+    const { error } = await getSupabase()
+      .rpc("transfer_confirmation", { p_pass: transferringPass.id, p_to_worker: workerId });
+    if (error) setError(fel(error, "Bytet kunde inte genomföras. Kontakta administratören."));
+    else setNote(`${name} är nu ansvarig för dagen.`);
+    setTransferringPass(null);
+    setTransferCandidates(null);
+    setReload((n) => n + 1);
+    setBusy(null);
+  }
+
   /**
    * Is there an arbetsledare on ANOTHER project this day? The swap needs
    * somebody who already has a day to trade, which is the difference between
@@ -508,6 +546,39 @@ export function DagPanel({ date, heading = true, project }: {
             </div>
           )}
           <SecondaryButton onClick={() => { setAssigningLedare(null); setLedareCandidates(null); }}>
+            Avbryt
+          </SecondaryButton>
+        </SoftDialog>
+      )}
+
+      {/* BYT ANSVARIG -- admin moves the confirmer role to any worker on the day. */}
+      {transferringPass && (
+        <SoftDialog label="Byt ansvarig" onDismiss={() => { setTransferringPass(null); setTransferCandidates(null); }}>
+          <h2 className="text-[19px] font-extrabold" style={{ letterSpacing: "-.5px" }}>
+            Byt ansvarig
+          </h2>
+          <p className="mb-[14px] mt-1 text-[15px] font-medium" style={{ color: C.text2, textWrap: "pretty" }}>
+            Välj vem som tar över ansvaret för passet {hhmm(transferringPass.start_time)}–{hhmm(transferringPass.end_time)}.
+          </p>
+          {transferCandidates === null ? (
+            <p className="text-[15px] font-medium" style={{ color: C.text2 }}>Laddar…</p>
+          ) : transferCandidates.length === 0 ? (
+            <p className="text-[15px] font-medium" style={{ color: C.text2 }}>
+              Inga andra arbetar den här dagen.
+            </p>
+          ) : (
+            <div className="mb-3">
+              <ChoiceList
+                disabled={busy !== null}
+                choices={transferCandidates.map((w) => ({
+                  key: w.id,
+                  label: w.name,
+                  onClick: () => transferConfirmation(w.id, w.name),
+                }))}
+              />
+            </div>
+          )}
+          <SecondaryButton onClick={() => { setTransferringPass(null); setTransferCandidates(null); }}>
             Avbryt
           </SecondaryButton>
         </SoftDialog>
@@ -772,6 +843,25 @@ export function DagPanel({ date, heading = true, project }: {
                         style={{ background: C.surface, border: `1px solid ${C.border}`, color: C.inkHover }}
                       >
                         Byta Plats Med Arbetsledare — {person.name}
+                      </button>
+                    )}
+
+                    {/* Admin: transfer the confirmer role to any worker on this
+                        project-day. Only shown when there is at least one worker
+                        to hand the role to -- otherwise it opens an empty list. */}
+                    {account?.role === "admin" &&
+                      (passes ?? [])
+                        .filter((q) => q.project_id === p.project_id)
+                        .flatMap((q) => q.people.filter((x) => x.source !== "ledare"))
+                        .length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => openTransferConfirmation(p)}
+                        disabled={busy === person.tilldelning_id}
+                        className="press-scale flex h-12 w-full items-center justify-center rounded-[10px] px-3 text-[15px] font-bold transition-transform duration-[110ms] hover:bg-[#e9e8e4] active:scale-[.985] disabled:opacity-40"
+                        style={{ background: C.surface, border: `1px solid ${C.border}`, color: C.inkHover }}
+                      >
+                        Byt ansvarig
                       </button>
                     )}
                   </li>
