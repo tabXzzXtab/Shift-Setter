@@ -13,6 +13,7 @@ import { PaintCalendar } from "@/components/paint-calendar";
 import { derivesTenant, getSupabase } from "@/lib/supabase/client";
 import { stockholmToday, svDate } from "@/lib/dates";
 import { defaultHours } from "@/lib/hours";
+import { DEFAULT_PRESETS, loadPresets, type Presets } from "@/lib/presets";
 import { fel } from "@/lib/fel";
 import { useTourAutofill } from "@/components/tour/use-tour-autofill";
 import { tourSignal } from "@/lib/tour/signal";
@@ -28,6 +29,8 @@ type Row = {
   /** Set once the leader types their own figure. From then on the field is
    *  theirs and the span stops touching it. */
   hoursTouched: boolean;
+  /** Currently selected rast preset in minutes; null = none selected. */
+  lunchPreset: number | null;
 };
 
 const newRow = (): Row => ({
@@ -36,6 +39,7 @@ const newRow = (): Row => ({
   end: "16:00",
   hours: defaultHours("07:00", "16:00"),
   hoursTouched: false,
+  lunchPreset: null,
 });
 
 /**
@@ -106,6 +110,7 @@ function NyttPass({ asked, fromDay = false }: { asked: string | null; fromDay?: 
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [result, setResult] = useState<{ passes: number; filled: number; slots: number; offered: number } | null>(null);
+  const [presets, setPresets] = useState<Presets>([...DEFAULT_PRESETS]);
 
   const today = stockholmToday();
   const totalPasses = days.length * rows.length;
@@ -134,6 +139,8 @@ function NyttPass({ asked, fromDay = false }: { asked: string | null; fromDay?: 
       const { data: c } = await sb
         .from("project_day").select("project_id, work_date").not("confirmed_at", "is", null);
       setClosed(new Set((c ?? []).map((x) => `${x.project_id}|${x.work_date}`)));
+      const { data: t } = await sb.from("tenant").select("id").maybeSingle();
+      if (t?.id) setPresets(loadPresets(t.id));
     })();
   }, []);
 
@@ -164,8 +171,20 @@ function NyttPass({ asked, fromDay = false }: { asked: string | null; fromDay?: 
     setRows((p) => p.map((x, j) => {
       if (j !== i) return x;
       const next = { ...x, [key]: value };
-      if (!x.hoursTouched) next.hours = defaultHours(next.start, next.end);
+      if (!x.hoursTouched) next.hours = defaultHours(next.start, next.end, next.lunchPreset ?? 30);
       return next;
+    }));
+  }
+
+  function setLunchPreset(i: number, minutes: number | null) {
+    setRows((p) => p.map((x, j) => {
+      if (j !== i) return x;
+      return {
+        ...x,
+        lunchPreset: minutes,
+        hours: defaultHours(x.start, x.end, minutes ?? 30),
+        hoursTouched: false,
+      };
     }));
   }
 
@@ -521,6 +540,38 @@ function NyttPass({ asked, fromDay = false }: { asked: string | null; fromDay?: 
 
               {/* Prefilled as the span minus 30 min and still the leader's number
                   to change (invariant 1); quarter steps. */}
+
+              {/* RAST PRESET BUTTONS. Tapping one recalculates hours using that
+                  break duration instead of the default 30 min. Tapping the same
+                  button deselects it and falls back to 30 min. */}
+              <div className="mb-[14px]">
+                <span className="mb-[6px] block text-[12px] font-bold uppercase" style={{ letterSpacing: ".9px", color: C.text2 }}>
+                  Rast
+                </span>
+                <div className="flex gap-[6px]">
+                  {presets.map((min, j) => {
+                    const active = r.lunchPreset === min;
+                    return (
+                      <button
+                        key={j}
+                        type="button"
+                        aria-pressed={active}
+                        aria-label={`${min} minuters rast${active ? ", aktiv" : ""}`}
+                        onClick={() => setLunchPreset(i, active ? null : min)}
+                        className="flex-1 rounded-[8px] py-[8px] text-[13px] font-bold transition-colors"
+                        style={{
+                          background: active ? C.accent : C.panel2,
+                          color: active ? C.onAccent : C.ink,
+                          border: `1px solid ${active ? C.accent : C.border}`,
+                        }}
+                      >
+                        {min} min
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
               <span className="mb-[6px] block text-[12px] font-bold uppercase" style={{ letterSpacing: ".9px", color: C.text2 }}>
                 Timmar
               </span>

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { useTourReplay, useTourSandbox } from "./tour/tour-provider";
+import { useTourSandbox } from "./tour/tour-provider";
 import { SANDBOX_PROJECT } from "@/lib/tour/sandbox";
 import {
   C, EmptyState, GroupedList, HomeTitle, SHADOW, SignOut, SoftNotice, SoftSheet,
@@ -69,12 +69,11 @@ const MENU = [
 const PROFILE_MENU = [
   { href: "/konto", label: "Min profil" },
   { href: "/foretag", label: "Företaget" },
-  { href: "/installningar", label: "Alla Konton" },
+  { href: "/installningar", label: "Inställningar" },
+  { href: "/konton", label: "Alla Konton" },
 ];
 
 export function HomeAdmin() {
-  /** Guide: the first-launch tour again, from its first step. */
-  const replay = useTourReplay();
   // THE ADMIN GUIDE'S SANDBOX (lib/tour/sandbox.ts): the project the guide
   // "created" is first in the list -- shown, never saved -- so step 8 has a
   // project to open whether or not the company has one yet.
@@ -319,7 +318,7 @@ export function HomeAdmin() {
 
       {open === "profile" && (
         <SoftSheet onClose={() => setOpen(null)} label="Profil">
-          <GroupedList rows={[...PROFILE_MENU, ...(replay ? [{ label: "Guide", onClick: () => { setOpen(null); replay?.(); } }] : [])]} />
+          <GroupedList rows={PROFILE_MENU} />
           {/* One place signs out, whatever the screen around it looks like. */}
           <SignOut quiet />
         </SoftSheet>

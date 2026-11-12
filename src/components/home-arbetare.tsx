@@ -2,16 +2,18 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { useTourReplay } from "./tour/tour-provider";
+
 import { SoftNastaPass } from "./nasta-pass-card";
 import { OfferStack, type Offer } from "./offer-stack";
-import { GroupedList, HomeTitle, SignOut, SoftSheet } from "./soft";
+import { GroupedList, HomeTitle, NewDot, SignOut, SoftSheet } from "./soft";
 import { getSupabase } from "@/lib/supabase/client";
 import { addDays, hhmm, passEndAt, stampToTime, stockholmToday } from "@/lib/dates";
 import { stampGate } from "@/lib/geo";
 import { fel } from "@/lib/fel";
 import { tourSignal } from "@/lib/tour/signal";
 import { NotisBell } from "./notis-bell";
+import { useAccount } from "@/lib/account";
+import { hasUnseenOpenPasses } from "@/lib/oppna-pass-seen";
 
 type Shift = {
   id: string;
@@ -98,8 +100,6 @@ const Chevron = () => (
  * "Logga ut" inside one of them is the app's single SignOut.
  */
 export function HomeArbetare() {
-  /** Guide: the first-launch tour again, from its first step. */
-  const replay = useTourReplay();
   const [shift, setShift] = useState<Shift | null | undefined>(undefined);
   const [offers, setOffers] = useState<Offer[] | null>(null);
   /** Stamped when the offers arrive; see `front` below. */
@@ -113,6 +113,21 @@ export function HomeArbetare() {
   const [open, setOpen] = useState<"menu" | "profile" | null>(null);
   /** Shown only where the OS has actually refused. See the effect below. */
   const [pushDenied, setPushDenied] = useState(false);
+  /**
+   * Öppna Pass holds a pass this worker has not seen there (lib/oppna-pass-seen):
+   * an orange dot on Meny and on the Öppna Pass row inside it. Asked again
+   * after every answer on this screen, because taking a shift changes what
+   * Öppna Pass lists.
+   */
+  const { account } = useAccount();
+  const accountId = account?.id;
+  const [unseenOpen, setUnseenOpen] = useState(false);
+  useEffect(() => {
+    if (!accountId) return;
+    let live = true;
+    void hasUnseenOpenPasses(accountId).then((v) => { if (live) setUnseenOpen(v); });
+    return () => { live = false; };
+  }, [accountId, reload]);
 
   /**
    * ASK FOR NOTIFICATIONS, ONCE, ON THE SCREEN THAT NEEDS THEM.
@@ -313,15 +328,17 @@ export function HomeArbetare() {
       >
         <button
           type="button"
-          aria-label="Meny"
+          aria-label={unseenOpen ? "Meny, nya öppna pass" : "Meny"}
           aria-expanded={open === "menu"}
           onClick={() => setOpen("menu")}
-          className="press-scale flex h-11 w-11 items-center justify-center rounded-[11px] p-0 transition-transform duration-[120ms] hover:bg-[#f4f3f0] active:scale-[.985] active:bg-[#e9e8e4]"
+          className="press-scale relative flex h-11 w-11 items-center justify-center rounded-[11px] p-0 transition-transform duration-[120ms] hover:bg-[#f4f3f0] active:scale-[.985] active:bg-[#e9e8e4]"
           style={{ background: SURFACE, boxShadow: SHADOW_FLAT }}
         >
           <svg width="20" height="14" viewBox="0 0 20 14" fill="none" aria-hidden>
             <path d="M1 1.5h18M1 7h18M1 12.5h18" stroke={INK} strokeWidth="2.2" strokeLinecap="round" />
           </svg>
+          {/* Where the bell keeps its count: the top right corner. */}
+          {unseenOpen && <NewDot className="absolute -right-[3px] -top-[3px]" />}
         </button>
 
         <div className="flex items-center gap-2">
@@ -597,13 +614,13 @@ export function HomeArbetare() {
         <SoftSheet onClose={() => setOpen(null)} label="Meny">
           {/* Mina Pass and Arbetsdagar are already grouped rows on the page
               itself, so the menu carries the one route that is not. */}
-          <GroupedList rows={[{ href: "/oppna-pass", label: "Öppna Pass" }]} />
+          <GroupedList rows={[{ href: "/oppna-pass", label: "Öppna Pass", dot: unseenOpen }]} />
         </SoftSheet>
       )}
 
       {open === "profile" && (
         <SoftSheet onClose={() => setOpen(null)} label="Profil">
-          <GroupedList rows={[{ href: "/konto", label: "Min profil" }, ...(replay ? [{ label: "Guide", onClick: () => { setOpen(null); replay?.(); } }] : [])]} />
+          <GroupedList rows={[{ href: "/konto", label: "Min profil" }, { href: "/installningar", label: "Inställningar" }]} />
           {/* One place signs out, whatever the screen around it looks like. */}
           <SignOut quiet />
         </SoftSheet>

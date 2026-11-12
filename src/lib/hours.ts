@@ -20,8 +20,8 @@
  * break is longer -- and it often is -- the leader types the real number, which
  * is exactly why the field stays editable and independent of the two times.
  */
-export function defaultHours(start: string, end: string): string {
-  return format(minutesBetween(start, end) - 30);
+export function defaultHours(start: string, end: string, lunchMin = 30): string {
+  return format(minutesBetween(start, end) - lunchMin);
 }
 
 function minutesBetween(start: string, end: string): number {

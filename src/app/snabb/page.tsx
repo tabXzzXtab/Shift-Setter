@@ -14,6 +14,7 @@ import { TimeField } from "@/components/time-wheel";
 import { getSupabase } from "@/lib/supabase/client";
 import { stockholmToday, svDate } from "@/lib/dates";
 import { defaultHours } from "@/lib/hours";
+import { DEFAULT_PRESETS, loadPresets, type Presets } from "@/lib/presets";
 import { useAccount } from "@/lib/account";
 import { fel } from "@/lib/fel";
 
@@ -117,6 +118,8 @@ function SnabbPassBulk({ asked }: { asked: string | null }) {
   const [end, setEnd] = useState("16:00");
   const [hours, setHours] = useState(() => defaultHours("07:00", "16:00"));
   const [hoursTouched, setHoursTouched] = useState(false);
+  const [lunchPreset, setLunchPreset] = useState<number | null>(null);
+  const [presets, setPresets] = useState<Presets>([...DEFAULT_PRESETS]);
   const [creatingWorker, setCreatingWorker] = useState(false);
   const [credentials, setCredentials] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -144,13 +147,15 @@ function SnabbPassBulk({ asked }: { asked: string | null }) {
           x.id && x.name ? [{ id: x.id, name: x.name, role: x.role ?? "arbetare" }] : []
         )
       );
+      const { data: t } = await sb.from("tenant").select("id").maybeSingle();
+      if (t?.id) setPresets(loadPresets(t.id));
     })();
   }, [reload]);
 
   function setTime(key: "start" | "end", value: string) {
     const next = { start, end, [key]: value } as { start: string; end: string };
     if (key === "start") setStart(value); else setEnd(value);
-    if (!hoursTouched) setHours(defaultHours(next.start, next.end));
+    if (!hoursTouched) setHours(defaultHours(next.start, next.end, lunchPreset ?? 30));
   }
 
   const filteredWorkers = workers.filter((w) =>
@@ -568,6 +573,40 @@ function SnabbPassBulk({ asked }: { asked: string | null }) {
             </div>
             <div className="min-w-0 flex-1">
               <TimeField label="Slutar" value={end} onChange={(v) => setTime("end", v)} />
+            </div>
+          </div>
+
+          {/* RAST PRESET BUTTONS */}
+          <div className="mb-[14px]">
+            <span className="mb-[6px] block text-[12px] font-bold uppercase" style={{ letterSpacing: ".9px", color: C.text2 }}>
+              Rast
+            </span>
+            <div className="flex gap-[6px]">
+              {presets.map((min, j) => {
+                const active = lunchPreset === min;
+                return (
+                  <button
+                    key={j}
+                    type="button"
+                    aria-pressed={active}
+                    aria-label={`${min} minuters rast${active ? ", aktiv" : ""}`}
+                    onClick={() => {
+                      const next = active ? null : min;
+                      setLunchPreset(next);
+                      setHours(defaultHours(start, end, next ?? 30));
+                      setHoursTouched(false);
+                    }}
+                    className="flex-1 rounded-[8px] py-[8px] text-[13px] font-bold transition-colors"
+                    style={{
+                      background: active ? C.accent : C.panel2,
+                      color: active ? C.onAccent : C.ink,
+                      border: `1px solid ${active ? C.accent : C.border}`,
+                    }}
+                  >
+                    {min} min
+                  </button>
+                );
+              })}
             </div>
           </div>
 
