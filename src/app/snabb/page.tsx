@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { AuthGate } from "@/components/auth-gate";
 import {
   C, Card, MonthCard, PrimaryButton, SHADOW, SoftDialog, SoftField, SoftNotice,
@@ -497,6 +498,7 @@ function SnabbPassBulk({ asked }: { asked: string | null }) {
               type="button"
               onClick={() => setCreatingWorker(true)}
               className="flex w-full items-center gap-3 px-[18px] py-[13px]"
+              style={{ borderBottom: `1px solid ${C.hairline}` }}
             >
               <span
                 className="flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full"
@@ -510,6 +512,24 @@ function SnabbPassBulk({ asked }: { asked: string | null }) {
                 Ny arbetare
               </span>
             </button>
+
+            {/* Skapa flera konton */}
+            <Link
+              href="/arbetare/ny-bulk"
+              className="flex w-full items-center gap-3 px-[18px] py-[13px]"
+            >
+              <span
+                className="flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full"
+                style={{ border: `2px dashed ${C.border}` }}
+              >
+                <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden>
+                  <path d="M1 3h8M1 7h8M3 1v8M7 1v8" stroke={C.accentInk} strokeWidth="1.6" strokeLinecap="round" />
+                </svg>
+              </span>
+              <span className="text-[15px] font-medium" style={{ color: C.accentInk }}>
+                Skapa flera konton
+              </span>
+            </Link>
           </div>
         </Card>
       </div>

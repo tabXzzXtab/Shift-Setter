@@ -192,21 +192,38 @@ function AllaKonton() {
 
       {/* The one thing on this screen the list itself cannot show. */}
       <div className="px-4 pt-[2px]">
-        <Link
-          href="/arbetare/ny"
-          className="press-scale flex h-14 w-full items-center justify-center gap-[10px] rounded-[12px] text-[17px] font-extrabold transition-[transform,background] duration-150 hover:bg-[#3a2a20] active:scale-[.985]"
-          style={{
-            letterSpacing: "-.3px",
-            background: C.accent,
-            color: C.onAccent,
-            boxShadow: "0 6px 18px rgba(232,122,70,.26)",
-          }}
-        >
-          <svg width="15" height="15" viewBox="0 0 15 15" fill="none" aria-hidden>
-            <path d="M7.5 1v13M1 7.5h13" stroke={C.onAccent} strokeWidth="2.4" strokeLinecap="round" />
-          </svg>
-          Skapa konto
-        </Link>
+        <div className="flex gap-[10px]">
+          <Link
+            href="/arbetare/ny"
+            className="press-scale flex flex-1 items-center justify-center gap-[8px] rounded-[12px] py-[14px] text-[16px] font-extrabold transition-[transform,background] duration-150 hover:bg-[#3a2a20] active:scale-[.985]"
+            style={{
+              letterSpacing: "-.3px",
+              background: C.accent,
+              color: C.onAccent,
+              boxShadow: "0 6px 18px rgba(232,122,70,.26)",
+            }}
+          >
+            <svg width="13" height="13" viewBox="0 0 15 15" fill="none" aria-hidden>
+              <path d="M7.5 1v13M1 7.5h13" stroke={C.onAccent} strokeWidth="2.4" strokeLinecap="round" />
+            </svg>
+            Skapa konto
+          </Link>
+          <Link
+            href="/arbetare/ny-bulk"
+            className="press-scale flex flex-1 items-center justify-center gap-[8px] rounded-[12px] py-[14px] text-[16px] font-bold transition-[transform,background] duration-150 active:scale-[.985]"
+            style={{
+              letterSpacing: "-.2px",
+              background: C.surface,
+              color: C.accentInk,
+              border: `1px solid ${C.border}`,
+            }}
+          >
+            <svg width="15" height="15" viewBox="0 0 15 15" fill="none" aria-hidden>
+              <path d="M1 4.5h13M1 10.5h13M5 1v13M10 1v13" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+            </svg>
+            Skapa flera
+          </Link>
+        </div>
       </div>
 
       {/* Sticky, so it is still reachable forty rows down -- which is the only
