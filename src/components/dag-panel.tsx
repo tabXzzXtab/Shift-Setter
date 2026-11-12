@@ -18,6 +18,7 @@ type Person = {
   /** Step 4b: the workers' envelope, carried on an auto-assigned leader's
    *  own row. Null on a worker's row, which reads the pass. */
   own_start: string | null; own_end: string | null;
+  clock_in: string | null; clock_out: string | null; cancelled_at: string | null;
 };
 type Replacement = { worker_id: string; name: string };
 
@@ -107,6 +108,8 @@ export function DagPanel({ date, heading = true, project }: {
   /** Admin: transfer confirmer role to a different worker. */
   const [transferringPass, setTransferringPass] = useState<PassRow | null>(null);
   const [transferCandidates, setTransferCandidates] = useState<{ id: string; name: string }[] | null>(null);
+  /** Admin: cancel an in-progress shift. */
+  const [cancellingShift, setCancellingShift] = useState<{ tilldelning_id: string; name: string; pass: PassRow } | null>(null);
 
   /**
    * Two leaders trading the same day. Offered only when the day actually holds
@@ -184,7 +187,7 @@ export function DagPanel({ date, heading = true, project }: {
       const ids = (rows ?? []).map((r) => r.id);
       const { data: assignments } = ids.length
         ? await sb.from("tilldelning")
-            .select("id, pass_id, worker_id, source, own_start, own_end")
+            .select("id, pass_id, worker_id, source, own_start, own_end, clock_in, clock_out, cancelled_at")
             .in("pass_id", ids).is("released_at", null)
         : { data: [] };
 
@@ -209,6 +212,9 @@ export function DagPanel({ date, heading = true, project }: {
             source: a.source,
             own_start: a.own_start,
             own_end: a.own_end,
+            clock_in: a.clock_in ?? null,
+            clock_out: a.clock_out ?? null,
+            cancelled_at: a.cancelled_at ?? null,
           })),
       })));
     })();
@@ -312,6 +318,31 @@ export function DagPanel({ date, heading = true, project }: {
     setBusy(null);
   }
 
+  /** Admin: soft-delete an in-progress shift (sets cancelled_at). */
+  async function cancelShift(tilldelningId: string) {
+    setBusy(tilldelningId);
+    setError(null);
+    setNote(null);
+    const { error } = await getSupabase().rpc("cancel_shift", { p_tilldelning: tilldelningId });
+    if (error) setError(fel(error, "Skiftet kunde inte avbrytas. Kontakta administratören."));
+    else setNote("Skiftet är markerat som avbrutet.");
+    setCancellingShift(null);
+    setReload((n) => n + 1);
+    setBusy(null);
+  }
+
+  /** Admin: restore a cancelled shift (clears cancelled_at). */
+  async function uncancelShift(tilldelningId: string) {
+    setBusy(tilldelningId);
+    setError(null);
+    setNote(null);
+    const { error } = await getSupabase().rpc("uncancel_shift", { p_tilldelning: tilldelningId });
+    if (error) setError(fel(error, "Skiftet kunde inte återställas. Kontakta administratören."));
+    else setNote("Skiftet är återställt.");
+    setReload((n) => n + 1);
+    setBusy(null);
+  }
+
   /** Admin: open the ledare picker for a pass that has none. */
   async function openAssignLedare(p: PassRow) {
     setBusy(p.id);
@@ -410,6 +441,26 @@ export function DagPanel({ date, heading = true, project }: {
 
   return (
     <div data-day-panel={date}>
+      {/* AVBRYT SKIFT? -- admin cancels an in-progress shift. */}
+      {cancellingShift && (
+        <SoftDialog label="Avbryt skift?" onDismiss={() => setCancellingShift(null)}>
+          <h2 className="text-[19px] font-extrabold" style={{ letterSpacing: "-.5px" }}>
+            Avbryt skift?
+          </h2>
+          <p className="mb-[18px] mt-1 text-[15px] font-medium" style={{ color: C.text2, textWrap: "pretty" }}>
+            {cancellingShift.name}s skift markeras som avbrutet. Arbetaren kan fortfarande stämpla ut.
+          </p>
+          <div className="mb-[10px]">
+            <DangerButton
+              onClick={() => { const c = cancellingShift; setCancellingShift(null); void cancelShift(c.tilldelning_id); }}
+            >
+              Avbryt skift
+            </DangerButton>
+          </div>
+          <SecondaryButton onClick={() => setCancellingShift(null)}>Stäng</SecondaryButton>
+        </SoftDialog>
+      )}
+
       {/*
         VÄLJ UTBYTE -- Step 5b's popup.
         Over the scrim, because the slot is open right now and the answer is one
@@ -716,37 +767,61 @@ export function DagPanel({ date, heading = true, project }: {
                 {hhmm(p.start_time)}–{hhmm(p.end_time)} · {String(p.planned_hours).replace(".", ",")} h
               </p>
               {/* Step 4b: the leader's row was never a slot the pass demanded,
-                  so it is not counted against the headcount here either. */}
+                  so it is not counted against the headcount here either.
+                  Cancelled shifts (soft-deleted) also don't count. */}
               <p className="mb-[14px] text-[15px] font-bold" style={{ color: C.accentInk }}>
-                {p.people.filter((x) => x.source !== "ledare").length} av {p.headcount} {p.headcount === 1 ? "plats" : "platser"}
+                {p.people.filter((x) => x.source !== "ledare" && !x.cancelled_at).length} av {p.headcount} {p.headcount === 1 ? "plats" : "platser"}
               </p>
 
               <ul className="mb-[14px] flex flex-col gap-2">
-                {p.people.filter((x) => x.source !== "ledare").map((person) => (
+                {p.people.filter((x) => x.source !== "ledare" && !x.cancelled_at).map((person) => (
                   <li key={person.tilldelning_id} className="flex items-stretch gap-2">
                     <span
                       className="flex min-w-0 flex-1 items-center rounded-[10px] px-[14px] text-[17px] font-bold"
                       style={{ letterSpacing: "-.2px", background: C.panel2, minHeight: 52 }}
                     >
                       <span className="truncate">{person.name}</span>
+                      {person.clock_in && !person.clock_out && (
+                        <span className="ml-2 shrink-0 text-[13px] font-semibold" style={{ color: C.accentInk }}>
+                          Incheckad
+                        </span>
+                      )}
                     </span>
-                    <button
-                      type="button"
-                      aria-label={`Ta bort ${person.name}`}
-                      onClick={() => setAsking({ pass: p, person })}
-                      disabled={busy === person.tilldelning_id}
-                      className="press-scale flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-[10px] transition-transform duration-[110ms] hover:bg-[#ebe9e5] active:scale-[.985] disabled:opacity-40"
-                      style={{ background: C.stopBg }}
-                    >
-                      <svg width="14" height="16" viewBox="0 0 14 16" fill="none" aria-hidden>
-                        <path d="M1.6 4.2h10.8M5 4.2V2.4h4v1.8M2.8 4.2l.8 9.4h6.8l.8-9.4"
-                          stroke={C.stopInk} strokeWidth="1.8"
-                          strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                    </button>
+                    {/* Admin only: cancel an in-progress shift */}
+                    {account?.role === "admin" && person.clock_in && !person.clock_out && (
+                      <button
+                        type="button"
+                        aria-label={`Avbryt ${person.name}s skift`}
+                        onClick={() => setCancellingShift({ tilldelning_id: person.tilldelning_id, name: person.name, pass: p })}
+                        disabled={busy === person.tilldelning_id}
+                        className="press-scale flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-[10px] transition-transform duration-[110ms] hover:bg-[#ebe9e5] active:scale-[.985] disabled:opacity-40"
+                        style={{ background: C.stopBg }}
+                        title="Avbryt skift"
+                      >
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
+                          <path d="M2 2L14 14M14 2L2 14" stroke={C.stopInk} strokeWidth="2" strokeLinecap="round"/>
+                        </svg>
+                      </button>
+                    )}
+                    {(!account || account.role !== "admin" || !person.clock_in || person.clock_out) && (
+                      <button
+                        type="button"
+                        aria-label={`Ta bort ${person.name}`}
+                        onClick={() => setAsking({ pass: p, person })}
+                        disabled={busy === person.tilldelning_id}
+                        className="press-scale flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-[10px] transition-transform duration-[110ms] hover:bg-[#ebe9e5] active:scale-[.985] disabled:opacity-40"
+                        style={{ background: C.stopBg }}
+                      >
+                        <svg width="14" height="16" viewBox="0 0 14 16" fill="none" aria-hidden>
+                          <path d="M1.6 4.2h10.8M5 4.2V2.4h4v1.8M2.8 4.2l.8 9.4h6.8l.8-9.4"
+                            stroke={C.stopInk} strokeWidth="1.8"
+                            strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      </button>
+                    )}
                   </li>
                 ))}
-                {p.people.filter((x) => x.source !== "ledare").length === 0 && (
+                {p.people.filter((x) => x.source !== "ledare" && !x.cancelled_at).length === 0 && (
                   <li
                     className="rounded-[10px] p-[14px] text-center text-[15px] font-medium"
                     style={{ background: C.panel, color: C.text2 }}
@@ -867,6 +942,45 @@ export function DagPanel({ date, heading = true, project }: {
                   </li>
                 ))}
               </ul>
+
+              {/* Avbrutna skift -- collapsed, visible to admin and arbetsledare */}
+              {(account?.role === "admin" || account?.role === "arbetsledare") &&
+                p.people.filter((x) => x.source !== "ledare" && !!x.cancelled_at).length > 0 && (
+                <details className="mb-[10px]">
+                  <summary
+                    className="cursor-pointer select-none rounded-[8px] px-[14px] py-2 text-[14px] font-semibold"
+                    style={{ color: C.text2, background: C.panel }}
+                  >
+                    {p.people.filter((x) => x.source !== "ledare" && !!x.cancelled_at).length === 1
+                      ? "1 avbrutet skift"
+                      : `${p.people.filter((x) => x.source !== "ledare" && !!x.cancelled_at).length} avbrutna skift`}
+                  </summary>
+                  <ul className="mt-2 flex flex-col gap-2">
+                    {p.people.filter((x) => x.source !== "ledare" && !!x.cancelled_at).map((person) => (
+                      <li key={`cancelled-${person.tilldelning_id}`} className="flex items-stretch gap-2">
+                        <span
+                          className="flex min-w-0 flex-1 items-center rounded-[10px] px-[14px] text-[17px] font-bold opacity-50"
+                          style={{ letterSpacing: "-.2px", background: C.panel2, minHeight: 48, textDecoration: "line-through" }}
+                        >
+                          <span className="truncate">{person.name}</span>
+                        </span>
+                        {account?.role === "admin" && (
+                          <button
+                            type="button"
+                            aria-label={`Återställ ${person.name}s skift`}
+                            onClick={() => uncancelShift(person.tilldelning_id)}
+                            disabled={busy === person.tilldelning_id}
+                            className="press-scale flex h-[48px] shrink-0 items-center justify-center rounded-[10px] px-3 text-[13px] font-bold transition-transform duration-[110ms] hover:bg-[#e9e8e4] active:scale-[.985] disabled:opacity-40"
+                            style={{ background: C.surface, border: `1px solid ${C.border}`, color: C.inkHover }}
+                          >
+                            Återställ
+                          </button>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+              )}
 
               {editing === p.id && draft ? (
                 <div className="pt-[14px]" style={{ boxShadow: `inset 0 1px 0 ${C.hairline}` }}>

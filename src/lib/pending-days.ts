@@ -174,7 +174,8 @@ export async function pendingSummaries(limit?: number): Promise<PendingSummary[]
     sb.from("tilldelning")
       .select("pass_id, worker_id")
       .in("pass_id", passIds)
-      .is("released_at", null),
+      .is("released_at", null)
+      .is("cancelled_at", null),
     sb.from("worker_roster").select("id, name"),
   ]);
 
@@ -222,6 +223,7 @@ async function onlyMine<T extends { project_id: string; work_date: string }>(
     .select("project_id, work_date, worker_id")
     .eq("source", "ledare")
     .is("released_at", null)
+    .is("cancelled_at", null)
     .in("work_date", [...new Set(days.map((d) => d.work_date))]);
 
   const led = new Set<string>();

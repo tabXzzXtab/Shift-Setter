@@ -25,6 +25,7 @@ type Shift = {
   site_address: string | null;
   clock_in: string | null;
   clock_out: string | null;
+  cancelled_at: string | null;
   /** When the break now running began, or null. From the stamp events. */
   lunch_since: string | null;
 };
@@ -183,7 +184,7 @@ export function HomeArbetare() {
       // at 06:00 and bad signal on site is normal.
       const [{ data: shifts }, { data: offered }] = await Promise.all([
         sb.from("my_shift")
-          .select("id, work_date, start_time, end_time, project_name, site_address, clock_in, clock_out, lunch_since")
+          .select("id, work_date, start_time, end_time, project_name, site_address, clock_in, clock_out, cancelled_at, lunch_since")
           .gte("work_date", addDays(today, -1))
           .lte("work_date", today)
           .order("work_date"),
@@ -417,6 +418,17 @@ export function HomeArbetare() {
                 piece of state on this card would be invisible to a screen
                 reader (handoff, Accessibility).
               */}
+              {/* Admin cancelled this shift: show a notice inside the card */}
+              {shift.cancelled_at && (
+                <div
+                  className="mb-[14px] rounded-[10px] px-[14px] py-3 text-[14px] font-semibold"
+                  style={{ background: "#fff3ef", color: "#c11c04" }}
+                  role="status"
+                >
+                  Ditt skift avbröts av administratören
+                </div>
+              )}
+
               <span
                 role="status"
                 aria-label={onLunch ? `Lunchpaus sedan ${lunchFrom}` : clockedIn ? "Instämplad" : "Inte instämplad"}

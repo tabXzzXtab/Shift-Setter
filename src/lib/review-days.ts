@@ -106,7 +106,8 @@ export async function reviewSummaries(limit?: number): Promise<ReviewSummary[]> 
     sb.from("tilldelning")
       .select("pass_id, worker_id, confirmed_hours")
       .in("pass_id", (passes ?? []).map((p) => p.id))
-      .is("released_at", null),
+      .is("released_at", null)
+      .is("cancelled_at", null),
     sb.from("worker_roster").select("id, name"),
   ]);
 

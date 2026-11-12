@@ -1730,6 +1730,7 @@ export type Database = {
       }
       tilldelning: {
         Row: {
+          cancelled_at: string | null
           clock_in: string | null
           clock_in_original: string | null
           clock_out: string | null
@@ -1751,6 +1752,7 @@ export type Database = {
           worker_id: string
         }
         Insert: {
+          cancelled_at?: string | null
           clock_in?: string | null
           clock_in_original?: string | null
           clock_out?: string | null
@@ -1772,6 +1774,7 @@ export type Database = {
           worker_id: string
         }
         Update: {
+          cancelled_at?: string | null
           clock_in?: string | null
           clock_in_original?: string | null
           clock_out?: string | null
@@ -2086,6 +2089,7 @@ export type Database = {
       }
       my_shift: {
         Row: {
+          cancelled_at: string | null
           clock_in: string | null
           clock_out: string | null
           confirmed_hours: number | null
@@ -2240,8 +2244,10 @@ export type Database = {
         Args: { p_from: string; p_project: string; p_to: string }
         Returns: Json
       }
+      cancel_shift: { Args: { p_tilldelning: string }; Returns: undefined }
       clock_in: { Args: { p_tilldelning: string }; Returns: string }
       clock_out: { Args: { p_tilldelning: string }; Returns: string }
+      uncancel_shift: { Args: { p_tilldelning: string }; Returns: undefined }
       close_pass: {
         Args: { p_hours: number; p_pass: string }
         Returns: undefined
