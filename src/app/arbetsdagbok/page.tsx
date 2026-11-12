@@ -331,7 +331,8 @@ function Arbetsdagbok() {
       .from("tilldelning")
       .select("pass_id, worker_id, confirmed_hours, clock_in, clock_out, source, own_start, own_end")
       .in("pass_id", (passes ?? []).map((p) => p.id))
-      .is("released_at", null);
+      .is("released_at", null)
+      .neq("source", "ledare");
 
     const { data: roster } = await sb.from("worker_roster").select("id, name");
     const names = new Map((roster ?? []).map((w) => [w.id, w.name ?? ""]));
