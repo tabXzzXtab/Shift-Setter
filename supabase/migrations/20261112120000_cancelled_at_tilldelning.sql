@@ -21,8 +21,15 @@ ALTER TABLE public.tilldelning
 -- 2. Rebuild my_shift to include cancelled_at.
 --    Workers still see their cancelled shift so they can clock out (audit row)
 --    and so the UI can show the cancellation notice.
+--
+--    DROP first: CREATE OR REPLACE VIEW matches columns by position, so
+--    inserting cancelled_at between clock_out and confirmed_hours would cause
+--    error 42P16 (cannot change name of view column). Drop + recreate avoids
+--    this. The view has no dependents (functions reference the base table).
 -- ---------------------------------------------------------------------------
-CREATE OR REPLACE VIEW public.my_shift WITH (security_invoker = false) AS
+DROP VIEW IF EXISTS public.my_shift CASCADE;
+
+CREATE VIEW public.my_shift WITH (security_invoker = false) AS
  SELECT t.id,
     t.pass_id,
     p.project_id,
