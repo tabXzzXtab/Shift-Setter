@@ -197,7 +197,7 @@ export function HomeAdmin() {
             <div className="flex gap-[10px]">
               {[
                 { href: "/pass/ny", label: "Skapa pass" },
-                { href: "/snabb", label: "Snabb pass" },
+                { href: "/snabb", label: "Skiftfabrik" },
               ].map((a) => (
                 <Link
                   key={a.href}

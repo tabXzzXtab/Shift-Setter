@@ -239,7 +239,7 @@ export function DagPanel({ date, heading = true, project }: {
         setNote(
           v.beyond_five_days
             ? `${person.name} är borttagen. Ingen förvald var ledig, så platsen gick ut som Acceptera Pass till ${v.offered}.`
-            : `${person.name} är borttagen. Ingen förvald var ledig och passet är inom fem dagar — sätt in någon själv eller använd Snabb Pass.`,
+            : `${person.name} är borttagen. Ingen förvald var ledig och passet är inom fem dagar — sätt in någon själv eller använd Skiftfabrik.`,
         );
       }
     }
