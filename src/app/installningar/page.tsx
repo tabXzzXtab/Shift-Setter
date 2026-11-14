@@ -26,7 +26,7 @@ import { useTourReplay } from "@/components/tour/tour-provider";
 function Installningar() {
   const replay = useTourReplay();
   const [tenantId, setTenantId] = useState<string | null>(null);
-  const [presets, setPresetsState] = useState<Presets>([...DEFAULT_PRESETS]);
+  const [, setPresetsState] = useState<Presets>([...DEFAULT_PRESETS]);
   const [inputs, setInputs] = useState<[string, string, string]>(
     DEFAULT_PRESETS.map(String) as [string, string, string],
   );

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { AuthGate } from "@/components/auth-gate";
-import { C, DangerButton, EmptyState, PrimaryButton, SHADOW, SoftDialog, SoftNotice, SoftScreen, SoftToast } from "@/components/soft";
+import { C, DangerButton, EmptyState, SHADOW, SoftDialog, SoftNotice, SoftScreen, SoftToast } from "@/components/soft";
 import { useAccount } from "@/lib/account";
 import { getSupabase } from "@/lib/supabase/client";
 

@@ -2,7 +2,6 @@
 
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import Link from "next/link";
 import { AuthGate } from "@/components/auth-gate";
 import {
   C, Card, MonthCard, PrimaryButton, SHADOW, SoftDialog, SoftNotice,
@@ -283,8 +282,15 @@ function Skiftfabrik({ asked }: { asked: string | null }) {
 
   const touchStartX = useRef(0);
 
+  const [createdKeys, setCreatedKeys] = useState<Set<string>>(new Set());
+
   const sortedDays = [...selectedDays].sort();
-  const currentDay = sortedDays[activeDay] ?? null;
+  const dayIdx = Math.min(activeDay, Math.max(0, sortedDays.length - 1));
+  const currentDay = sortedDays[dayIdx] ?? null;
+  const keys = workerCount > 0
+    ? sortedDays.flatMap((d) => Array.from({ length: workerCount }, (_, i) => cardKey(d, i)))
+    : [];
+  const cardAt = (k: string) => cards.get(k) ?? defaultCard();
 
   /* ── data load ── */
   useEffect(() => {
@@ -310,30 +316,10 @@ function Skiftfabrik({ asked }: { asked: string | null }) {
     })();
   }, [reload]);
 
-  /* ── sync cards when days or workerCount changes ── */
-  useEffect(() => {
-    if (workerCount === 0) return;
-    setCards((prev) => {
-      const next = new Map<string, CardState>();
-      for (const date of selectedDays) {
-        for (let i = 0; i < workerCount; i++) {
-          const k = cardKey(date, i);
-          next.set(k, prev.get(k) ?? defaultCard());
-        }
-      }
-      return next;
-    });
-  }, [selectedDays, workerCount]);
-
-  /* ── clamp activeDay ── */
-  useEffect(() => {
-    setActiveDay((prev) => Math.min(prev, Math.max(0, sortedDays.length - 1)));
-  }, [sortedDays.length]);
-
   /* ── worker count change ── */
   function handleCountChange(n: number) {
     if (n === workerCount) return;
-    if (cards.size > 0 && workerCount > 0) {
+    if (keys.length > 0) {
       setPendingCount(n);
       setShowResetDialog(true);
     } else {
@@ -343,6 +329,8 @@ function Skiftfabrik({ asked }: { asked: string | null }) {
 
   function confirmReset() {
     setCards(new Map());
+    setCardErrors(new Map());
+    setCreatedKeys(new Set());
     setWorkerCount(pendingCount);
     setShowResetDialog(false);
   }
@@ -369,10 +357,10 @@ function Skiftfabrik({ asked }: { asked: string | null }) {
   function handleTouchEnd(e: React.TouchEvent) {
     const dx = e.changedTouches[0]!.clientX - touchStartX.current;
     if (Math.abs(dx) > 60) {
-      setActiveDay((prev) =>
+      setActiveDay(
         dx > 0
-          ? Math.max(0, prev - 1)
-          : Math.min(sortedDays.length - 1, prev + 1),
+          ? Math.max(0, dayIdx - 1)
+          : Math.min(sortedDays.length - 1, dayIdx + 1),
       );
     }
   }
@@ -387,11 +375,13 @@ function Skiftfabrik({ asked }: { asked: string | null }) {
     let created = 0;
     let failed = 0;
     const errors = new Map<string, string>();
-    const entries = [...cards.entries()];
-    const total = entries.length;
+    const done = new Set(createdKeys);
+    const pending = keys.filter((k) => !done.has(k));
+    const total = pending.length;
 
-    for (let i = 0; i < entries.length; i++) {
-      const [key, card] = entries[i]!;
+    for (let i = 0; i < pending.length; i++) {
+      const key = pending[i]!;
+      const card = cardAt(key);
       const date = key.split("::")[0]!;
       const h = cardHours(card);
 
@@ -410,10 +400,12 @@ function Skiftfabrik({ asked }: { asked: string | null }) {
         errors.set(key, rpcErr.message);
         failed++;
       } else {
+        done.add(key);
         created++;
       }
     }
 
+    setCreatedKeys(done);
     setSaving(false);
     setProgress("");
 
@@ -470,8 +462,8 @@ function Skiftfabrik({ asked }: { asked: string | null }) {
     );
   }
 
-  const totalCards = cards.size;
-  const filledCards = [...cards.values()].filter((c) => c.personId).length;
+  const totalCards = keys.length - keys.filter((k) => createdKeys.has(k)).length;
+  const filledCards = keys.filter((k) => !createdKeys.has(k) && cardAt(k).personId).length;
   const canSubmit = !saving && projectId && totalCards > 0 && filledCards === totalCards;
 
   return (
@@ -638,9 +630,9 @@ function Skiftfabrik({ asked }: { asked: string | null }) {
                   onClick={() => setActiveDay(i)}
                   className="shrink-0 rounded-full px-[14px] py-[6px] text-[14px] font-bold transition-colors"
                   style={{
-                    background: i === activeDay ? C.accent : C.panel2,
-                    color: i === activeDay ? C.onAccent : C.ink,
-                    border: `1px solid ${i === activeDay ? C.accent : C.border}`,
+                    background: i === dayIdx ? C.accent : C.panel2,
+                    color: i === dayIdx ? C.onAccent : C.ink,
+                    border: `1px solid ${i === dayIdx ? C.accent : C.border}`,
                   }}
                 >
                   {svDate(d)}
@@ -668,7 +660,7 @@ function Skiftfabrik({ asked }: { asked: string | null }) {
             {currentDay &&
               Array.from({ length: workerCount }, (_, slot) => {
                 const k = cardKey(currentDay, slot);
-                const card = cards.get(k) ?? defaultCard();
+                const card = cardAt(k);
                 return (
                   <ShiftCard
                     key={k}
@@ -690,7 +682,7 @@ function Skiftfabrik({ asked }: { asked: string | null }) {
                 <span
                   key={i}
                   className="block h-[6px] w-[6px] rounded-full transition-colors"
-                  style={{ background: i === activeDay ? C.accent : C.border }}
+                  style={{ background: i === dayIdx ? C.accent : C.border }}
                 />
               ))}
             </div>
