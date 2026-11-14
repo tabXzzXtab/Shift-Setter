@@ -6,6 +6,7 @@ import { AuthGate } from "@/components/auth-gate";
 import {
   C, Card, PrimaryButton, SoftField, SoftInput, SoftNotice, SoftScreen,
 } from "@/components/soft";
+import { AddressField } from "@/components/address-field";
 import { CardTitle } from "@/components/card-title";
 import { DateField } from "@/components/date-field";
 import { PickField } from "@/components/pick-field";
@@ -99,6 +100,8 @@ function NyttProjekt() {
   const visaFalt = nyBest || tidigare.length === 0;
   const best = valdBest === "" ? null : tidigare[Number(valdBest)] ?? null;
   const [start, setStart] = useState(stockholmToday);
+  const [siteAddress, setSiteAddress] = useState("");
+  const [bestAddress, setBestAddress] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -133,7 +136,7 @@ function NyttProjekt() {
   });
   useTourAutofill("projekt", leaders.length > 0 && bestLoaded, () => [
     into("name", "Fasad Malmö"),
-    into("site_address", "Storgatan 12, 211 34 Malmö"),
+    { text: "Storgatan 12, 211 34 Malmö", typed: true, el: () => input("site_address"), write: (v: string) => setSiteAddress(v) },
     // State, not the element: the visible field shows words, and the hidden
     // input follows `start`.
     { text: addDays(stockholmToday(), 14), typed: false, write: (v: string) => setStart(v) },
@@ -141,7 +144,7 @@ function NyttProjekt() {
     // The example is a new beställare, so its fields have to be on screen.
     { text: "Ny beställare", typed: false, write: () => setNyBest(true) },
     into("bestallare_bolag", "Storgatans Fastigheter AB"),
-    into("bestallare_address", "Södra Förstadsgatan 4, 211 43 Malmö"),
+    { text: "Södra Förstadsgatan 4, 211 43 Malmö", typed: true, el: () => input("bestallare_address"), write: (v: string) => setBestAddress(v) },
     into("bestallare_orgnr", "556000-0000"),
   ]);
 
@@ -218,9 +221,14 @@ function NyttProjekt() {
             </div>
 
             <div className="mb-[14px]">
-              <SoftField label="Projektets adress" help="Dit arbetaren åker.">
-                <SoftInput name="site_address" required autoComplete="off" />
-              </SoftField>
+              <AddressField
+                name="site_address"
+                label="Projektets adress"
+                help="Dit arbetaren åker."
+                required
+                value={siteAddress}
+                onChange={setSiteAddress}
+              />
             </div>
 
             {/* No Tjänster here: a project's history is what the leaders write
@@ -287,9 +295,13 @@ function NyttProjekt() {
                 </div>
 
                 <div className="mb-[14px]">
-                  <SoftField label="Beställarens adress">
-                    <SoftInput name="bestallare_address" required autoComplete="off" />
-                  </SoftField>
+                  <AddressField
+                    name="bestallare_address"
+                    label="Beställarens adress"
+                    required
+                    value={bestAddress}
+                    onChange={setBestAddress}
+                  />
                 </div>
 
                 <SoftField label="Beställarens org nummer">

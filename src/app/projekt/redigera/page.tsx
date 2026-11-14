@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState, type FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AuthGate } from "@/components/auth-gate";
 import { useAccount } from "@/lib/account";
+import { AddressField } from "@/components/address-field";
 import {
   C, Card, DangerButton, PrimaryButton, SecondaryButton, SoftField, SoftInput,
   SoftDialog, SoftNotice, SoftScreen, SoftToast,
@@ -216,20 +217,37 @@ function RedigeraProjekt({ id }: { id: string | null }) {
   }
 
   /** One field, wired to the row. Every one on this screen is the same object. */
-  const field = ({ key, label, help }: FieldSpec) => (
-    <SoftField key={key} label={label} help={help}>
-      <SoftInput
-        type={key === "start_date" ? "date" : "text"}
-        value={project[key] ?? ""}
-        required={key !== "services"}
-        autoComplete="off"
-        onChange={(e) => {
-          setSaved(false);
-          setProject({ ...project, [key]: e.target.value });
-        }}
-      />
-    </SoftField>
-  );
+  const field = ({ key, label, help }: FieldSpec) => {
+    if (key === "site_address" || key === "bestallare_address") {
+      return (
+        <AddressField
+          name={key}
+          label={label}
+          help={help}
+          required
+          value={project[key] ?? ""}
+          onChange={(v) => {
+            setSaved(false);
+            setProject({ ...project, [key]: v });
+          }}
+        />
+      );
+    }
+    return (
+      <SoftField key={key} label={label} help={help}>
+        <SoftInput
+          type={key === "start_date" ? "date" : "text"}
+          value={project[key] ?? ""}
+          required={key !== "services"}
+          autoComplete="off"
+          onChange={(e) => {
+            setSaved(false);
+            setProject({ ...project, [key]: e.target.value });
+          }}
+        />
+      </SoftField>
+    );
+  };
 
   return (
     <SoftScreen
