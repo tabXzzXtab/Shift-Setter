@@ -8,6 +8,8 @@ import {
 import { getSupabase } from "@/lib/supabase/client";
 import { hhmm, longDayHeading } from "@/lib/dates";
 import { fel } from "@/lib/fel";
+import { useAccount } from "@/lib/account";
+import { markOpenPassesSeen } from "@/lib/oppna-pass-seen";
 
 type Open = {
   pass_id: string;
@@ -72,6 +74,12 @@ function OppnaPass() {
    *  else in the app -- a reload is a dependency, not a function call. */
   const [reload, setReload] = useState(0);
 
+  // Everything on this screen counts as seen: the startsida's dot on Meny
+  // stays away until a pass appears that was not in this list
+  // (lib/oppna-pass-seen).
+  const { account } = useAccount();
+  const accountId = account?.id;
+
   const live = useRef(true);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -98,9 +106,10 @@ function OppnaPass() {
       }
       setError(null);
       setRows((data ?? []) as Open[]);
+      if (accountId) markOpenPassesSeen(accountId, (data ?? []).flatMap((r) => (r.pass_id ? [r.pass_id] : [])));
     })();
     return () => { active = false; };
-  }, [reload]);
+  }, [reload, accountId]);
 
   /**
    * A confirmation is a flash; a refusal is something to read. Only the

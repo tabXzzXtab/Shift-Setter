@@ -909,14 +909,24 @@ export function SecondaryButton({
  * find; white on it is the contrast Ro gets from grey on white.
  */
 /** A row goes somewhere (href) or does something on this screen (onClick). */
-export type GroupedRow = { label: string } & ({ href: string } | { onClick: () => void });
+export type GroupedRow = {
+  label: string;
+  /** Something new behind this row: an orange dot before the chevron. */
+  dot?: boolean;
+} & ({ href: string } | { onClick: () => void });
 
 export function GroupedList({ rows }: { rows: GroupedRow[] }) {
   const cls = "flex h-[60px] w-full items-center justify-between rounded-[16px] px-[18px] text-left hover:bg-[#f4f3f0]";
-  const face = (label: string) => (
+  const face = (label: string, dot?: boolean) => (
     <>
-      <span className="text-[17px] font-bold" style={{ letterSpacing: "-.2px" }}>{label}</span>
-      <ChevronRight />
+      <span className="text-[17px] font-bold" style={{ letterSpacing: "-.2px" }}>
+        {label}
+        {dot && <span className="sr-only">, nya pass</span>}
+      </span>
+      <span className="flex items-center gap-3">
+        {dot && <NewDot />}
+        <ChevronRight />
+      </span>
     </>
   );
   return (
@@ -924,15 +934,31 @@ export function GroupedList({ rows }: { rows: GroupedRow[] }) {
       {rows.map((r) => (
         <div key={r.label}>
           {"href" in r ? (
-            <Link href={r.href} className={cls} style={{ color: C.ink, background: C.surface }}>{face(r.label)}</Link>
+            <Link href={r.href} className={cls} style={{ color: C.ink, background: C.surface }}>{face(r.label, r.dot)}</Link>
           ) : (
             <button type="button" onClick={r.onClick} className={cls} style={{ color: C.ink, background: C.surface }}>
-              {face(r.label)}
+              {face(r.label, r.dot)}
             </button>
           )}
         </div>
       ))}
     </div>
+  );
+}
+
+/**
+ * "Something new is in here": a solid brand-orange dot with a ring of the
+ * ground around it, the bell's unread badge without the number. Decorative --
+ * whatever carries it says the same thing in words for a screen reader.
+ */
+export function NewDot({ className = "" }: { className?: string }) {
+  return (
+    <span
+      aria-hidden
+      data-new-dot
+      className={`block h-[10px] w-[10px] shrink-0 rounded-full ${className}`}
+      style={{ background: C.accent, boxShadow: `0 0 0 2px ${C.ground}` }}
+    />
   );
 }
 
