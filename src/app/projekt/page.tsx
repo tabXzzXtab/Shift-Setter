@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { AuthGate } from "@/components/auth-gate";
-import { C, EmptyState, SHADOW, SoftScreen } from "@/components/soft";
+import { C, DangerButton, EmptyState, PrimaryButton, SHADOW, SoftDialog, SoftNotice, SoftScreen, SoftToast } from "@/components/soft";
 import { useAccount } from "@/lib/account";
 import { getSupabase } from "@/lib/supabase/client";
 
@@ -120,6 +120,44 @@ function AllaProjekt() {
   const [query, setQuery] = useState("");
   const searchRef = useRef<HTMLInputElement>(null);
 
+  const [confirmDelete, setConfirmDelete] = useState<Project | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [impact, setImpact] = useState<{ passes: number; people: number } | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
+
+  async function openDeleteConfirm(p: Project) {
+    setConfirmDelete(p);
+    setDeleteError(null);
+    setImpact(null);
+    const { data, error } = await getSupabase().rpc("project_delete_impact", { p_project: p.id });
+    if (error) {
+      setDeleteError(error.message);
+    } else if (data) {
+      setImpact(data as unknown as { passes: number; people: number });
+    }
+  }
+
+  async function executeDelete() {
+    if (!confirmDelete) return;
+    setDeleting(true);
+    setDeleteError(null);
+    const { error } = await getSupabase().rpc("delete_project", {
+      p_project: confirmDelete.id,
+      p_cancel_future: true,
+    });
+    setDeleting(false);
+    if (error) {
+      setDeleteError(error.message);
+      return;
+    }
+    const name = confirmDelete.name;
+    setProjects((prev) => (prev ?? []).filter((x) => x.id !== confirmDelete.id));
+    setConfirmDelete(null);
+    setOpen(null);
+    setToast(`"${name}" raderat`);
+  }
+
   useEffect(() => {
     const sb = getSupabase();
     void (async () => {
@@ -169,6 +207,50 @@ function AllaProjekt() {
 
   return (
     <SoftScreen title="Välj ett projekt" back="/">
+      <SoftToast message={toast} onDone={() => setToast(null)} />
+
+      {/* ---- Delete confirmation dialog ---- */}
+      {confirmDelete && (
+        <SoftDialog
+          label="Radera projekt"
+          onDismiss={deleting ? undefined : () => setConfirmDelete(null)}
+        >
+          <div className="mb-4 text-[17px] font-bold" style={{ color: C.ink }}>
+            Radera projekt?
+          </div>
+          <p className="mb-4 text-[15px]" style={{ color: C.text2, textWrap: "pretty" }}>
+            &ldquo;{confirmDelete.name}&rdquo; och alla tillhörande skift kommer att raderas
+            permanent. Detta går inte att ångra.
+          </p>
+          {impact && impact.passes > 0 && (
+            <div className="mb-4">
+              <SoftNotice tone="warn">
+                {impact.passes} pass och {impact.people} tilldelningar påverkas.
+              </SoftNotice>
+            </div>
+          )}
+          {deleteError && (
+            <div className="mb-4">
+              <SoftNotice tone="stop">{deleteError}</SoftNotice>
+            </div>
+          )}
+          <div className="space-y-[10px]">
+            <DangerButton onClick={() => void executeDelete()} disabled={deleting} solid>
+              {deleting ? "Raderar…" : "Radera"}
+            </DangerButton>
+            <button
+              type="button"
+              onClick={() => setConfirmDelete(null)}
+              disabled={deleting}
+              className="w-full rounded-[14px] border py-[14px] text-[16px] font-semibold"
+              style={{ borderColor: C.border, color: C.ink }}
+            >
+              Avbryt
+            </button>
+          </div>
+        </SoftDialog>
+      )}
+
       {/* ---- Tillverka Projekt button (spec 08) ----------------------------- */}
       <div className="px-4 pt-[6px]">
         <Link
@@ -321,6 +403,17 @@ function AllaProjekt() {
                         {a.label}
                       </Link>
                     ))}
+
+                    <div className="my-[4px] h-px" style={{ background: C.hairline }} />
+
+                    <button
+                      type="button"
+                      onClick={() => void openDeleteConfirm(p)}
+                      className="press-scale flex h-12 w-full items-center justify-center rounded-[10px] text-[15px] font-bold transition-transform duration-[110ms] active:scale-[.985]"
+                      style={{ color: C.stopInk }}
+                    >
+                      Radera projekt
+                    </button>
                   </div>
                 </div>
               )}
