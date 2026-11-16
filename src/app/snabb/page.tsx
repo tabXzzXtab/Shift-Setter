@@ -419,7 +419,13 @@ function Skiftfabrik({ asked }: { asked: string | null }) {
       if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
       g.axis = Math.abs(dx) > Math.abs(dy) ? "x" : "y";
       if (g.axis === "y") { drag.current = null; return; }
-      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+      const el = e.currentTarget as HTMLElement;
+      el.setPointerCapture(e.pointerId);
+      // A mouse drag selects text, and in Safari the next press on that selection starts a
+      // native text drag that swallows the pointerup and leaves the track hanging mid-swipe.
+      window.getSelection()?.removeAllRanges();
+      el.style.userSelect = "none";
+      el.style.setProperty("-webkit-user-select", "none");
     }
     const at = idxRef.current;
     const atEdge = (at === 0 && dx > 0) || (at === sortedDays.length - 1 && dx < 0);
@@ -429,9 +435,15 @@ function Skiftfabrik({ asked }: { asked: string | null }) {
     place(at, g.dx, false);
   }
 
+  function releaseSelection(el: HTMLElement) {
+    el.style.userSelect = "";
+    el.style.removeProperty("-webkit-user-select");
+  }
+
   function onDaysPointerUp(e: React.PointerEvent) {
     const g = drag.current;
     drag.current = null;
+    releaseSelection(e.currentTarget as HTMLElement);
     if (!g || g.id !== e.pointerId || g.axis !== "x") return;
     dragged.current = true;
     const width = (daysRef.current?.clientWidth ?? 1) * (DAY_COL / 100);
@@ -789,8 +801,9 @@ function Skiftfabrik({ asked }: { asked: string | null }) {
             onPointerDown={onDaysPointerDown}
             onPointerMove={onDaysPointerMove}
             onPointerUp={onDaysPointerUp}
-            onPointerCancel={() => { drag.current = null; place(idxRef.current, 0, true); }}
+            onPointerCancel={(e) => { drag.current = null; releaseSelection(e.currentTarget); place(idxRef.current, 0, true); }}
             onClickCapture={onDaysClickCapture}
+            onDragStart={(e) => e.preventDefault()}
           >
           <div
             ref={daysRef}
