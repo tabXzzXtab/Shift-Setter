@@ -43,6 +43,16 @@ function minutesBetween(start: string, end: string): number {
 
 function cardKey(date: string, slot: number) { return `${date}::${slot}`; }
 
+/** "12:e november", "1:a december": Swedish ordinals, the year only when it is not this one. */
+function svOrdinalDate(date: string): string {
+  const [y, m, d] = date.split("-").map(Number) as [number, number, number];
+  const month = new Intl.DateTimeFormat("sv-SE", { month: "long", timeZone: "UTC" })
+    .format(new Date(Date.UTC(y, m - 1, d, 12)));
+  const suffix = (d % 10 === 1 || d % 10 === 2) && d !== 11 && d !== 12 ? "a" : "e";
+  const year = String(y) === stockholmToday().slice(0, 4) ? "" : ` ${y}`;
+  return `${d}:${suffix} ${month}${year}`;
+}
+
 const STRIP_MASK = "linear-gradient(to right, transparent, black 22%, black 78%, transparent)";
 // A day's column takes this much of the screen, so the next day shows at the edge.
 const DAY_COL = 76;
@@ -678,6 +688,8 @@ function Skiftfabrik({ asked }: { asked: string | null }) {
 
   const totalCards = keys.length - keys.filter((k) => createdKeys.has(k)).length;
   const filledCards = keys.filter((k) => !createdKeys.has(k) && cardAt(k).personId).length;
+  const missingDays = sortedDays.filter((d) =>
+    slotsOf(d).some((k) => !createdKeys.has(k) && !cardAt(k).personId));
   const hoursReadable = keys.every((k) => createdKeys.has(k) || hoursOk(cardAt(k)));
   const canSubmit = !saving && projectId && totalCards > 0 && filledCards === totalCards && hoursReadable;
 
@@ -1001,6 +1013,14 @@ function Skiftfabrik({ asked }: { asked: string | null }) {
               ? `Skapa ${totalCards} skift`
               : "Skapa skift"}
         </PrimaryButton>
+        {/* What is holding Skapa back: one line per day with a card nobody is on. */}
+        <div aria-live="polite" className="mt-[10px] space-y-[2px] text-center">
+          {missingDays.map((d) => (
+            <p key={d} data-missing-day={d} className="text-[13px] font-semibold" style={{ color: C.stopInk }}>
+              {svOrdinalDate(d)} saknar arbetare
+            </p>
+          ))}
+        </div>
       </div>
     </SoftScreen>
   );
