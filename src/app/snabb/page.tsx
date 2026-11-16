@@ -4,9 +4,10 @@ import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { AuthGate } from "@/components/auth-gate";
 import {
-  C, Card, MonthCard, PrimaryButton, SHADOW, SoftDialog, SoftNotice,
-  SoftScreen, SoftToast, monthShape,
+  C, Card, PrimaryButton, SHADOW, SoftDialog, SoftNotice,
+  SoftScreen, SoftToast,
 } from "@/components/soft";
+import { PaintCalendar } from "@/components/paint-calendar";
 import { NyArbetareForm, type CreatedWorker } from "@/components/ny-arbetare";
 import { PickField } from "@/components/pick-field";
 import { TimeField } from "@/components/time-wheel";
@@ -30,16 +31,6 @@ type CardState = {
 
 /* ── helpers ────────────────────────────────────────────────────────── */
 
-const iso = (y: number, m: number, d: number) =>
-  `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
-
-function words(date: string) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return "";
-  return new Intl.DateTimeFormat("sv-SE", {
-    day: "numeric", month: "short", year: "numeric", timeZone: "UTC",
-  }).format(new Date(`${date}T12:00:00Z`));
-}
-
 function minutesBetween(start: string, end: string): number {
   const toMin = (t: string) => {
     const [h, m] = t.split(":").map(Number);
@@ -48,11 +39,6 @@ function minutesBetween(start: string, end: string): number {
   const s = toMin(start);
   const e = toMin(end);
   return (e <= s ? e + 24 * 60 : e) - s;
-}
-
-function svHours(hours: number): string {
-  const h = Math.round(Math.max(0, hours) * 100) / 100;
-  return `${String(h).replace(".", ",")} h`;
 }
 
 function cardKey(date: string, slot: number) { return `${date}::${slot}`; }
@@ -86,63 +72,55 @@ function defaultCard(): CardState {
   return { personId: "", start: "07:00", end: "16:00", breakMin: null, customGap: "" };
 }
 
+/** "8,5", "8.5", "8 h" -> 8.5. Null for anything that is not a working day's hours. */
+function parseHours(text: string): number | null {
+  const t = text.trim().replace(/\s*h$/i, "").replace(",", ".");
+  if (!/^\d+(\.\d+)?$/.test(t)) return null;
+  const h = Number(t);
+  return h > 0 && h <= 24 ? h : null;
+}
+
+/** Typed hours are the human's figure and nothing recomputes them; otherwise span less rast. */
 function cardHours(card: CardState): number {
   const span = minutesBetween(card.start, card.end);
-  if (card.customGap) {
-    const h = parseFloat(card.customGap.replace(",", "."));
-    return Number.isFinite(h) && h >= 0 ? h : span / 60;
-  }
+  if (card.customGap) return parseHours(card.customGap) ?? span / 60;
   if (card.breakMin != null) return Math.max(0, span - card.breakMin) / 60;
   return span / 60;
 }
 
-/* ── MultiDayPicker ─────────────────────────────────────────────────── */
+const hoursOk = (card: CardState) => !card.customGap || parseHours(card.customGap) !== null;
 
-function MultiDayPicker({
-  selected, onChange,
+const svNumber = (h: number) => String(Math.round(Math.max(0, h) * 100) / 100).replace(".", ",");
+
+/* ── DayPainter: Skapa Pass's drag-to-pick calendar, past days allowed ── */
+
+function DayPainter({
+  selected, onToggle,
 }: {
   selected: Set<string>;
-  onChange: (s: Set<string>) => void;
+  onToggle: (date: string) => void;
 }) {
   const today = stockholmToday();
   const [month, setMonth] = useState(() => today.slice(0, 7));
-  const { daysInMonth, leadingBlanks } = monthShape(month);
-  const [y, m] = month.split("-").map(Number) as [number, number];
-
-  function toggle(date: string) {
-    const next = new Set(selected);
-    if (next.has(date)) next.delete(date); else next.add(date);
-    onChange(next);
-  }
-
   return (
-    <MonthCard month={month} onMonthChange={setMonth} gap={2}>
-      <div className="grid grid-cols-7 gap-y-[2px]">
-        {Array.from({ length: leadingBlanks }, (_, i) => <span key={`b${i}`} />)}
-        {Array.from({ length: daysInMonth }, (_, i) => {
-          const date = iso(y, m, i + 1);
-          const on = selected.has(date);
-          const isToday = date === today;
-          return (
-            <button
-              key={date}
-              type="button"
-              aria-label={words(date)}
-              aria-pressed={on}
-              onClick={() => toggle(date)}
-              className="mx-auto flex h-10 w-10 items-center justify-center rounded-full text-[16px] font-medium"
-              style={{
-                background: on ? C.accent : undefined,
-                color: on ? C.onAccent : C.ink,
-                boxShadow: !on && isToday ? `inset 0 0 0 2px ${C.ink}` : undefined,
-              }}
-            >
-              {i + 1}
-            </button>
-          );
-        })}
-      </div>
-    </MonthCard>
+    <PaintCalendar
+      month={month}
+      onMonthChange={setMonth}
+      onPaint={onToggle}
+      look={(date) => {
+        const on = selected.has(date);
+        return {
+          className: on ? "font-extrabold" : "font-semibold",
+          style: {
+            background: on ? C.accent : C.panel2,
+            color: on ? C.onAccent : C.ink,
+            boxShadow: !on && date === today ? `inset 0 0 0 2px ${C.ink}` : undefined,
+            cursor: "pointer",
+          },
+          label: `${Number(date.slice(8))} ${on ? "vald" : "inte vald"}`,
+        };
+      }}
+    />
   );
 }
 
@@ -159,16 +137,13 @@ function ShiftCard({
   error?: string;
 }) {
   const span = minutesBetween(card.start, card.end);
-  const arbetstid = svHours(cardHours(card));
-  let backCalcBreak: string | null = null;
-
-  if (card.customGap) {
-    const h = parseFloat(card.customGap.replace(",", "."));
-    if (Number.isFinite(h) && h >= 0) {
-      const br = span - h * 60;
-      if (br > 0) backCalcBreak = `${Math.round(br)} min`;
-    }
-  }
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState("");
+  const typed = card.customGap ? parseHours(card.customGap) : null;
+  const bad = !hoursOk(card);
+  const display = bad ? card.customGap : svNumber(cardHours(card));
+  const shown = editing ? draft : display;
+  const typedBreak = typed !== null ? Math.round(span - typed * 60) : null;
 
   return (
     <Card
@@ -202,9 +177,49 @@ function ShiftCard({
         </div>
       </div>
 
-      <div className="mt-3 text-[15px] font-semibold" style={{ color: C.ink }}>
-        Arbetstid: {arbetstid}
-      </div>
+      {/* The figure is the field: it shows times less rast, and typing over it makes it the human's. */}
+      <label className="mt-3 block">
+        <span className="mb-[6px] block text-[15px] font-bold" style={{ color: C.ink }}>
+          Arbetstid:
+        </span>
+        <span
+          className="flex h-[56px] cursor-text items-center justify-center gap-[6px] rounded-[14px] border"
+          style={{
+            background: C.surface,
+            borderColor: bad ? C.stopMark : editing ? C.accentInk : C.hairline,
+            boxShadow: editing ? `0 0 0 1px ${bad ? C.stopMark : C.accentInk}` : undefined,
+          }}
+        >
+          <input
+            data-hours
+            type="text"
+            inputMode="decimal"
+            aria-label="Arbetstid i timmar"
+            aria-invalid={bad}
+            value={shown}
+            onFocus={(e) => { setDraft(display); setEditing(true); e.currentTarget.select(); }}
+            onBlur={() => setEditing(false)}
+            onChange={(e) => {
+              const v = e.target.value;
+              setDraft(v);
+              onChange({ ...card, customGap: v.trim(), breakMin: v.trim() ? null : card.breakMin });
+            }}
+            className="min-w-[1ch] bg-transparent text-right text-[26px] font-extrabold tabular-nums outline-none"
+            style={{ color: C.ink, width: `${Math.max(1, shown.length) + 0.4}ch` }}
+          />
+          <span aria-hidden className="text-[26px] font-extrabold" style={{ color: C.ink }}>h</span>
+        </span>
+        {bad && (
+          <span className="mt-1 block text-[13px] font-medium" style={{ color: C.stopInk }}>
+            Skriv timmar mellan 0 och 24, t.ex. 8,5.
+          </span>
+        )}
+        {!bad && typedBreak !== null && typedBreak > 0 && (
+          <span className="mt-1 block text-[13px]" style={{ color: C.text2 }}>
+            Ditt eget värde. Rasten blir {typedBreak} min.
+          </span>
+        )}
+      </label>
 
       {/* Break presets */}
       <div className="mt-3">
@@ -238,24 +253,6 @@ function ShiftCard({
             );
           })}
         </div>
-      </div>
-
-      {/* Custom gap */}
-      <div className="mt-3">
-        <input
-          type="text"
-          inputMode="decimal"
-          placeholder="Egen arbetstid (t.ex. 8,5)"
-          value={card.customGap}
-          onChange={(e) => onChange({ ...card, customGap: e.target.value, breakMin: null })}
-          className="w-full rounded-[10px] border px-[12px] py-[10px] text-[15px] outline-none"
-          style={{ borderColor: C.hairline, background: C.surface, color: C.ink }}
-        />
-        {backCalcBreak && (
-          <div className="mt-1 text-[13px]" style={{ color: C.text2 }}>
-            Beräknad rast: {backCalcBreak}
-          </div>
-        )}
       </div>
 
       {error && (
@@ -298,7 +295,7 @@ function Skiftfabrik({ asked }: { asked: string | null }) {
   const [reload, setReload] = useState(0);
 
   const stripRef = useRef<HTMLDivElement>(null);
-  const chipRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
+  const chipRefs = useRef<Map<string, HTMLElement>>(new Map());
   const daysRef = useRef<HTMLDivElement>(null);
   const drag = useRef<{
     x: number; y: number; id: number; axis: "x" | "y" | null; dx: number;
@@ -347,6 +344,23 @@ function Skiftfabrik({ asked }: { asked: string | null }) {
     if (!row || !chip) return;
     row.scrollTo({ left: chip.offsetLeft - (row.clientWidth - chip.offsetWidth) / 2, behavior: "smooth" });
   }, [currentDay, sortedDays.length]);
+
+  /* A drag crosses several days before React re-renders, so each toggle reads the latest set. */
+  function toggleDay(date: string) {
+    setSelectedDays((prev) => {
+      const next = new Set(prev);
+      if (next.has(date)) next.delete(date); else next.add(date);
+      return next;
+    });
+  }
+
+  function removeDay(date: string) {
+    setSelectedDays((prev) => {
+      const next = new Set(prev);
+      next.delete(date);
+      return next;
+    });
+  }
 
   /* ── the day carousel: follows the finger, settles one day at a time ── */
   const many = sortedDays.length > 1;
@@ -569,7 +583,8 @@ function Skiftfabrik({ asked }: { asked: string | null }) {
 
   const totalCards = keys.length - keys.filter((k) => createdKeys.has(k)).length;
   const filledCards = keys.filter((k) => !createdKeys.has(k) && cardAt(k).personId).length;
-  const canSubmit = !saving && projectId && totalCards > 0 && filledCards === totalCards;
+  const hoursReadable = keys.every((k) => createdKeys.has(k) || hoursOk(cardAt(k)));
+  const canSubmit = !saving && projectId && totalCards > 0 && filledCards === totalCards && hoursReadable;
 
   return (
     <SoftScreen
@@ -649,40 +664,8 @@ function Skiftfabrik({ asked }: { asked: string | null }) {
             )}
           </div>
           <div className="p-[14px]">
-            <MultiDayPicker selected={selectedDays} onChange={setSelectedDays} />
+            <DayPainter selected={selectedDays} onToggle={toggleDay} />
           </div>
-
-          {/* Selected date chips */}
-          {sortedDays.length > 0 && (
-            <div
-              className="flex flex-wrap gap-[6px] px-[14px] pb-[14px]"
-            >
-              {sortedDays.map((d) => (
-                <span
-                  key={d}
-                  className="inline-flex items-center gap-1 rounded-full px-[10px] py-[4px] text-[13px] font-bold"
-                  style={{ background: C.accent, color: C.onAccent }}
-                >
-                  {svDate(d)}
-                  <button
-                    type="button"
-                    aria-label={`Ta bort ${svDate(d)}`}
-                    onClick={() => {
-                      const next = new Set(selectedDays);
-                      next.delete(d);
-                      setSelectedDays(next);
-                    }}
-                    className="ml-[2px] flex h-[16px] w-[16px] items-center justify-center rounded-full"
-                    style={{ background: "rgba(0,0,0,.15)" }}
-                  >
-                    <svg width="8" height="8" viewBox="0 0 8 8" fill="none" aria-hidden>
-                      <path d="M1 1l6 6M7 1l-6 6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-                    </svg>
-                  </button>
-                </span>
-              ))}
-            </div>
-          )}
         </Card>
       </div>
 
@@ -723,7 +706,7 @@ function Skiftfabrik({ asked }: { asked: string | null }) {
       {sortedDays.length > 0 && workerCount > 0 && (
         <div className="px-4 pt-[14px]">
           {/* Date strip: the chosen day centred, the rest fading out both sides. */}
-          {sortedDays.length > 1 && (
+          {sortedDays.length > 0 && (
             <div className="mb-[10px]">
               <div
                 ref={stripRef}
@@ -741,17 +724,13 @@ function Skiftfabrik({ asked }: { asked: string | null }) {
                 {sortedDays.map((d, i) => {
                   const on = i === dayIdx;
                   return (
-                    <button
+                    <span
                       key={d}
                       ref={(el) => {
                         if (el) chipRefs.current.set(d, el);
                         else chipRefs.current.delete(d);
                       }}
-                      type="button"
-                      role="tab"
-                      aria-selected={on}
-                      onClick={() => goToDay(i)}
-                      className="shrink-0 rounded-full px-[14px] py-[6px] text-[14px] font-bold transition-[opacity,background-color] duration-150"
+                      className="flex shrink-0 items-center rounded-full text-[14px] font-bold transition-[opacity,background-color] duration-150"
                       style={{
                         scrollSnapAlign: "center",
                         background: on ? C.accent : C.surface,
@@ -760,21 +739,32 @@ function Skiftfabrik({ asked }: { asked: string | null }) {
                         opacity: on ? 1 : 0.45,
                       }}
                     >
-                      {svDate(d)}
-                    </button>
+                      <button
+                        type="button"
+                        role="tab"
+                        aria-selected={on}
+                        onClick={() => goToDay(i)}
+                        className={`rounded-full py-[6px] pl-[14px] ${on ? "pr-[4px]" : "pr-[14px]"}`}
+                      >
+                        {svDate(d)}
+                      </button>
+                      {on && (
+                        <button
+                          type="button"
+                          aria-label={`Ta bort ${svDate(d)}`}
+                          data-remove-day
+                          onClick={() => removeDay(d)}
+                          className="mr-[3px] flex h-[28px] w-[28px] items-center justify-center rounded-full"
+                        >
+                          <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden>
+                            <path d="M1.5 1.5l7 7M8.5 1.5l-7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                          </svg>
+                        </button>
+                      )}
+                    </span>
                   );
                 })}
               </div>
-            </div>
-          )}
-
-          {/* Day header for single day */}
-          {sortedDays.length === 1 && currentDay && (
-            <div
-              className="mb-[10px] text-[15px] font-bold"
-              style={{ color: C.ink }}
-            >
-              {svDate(currentDay)}
             </div>
           )}
 
