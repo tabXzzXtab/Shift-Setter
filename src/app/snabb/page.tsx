@@ -58,15 +58,29 @@ function svHours(hours: number): string {
 function cardKey(date: string, slot: number) { return `${date}::${slot}`; }
 
 const STRIP_MASK = "linear-gradient(to right, transparent, black 22%, black 78%, transparent)";
-const HALF_FLIP_MS = 90;
+// A day's column takes this much of the screen, so the next day shows at the edge.
+const DAY_COL = 76;
+const DAY_GAP = 10;
+// Slow out of a fast start: the day lands with some weight instead of snapping.
+const SETTLE = "transform 420ms cubic-bezier(.22,.9,.24,1), opacity 420ms cubic-bezier(.22,.9,.24,1)";
 
-type Flip = "idle" | "out" | "in";
+const columnsOf = (track: HTMLElement | null) =>
+  Array.from(track?.querySelectorAll<HTMLElement>(":scope > [data-day-col]") ?? []);
 
-const FLIP_STYLE: Record<Flip, React.CSSProperties> = {
-  idle: { transform: "none", opacity: 1, transition: `transform ${HALF_FLIP_MS}ms ease-out, opacity ${HALF_FLIP_MS}ms ease-out` },
-  out: { transform: "rotateX(90deg)", opacity: 0, transition: `transform ${HALF_FLIP_MS}ms ease-in, opacity ${HALF_FLIP_MS}ms ease-in` },
-  in: { transform: "rotateX(-90deg)", opacity: 0, transition: "none" },
-};
+const prefersStill = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+/** Percentages in translateX are of the track, which is as wide as the screen. */
+function trackStyle(idx: number, dx: number, many: boolean): React.CSSProperties {
+  if (!many) return { transform: "none" };
+  const side = (100 - DAY_COL) / 2;
+  return { transform: `translateX(calc(${side}% - ${idx} * (${DAY_COL}% + ${DAY_GAP}px) + ${dx}px))` };
+}
+
+/** `at` is where the track is, in days; neighbours sit smaller and dimmer until they reach the middle. */
+function columnStyle(i: number, at: number, many: boolean): React.CSSProperties {
+  const d = many ? Math.min(1, Math.abs(i - at)) : 0;
+  return { transform: d < 0.005 ? "none" : `scale(${1 - 0.05 * d})`, opacity: 1 - 0.5 * d };
+}
 
 function defaultCard(): CardState {
   return { personId: "", start: "07:00", end: "16:00", breakMin: null, customGap: "" };
@@ -283,13 +297,14 @@ function Skiftfabrik({ asked }: { asked: string | null }) {
   const [credentials, setCredentials] = useState<string | null>(null);
   const [reload, setReload] = useState(0);
 
-  const touchStartX = useRef(0);
   const stripRef = useRef<HTMLDivElement>(null);
   const chipRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
-  const flipTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [flip, setFlip] = useState<Flip>("idle");
-  const isAnimating = flip !== "idle";
-  const flipStyle: React.CSSProperties = { ...FLIP_STYLE[flip], transformOrigin: "center" };
+  const daysRef = useRef<HTMLDivElement>(null);
+  const drag = useRef<{
+    x: number; y: number; id: number; axis: "x" | "y" | null; dx: number;
+    samples: { x: number; t: number }[];
+  } | null>(null);
+  const dragged = useRef(false);
 
   const [createdKeys, setCreatedKeys] = useState<Set<string>>(new Set());
 
@@ -330,25 +345,95 @@ function Skiftfabrik({ asked }: { asked: string | null }) {
     const row = stripRef.current;
     const chip = currentDay ? chipRefs.current.get(currentDay) : undefined;
     if (!row || !chip) return;
-    row.scrollTo({ left: chip.offsetLeft - (row.clientWidth - chip.offsetWidth) / 2 });
+    row.scrollTo({ left: chip.offsetLeft - (row.clientWidth - chip.offsetWidth) / 2, behavior: "smooth" });
   }, [currentDay, sortedDays.length]);
 
-  useEffect(() => () => { if (flipTimer.current) clearTimeout(flipTimer.current); }, []);
+  /* ── the day carousel: follows the finger, settles one day at a time ── */
+  const many = sortedDays.length > 1;
+  const [still, setStill] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const sync = () => setStill(mq.matches);
+    mq.addEventListener("change", sync);
+    queueMicrotask(sync);
+    return () => mq.removeEventListener("change", sync);
+  }, []);
+  const SETTLE_OR_NONE = still ? "none" : SETTLE;
 
-  /* ── change day: the old cards turn away, the new ones turn in ── */
+  /** Writes the track and every column straight to the DOM, so a drag never waits on React. */
+  function place(idx: number, dx: number, settle: boolean) {
+    const track = daysRef.current;
+    if (!track) return;
+    const ease = settle && !prefersStill() ? SETTLE : "none";
+    Object.assign(track.style, { ...trackStyle(idx, dx, many), transition: ease });
+    const step = track.clientWidth * (DAY_COL / 100) + DAY_GAP;
+    columnsOf(track).forEach((el, i) => {
+      Object.assign(el.style, { ...columnStyle(i, idx - dx / step, many), transition: ease });
+    });
+  }
+
   function goToDay(i: number) {
-    if (i === dayIdx || isAnimating) return;
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      setActiveDay(i);
+    place(i, 0, true);
+    setActiveDay(i);
+  }
+
+  function onDaysPointerDown(e: React.PointerEvent) {
+    // A swipe ends without a click, so the flag from the last one must not eat this tap.
+    dragged.current = false;
+    if (!many || (e.pointerType === "mouse" && e.button !== 0)) return;
+    drag.current = { x: e.clientX, y: e.clientY, id: e.pointerId, axis: null, dx: 0, samples: [{ x: e.clientX, t: e.timeStamp }] };
+  }
+
+  function onDaysPointerMove(e: React.PointerEvent) {
+    const g = drag.current;
+    if (!g || g.id !== e.pointerId) return;
+    const dx = e.clientX - g.x;
+    const dy = e.clientY - g.y;
+    if (!g.axis) {
+      if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+      g.axis = Math.abs(dx) > Math.abs(dy) ? "x" : "y";
+      if (g.axis === "y") { drag.current = null; return; }
+      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    }
+    const atEdge = (dayIdx === 0 && dx > 0) || (dayIdx === sortedDays.length - 1 && dx < 0);
+    g.dx = atEdge ? dx * 0.3 : dx;
+    g.samples.push({ x: e.clientX, t: e.timeStamp });
+    if (g.samples.length > 6) g.samples.shift();
+    place(dayIdx, g.dx, false);
+  }
+
+  function onDaysPointerUp(e: React.PointerEvent) {
+    const g = drag.current;
+    drag.current = null;
+    if (!g || g.id !== e.pointerId || g.axis !== "x") return;
+    dragged.current = true;
+    const width = (daysRef.current?.clientWidth ?? 1) * (DAY_COL / 100);
+    const first = g.samples[0]!;
+    const last = g.samples[g.samples.length - 1]!;
+    const v = (last.x - first.x) / Math.max(1, last.t - first.t);
+    let to = dayIdx;
+    if (g.dx < -width * 0.18 || v < -0.35) to = dayIdx + 1;
+    else if (g.dx > width * 0.18 || v > 0.35) to = dayIdx - 1;
+    goToDay(Math.max(0, Math.min(sortedDays.length - 1, to)));
+  }
+
+  /** A tap on a peeking neighbour brings it in; a drag is never also a click. */
+  function onDaysClickCapture(e: React.MouseEvent) {
+    if (dragged.current) {
+      dragged.current = false;
+      e.preventDefault();
+      e.stopPropagation();
       return;
     }
-    setFlip("out");
-    flipTimer.current = setTimeout(() => {
-      setActiveDay(i);
-      setFlip("in");
-      // Two frames so the browser paints -90deg before transitioning back to 0.
-      requestAnimationFrame(() => requestAnimationFrame(() => setFlip("idle")));
-    }, HALF_FLIP_MS);
+    const hit = columnsOf(daysRef.current).findIndex((el) => {
+      const r = el.getBoundingClientRect();
+      return e.clientX >= r.left && e.clientX <= r.right;
+    });
+    if (hit >= 0 && hit !== dayIdx) {
+      e.preventDefault();
+      e.stopPropagation();
+      goToDay(hit);
+    }
   }
 
   /* ── worker count change ── */
@@ -384,21 +469,6 @@ function Skiftfabrik({ asked }: { asked: string | null }) {
       return next;
     });
   }, []);
-
-  /* ── swipe between days ── */
-  function handleTouchStart(e: React.TouchEvent) {
-    touchStartX.current = e.touches[0]!.clientX;
-  }
-  function handleTouchEnd(e: React.TouchEvent) {
-    const dx = e.changedTouches[0]!.clientX - touchStartX.current;
-    if (Math.abs(dx) > 60) {
-      goToDay(
-        dx > 0
-          ? Math.max(0, dayIdx - 1)
-          : Math.min(sortedDays.length - 1, dayIdx + 1),
-      );
-    }
-  }
 
   /* ── submit ── */
   async function handleSubmit() {
@@ -654,14 +724,13 @@ function Skiftfabrik({ asked }: { asked: string | null }) {
         <div className="px-4 pt-[14px]">
           {/* Date strip: the chosen day centred, the rest fading out both sides. */}
           {sortedDays.length > 1 && (
-            <div className="mb-[10px]" style={{ perspective: "800px" }}>
+            <div className="mb-[10px]">
               <div
                 ref={stripRef}
                 role="tablist"
                 aria-label="Dagar"
                 className="relative flex gap-[8px] overflow-x-auto py-[4px]"
                 style={{
-                  ...flipStyle,
                   scrollbarWidth: "none",
                   scrollSnapType: "x mandatory",
                   paddingInline: "50%",
@@ -709,30 +778,57 @@ function Skiftfabrik({ asked }: { asked: string | null }) {
             </div>
           )}
 
-          {/* Cards */}
-          <div style={{ perspective: "800px" }}>
+          {/* Cards: one column per day, swiped like album covers. */}
           <div
-            className="space-y-[12px]"
-            style={flipStyle}
-            onTouchStart={handleTouchStart}
-            onTouchEnd={handleTouchEnd}
+            className="-mx-4"
+            style={{ overflowX: "clip", overflowY: "visible", touchAction: "pan-y" }}
+            onPointerDown={onDaysPointerDown}
+            onPointerMove={onDaysPointerMove}
+            onPointerUp={onDaysPointerUp}
+            onPointerCancel={() => { drag.current = null; place(dayIdx, 0, true); }}
+            onClickCapture={onDaysClickCapture}
           >
-            {currentDay &&
-              Array.from({ length: workerCount }, (_, slot) => {
-                const k = cardKey(currentDay, slot);
-                const card = cardAt(k);
-                return (
-                  <ShiftCard
-                    key={k}
-                    card={card}
-                    workers={workers}
-                    presets={presets}
-                    onChange={(c) => updateCard(k, c)}
-                    onNewWorker={() => setCreatingForCard(k)}
-                    error={cardErrors.get(k)}
-                  />
-                );
-              })}
+          <div
+            ref={daysRef}
+            className="flex w-full"
+            style={{
+              gap: DAY_GAP,
+              padding: many ? 0 : "0 16px",
+              ...trackStyle(dayIdx, 0, many),
+              transition: SETTLE_OR_NONE,
+            }}
+          >
+            {sortedDays.map((day, i) => (
+              <div
+                key={day}
+                data-day-col
+                aria-label={svDate(day)}
+                role="group"
+                inert={many && i !== dayIdx}
+                className="space-y-[12px] py-[2px]"
+                style={{
+                  flex: `0 0 ${many ? `${DAY_COL}%` : "100%"}`,
+                  transformOrigin: "center top",
+                  ...columnStyle(i, dayIdx, many),
+                  transition: SETTLE_OR_NONE,
+                }}
+              >
+                {Array.from({ length: workerCount }, (_, slot) => {
+                  const k = cardKey(day, slot);
+                  return (
+                    <ShiftCard
+                      key={k}
+                      card={cardAt(k)}
+                      workers={workers}
+                      presets={presets}
+                      onChange={(c) => updateCard(k, c)}
+                      onNewWorker={() => setCreatingForCard(k)}
+                      error={cardErrors.get(k)}
+                    />
+                  );
+                })}
+              </div>
+            ))}
           </div>
           </div>
 
