@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { Suspense, memo, useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { AuthGate } from "@/components/auth-gate";
 import {
@@ -72,6 +72,9 @@ function defaultCard(): CardState {
   return { personId: "", start: "07:00", end: "16:00", breakMin: null, customGap: "" };
 }
 
+// One shared object for untouched cards, so the memoised card sees the same props render to render.
+const DEFAULT_CARD: CardState = Object.freeze(defaultCard());
+
 /** "8,5", "8.5", "8 h" -> 8.5. Null for anything that is not a working day's hours. */
 function parseHours(text: string): number | null {
   const t = text.trim().replace(/\s*h$/i, "").replace(",", ".");
@@ -126,16 +129,19 @@ function DayPainter({
 
 /* ── ShiftCard ──────────────────────────────────────────────────────── */
 
-function ShiftCard({
-  card, workers, presets, onChange, onNewWorker, error,
+// Memoised with stable callbacks: changing day must not re-render every card (60 at 5 st × 12 days).
+const ShiftCard = memo(function ShiftCard({
+  id, card, workers, presets, onChange, onNewWorker, error,
 }: {
+  id: string;
   card: CardState;
   workers: Worker[];
   presets: Presets;
-  onChange: (c: CardState) => void;
-  onNewWorker: () => void;
+  onChange: (id: string, c: CardState) => void;
+  onNewWorker: (id: string) => void;
   error?: string;
 }) {
+  const set = (c: CardState) => onChange(id, c);
   const span = minutesBetween(card.start, card.end);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
@@ -154,10 +160,10 @@ function ShiftCard({
       <PickField
         label="Person"
         value={card.personId}
-        onChange={(v) => onChange({ ...card, personId: v })}
+        onChange={(v) => set({ ...card, personId: v })}
         options={workers.map((w) => ({ value: w.id, label: w.name }))}
         people
-        action={{ value: "__ny__", label: "Ny arbetare", onPick: onNewWorker }}
+        action={{ value: "__ny__", label: "Ny arbetare", onPick: () => onNewWorker(id) }}
       />
 
       <div className="relative mt-3 flex gap-[10px]">
@@ -165,14 +171,14 @@ function ShiftCard({
           <TimeField
             label="Från"
             value={card.start}
-            onChange={(v) => onChange({ ...card, start: v })}
+            onChange={(v) => set({ ...card, start: v })}
           />
         </div>
         <div className="min-w-0 flex-1">
           <TimeField
             label="Till"
             value={card.end}
-            onChange={(v) => onChange({ ...card, end: v })}
+            onChange={(v) => set({ ...card, end: v })}
           />
         </div>
       </div>
@@ -202,7 +208,7 @@ function ShiftCard({
             onChange={(e) => {
               const v = e.target.value;
               setDraft(v);
-              onChange({ ...card, customGap: v.trim(), breakMin: v.trim() ? null : card.breakMin });
+              set({ ...card, customGap: v.trim(), breakMin: v.trim() ? null : card.breakMin });
             }}
             className="min-w-[1ch] bg-transparent text-right text-[26px] font-extrabold tabular-nums outline-none"
             style={{ color: C.ink, width: `${Math.max(1, shown.length) + 0.4}ch` }}
@@ -239,7 +245,7 @@ function ShiftCard({
                 aria-pressed={active}
                 aria-label={`${min} minuters rast${active ? ", aktiv" : ""}`}
                 onClick={() =>
-                  onChange({ ...card, breakMin: active ? null : min, customGap: "" })
+                  set({ ...card, breakMin: active ? null : min, customGap: "" })
                 }
                 className="flex-1 rounded-full py-[8px] text-[13px] font-bold transition-colors"
                 style={{
@@ -262,7 +268,7 @@ function ShiftCard({
       )}
     </Card>
   );
-}
+});
 
 /* ── Skiftfabrik (main) ─────────────────────────────────────────────── */
 
@@ -311,7 +317,7 @@ function Skiftfabrik({ asked }: { asked: string | null }) {
   const keys = workerCount > 0
     ? sortedDays.flatMap((d) => Array.from({ length: workerCount }, (_, i) => cardKey(d, i)))
     : [];
-  const cardAt = (k: string) => cards.get(k) ?? defaultCard();
+  const cardAt = (k: string) => cards.get(k) ?? DEFAULT_CARD;
 
   /* ── data load ── */
   useEffect(() => {
@@ -386,7 +392,13 @@ function Skiftfabrik({ asked }: { asked: string | null }) {
     });
   }
 
+  // The day the track is heading for, updated the instant a flick lands. A second
+  // flick can arrive before React re-renders, and must step on from here, not from the stale render.
+  const idxRef = useRef(0);
+  useEffect(() => { idxRef.current = dayIdx; }, [dayIdx]);
+
   function goToDay(i: number) {
+    idxRef.current = i;
     place(i, 0, true);
     setActiveDay(i);
   }
@@ -409,11 +421,12 @@ function Skiftfabrik({ asked }: { asked: string | null }) {
       if (g.axis === "y") { drag.current = null; return; }
       (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     }
-    const atEdge = (dayIdx === 0 && dx > 0) || (dayIdx === sortedDays.length - 1 && dx < 0);
+    const at = idxRef.current;
+    const atEdge = (at === 0 && dx > 0) || (at === sortedDays.length - 1 && dx < 0);
     g.dx = atEdge ? dx * 0.3 : dx;
     g.samples.push({ x: e.clientX, t: e.timeStamp });
     if (g.samples.length > 6) g.samples.shift();
-    place(dayIdx, g.dx, false);
+    place(at, g.dx, false);
   }
 
   function onDaysPointerUp(e: React.PointerEvent) {
@@ -425,9 +438,10 @@ function Skiftfabrik({ asked }: { asked: string | null }) {
     const first = g.samples[0]!;
     const last = g.samples[g.samples.length - 1]!;
     const v = (last.x - first.x) / Math.max(1, last.t - first.t);
-    let to = dayIdx;
-    if (g.dx < -width * 0.18 || v < -0.35) to = dayIdx + 1;
-    else if (g.dx > width * 0.18 || v > 0.35) to = dayIdx - 1;
+    const at = idxRef.current;
+    let to = at;
+    if (g.dx < -width * 0.18 || v < -0.35) to = at + 1;
+    else if (g.dx > width * 0.18 || v > 0.35) to = at - 1;
     goToDay(Math.max(0, Math.min(sortedDays.length - 1, to)));
   }
 
@@ -443,7 +457,7 @@ function Skiftfabrik({ asked }: { asked: string | null }) {
       const r = el.getBoundingClientRect();
       return e.clientX >= r.left && e.clientX <= r.right;
     });
-    if (hit >= 0 && hit !== dayIdx) {
+    if (hit >= 0 && hit !== idxRef.current) {
       e.preventDefault();
       e.stopPropagation();
       goToDay(hit);
@@ -775,7 +789,7 @@ function Skiftfabrik({ asked }: { asked: string | null }) {
             onPointerDown={onDaysPointerDown}
             onPointerMove={onDaysPointerMove}
             onPointerUp={onDaysPointerUp}
-            onPointerCancel={() => { drag.current = null; place(dayIdx, 0, true); }}
+            onPointerCancel={() => { drag.current = null; place(idxRef.current, 0, true); }}
             onClickCapture={onDaysClickCapture}
           >
           <div
@@ -808,11 +822,12 @@ function Skiftfabrik({ asked }: { asked: string | null }) {
                   return (
                     <ShiftCard
                       key={k}
+                      id={k}
                       card={cardAt(k)}
                       workers={workers}
                       presets={presets}
-                      onChange={(c) => updateCard(k, c)}
-                      onNewWorker={() => setCreatingForCard(k)}
+                      onChange={updateCard}
+                      onNewWorker={setCreatingForCard}
                       error={cardErrors.get(k)}
                     />
                   );
