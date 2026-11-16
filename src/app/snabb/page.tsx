@@ -131,7 +131,7 @@ function DayPainter({
 
 // Memoised with stable callbacks: changing day must not re-render every card (60 at 5 st × 12 days).
 const ShiftCard = memo(function ShiftCard({
-  id, card, workers, presets, onChange, onNewWorker, error,
+  id, card, workers, presets, onChange, onNewWorker, onRemove, error,
 }: {
   id: string;
   card: CardState;
@@ -139,6 +139,7 @@ const ShiftCard = memo(function ShiftCard({
   presets: Presets;
   onChange: (id: string, c: CardState) => void;
   onNewWorker: (id: string) => void;
+  onRemove: (id: string) => void;
   error?: string;
 }) {
   const set = (c: CardState) => onChange(id, c);
@@ -155,8 +156,21 @@ const ShiftCard = memo(function ShiftCard({
     <Card
       radius={16}
       pad="p-[16px]"
+      className="relative"
       shadow={error ? `0 0 0 2px ${C.stopMark}` : SHADOW.group}
     >
+      <button
+        type="button"
+        data-remove-shift
+        aria-label="Ta bort skiftet"
+        onClick={() => onRemove(id)}
+        className="absolute right-[6px] top-[4px] z-10 flex h-9 w-9 items-center justify-center rounded-full hover:bg-[#f4f3f0]"
+        style={{ color: C.text2 }}
+      >
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
+          <path d="M3 3l10 10M13 3L3 13" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
+        </svg>
+      </button>
       <PickField
         label="Person"
         value={card.personId}
@@ -314,9 +328,11 @@ function Skiftfabrik({ asked }: { asked: string | null }) {
   const sortedDays = [...selectedDays].sort();
   const dayIdx = Math.min(activeDay, Math.max(0, sortedDays.length - 1));
   const currentDay = sortedDays[dayIdx] ?? null;
-  const keys = workerCount > 0
-    ? sortedDays.flatMap((d) => Array.from({ length: workerCount }, (_, i) => cardKey(d, i)))
-    : [];
+  // Shifts taken off one day with their own ✕; every other list skips them.
+  const [removed, setRemoved] = useState<Set<string>>(new Set());
+  const slotsOf = (day: string) =>
+    Array.from({ length: workerCount }, (_, i) => cardKey(day, i)).filter((k) => !removed.has(k));
+  const keys = sortedDays.flatMap(slotsOf);
   const cardAt = (k: string) => cards.get(k) ?? DEFAULT_CARD;
 
   /* ── data load ── */
@@ -353,6 +369,7 @@ function Skiftfabrik({ asked }: { asked: string | null }) {
 
   /* A drag crosses several days before React re-renders, so each toggle reads the latest set. */
   function toggleDay(date: string) {
+    forgetRemoved(date);
     setSelectedDays((prev) => {
       const next = new Set(prev);
       if (next.has(date)) next.delete(date); else next.add(date);
@@ -361,12 +378,30 @@ function Skiftfabrik({ asked }: { asked: string | null }) {
   }
 
   function removeDay(date: string) {
+    forgetRemoved(date);
     setSelectedDays((prev) => {
       const next = new Set(prev);
       next.delete(date);
       return next;
     });
   }
+
+  /** A date picked again comes back with all its shifts. */
+  function forgetRemoved(date: string) {
+    setRemoved((prev) => {
+      if (![...prev].some((k) => k.startsWith(`${date}::`))) return prev;
+      return new Set([...prev].filter((k) => !k.startsWith(`${date}::`)));
+    });
+  }
+
+  // The last shift on a day takes the date with it: there is nothing left to create there.
+  const removeCard = useCallback((key: string) => {
+    const date = key.split("::")[0]!;
+    const left = Array.from({ length: workerCount }, (_, i) => cardKey(date, i))
+      .filter((k) => k !== key && !removed.has(k));
+    if (left.length === 0) { removeDay(date); return; }
+    setRemoved((prev) => new Set(prev).add(key));
+  }, [workerCount, removed]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ── the day carousel: follows the finger, settles one day at a time ── */
   const many = sortedDays.length > 1;
@@ -483,6 +518,7 @@ function Skiftfabrik({ asked }: { asked: string | null }) {
       setPendingCount(n);
       setShowResetDialog(true);
     } else {
+      setRemoved(new Set());
       setWorkerCount(n);
     }
   }
@@ -491,6 +527,7 @@ function Skiftfabrik({ asked }: { asked: string | null }) {
     setCards(new Map());
     setCardErrors(new Map());
     setCreatedKeys(new Set());
+    setRemoved(new Set());
     setWorkerCount(pendingCount);
     setShowResetDialog(false);
   }
@@ -830,21 +867,19 @@ function Skiftfabrik({ asked }: { asked: string | null }) {
                   transition: SETTLE_OR_NONE,
                 }}
               >
-                {Array.from({ length: workerCount }, (_, slot) => {
-                  const k = cardKey(day, slot);
-                  return (
-                    <ShiftCard
-                      key={k}
-                      id={k}
-                      card={cardAt(k)}
-                      workers={workers}
-                      presets={presets}
-                      onChange={updateCard}
-                      onNewWorker={setCreatingForCard}
-                      error={cardErrors.get(k)}
-                    />
-                  );
-                })}
+                {slotsOf(day).map((k) => (
+                  <ShiftCard
+                    key={k}
+                    id={k}
+                    card={cardAt(k)}
+                    workers={workers}
+                    presets={presets}
+                    onChange={updateCard}
+                    onNewWorker={setCreatingForCard}
+                    onRemove={removeCard}
+                    error={cardErrors.get(k)}
+                  />
+                ))}
               </div>
             ))}
           </div>
