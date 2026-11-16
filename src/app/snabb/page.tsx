@@ -50,14 +50,23 @@ function minutesBetween(start: string, end: string): number {
   return (e <= s ? e + 24 * 60 : e) - s;
 }
 
-function formatHM(minutes: number): string {
-  if (!Number.isFinite(minutes) || minutes < 0) return "0:00";
-  const h = Math.floor(minutes / 60);
-  const m = Math.round(minutes % 60);
-  return `${h}:${String(m).padStart(2, "0")}`;
+function svHours(hours: number): string {
+  const h = Math.round(Math.max(0, hours) * 100) / 100;
+  return `${String(h).replace(".", ",")} h`;
 }
 
 function cardKey(date: string, slot: number) { return `${date}::${slot}`; }
+
+const STRIP_MASK = "linear-gradient(to right, transparent, black 22%, black 78%, transparent)";
+const HALF_FLIP_MS = 90;
+
+type Flip = "idle" | "out" | "in";
+
+const FLIP_STYLE: Record<Flip, React.CSSProperties> = {
+  idle: { transform: "none", opacity: 1, transition: `transform ${HALF_FLIP_MS}ms ease-out, opacity ${HALF_FLIP_MS}ms ease-out` },
+  out: { transform: "rotateX(90deg)", opacity: 0, transition: `transform ${HALF_FLIP_MS}ms ease-in, opacity ${HALF_FLIP_MS}ms ease-in` },
+  in: { transform: "rotateX(-90deg)", opacity: 0, transition: "none" },
+};
 
 function defaultCard(): CardState {
   return { personId: "", start: "07:00", end: "16:00", breakMin: null, customGap: "" };
@@ -136,18 +145,15 @@ function ShiftCard({
   error?: string;
 }) {
   const span = minutesBetween(card.start, card.end);
-  let arbetstid: string | null = null;
+  const arbetstid = svHours(cardHours(card));
   let backCalcBreak: string | null = null;
 
   if (card.customGap) {
     const h = parseFloat(card.customGap.replace(",", "."));
     if (Number.isFinite(h) && h >= 0) {
-      arbetstid = formatHM(h * 60);
       const br = span - h * 60;
       if (br > 0) backCalcBreak = `${Math.round(br)} min`;
     }
-  } else if (card.breakMin != null) {
-    arbetstid = formatHM(span - card.breakMin);
   }
 
   return (
@@ -182,6 +188,10 @@ function ShiftCard({
         </div>
       </div>
 
+      <div className="mt-3 text-[15px] font-semibold" style={{ color: C.ink }}>
+        Arbetstid: {arbetstid}
+      </div>
+
       {/* Break presets */}
       <div className="mt-3">
         <span
@@ -202,7 +212,7 @@ function ShiftCard({
                 onClick={() =>
                   onChange({ ...card, breakMin: active ? null : min, customGap: "" })
                 }
-                className="flex-1 rounded-[8px] py-[8px] text-[13px] font-bold transition-colors"
+                className="flex-1 rounded-full py-[8px] text-[13px] font-bold transition-colors"
                 style={{
                   background: active ? C.accent : C.panel2,
                   color: active ? C.onAccent : C.ink,
@@ -215,13 +225,6 @@ function ShiftCard({
           })}
         </div>
       </div>
-
-      {/* Arbetstid */}
-      {arbetstid && (
-        <div className="mt-3 text-[15px] font-semibold" style={{ color: C.ink }}>
-          Arbetstid: {arbetstid}
-        </div>
-      )}
 
       {/* Custom gap */}
       <div className="mt-3">
@@ -281,6 +284,12 @@ function Skiftfabrik({ asked }: { asked: string | null }) {
   const [reload, setReload] = useState(0);
 
   const touchStartX = useRef(0);
+  const stripRef = useRef<HTMLDivElement>(null);
+  const chipRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
+  const flipTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [flip, setFlip] = useState<Flip>("idle");
+  const isAnimating = flip !== "idle";
+  const flipStyle: React.CSSProperties = { ...FLIP_STYLE[flip], transformOrigin: "center" };
 
   const [createdKeys, setCreatedKeys] = useState<Set<string>>(new Set());
 
@@ -315,6 +324,32 @@ function Skiftfabrik({ asked }: { asked: string | null }) {
       if (t?.id) setPresets(loadPresets(t.id));
     })();
   }, [reload]);
+
+  /* ── keep the chosen day in the middle of the strip ── */
+  useEffect(() => {
+    const row = stripRef.current;
+    const chip = currentDay ? chipRefs.current.get(currentDay) : undefined;
+    if (!row || !chip) return;
+    row.scrollTo({ left: chip.offsetLeft - (row.clientWidth - chip.offsetWidth) / 2 });
+  }, [currentDay, sortedDays.length]);
+
+  useEffect(() => () => { if (flipTimer.current) clearTimeout(flipTimer.current); }, []);
+
+  /* ── change day: the old cards turn away, the new ones turn in ── */
+  function goToDay(i: number) {
+    if (i === dayIdx || isAnimating) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      setActiveDay(i);
+      return;
+    }
+    setFlip("out");
+    flipTimer.current = setTimeout(() => {
+      setActiveDay(i);
+      setFlip("in");
+      // Two frames so the browser paints -90deg before transitioning back to 0.
+      requestAnimationFrame(() => requestAnimationFrame(() => setFlip("idle")));
+    }, HALF_FLIP_MS);
+  }
 
   /* ── worker count change ── */
   function handleCountChange(n: number) {
@@ -357,7 +392,7 @@ function Skiftfabrik({ asked }: { asked: string | null }) {
   function handleTouchEnd(e: React.TouchEvent) {
     const dx = e.changedTouches[0]!.clientX - touchStartX.current;
     if (Math.abs(dx) > 60) {
-      setActiveDay(
+      goToDay(
         dx > 0
           ? Math.max(0, dayIdx - 1)
           : Math.min(sortedDays.length - 1, dayIdx + 1),
@@ -599,7 +634,7 @@ function Skiftfabrik({ asked }: { asked: string | null }) {
                   type="button"
                   aria-pressed={active}
                   onClick={() => handleCountChange(n)}
-                  className="flex-1 rounded-[10px] py-[10px] text-[15px] font-bold transition-colors"
+                  className="flex-1 rounded-full py-[10px] text-[15px] font-bold transition-colors"
                   style={{
                     background: active ? C.accent : C.panel2,
                     color: active ? C.onAccent : C.ink,
@@ -617,27 +652,50 @@ function Skiftfabrik({ asked }: { asked: string | null }) {
       {/* ── Card grid ── */}
       {sortedDays.length > 0 && workerCount > 0 && (
         <div className="px-4 pt-[14px]">
-          {/* Day tabs */}
+          {/* Date strip: the chosen day centred, the rest fading out both sides. */}
           {sortedDays.length > 1 && (
-            <div
-              className="mb-[10px] flex gap-[8px] overflow-x-auto pb-[2px]"
-              style={{ scrollbarWidth: "none" }}
-            >
-              {sortedDays.map((d, i) => (
-                <button
-                  key={d}
-                  type="button"
-                  onClick={() => setActiveDay(i)}
-                  className="shrink-0 rounded-full px-[14px] py-[6px] text-[14px] font-bold transition-colors"
-                  style={{
-                    background: i === dayIdx ? C.accent : C.panel2,
-                    color: i === dayIdx ? C.onAccent : C.ink,
-                    border: `1px solid ${i === dayIdx ? C.accent : C.border}`,
-                  }}
-                >
-                  {svDate(d)}
-                </button>
-              ))}
+            <div className="mb-[10px]" style={{ perspective: "800px" }}>
+              <div
+                ref={stripRef}
+                role="tablist"
+                aria-label="Dagar"
+                className="relative flex gap-[8px] overflow-x-auto py-[4px]"
+                style={{
+                  ...flipStyle,
+                  scrollbarWidth: "none",
+                  scrollSnapType: "x mandatory",
+                  paddingInline: "50%",
+                  maskImage: STRIP_MASK,
+                  WebkitMaskImage: STRIP_MASK,
+                }}
+              >
+                {sortedDays.map((d, i) => {
+                  const on = i === dayIdx;
+                  return (
+                    <button
+                      key={d}
+                      ref={(el) => {
+                        if (el) chipRefs.current.set(d, el);
+                        else chipRefs.current.delete(d);
+                      }}
+                      type="button"
+                      role="tab"
+                      aria-selected={on}
+                      onClick={() => goToDay(i)}
+                      className="shrink-0 rounded-full px-[14px] py-[6px] text-[14px] font-bold transition-[opacity,background-color] duration-150"
+                      style={{
+                        scrollSnapAlign: "center",
+                        background: on ? C.accent : C.surface,
+                        color: on ? C.onAccent : C.ink,
+                        border: `1px solid ${on ? C.accent : C.border}`,
+                        opacity: on ? 1 : 0.45,
+                      }}
+                    >
+                      {svDate(d)}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           )}
 
@@ -652,8 +710,10 @@ function Skiftfabrik({ asked }: { asked: string | null }) {
           )}
 
           {/* Cards */}
+          <div style={{ perspective: "800px" }}>
           <div
             className="space-y-[12px]"
+            style={flipStyle}
             onTouchStart={handleTouchStart}
             onTouchEnd={handleTouchEnd}
           >
@@ -673,6 +733,7 @@ function Skiftfabrik({ asked }: { asked: string | null }) {
                   />
                 );
               })}
+          </div>
           </div>
 
           {/* Dot indicator */}
