@@ -62,10 +62,19 @@ function trackStyle(idx: number, dx: number, many: boolean): React.CSSProperties
   return { transform: `translateX(calc(${side}% - ${idx} * (${DAY_COL}% + ${DAY_GAP}px) + ${dx}px))` };
 }
 
-/** `at` is where the track is, in days; neighbours sit smaller and dimmer until they reach the middle. */
+/**
+ * `at` is where the track is, in days. Neighbours turn away round their inner edge, as if
+ * the days stood on a wheel, and sit smaller and dimmer until they reach the middle.
+ */
 function columnStyle(i: number, at: number, many: boolean): React.CSSProperties {
-  const d = many ? Math.min(1, Math.abs(i - at)) : 0;
-  return { transform: d < 0.005 ? "none" : `scale(${1 - 0.05 * d})`, opacity: 1 - 0.5 * d };
+  const off = many ? Math.max(-1, Math.min(1, i - at)) : 0;
+  const d = Math.abs(off);
+  if (d < 0.005) return { transform: "none", opacity: 1, transformOrigin: "center top" };
+  return {
+    transform: `perspective(1100px) rotateY(${-off * 24}deg) scale(${1 - 0.05 * d})`,
+    transformOrigin: `${off > 0 ? "left" : "right"} top`,
+    opacity: 1 - 0.5 * d,
+  };
 }
 
 function defaultCard(): CardState {
@@ -317,6 +326,29 @@ function Skiftfabrik({ asked }: { asked: string | null }) {
   const stripRef = useRef<HTMLDivElement>(null);
   const chipRefs = useRef<Map<string, HTMLElement>>(new Map());
   const daysRef = useRef<HTMLDivElement>(null);
+  const carouselRef = useRef<HTMLDivElement>(null);
+
+  // Scrolled down among the cards with the date strip gone off the top: the day you are
+  // on floats in at the top of the screen, and leaves again as the strip comes back.
+  const [floating, setFloating] = useState(false);
+  useEffect(() => {
+    let frame = 0;
+    const check = () => {
+      frame = 0;
+      const strip = stripRef.current?.getBoundingClientRect();
+      const cards = carouselRef.current?.getBoundingClientRect();
+      setFloating(!!strip && !!cards && strip.bottom < 8 && cards.bottom > 140);
+    };
+    const onScroll = () => { if (!frame) frame = requestAnimationFrame(check); };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+      cancelAnimationFrame(frame);
+    };
+  }, []);
+
   const drag = useRef<{
     x: number; y: number; id: number; axis: "x" | "y" | null; dx: number;
     samples: { x: number; t: number }[];
@@ -657,6 +689,38 @@ function Skiftfabrik({ asked }: { asked: string | null }) {
     >
       <SoftToast message={toast} onDone={() => setToast(null)} />
 
+      {/* The day you are on, floating in once the date strip has scrolled away. Decorative:
+          the strip is the control, so this never takes a tap. */}
+      {currentDay && keys.length > 0 && (
+        <div
+          aria-hidden
+          data-floating-date={floating ? "shown" : "hidden"}
+          className="pointer-events-none fixed left-1/2 top-0 z-40 w-full max-w-[390px]"
+          style={{
+            height: "calc(84px + env(safe-area-inset-top))",
+            paddingTop: "env(safe-area-inset-top)",
+            background: "linear-gradient(to bottom, rgba(255,255,255,.96) 0%, rgba(255,255,255,.82) 48%, rgba(255,255,255,0) 100%)",
+            opacity: floating ? 1 : 0,
+            transform: `translateX(-50%) translateY(${floating ? 0 : -12}px)`,
+            transition: still ? "none" : "opacity 260ms ease, transform 320ms cubic-bezier(.22,.9,.24,1)",
+          }}
+        >
+          <div
+            className="flex items-center justify-center gap-[8px] pt-[14px] text-[17px] font-extrabold"
+            style={{
+              color: C.ink,
+              letterSpacing: "-.3px",
+              opacity: floating ? 1 : 0,
+              transform: `translateY(${floating ? 0 : -6}px)`,
+              transition: still ? "none" : "opacity 220ms ease 80ms, transform 300ms cubic-bezier(.22,.9,.24,1) 80ms",
+            }}
+          >
+            <span aria-hidden className="block h-[8px] w-[8px] rounded-full" style={{ background: C.accent }} />
+            <span key={currentDay} className="fade-rise">{svDate(currentDay)}</span>
+          </div>
+        </div>
+      )}
+
       {/* Reset dialog */}
       {showResetDialog && (
         <SoftDialog label="Nollställ kort" onDismiss={() => setShowResetDialog(false)}>
@@ -833,6 +897,7 @@ function Skiftfabrik({ asked }: { asked: string | null }) {
 
           {/* Cards: one column per day, swiped like album covers. */}
           <div
+            ref={carouselRef}
             className="-mx-4"
             style={{ overflowX: "clip", overflowY: "visible", touchAction: "pan-y" }}
             onPointerDown={onDaysPointerDown}
@@ -862,7 +927,6 @@ function Skiftfabrik({ asked }: { asked: string | null }) {
                 className="space-y-[12px] py-[2px]"
                 style={{
                   flex: `0 0 ${many ? `${DAY_COL}%` : "100%"}`,
-                  transformOrigin: "center top",
                   ...columnStyle(i, dayIdx, many),
                   transition: SETTLE_OR_NONE,
                 }}
