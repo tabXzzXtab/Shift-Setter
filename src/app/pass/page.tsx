@@ -25,10 +25,25 @@ type Pass = {
   project: { name: string } | null;
 };
 
+/** The first of the month `months` calendar months away from `first`. */
+function shiftMonth(first: string, months: number): string {
+  const [y, m] = first.split("-").map(Number);
+  const t = new Date(Date.UTC(y!, m! - 1 + months, 1, 12));
+  return `${t.getUTCFullYear()}-${String(t.getUTCMonth() + 1).padStart(2, "0")}-01`;
+}
+
+/** "November 2026" -- the month name in Swedish, capitalised as a heading. */
+function monthLabel(first: string): string {
+  const [y, m] = first.split("-").map(Number);
+  const name = new Intl.DateTimeFormat("sv-SE", { timeZone: "UTC", month: "long" })
+    .format(new Date(Date.UTC(y!, m! - 1, 1, 12)));
+  return `${name.charAt(0).toUpperCase()}${name.slice(1)} ${y}`;
+}
+
 /**
  * Alla Pass -- every shift, by day.
  *
- * A month at a time, forward from today, because a list of every shift the
+ * One calendar month at a time, because a list of every shift the
  * company has ever run is not a thing anyone scrolls. The calendar is where
  * you go to see shape; this is where you go to read one.
  *
@@ -51,7 +66,8 @@ type Pass = {
  */
 function AllaPass({ askedProject }: { askedProject: string | null }) {
   const { account } = useAccount();
-  const [from, setFrom] = useState(() => stockholmToday());
+  /** The first day of the calendar month on screen, Stockholm-anchored. */
+  const [from, setFrom] = useState(() => `${stockholmToday().slice(0, 7)}-01`);
   const [rows, setRows] = useState<Pass[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
@@ -63,7 +79,7 @@ function AllaPass({ askedProject }: { askedProject: string | null }) {
   /** Re-read on a timer so a pass stops being closable the minute it ends. */
   const [now, setNow] = useState(() => Date.now());
 
-  const to = addDays(from, 30);
+  const to = addDays(shiftMonth(from, 1), -1);
 
   /** The project's name, read on its own: the title has to name the project
    *  in a period with no passes too, which the pass rows cannot. */
@@ -156,7 +172,7 @@ function AllaPass({ askedProject }: { askedProject: string | null }) {
     <button
       type="button"
       aria-label={label}
-      onClick={() => setFrom((f) => addDays(f, dir * 30))}
+      onClick={() => setFrom((f) => shiftMonth(f, dir))}
       className="press-scale flex h-10 w-10 items-center justify-center rounded-[9px] p-0 transition-transform duration-[110ms] hover:bg-[#e9e8e4] active:scale-[.985]"
       style={{ background: C.panel2 }}
     >
@@ -234,7 +250,7 @@ function AllaPass({ askedProject }: { askedProject: string | null }) {
         >
           {arrow(-1, "Tidigare")}
           <span className="flex-1 text-center text-[14px] font-bold" style={{ letterSpacing: ".2px" }}>
-            {from} – {to}
+            {monthLabel(from)}
           </span>
           {arrow(1, "Senare")}
         </div>

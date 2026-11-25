@@ -301,18 +301,18 @@ function RedigeraProjekt({ id }: { id: string | null }) {
       </form>
 
       {/*
-        Separated by 26px and drawn as a tint rather than a fill. This is the
-        only control on the screen that destroys something, and the handoff is
-        explicit that it must not be the loudest button on the page -- it sits
-        under Spara ändringar, shorter and quieter, with the consequence
-        spelled out beneath it.
+        Separated by 26px, last on the page, under Spara ändringar. A SOLID
+        red fill (owner, 2026-11-25), replacing the handoff's quiet tint: this
+        is the only control on the screen that destroys something, and it
+        should read as dangerous at a glance rather than as a second save. The
+        consequence stays spelled out beneath it.
 
         The confirmation step is not in the handoff, which draws the resting
         state only. It stays: deletion is irreversible and a single tap is not
         a decision.
       */}
       <div className="px-4 pt-[26px]">
-        <DangerButton onClick={() => void openConfirm()}>Ta bort projekt</DangerButton>
+        <DangerButton solid onClick={() => void openConfirm()}>Ta bort projekt</DangerButton>
         <p
           className="pt-[10px] text-center text-[14px] font-medium"
           style={{ color: C.text2 }}
