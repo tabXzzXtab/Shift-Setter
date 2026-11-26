@@ -8,7 +8,9 @@ import {
   SoftNotice, SoftScreen, SoftToast,
 } from "@/components/soft";
 import { getSupabase } from "@/lib/supabase/client";
-import { DEFAULT_PRESETS, loadPresets, savePresets, type Presets } from "@/lib/presets";
+import {
+  DEFAULT_PRESETS, loadDefaultWorkers, loadPresets, saveDefaultWorkers, savePresets, type Presets,
+} from "@/lib/presets";
 import { useTourReplay } from "@/components/tour/tour-provider";
 
 /**
@@ -33,6 +35,8 @@ function Installningar() {
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  /** Skiftfabrik's starting worker count; null until someone picks one. */
+  const [defaultWorkers, setDefaultWorkers] = useState<number | null>(null);
 
   useEffect(() => {
     void (async () => {
@@ -42,6 +46,7 @@ function Installningar() {
         const p = loadPresets(data.id);
         setPresetsState(p);
         setInputs(p.map(String) as [string, string, string]);
+        setDefaultWorkers(loadDefaultWorkers(data.id));
       }
     })();
   }, []);
@@ -122,6 +127,45 @@ function Installningar() {
             <PrimaryButton onClick={handleSave} disabled={busy || tenantId === null}>
               {busy ? "Sparar…" : "Spara preseter"}
             </PrimaryButton>
+          </div>
+        </Card>
+      </div>
+
+      {/* ---- Standard antal arbetare ----
+          Saved on the tap, like a switch: five buttons and nothing to type, so
+          a separate Spara would only be a second tap that can be forgotten. */}
+      <div className="px-4 pb-[14px]">
+        <SectionLabel>Standard antal arbetare</SectionLabel>
+        <Card radius={16} pad="p-[18px]">
+          <p className="mb-[14px] text-[14px] font-medium" style={{ color: C.text2 }}>
+            Så många arbetare är förvalda när Skiftfabriken öppnas.
+          </p>
+          <div className="flex gap-[8px]">
+            {[1, 2, 3, 4, 5].map((n) => {
+              const active = defaultWorkers === n;
+              return (
+                <button
+                  key={n}
+                  type="button"
+                  aria-pressed={active}
+                  disabled={tenantId === null}
+                  onClick={() => {
+                    if (!tenantId) return;
+                    saveDefaultWorkers(tenantId, n);
+                    setDefaultWorkers(n);
+                    setSaved(`Standard antal arbetare: ${n} st.`);
+                  }}
+                  className="flex-1 rounded-full py-[10px] text-[15px] font-bold transition-colors disabled:opacity-40"
+                  style={{
+                    background: active ? C.accent : C.panel2,
+                    color: active ? C.onAccent : C.ink,
+                    border: `1px solid ${active ? C.accent : C.border}`,
+                  }}
+                >
+                  {n} st
+                </button>
+              );
+            })}
           </div>
         </Card>
       </div>

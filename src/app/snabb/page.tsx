@@ -13,7 +13,7 @@ import { PickField } from "@/components/pick-field";
 import { TimeField } from "@/components/time-wheel";
 import { getSupabase } from "@/lib/supabase/client";
 import { stockholmToday, svDate } from "@/lib/dates";
-import { DEFAULT_PRESETS, loadPresets, type Presets } from "@/lib/presets";
+import { DEFAULT_PRESETS, loadDefaultWorkers, loadPresets, type Presets } from "@/lib/presets";
 import { useAccount } from "@/lib/account";
 
 /* ── types ─────────────────────────────────────────────────────────── */
@@ -372,8 +372,15 @@ function Skiftfabrik({ asked }: { asked: string | null }) {
   const currentDay = sortedDays[dayIdx] ?? null;
   // Shifts taken off one day with their own ✕; every other list skips them.
   const [removed, setRemoved] = useState<Set<string>>(new Set());
-  const slotsOf = (day: string) =>
-    Array.from({ length: workerCount }, (_, i) => cardKey(day, i)).filter((k) => !removed.has(k));
+  // Shifts added to one day with its own "+ Lägg till", counted per day. They take the
+  // slot numbers after the worker count's, so every list below reads them like the rest.
+  const [extra, setExtra] = useState<Map<string, number>>(new Map());
+  const allSlotsOf = (day: string) =>
+    Array.from({ length: workerCount + (extra.get(day) ?? 0) }, (_, i) => cardKey(day, i));
+  const slotsOf = (day: string) => allSlotsOf(day).filter((k) => !removed.has(k));
+  function addSlot(day: string) {
+    setExtra((prev) => new Map(prev).set(day, (prev.get(day) ?? 0) + 1));
+  }
   const keys = sortedDays.flatMap(slotsOf);
   const cardAt = (k: string) => cards.get(k) ?? DEFAULT_CARD;
 
@@ -397,7 +404,12 @@ function Skiftfabrik({ asked }: { asked: string | null }) {
       );
 
       const { data: t } = await sb.from("tenant").select("id").maybeSingle();
-      if (t?.id) setPresets(loadPresets(t.id));
+      if (t?.id) {
+        setPresets(loadPresets(t.id));
+        // Inställningar's starting count -- only if nobody has picked one yet.
+        const n = loadDefaultWorkers(t.id);
+        if (n) setWorkerCount((cur) => cur || n);
+      }
     })();
   }, [reload]);
 
@@ -428,8 +440,14 @@ function Skiftfabrik({ asked }: { asked: string | null }) {
     });
   }
 
-  /** A date picked again comes back with all its shifts. */
+  /** A date picked again comes back with all its shifts, and none of the added ones. */
   function forgetRemoved(date: string) {
+    setExtra((prev) => {
+      if (!prev.has(date)) return prev;
+      const next = new Map(prev);
+      next.delete(date);
+      return next;
+    });
     setRemoved((prev) => {
       if (![...prev].some((k) => k.startsWith(`${date}::`))) return prev;
       return new Set([...prev].filter((k) => !k.startsWith(`${date}::`)));
@@ -439,11 +457,11 @@ function Skiftfabrik({ asked }: { asked: string | null }) {
   // The last shift on a day takes the date with it: there is nothing left to create there.
   const removeCard = useCallback((key: string) => {
     const date = key.split("::")[0]!;
-    const left = Array.from({ length: workerCount }, (_, i) => cardKey(date, i))
+    const left = Array.from({ length: workerCount + (extra.get(date) ?? 0) }, (_, i) => cardKey(date, i))
       .filter((k) => k !== key && !removed.has(k));
     if (left.length === 0) { removeDay(date); return; }
     setRemoved((prev) => new Set(prev).add(key));
-  }, [workerCount, removed]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [workerCount, removed, extra]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ── the day carousel: follows the finger, settles one day at a time ── */
   const many = sortedDays.length > 1;
@@ -561,6 +579,7 @@ function Skiftfabrik({ asked }: { asked: string | null }) {
       setShowResetDialog(true);
     } else {
       setRemoved(new Set());
+      setExtra(new Map());
       setWorkerCount(n);
     }
   }
@@ -570,6 +589,7 @@ function Skiftfabrik({ asked }: { asked: string | null }) {
     setCardErrors(new Map());
     setCreatedKeys(new Set());
     setRemoved(new Set());
+    setExtra(new Map());
     setWorkerCount(pendingCount);
     setShowResetDialog(false);
   }
@@ -956,6 +976,16 @@ function Skiftfabrik({ asked }: { asked: string | null }) {
                     error={cardErrors.get(k)}
                   />
                 ))}
+                {/* One more shift on this day only: 07:00–16:00, nobody, no break. */}
+                <button
+                  type="button"
+                  data-add-slot={day}
+                  onClick={() => addSlot(day)}
+                  className="press-scale flex h-12 w-full items-center justify-center rounded-[14px] text-[15px] font-bold transition-transform duration-[110ms] hover:bg-[#f4f3f0] active:scale-[.985]"
+                  style={{ background: C.surface, border: `1px solid ${C.border}`, color: C.ink }}
+                >
+                  + Lägg till
+                </button>
               </div>
             ))}
           </div>

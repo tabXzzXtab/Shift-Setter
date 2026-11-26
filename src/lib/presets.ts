@@ -40,3 +40,26 @@ export function savePresets(tenantId: string, presets: Presets): void {
     // localStorage unavailable — a silent no-op is acceptable.
   }
 }
+
+/**
+ * "Standard antal arbetare" -- the worker count Skiftfabrik starts on, 1–5.
+ * Same storage and same per-bolag caveat as the presets above. null means
+ * nobody has chosen one, and Skiftfabrik then starts with none selected.
+ */
+export function loadDefaultWorkers(tenantId: string): number | null {
+  try {
+    const n = Number(localStorage.getItem(`default_workers:${tenantId}`));
+    if (Number.isInteger(n) && n >= 1 && n <= 5) return n;
+  } catch {
+    // localStorage unavailable — no default.
+  }
+  return null;
+}
+
+export function saveDefaultWorkers(tenantId: string, n: number): void {
+  try {
+    localStorage.setItem(`default_workers:${tenantId}`, String(n));
+  } catch {
+    // localStorage unavailable — a silent no-op is acceptable.
+  }
+}
