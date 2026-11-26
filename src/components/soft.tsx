@@ -1252,12 +1252,31 @@ export function SoftToast({ message, onDone }: { message: string | null; onDone:
     return () => clearTimeout(t);
   }, [message]);
 
+  // SWIPE TO DISMISS: 80px sideways or upward ends it at once, the same
+  // onDone the timer calls. Touch only -- a mouse has nothing to swipe with,
+  // and the four seconds still end it for everyone.
+  const touchStart = useRef<{ x: number; y: number } | null>(null);
+  const SWIPE = 80;
+
   if (!message) return null;
   return (
     <div
       role="status"
       aria-live="polite"
       className="animate-slidedown fixed inset-x-0 top-3 z-[60] mx-auto w-[calc(100%-32px)] max-w-[358px]"
+      onTouchStart={(e) => {
+        const t = e.touches[0];
+        touchStart.current = t ? { x: t.clientX, y: t.clientY } : null;
+      }}
+      onTouchEnd={(e) => {
+        const s = touchStart.current;
+        const t = e.changedTouches[0];
+        touchStart.current = null;
+        if (!s || !t) return;
+        const dx = t.clientX - s.x;
+        const dy = t.clientY - s.y;
+        if (Math.abs(dx) >= SWIPE || dy <= -SWIPE) done.current();
+      }}
     >
       <div
         className="flex items-center gap-3 rounded-[14px] px-4 py-[14px] text-[15px] font-semibold"
