@@ -42,14 +42,55 @@ export function savePresets(tenantId: string, presets: Presets): void {
 }
 
 /**
- * "Standard antal arbetare" -- the worker count Skiftfabrik starts on, 1–5.
- * Same storage and same per-bolag caveat as the presets above. null means
- * nobody has chosen one, and Skiftfabrik then starts with none selected.
+ * "Antal arbetare" -- the five counts Skiftfabrik's "Hur många arbetare?" offers,
+ * set per bolag in Inställningar like the break presets. Whole numbers
+ * 1–MAX_WORKERS, distinct, kept in ascending order. Defaults 1–5.
+ */
+export type WorkerOptions = [number, number, number, number, number];
+export const DEFAULT_WORKER_OPTIONS: WorkerOptions = [1, 2, 3, 4, 5];
+/** One card per worker per day is drawn, so the ceiling is what a phone can scroll. */
+export const MAX_WORKERS = 30;
+
+function validOptions(p: unknown): p is WorkerOptions {
+  return (
+    Array.isArray(p) &&
+    p.length === 5 &&
+    p.every((n) => Number.isInteger(n) && n >= 1 && n <= MAX_WORKERS) &&
+    new Set(p).size === 5
+  );
+}
+
+export function loadWorkerOptions(tenantId: string): WorkerOptions {
+  try {
+    const raw = localStorage.getItem(`worker_options:${tenantId}`);
+    if (raw) {
+      const p: unknown = JSON.parse(raw);
+      if (validOptions(p)) return [...p].sort((a, b) => a - b) as WorkerOptions;
+    }
+  } catch {
+    // localStorage unavailable or corrupt — fall through to defaults.
+  }
+  return [...DEFAULT_WORKER_OPTIONS];
+}
+
+export function saveWorkerOptions(tenantId: string, options: WorkerOptions): void {
+  try {
+    localStorage.setItem(`worker_options:${tenantId}`, JSON.stringify(options));
+  } catch {
+    // localStorage unavailable — a silent no-op is acceptable.
+  }
+}
+
+/**
+ * "Standard antal arbetare" -- the worker count Skiftfabrik starts on, one of
+ * the five options above. Same storage and same per-bolag caveat as the
+ * presets. null means nobody has chosen one, and Skiftfabrik then starts with
+ * none selected.
  */
 export function loadDefaultWorkers(tenantId: string): number | null {
   try {
     const n = Number(localStorage.getItem(`default_workers:${tenantId}`));
-    if (Number.isInteger(n) && n >= 1 && n <= 5) return n;
+    if (Number.isInteger(n) && n >= 1 && n <= MAX_WORKERS) return n;
   } catch {
     // localStorage unavailable — no default.
   }
@@ -61,5 +102,13 @@ export function saveDefaultWorkers(tenantId: string, n: number): void {
     localStorage.setItem(`default_workers:${tenantId}`, String(n));
   } catch {
     // localStorage unavailable — a silent no-op is acceptable.
+  }
+}
+
+export function clearDefaultWorkers(tenantId: string): void {
+  try {
+    localStorage.removeItem(`default_workers:${tenantId}`);
+  } catch {
+    // localStorage unavailable — nothing stored to clear.
   }
 }

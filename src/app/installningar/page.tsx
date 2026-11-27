@@ -4,12 +4,14 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { AuthGate } from "@/components/auth-gate";
 import {
-  C, Card, ChevronRight, PrimaryButton, SectionLabel, SHADOW, SoftInput,
+  C, Card, ChevronRight, PrimaryButton, SecondaryButton, SectionLabel, SHADOW, SoftInput,
   SoftNotice, SoftScreen, SoftToast,
 } from "@/components/soft";
 import { getSupabase } from "@/lib/supabase/client";
 import {
-  DEFAULT_PRESETS, loadDefaultWorkers, loadPresets, saveDefaultWorkers, savePresets, type Presets,
+  clearDefaultWorkers, DEFAULT_PRESETS, DEFAULT_WORKER_OPTIONS, loadDefaultWorkers, loadPresets,
+  loadWorkerOptions, MAX_WORKERS, saveDefaultWorkers, savePresets, saveWorkerOptions,
+  type Presets, type WorkerOptions,
 } from "@/lib/presets";
 import { useTourReplay } from "@/components/tour/tour-provider";
 
@@ -37,6 +39,10 @@ function Installningar() {
   const [error, setError] = useState<string | null>(null);
   /** Skiftfabrik's starting worker count; null until someone picks one. */
   const [defaultWorkers, setDefaultWorkers] = useState<number | null>(null);
+  /** The five counts Skiftfabrik offers: saved, and as being typed. */
+  const [workerOptions, setWorkerOptions] = useState<WorkerOptions>([...DEFAULT_WORKER_OPTIONS]);
+  const [optionInputs, setOptionInputs] = useState<string[]>(DEFAULT_WORKER_OPTIONS.map(String));
+  const [optionError, setOptionError] = useState<string | null>(null);
 
   useEffect(() => {
     void (async () => {
@@ -46,7 +52,11 @@ function Installningar() {
         const p = loadPresets(data.id);
         setPresetsState(p);
         setInputs(p.map(String) as [string, string, string]);
-        setDefaultWorkers(loadDefaultWorkers(data.id));
+        const o = loadWorkerOptions(data.id);
+        setWorkerOptions(o);
+        setOptionInputs(o.map(String));
+        const d = loadDefaultWorkers(data.id);
+        setDefaultWorkers(d !== null && o.includes(d) ? d : null);
       }
     })();
   }, []);
@@ -75,6 +85,35 @@ function Installningar() {
     setPresetsState(next);
     setBusy(false);
     setSaved("Preseter sparade.");
+  }
+
+  function handleSaveOptions() {
+    const parsed = optionInputs.map((s) => {
+      const n = Number(s.trim());
+      return Number.isInteger(n) && n >= 1 && n <= MAX_WORKERS ? n : NaN;
+    });
+    if (parsed.some(Number.isNaN)) {
+      setOptionError(`Ange hela antal mellan 1 och ${MAX_WORKERS} för varje val.`);
+      return;
+    }
+    if (new Set(parsed).size !== parsed.length) {
+      setOptionError("Två val har samma antal. Ge varje val ett eget antal.");
+      return;
+    }
+    setOptionError(null);
+    const next = [...parsed].sort((a, b) => a - b) as WorkerOptions;
+    if (tenantId) {
+      saveWorkerOptions(tenantId, next);
+      // A default that is no longer one of the options would pre-select a
+      // button that does not exist, so it goes with the option it named.
+      if (defaultWorkers !== null && !next.includes(defaultWorkers)) {
+        clearDefaultWorkers(tenantId);
+        setDefaultWorkers(null);
+      }
+    }
+    setWorkerOptions(next);
+    setOptionInputs(next.map(String));
+    setSaved("Antal sparade.");
   }
 
   return (
@@ -131,17 +170,64 @@ function Installningar() {
         </Card>
       </div>
 
-      {/* ---- Standard antal arbetare ----
-          Saved on the tap, like a switch: five buttons and nothing to type, so
-          a separate Spara would only be a second tap that can be forgotten. */}
+      {/* ---- Antal arbetare ----
+          The five counts are typed and saved like the break presets, with their
+          own Spara (white: one filled button per screen, and it is Spara
+          preseter's). The default under them is still saved on the tap. */}
       <div className="px-4 pb-[14px]">
-        <SectionLabel>Standard antal arbetare</SectionLabel>
+        <SectionLabel>Antal arbetare</SectionLabel>
         <Card radius={16} pad="p-[18px]">
-          <p className="mb-[14px] text-[14px] font-medium" style={{ color: C.text2 }}>
-            Så många arbetare är förvalda när Skiftfabriken öppnas.
+          <p className="mb-[16px] text-[14px] font-medium" style={{ color: C.text2 }}>
+            Fem knappar visas under &quot;Hur många arbetare?&quot; i Skiftfabriken.
+            Värdena gäller för hela bolaget.
           </p>
+
+          {optionError && (
+            <div className="mb-[14px]">
+              <SoftNotice tone="stop">{optionError}</SoftNotice>
+            </div>
+          )}
+
+          <div className="flex flex-col gap-[12px]">
+            {optionInputs.map((v, i) => (
+              <div key={i} className="flex items-center gap-[12px]">
+                <span className="w-[64px] shrink-0 text-[14px] font-semibold" style={{ color: C.text2 }}>
+                  Val {i + 1}
+                </span>
+                <div className="flex flex-1 items-center gap-[8px]">
+                  <SoftInput
+                    type="number"
+                    inputMode="numeric"
+                    min={1}
+                    max={MAX_WORKERS}
+                    value={v}
+                    onChange={(e) =>
+                      setOptionInputs((prev) => prev.map((p, j) => (j === i ? e.target.value : p)))
+                    }
+                    aria-label={`Val ${i + 1} antal arbetare`}
+                  />
+                  <span className="shrink-0 text-[14px] font-medium" style={{ color: C.text2 }}>
+                    st
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-[18px]">
+            <SecondaryButton onClick={handleSaveOptions} disabled={tenantId === null}>
+              Spara antal
+            </SecondaryButton>
+          </div>
+
+          <div
+            className="mb-[10px] mt-[22px] text-[12px] font-bold uppercase"
+            style={{ letterSpacing: ".9px", color: C.text2 }}
+          >
+            Förvalt i Skiftfabriken
+          </div>
           <div className="flex gap-[8px]">
-            {[1, 2, 3, 4, 5].map((n) => {
+            {workerOptions.map((n) => {
               const active = defaultWorkers === n;
               return (
                 <button

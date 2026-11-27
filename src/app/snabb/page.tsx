@@ -13,7 +13,10 @@ import { PickField } from "@/components/pick-field";
 import { TimeField } from "@/components/time-wheel";
 import { getSupabase } from "@/lib/supabase/client";
 import { stockholmToday, svDate } from "@/lib/dates";
-import { DEFAULT_PRESETS, loadDefaultWorkers, loadPresets, type Presets } from "@/lib/presets";
+import {
+  DEFAULT_PRESETS, DEFAULT_WORKER_OPTIONS, loadDefaultWorkers, loadPresets, loadWorkerOptions,
+  type Presets, type WorkerOptions,
+} from "@/lib/presets";
 import { useAccount } from "@/lib/account";
 
 /* ── types ─────────────────────────────────────────────────────────── */
@@ -319,6 +322,8 @@ function Skiftfabrik({ asked }: { asked: string | null }) {
   const [cards, setCards] = useState<Map<string, CardState>>(new Map());
   const [activeDay, setActiveDay] = useState(0);
   const [presets, setPresets] = useState<Presets>([...DEFAULT_PRESETS]);
+  /** The counts "Hur många arbetare?" offers -- Inställningar's, per bolag. */
+  const [workerOptions, setWorkerOptions] = useState<WorkerOptions>([...DEFAULT_WORKER_OPTIONS]);
 
   const [saving, setSaving] = useState(false);
   const [progress, setProgress] = useState("");
@@ -406,9 +411,12 @@ function Skiftfabrik({ asked }: { asked: string | null }) {
       const { data: t } = await sb.from("tenant").select("id").maybeSingle();
       if (t?.id) {
         setPresets(loadPresets(t.id));
-        // Inställningar's starting count -- only if nobody has picked one yet.
+        const options = loadWorkerOptions(t.id);
+        setWorkerOptions(options);
+        // Inställningar's starting count -- only if nobody has picked one yet,
+        // and only if it is still one of the buttons.
         const n = loadDefaultWorkers(t.id);
-        if (n) setWorkerCount((cur) => cur || n);
+        if (n && options.includes(n)) setWorkerCount((cur) => cur || n);
       }
     })();
   }, [reload]);
@@ -838,7 +846,7 @@ function Skiftfabrik({ asked }: { asked: string | null }) {
             Hur många arbetare?
           </span>
           <div className="flex gap-[8px]">
-            {[1, 2, 3, 4, 5].map((n) => {
+            {workerOptions.map((n) => {
               const active = workerCount === n;
               return (
                 <button
